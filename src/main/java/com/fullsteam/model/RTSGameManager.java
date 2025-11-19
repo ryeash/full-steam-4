@@ -1,0 +1,2380 @@
+package com.fullsteam.model;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fullsteam.util.IdGenerator;
+import io.micronaut.websocket.WebSocketSession;
+import io.micronaut.websocket.exceptions.WebSocketSessionException;
+import lombok.Getter;
+import org.dyn4j.collision.AxisAlignedBounds;
+import org.dyn4j.dynamics.Body;
+import org.dyn4j.dynamics.Settings;
+import org.dyn4j.geometry.Vector2;
+import org.dyn4j.world.World;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
+
+/**
+ * Main game manager for RTS gameplay.
+ * Handles units, buildings, resources, and game logic.
+ */
+public class RTSGameManager {
+    protected static final Logger log = LoggerFactory.getLogger(RTSGameManager.class);
+
+    @Getter
+    protected final String gameId;
+    @Getter
+    protected final GameConfig gameConfig;
+    protected final ObjectMapper objectMapper;
+
+    // Game world
+    private final World<Body> world;
+    @Getter
+    private final RTSWorld rtsWorld;
+    private double lastUpdateTime = System.nanoTime() / 1e9;
+    private long frameCount = 0;
+
+    // Player management
+    private final Map<Integer, PlayerSession> playerSessions = new ConcurrentHashMap<>();
+    /**
+     * -- GETTER --
+     * Get player factions map
+     */
+    @Getter
+    private final Map<Integer, PlayerFaction> playerFactions = new ConcurrentHashMap<>();
+    private final Set<Integer> eliminatedTeams = ConcurrentHashMap.newKeySet(); // Track eliminated teams for events
+
+    // Game entities - bundled together for easy passing to commands/AI
+    @Getter
+    private final GameEntities gameEntities = new GameEntities();
+
+    // Convenience accessors for internal use
+    private final Map<Integer, Unit> units = gameEntities.getUnits();
+    private final Map<Integer, Building> buildings = gameEntities.getBuildings();
+    private final Map<Integer, ResourceDeposit> resourceDeposits = gameEntities.getResourceDeposits();
+    private final Map<Integer, Obstacle> obstacles = gameEntities.getObstacles();
+    private final Map<Integer, Projectile> projectiles = gameEntities.getProjectiles();
+    private final Map<Integer, FieldEffect> fieldEffects = gameEntities.getFieldEffects();
+    private final Map<Integer, WallSegment> wallSegments = gameEntities.getWallSegments();
+    
+    // Beams (instant-hit weapons)
+    private final Map<Integer, Beam> beams = new ConcurrentSkipListMap<>();
+
+    // Collision processor
+    private final RTSCollisionProcessor collisionProcessor;
+
+    // Player inputs
+    private final Map<Integer, RTSPlayerInput> playerInputs = new ConcurrentHashMap<>();
+
+    // Game state
+    @Getter
+    protected long gameStartTime;
+    protected boolean gameRunning = false;
+    /**
+     * -- GETTER --
+     * Check if the game is over
+     */
+    @Getter
+    protected boolean gameOver = false;
+    protected int winningTeam = -1;
+    private final ScheduledFuture<?> updateTask;
+    private final AtomicBoolean shutdown = new AtomicBoolean(false);
+
+    public RTSGameManager(String gameId, GameConfig gameConfig, ObjectMapper objectMapper) {
+        this.gameId = gameId;
+        this.gameConfig = gameConfig;
+        this.objectMapper = objectMapper;
+        this.gameStartTime = System.currentTimeMillis();
+
+        // Initialize RTS world with symmetric layout
+        long worldSeed = System.currentTimeMillis();
+        this.rtsWorld = new RTSWorld(
+                gameConfig.getWorldWidth(),
+                gameConfig.getWorldHeight(),
+                gameConfig.getMaxPlayers(),
+                gameConfig.getBiome(),
+                gameConfig.getObstacleDensity().getMultiplier(),
+                worldSeed
+        );
+
+        // Initialize physics world
+        this.world = new World<>();
+        Settings settings = new Settings();
+        settings.setMaximumTranslation(300.0);
+        this.world.setSettings(settings);
+        this.world.setGravity(new Vector2(0, 0));
+        
+        // Set world reference in gameEntities for beam raycasting
+        this.gameEntities.setWorld(this.world);
+
+        // Initialize collision processor
+        this.collisionProcessor = new RTSCollisionProcessor(
+                units,
+                buildings,
+                obstacles,
+                wallSegments,
+                this::createExplosion
+        );
+        this.world.setBounds(new AxisAlignedBounds(gameConfig.getWorldWidth(), gameConfig.getWorldHeight()));
+
+        // Initialize world entities
+        initializeWorld();
+
+        // Start update loop
+        this.updateTask = scheduleUpdateTask();
+
+        log.info("RTS Game {} created with world size {}x{}, {} teams, {} resource deposits, {} obstacles",
+                gameId, gameConfig.getWorldWidth(), gameConfig.getWorldHeight(),
+                gameConfig.getMaxPlayers(), rtsWorld.getResourceSpawns().size(),
+                rtsWorld.getObstacleSpawns().size());
+    }
+
+    /**
+     * Initialize the game world with starting entities from RTSWorld layout
+     */
+    private void initializeWorld() {
+        // Place resource deposits from world layout
+        placeResourceDeposits();
+
+        // Place obstacles from world layout
+        placeObstacles();
+
+        // Create world boundaries
+        createWorldBoundaries();
+    }
+
+    /**
+     * Place resource deposits from RTSWorld symmetric layout
+     */
+    private void placeResourceDeposits() {
+        for (RTSWorld.ResourceDepositSpawn spawn : rtsWorld.getResourceSpawns()) {
+            ResourceDeposit deposit = new ResourceDeposit(
+                    IdGenerator.nextEntityId(),
+                    ResourceType.CREDITS,
+                    spawn.getPosition().x,
+                    spawn.getPosition().y,
+                    spawn.getResources()
+            );
+            log.info("Created resource deposit {} at ({}, {}) with {} resources",
+                    deposit.getId(), spawn.getPosition().x, spawn.getPosition().y, spawn.getResources());
+            resourceDeposits.put(deposit.getId(), deposit);
+            world.addBody(deposit.getBody());
+        }
+
+        log.info("Placed {} resource deposits with symmetric layout", resourceDeposits.size());
+    }
+
+    /**
+     * Place obstacles from RTSWorld symmetric layout
+     */
+    private void placeObstacles() {
+        java.util.Random random = new java.util.Random();
+        int destructibleCount = 0;
+
+        for (RTSWorld.ObstacleSpawn spawn : rtsWorld.getObstacleSpawns()) {
+            Obstacle obstacle;
+
+            // 40% chance of being destructible (mineable)
+            boolean destructible = random.nextDouble() < 0.4;
+            if (destructible) {
+                destructibleCount++;
+            }
+
+            // Create obstacle based on shape type
+            if (spawn.getShape() == Obstacle.Shape.POLYGON) {
+                // Polygon obstacle
+                obstacle = new Obstacle(
+                        IdGenerator.nextEntityId(),
+                        spawn.getPosition().x,
+                        spawn.getPosition().y,
+                        spawn.getSize(),
+                        spawn.getSides(),
+                        destructible
+                );
+            } else {
+                // Circle obstacle (default)
+                obstacle = new Obstacle(
+                        IdGenerator.nextEntityId(),
+                        spawn.getPosition().x,
+                        spawn.getPosition().y,
+                        spawn.getSize(),
+                        destructible
+                );
+            }
+
+            obstacles.put(obstacle.getId(), obstacle);
+            world.addBody(obstacle.getBody());
+        }
+
+        log.info("Placed {} obstacles with symmetric layout ({} destructible, {} indestructible)",
+                obstacles.size(), destructibleCount, obstacles.size() - destructibleCount);
+    }
+
+    /**
+     * Create world boundaries
+     */
+    private void createWorldBoundaries() {
+        // Create rectangular obstacle walls around the world perimeter
+        double width = gameConfig.getWorldWidth();
+        double height = gameConfig.getWorldHeight();
+        double wallThickness = 50.0; // Thickness of boundary walls
+
+        // Top wall (horizontal rectangle)
+        Obstacle topWall = new Obstacle(
+                IdGenerator.nextEntityId(),
+                0, // centered horizontally
+                height / 2 - wallThickness / 2,
+                width, // full width
+                wallThickness // thin height
+        );
+        obstacles.put(topWall.getId(), topWall);
+        world.addBody(topWall.getBody());
+
+        // Bottom wall (horizontal rectangle)
+        Obstacle bottomWall = new Obstacle(
+                IdGenerator.nextEntityId(),
+                0,
+                -height / 2 + wallThickness / 2,
+                width,
+                wallThickness
+        );
+        obstacles.put(bottomWall.getId(), bottomWall);
+        world.addBody(bottomWall.getBody());
+
+        // Left wall (vertical rectangle)
+        Obstacle leftWall = new Obstacle(
+                IdGenerator.nextEntityId(),
+                -width / 2 + wallThickness / 2,
+                0, // centered vertically
+                wallThickness, // thin width
+                height // full height
+        );
+        obstacles.put(leftWall.getId(), leftWall);
+        world.addBody(leftWall.getBody());
+
+        // Right wall (vertical rectangle)
+        Obstacle rightWall = new Obstacle(
+                IdGenerator.nextEntityId(),
+                width / 2 - wallThickness / 2,
+                0,
+                wallThickness,
+                height
+        );
+        obstacles.put(rightWall.getId(), rightWall);
+        world.addBody(rightWall.getBody());
+
+        log.info("Created 4 rectangular world boundary walls");
+    }
+
+    /**
+     * Schedule the update task
+     */
+    private ScheduledFuture<?> scheduleUpdateTask() {
+        return java.util.concurrent.Executors.newScheduledThreadPool(1)
+                .scheduleAtFixedRate(this::update, 0, 16, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * Stop the game and cleanup resources
+     */
+    public void stopGame() {
+        shutdown.set(true);
+        if (updateTask != null && !updateTask.isCancelled()) {
+            updateTask.cancel(true);
+        }
+        log.info("Game {} stopped", gameId);
+    }
+
+    /**
+     * Main update loop
+     */
+    protected void update() {
+        if (shutdown.get()) {
+            return;
+        }
+
+        try {
+            double currentTime = System.nanoTime() / 1e9;
+            double deltaTime = currentTime - lastUpdateTime;
+            lastUpdateTime = currentTime;
+            frameCount++;
+
+            // Recalculate upkeep and power for all factions every 60 frames (~1 second)
+            if (frameCount % 60 == 0) {
+                recalculateUpkeep();
+                recalculatePower();
+            }
+
+            // Process player inputs
+            playerInputs.forEach(this::processPlayerInput);
+
+            // Update all units and collect projectiles they fire
+            units.values().forEach(unit -> {
+                // Provide gameEntities to the unit's command for intelligent decision-making
+                if (unit.getCurrentCommand() != null) {
+                    unit.getCurrentCommand().setGameEntities(gameEntities);
+                }
+
+                // Help workers find/update their target refinery when returning resources
+                if (unit.getCurrentCommand() instanceof com.fullsteam.model.command.HarvestCommand) {
+                    com.fullsteam.model.command.HarvestCommand harvestCmd =
+                            (com.fullsteam.model.command.HarvestCommand) unit.getCurrentCommand();
+
+                    if (harvestCmd.isReturningResources()) {
+                        Building currentRefinery = harvestCmd.getTargetRefinery();
+
+                        // Re-evaluate refinery if:
+                        // 1. No refinery assigned yet
+                        // 2. Current refinery is no longer valid (destroyed or under construction)
+                        // 3. Periodically check for a closer one (every 60 frames / ~1 second)
+                        boolean needsReevaluation = currentRefinery == null ||
+                                !currentRefinery.isActive() ||
+                                currentRefinery.isUnderConstruction() ||
+                                (frameCount % 60 == 0);
+
+                        if (needsReevaluation) {
+                            Building refinery = findNearestRefinery(unit);
+                            if (refinery != currentRefinery) {
+                                harvestCmd.setTargetRefinery(refinery);
+                            }
+                        }
+                    }
+                }
+
+                // Check if worker is at refinery to deposit resources
+                if (unit.getUnitType().canHarvest() && unit.getCarriedResources() > 0) {
+                    if (unit.getCurrentCommand() instanceof com.fullsteam.model.command.HarvestCommand) {
+                        com.fullsteam.model.command.HarvestCommand harvestCmd =
+                                (com.fullsteam.model.command.HarvestCommand) unit.getCurrentCommand();
+
+                        if (harvestCmd.isReturningResources()) {
+                            Building refinery = harvestCmd.getTargetRefinery();
+                            if (refinery != null && refinery.isActive()) {
+                                double distance = unit.getPosition().distance(refinery.getPosition());
+                                if (distance <= refinery.getBuildingType().getSize() + unit.getUnitType().getSize() + 10) {
+                                    // Deposit resources to player's faction
+                                    PlayerFaction faction = playerFactions.get(unit.getOwnerId());
+                                    if (faction != null) {
+                                        int depositAmount = (int) Math.round(unit.getCarriedResources());
+                                        faction.addResources(ResourceType.CREDITS, depositAmount);
+                                        log.debug("Player {} deposited {} resources", unit.getOwnerId(), depositAmount);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Help miners find headquarters when returning for pickaxe repair
+                if (unit.getCurrentCommand() instanceof com.fullsteam.model.command.MineCommand) {
+                    com.fullsteam.model.command.MineCommand mineCmd =
+                            (com.fullsteam.model.command.MineCommand) unit.getCurrentCommand();
+
+                    if (mineCmd.isReturningForRepair()) {
+                        Building currentHQ = mineCmd.getTargetHeadquarters();
+
+                        // Re-evaluate HQ if needed
+                        boolean needsReevaluation = currentHQ == null ||
+                                !currentHQ.isActive() ||
+                                currentHQ.isUnderConstruction();
+
+                        if (needsReevaluation) {
+                            Building headquarters = findNearestHeadquarters(unit);
+                            if (headquarters != null && headquarters != currentHQ) {
+                                mineCmd.setTargetHeadquarters(headquarters);
+                            }
+                        }
+                    }
+                }
+
+                unit.update(deltaTime);
+
+                // Update movement with steering behaviors (pass nearby units for separation)
+                List<Unit> nearbyUnits = units.values().stream()
+                        .filter(u -> u.isActive() && u != unit)
+                        .filter(u -> unit.getPosition().distance(u.getPosition()) < 150.0) // Within 150 units
+                        .collect(Collectors.toList());
+                unit.updateMovement(deltaTime, nearbyUnits);
+
+                // Check if unit fired a projectile
+                if (unit.getUnitType().canAttack()) {
+                    // Clear invalid targets
+                    if (unit.getTargetUnit() != null && !unit.getTargetUnit().isActive()) {
+                        unit.setTargetUnit(null);
+                    }
+                    if (unit.getTargetBuilding() != null && !unit.getTargetBuilding().isActive()) {
+                        unit.setTargetBuilding(null);
+                    }
+
+                    // Check if target is too far away (out of vision range)
+                    if (unit.getTargetUnit() != null) {
+                        double distance = unit.getPosition().distance(unit.getTargetUnit().getPosition());
+                        double visionRange = unit.getUnitType().getAttackRange() * 2.0; // 2x attack range
+                        if (distance > visionRange) {
+                            unit.setTargetUnit(null); // Target escaped
+                        }
+                    }
+                    if (unit.getTargetBuilding() != null) {
+                        double distance = unit.getPosition().distance(unit.getTargetBuilding().getPosition());
+                        double visionRange = unit.getUnitType().getAttackRange() * 2.0; // 2x attack range
+                        if (distance > visionRange) {
+                            unit.setTargetBuilding(null); // Target too far
+                        }
+                    }
+
+                    // Command-based combat
+                    AbstractOrdinance ordinance = null;
+                    if (unit.getCurrentCommand() != null) {
+                        ordinance = unit.getCurrentCommand().updateCombat(deltaTime);
+                    }
+
+                    // Add projectile or beam to world
+                    if (ordinance != null) {
+                        if (ordinance instanceof Projectile) {
+                            Projectile projectile = (Projectile) ordinance;
+                            projectiles.put(projectile.getId(), projectile);
+                            world.addBody(projectile.getBody());
+                        } else if (ordinance instanceof Beam) {
+                            Beam beam = (Beam) ordinance;
+                            beams.put(beam.getId(), beam);
+                            // Beams don't need to be added to world (sensor body, instant hit)
+                            // Apply damage immediately to hit body
+                            if (beam.getHitBody() != null) {
+                                applyBeamDamage(beam);
+                            }
+                        }
+                    }
+                }
+
+                // Multi-turret AI for deployed units (e.g., Crawler)
+                if (!unit.getTurrets().isEmpty()) {
+                    for (UnitTurret turret : unit.getTurrets()) {
+                        Projectile projectile = turret.update(unit, gameEntities, deltaTime, frameCount);
+                        if (projectile != null) {
+                            projectiles.put(projectile.getId(), projectile);
+                            world.addBody(projectile.getBody());
+                        }
+                    }
+                }
+
+                // AI behavior: scan for enemies and auto-attack (every 30 frames / ~0.5 seconds)
+                if (frameCount % 30 == 0) {
+                    // AttackMoveCommand still uses the old scanForEnemies method (legacy)
+                    if (unit.getCurrentCommand() instanceof com.fullsteam.model.command.AttackMoveCommand) {
+                        com.fullsteam.model.command.AttackMoveCommand attackMoveCmd =
+                                (com.fullsteam.model.command.AttackMoveCommand) unit.getCurrentCommand();
+                        attackMoveCmd.scanForEnemies(new ArrayList<>(units.values()), new ArrayList<>(buildings.values()));
+                    }
+                    // IdleCommand now uses gameEntities automatically (no manual setup needed)
+
+                    // Medics auto-heal damaged friendlies
+                    unit.scanForHealTargets(new ArrayList<>(units.values()));
+
+                    // Engineers auto-repair damaged units and buildings
+                    unit.scanForRepairTargets(new ArrayList<>(buildings.values()), new ArrayList<>(units.values()));
+                }
+
+                // AI behavior: return to home position if needed (defensive stance)
+                if (unit.shouldReturnHome()) {
+                    List<Vector2> path = Pathfinding.findPath(
+                            unit.getPosition(),
+                            unit.getHomePosition(),
+                            obstacles.values(),
+                            buildings.values(),
+                            unit.getUnitType().getSize(),
+                            gameConfig.getWorldWidth(),
+                            gameConfig.getWorldHeight()
+                    );
+                    unit.setPath(path);
+                }
+            });
+
+            // Update all buildings and collect projectiles from turrets
+            buildings.values().forEach(building -> {
+                // Check if owner has low power
+                PlayerFaction faction = playerFactions.get(building.getOwnerId());
+                boolean hasLowPower = faction != null && faction.isHasLowPower();
+
+                // Check if construction just completed
+                boolean wasUnderConstruction = building.isUnderConstruction();
+
+                building.update(deltaTime, hasLowPower);
+
+                // If construction just completed, create wall segments for wall posts
+                if (wasUnderConstruction && !building.isUnderConstruction() &&
+                        building.getBuildingType() == BuildingType.WALL) {
+                    createWallSegments(building);
+                    log.debug("Wall post {} construction completed, creating wall segments", building.getId());
+                }
+
+                // If construction just completed for Shield Generator, create shield sensor body
+                if (wasUnderConstruction && !building.isUnderConstruction() &&
+                        building.getBuildingType() == BuildingType.SHIELD_GENERATOR) {
+                    Body shieldSensor = building.createShieldSensorBody();
+                    if (shieldSensor != null) {
+                        building.setShieldSensorBody(shieldSensor);
+                        world.addBody(shieldSensor);
+                        log.debug("Shield Generator {} construction completed, shield sensor body created", building.getId());
+                    }
+                }
+                
+                // Check if Bank is ready to pay interest
+                if (building.getBuildingType() == BuildingType.BANK && faction != null) {
+                    double interestRate = building.checkAndResetBankInterest();
+                    if (interestRate > 0) {
+                        int currentCredits = faction.getResourceAmount(ResourceType.CREDITS);
+                        int interest = (int) Math.round(currentCredits * interestRate);
+                        if (interest > 0) {
+                            faction.addResources(ResourceType.CREDITS, interest);
+                            log.info("Bank {} paid {} credits interest to player {} ({}% of {} credits)",
+                                    building.getId(), interest, building.getOwnerId(), 
+                                    (int)(interestRate * 100), currentCredits);
+                        }
+                    }
+                }
+
+                // Spawn completed units (only if not low power)
+                if (building.hasCompletedUnit() && !hasLowPower) {
+                    spawnUnitFromBuilding(building);
+                }
+
+                // Update turret targeting and firing (only if construction is complete)
+                if (building.getBuildingType().isDefensive() && !building.isUnderConstruction()) {
+                    // Clear invalid targets (dead or too far away)
+                    if (building.getTargetUnit() != null) {
+                        Unit target = building.getTargetUnit();
+                        if (!target.isActive()) {
+                            building.setTargetUnit(null);
+                        } else {
+                            // Check if target escaped (beyond 2x turret range)
+                            double distance = building.getPosition().distance(target.getPosition());
+                            double turretRange = 300.0;
+                            if (distance > turretRange * 2.0) {
+                                building.setTargetUnit(null); // Target escaped
+                            }
+                        }
+                    }
+
+                    // Acquire new target if needed (every 30 frames)
+                    if (building.getTargetUnit() == null && frameCount % 30 == 0) {
+                        acquireTurretTarget(building);
+                    }
+
+                    // Check if turret fired a projectile
+                    Projectile projectile = building.updateTurretBehavior(deltaTime);
+                    if (projectile != null) {
+                        projectiles.put(projectile.getId(), projectile);
+                        world.addBody(projectile.getBody());
+                    }
+                }
+            });
+
+            // Update projectiles
+            projectiles.entrySet().removeIf(entry -> {
+                Projectile projectile = entry.getValue();
+                projectile.update(deltaTime);
+
+                // Create explosion if projectile reached max range and is explosive
+                if (!projectile.isActive() && isExplosiveProjectile(projectile)) {
+                    createExplosionAtProjectile(projectile);
+                }
+
+                if (!projectile.isActive()) {
+                    world.removeBody(projectile.getBody());
+                    return true;
+                }
+                return false;
+            });
+            
+            // Update beams (they fade out over time)
+            beams.entrySet().removeIf(entry -> {
+                Beam beam = entry.getValue();
+                beam.update(deltaTime);
+                
+                // Remove inactive beams
+                return !beam.isActive();
+            });
+
+            // Update physics world (handles collisions)
+            world.updatev(deltaTime);
+
+            // Process projectile collisions
+            processProjectileCollisions();
+
+            // Process field effects (explosions, etc.)
+            processFieldEffects(deltaTime);
+
+            // Remove inactive entities
+            removeInactiveEntities();
+
+            // Check win conditions
+            if (!gameOver) {
+                checkWinConditions();
+            }
+
+            // Send game state to all players
+            sendGameState();
+
+        } catch (Throwable t) {
+            log.error("Error in update loop", t);
+        }
+    }
+
+    /**
+     * Process player input
+     */
+    private void processPlayerInput(Integer playerId, RTSPlayerInput input) {
+        PlayerFaction faction = playerFactions.get(playerId);
+        if (faction == null) {
+            return;
+        }
+
+        // Handle unit selection
+        if (input.getSelectUnits() != null && !input.getSelectUnits().isEmpty()) {
+            // Clear previous selections
+            units.values().stream()
+                    .filter(u -> u.belongsTo(playerId))
+                    .forEach(u -> u.setSelected(false));
+
+            // Select new units
+            input.getSelectUnits().forEach(unitId -> {
+                Unit unit = units.get(unitId);
+                if (unit != null && unit.belongsTo(playerId)) {
+                    unit.setSelected(true);
+                }
+            });
+        }
+
+        // Handle move orders with pathfinding
+        if (input.getMoveOrder() != null) {
+            Vector2 destination = input.getMoveOrder();
+            units.values().stream()
+                    .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                    .forEach(u -> {
+                        // Calculate path using A* pathfinding
+                        List<Vector2> path = Pathfinding.findPath(
+                                u.getPosition(),
+                                destination,
+                                obstacles.values(),
+                                buildings.values(),
+                                u.getUnitType().getSize(),
+                                gameConfig.getWorldWidth(),
+                                gameConfig.getWorldHeight()
+                        );
+
+                        // Use command pattern
+                        u.orderMove(destination);
+
+                        // Set the pathfinding path on the command
+                        if (u.getCurrentCommand() instanceof com.fullsteam.model.command.MoveCommand) {
+                            ((com.fullsteam.model.command.MoveCommand) u.getCurrentCommand()).setPath(path);
+                        }
+                    });
+        }
+
+        // Handle attack-move orders
+        if (input.getAttackMoveOrder() != null) {
+            Vector2 destination = input.getAttackMoveOrder();
+            units.values().stream()
+                    .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                    .forEach(u -> {
+                        // Calculate path using A* pathfinding
+                        List<Vector2> path = Pathfinding.findPath(
+                                u.getPosition(),
+                                destination,
+                                obstacles.values(),
+                                buildings.values(),
+                                u.getUnitType().getSize(),
+                                gameConfig.getWorldWidth(),
+                                gameConfig.getWorldHeight()
+                        );
+
+                        // Combat units get attack-move, non-combat units get regular move
+                        u.setPath(path, true);
+                        // Non-combat units just move normally
+                        u.setAttackMoving(u.getUnitType().canAttack());
+                    });
+        }
+
+        // Handle attack orders
+        if (input.getAttackUnitOrder() != null) {
+            Unit target = units.get(input.getAttackUnitOrder());
+            if (target != null) {
+                units.values().stream()
+                        .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                        .forEach(u -> u.orderAttack(target));
+            }
+        }
+
+        if (input.getAttackBuildingOrder() != null) {
+            Building target = buildings.get(input.getAttackBuildingOrder());
+            if (target != null) {
+                units.values().stream()
+                        .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                        .forEach(u -> u.orderAttackBuilding(target));
+            }
+        }
+
+        if (input.getAttackWallSegmentOrder() != null) {
+            WallSegment target = wallSegments.get(input.getAttackWallSegmentOrder());
+            if (target != null) {
+                units.values().stream()
+                        .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                        .forEach(u -> u.orderAttackWallSegment(target));
+            }
+        }
+
+        // Handle force attack orders (attack ground - CMD/CTRL + right click)
+        if (input.getForceAttackOrder() != null) {
+            Vector2 targetPosition = input.getForceAttackOrder();
+            units.values().stream()
+                    .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().canAttack())
+                    .forEach(u -> {
+                        // Issue force attack order first (sets all the flags correctly)
+                        u.orderForceAttack(targetPosition);
+
+                        // Then calculate and set the path
+                        List<Vector2> path = Pathfinding.findPath(
+                                u.getPosition(),
+                                targetPosition,
+                                obstacles.values(),
+                                buildings.values(),
+                                u.getUnitType().getSize(),
+                                gameConfig.getWorldWidth(),
+                                gameConfig.getWorldHeight()
+                        );
+                        u.setPath(path, true);
+                    });
+            log.info("Player {} issued force attack order to position ({}, {})",
+                    playerId, targetPosition.x, targetPosition.y);
+        }
+
+        // Handle harvest orders
+        if (input.getHarvestOrder() != null) {
+            ResourceDeposit deposit = resourceDeposits.get(input.getHarvestOrder());
+            if (deposit != null) {
+                long workerCount = units.values().stream()
+                        .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().canHarvest())
+                        .count();
+                units.values().stream()
+                        .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().canHarvest())
+                        .forEach(u -> u.orderHarvest(deposit));
+            }
+        }
+
+        // Handle mine orders
+        if (input.getMineOrder() != null) {
+            Obstacle obstacle = obstacles.get(input.getMineOrder());
+            if (obstacle != null && obstacle.isDestructible()) {
+                units.values().stream()
+                        .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().canMine())
+                        .forEach(u -> u.orderMine(obstacle));
+                log.info("Player {} ordered miners to destroy obstacle {}", playerId, obstacle.getId());
+            }
+        }
+
+        // Handle construct orders (resume building construction)
+        if (input.getConstructOrder() != null) {
+            Building building = buildings.get(input.getConstructOrder());
+            if (building != null && building.isUnderConstruction() && building.belongsTo(playerId)) {
+                units.values().stream()
+                        .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().canBuild())
+                        .forEach(u -> u.orderConstruct(building));
+            }
+        }
+
+        // Handle AI stance changes
+        if (input.getSetStance() != null) {
+            units.values().stream()
+                    .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                    .forEach(u -> u.setAiStance(input.getSetStance()));
+        }
+
+        // Handle special ability activation
+        if (input.isActivateSpecialAbility()) {
+            // Check if this is a targeted ability
+            if (input.getSpecialAbilityTargetUnit() != null) {
+                // Heal or other unit-targeted ability
+                Integer targetUnitId = input.getSpecialAbilityTargetUnit();
+                Unit targetUnit = units.get(targetUnitId);
+
+                if (targetUnit != null && targetUnit.isActive()) {
+                    units.values().stream()
+                            .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                            .forEach(unit -> {
+                                if (unit.getUnitType().hasSpecialAbility() &&
+                                        unit.getUnitType().getSpecialAbility().isRequiresTarget()) {
+                                    boolean success = unit.useSpecialAbilityOnUnit(targetUnit);
+                                    if (success) {
+                                        SpecialAbility ability = unit.getUnitType().getSpecialAbility();
+                                        sendGameEvent(GameEvent.createPlayerEvent(
+                                                ability.getDisplayName() + " used on " + targetUnit.getUnitType().getDisplayName(),
+                                                playerId,
+                                                GameEvent.EventCategory.INFO
+                                        ));
+                                    }
+                                }
+                            });
+                }
+            } else if (input.getSpecialAbilityTargetBuilding() != null) {
+                // Repair or other building-targeted ability
+                Integer targetBuildingId = input.getSpecialAbilityTargetBuilding();
+                Building targetBuilding = buildings.get(targetBuildingId);
+
+                if (targetBuilding != null && targetBuilding.isActive()) {
+                    units.values().stream()
+                            .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                            .forEach(unit -> {
+                                if (unit.getUnitType().hasSpecialAbility() &&
+                                        unit.getUnitType().getSpecialAbility().isRequiresTarget()) {
+                                    boolean success = unit.useSpecialAbilityOnBuilding(targetBuilding);
+                                    if (success) {
+                                        SpecialAbility ability = unit.getUnitType().getSpecialAbility();
+                                        sendGameEvent(GameEvent.createPlayerEvent(
+                                                ability.getDisplayName() + " used on " + targetBuilding.getBuildingType().getDisplayName(),
+                                                playerId,
+                                                GameEvent.EventCategory.INFO
+                                        ));
+                                    }
+                                }
+                            });
+                }
+            } else {
+                // Non-targeted ability (toggle like deploy)
+                units.values().stream()
+                        .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                        .forEach(unit -> {
+                            if (unit.getUnitType().hasSpecialAbility()) {
+                                boolean activated = unit.activateSpecialAbility();
+                                if (activated) {
+                                    SpecialAbility ability = unit.getUnitType().getSpecialAbility();
+                                    String message = unit.isSpecialAbilityActive()
+                                            ? ability.getDisplayName() + " activated"
+                                            : ability.getDisplayName() + " deactivated";
+                                    sendGameEvent(GameEvent.createPlayerEvent(
+                                            message,
+                                            playerId,
+                                            GameEvent.EventCategory.INFO
+                                    ));
+                                }
+                            }
+                        });
+            }
+        }
+
+        // Handle build orders
+        if (input.getBuildOrder() != null) {
+            BuildingType buildingType = input.getBuildOrder();
+            Vector2 location = input.getBuildLocation();
+
+            // Validate tech requirements first
+            if (!hasTechRequirements(playerId, buildingType)) {
+                log.warn("Player {} attempted to build {} without meeting tech requirements",
+                        playerId, buildingType);
+                sendGameEvent(GameEvent.createPlayerEvent(
+                        "Cannot build " + buildingType.getDisplayName() + " - missing required tech buildings",
+                        playerId,
+                        GameEvent.EventCategory.WARNING
+                ));
+                return; // Reject the build order
+            }
+
+            if (location != null
+                    && canAffordBuilding(faction, buildingType)
+                    && isValidBuildLocation(location, buildingType, playerId)) {
+                // Deduct resources (use faction-modified cost)
+                int cost = faction.getBuildingCost(buildingType);
+                faction.removeResources(ResourceType.CREDITS, cost);
+
+                // Create building under construction (with faction-modified health)
+                double maxHealth = faction.getBuildingHealth(buildingType);
+                Building building = new Building(
+                        IdGenerator.nextEntityId(),
+                        buildingType,
+                        location.x, location.y,
+                        playerId,
+                        faction.getTeamNumber(),
+                        maxHealth
+                );
+                buildings.put(building.getId(), building);
+                world.addBody(building.getBody());
+
+                // Note: Wall segments are created when construction completes, not at placement
+
+                // Order selected workers to construct it
+                units.values().stream()
+                        .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().canBuild())
+                        .forEach(u -> u.orderConstruct(building));
+
+                log.debug("Player {} placed {} at ({}, {})", playerId, buildingType, location.x, location.y);
+            }
+        }
+
+        // Handle unit production orders
+        if (input.getProduceUnitOrder() != null) {
+            UnitType unitType = input.getProduceUnitOrder();
+            Integer buildingId = input.getProduceBuildingId();
+
+            log.info("Player {} requesting to produce {} at building {}", playerId, unitType, buildingId);
+
+            if (buildingId != null) {
+                Building building = buildings.get(buildingId);
+                log.info("Building found: {}, belongs to player: {}, can afford: {}",
+                        building != null,
+                        building != null && building.belongsTo(playerId),
+                        canAffordUnit(faction, unitType));
+
+                if (building != null && building.belongsTo(playerId) && canAffordUnit(faction, unitType)) {
+                    // Check if this building can produce this unit for this faction
+                    if (!faction.canBuildingProduceUnit(building.getBuildingType(), unitType)) {
+                        log.warn("Player {} tried to produce {} at {} but faction doesn't allow it",
+                                playerId, unitType, building.getBuildingType());
+                        return;
+                    }
+                    
+                    // Deduct resources (use faction-modified cost)
+                    int cost = faction.getUnitCost(unitType);
+                    faction.removeResources(ResourceType.CREDITS, cost);
+
+                    // Queue production
+                    building.queueUnitProduction(unitType);
+                    log.info("Player {} queued {} production at building {} (cost: {})", 
+                            playerId, unitType, buildingId, cost);
+                }
+            }
+        }
+
+        // Handle rally point orders
+        if (input.getSetRallyBuildingId() != null && input.getRallyPoint() != null) {
+            Integer buildingId = input.getSetRallyBuildingId();
+            Vector2 rallyPoint = input.getRallyPoint();
+
+            Building building = buildings.get(buildingId);
+            if (building != null && building.belongsTo(playerId) && building.getBuildingType().isCanProduceUnits()) {
+                building.setRallyPoint(rallyPoint);
+                log.info("Player {} set rally point for building {} to ({}, {})",
+                        playerId, buildingId, rallyPoint.x, rallyPoint.y);
+            }
+        }
+
+        // Clear input after processing
+        playerInputs.remove(playerId);
+    }
+
+    /**
+     * Spawn a unit from a building that has completed production
+     */
+    private void spawnUnitFromBuilding(Building building) {
+        UnitType unitType = building.getCompletedUnitType();
+        if (unitType == null) {
+            return;
+        }
+
+        // Find spawn position near building
+        Vector2 spawnPos = findSpawnPosition(building);
+
+        // Create unit
+        Unit unit = new Unit(
+                IdGenerator.nextEntityId(),
+                unitType,
+                spawnPos.x, spawnPos.y,
+                building.getOwnerId(),
+                building.getTeamNumber()
+        );
+
+        units.put(unit.getId(), unit);
+        world.addBody(unit.getBody());
+
+        // Note: Upkeep and unit count are now recalculated periodically
+
+        // Order unit to rally point
+        if (building.getRallyPoint() != null) {
+            unit.orderMove(building.getRallyPoint());
+        }
+
+        log.info("Spawned {} for player {} from building {}", unitType, building.getOwnerId(), building.getId());
+    }
+
+    /**
+     * Find a valid spawn position near a building
+     */
+    private Vector2 findSpawnPosition(Building building) {
+        Vector2 buildingPos = building.getPosition();
+        double offset = building.getBuildingType().getSize() + 30;
+
+        // Try positions around the building
+        for (int i = 0; i < 8; i++) {
+            double angle = (Math.PI * 2 * i) / 8;
+            double x = buildingPos.x + Math.cos(angle) * offset;
+            double y = buildingPos.y + Math.sin(angle) * offset;
+
+            // TODO: Check if position is valid (not blocked)
+            return new Vector2(x, y);
+        }
+
+        return buildingPos.copy();
+    }
+
+    /**
+     * Create wall segments connecting a new wall post to nearby wall posts
+     */
+    private void createWallSegments(Building newWallPost) {
+        if (newWallPost.getBuildingType() != BuildingType.WALL) {
+            return;
+        }
+
+        Vector2 newPos = newWallPost.getPosition();
+        double maxConnectionDistance = 200.0; // Maximum distance to connect wall posts
+        double minConnectionDistance = 40.0; // Minimum distance (prevent overlapping posts)
+
+        // Find all nearby wall posts from the same team
+        for (Building building : buildings.values()) {
+            if (building.getId() == newWallPost.getId()) {
+                continue; // Skip self
+            }
+
+            if (building.getBuildingType() != BuildingType.WALL) {
+                continue; // Only connect to other wall posts
+            }
+
+            if (building.getTeamNumber() != newWallPost.getTeamNumber()) {
+                continue; // Only connect to same team walls
+            }
+
+            // Only connect to completed wall posts
+            if (building.isUnderConstruction()) {
+                continue; // Skip wall posts still under construction
+            }
+
+            double distance = newPos.distance(building.getPosition());
+
+            // Check if within connection range
+            if (distance >= minConnectionDistance && distance <= maxConnectionDistance) {
+                // Check if segment doesn't already exist
+                if (!wallSegmentExists(newWallPost, building)) {
+                    createWallSegment(newWallPost, building);
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if a wall segment already exists between two posts
+     */
+    private boolean wallSegmentExists(Building post1, Building post2) {
+        for (WallSegment segment : wallSegments.values()) {
+            if ((segment.getPost1() == post1 && segment.getPost2() == post2) ||
+                    (segment.getPost1() == post2 && segment.getPost2() == post1)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Create a wall segment between two wall posts
+     */
+    private void createWallSegment(Building post1, Building post2) {
+        int segmentId = IdGenerator.nextEntityId();
+        WallSegment segment = new WallSegment(
+                segmentId,
+                post1,
+                post2,
+                post1.getOwnerId(),
+                post1.getTeamNumber()
+        );
+
+        wallSegments.put(segmentId, segment);
+        world.addBody(segment.getBody());
+
+        log.info("Created wall segment {} connecting posts {} and {}",
+                segmentId, post1.getId(), post2.getId());
+    }
+
+    /**
+     * Remove wall segments connected to a destroyed post
+     */
+    private void removeWallSegmentsForPost(Building wallPost) {
+        wallSegments.entrySet().removeIf(entry -> {
+            WallSegment segment = entry.getValue();
+            if (segment.getPost1() == wallPost || segment.getPost2() == wallPost) {
+                world.removeBody(segment.getBody());
+                log.debug("Removed wall segment {} (connected post destroyed)", entry.getKey());
+                return true;
+            }
+            return false;
+        });
+    }
+
+    /**
+     * Find the nearest refinery for a worker unit
+     */
+    private Building findNearestRefinery(Unit worker) {
+        log.debug("Finding refinery for worker {} (owner {}), total buildings: {}",
+                worker.getId(), worker.getOwnerId(), buildings.size());
+
+        Building nearestDropoff = null;
+        double nearestDistance = Double.MAX_VALUE;
+
+        // Search for both refineries AND headquarters, pick the nearest one
+        for (Building building : buildings.values()) {
+            if (building.isActive() &&
+                    building.getOwnerId() == worker.getOwnerId() &&
+                    !building.isUnderConstruction() &&
+                    (building.getBuildingType() == BuildingType.REFINERY ||
+                            building.getBuildingType() == BuildingType.HEADQUARTERS)) {
+
+                double distance = worker.getPosition().distance(building.getPosition());
+                if (distance < nearestDistance) {
+                    nearestDistance = distance;
+                    nearestDropoff = building;
+                    log.debug("  Found {} {} at distance {}",
+                            building.getBuildingType(), building.getId(), distance);
+                }
+            }
+        }
+
+        log.debug("Returning nearest dropoff: {} (type: {})",
+                nearestDropoff != null ? nearestDropoff.getId() : "null",
+                nearestDropoff != null ? nearestDropoff.getBuildingType() : "none");
+        return nearestDropoff;
+    }
+
+    /**
+     * Find nearest headquarters for a miner to repair pickaxe
+     */
+    private Building findNearestHeadquarters(Unit miner) {
+        Building nearestHQ = null;
+        double nearestDistance = Double.MAX_VALUE;
+
+        for (Building building : buildings.values()) {
+            if (building.isActive() &&
+                    building.getOwnerId() == miner.getOwnerId() &&
+                    !building.isUnderConstruction() &&
+                    building.getBuildingType() == BuildingType.HEADQUARTERS) {
+
+                double distance = miner.getPosition().distance(building.getPosition());
+                if (distance < nearestDistance) {
+                    nearestDistance = distance;
+                    nearestHQ = building;
+                }
+            }
+        }
+
+        return nearestHQ;
+    }
+
+
+    private void acquireTurretTarget(Building turret) {
+        Vector2 turretPos = turret.getPosition();
+        double range = 300; // Turret range
+
+        // Find nearest enemy unit
+        Unit nearestEnemy = null;
+        double nearestDistance = Double.MAX_VALUE;
+
+        for (Unit unit : units.values()) {
+            if (unit.isActive() && unit.getTeamNumber() != turret.getTeamNumber()) {
+                double distance = turretPos.distance(unit.getPosition());
+                if (distance <= range && distance < nearestDistance) {
+                    nearestEnemy = unit;
+                    nearestDistance = distance;
+                }
+            }
+        }
+
+        turret.setTargetUnit(nearestEnemy);
+    }
+
+    /**
+     * Process projectile collisions with units and buildings
+     */
+    private void processProjectileCollisions() {
+        collisionProcessor.processProjectileCollisions(projectiles);
+    }
+
+    /**
+     * Create an explosion field effect (used by collision processor)
+     */
+    private void createExplosion(Vector2 position, RTSCollisionProcessor.ExplosionParams params) {
+        int explosionId = IdGenerator.nextEntityId();
+        FieldEffect explosion = new FieldEffect(
+                explosionId,
+                -1, // No specific owner for explosions
+                FieldEffectType.EXPLOSION,
+                position,
+                params.radius(),
+                params.damage(),
+                FieldEffectType.EXPLOSION.getDefaultDuration(),
+                params.ownerTeam()
+        );
+
+        fieldEffects.put(explosionId, explosion);
+        world.addBody(explosion.getBody());
+        log.debug("Created explosion at ({}, {}) with radius {} and damage {}",
+                position.x, position.y, params.radius(), params.damage());
+    }
+
+    /**
+     * Check if a projectile is explosive (creates explosions)
+     */
+    private boolean isExplosiveProjectile(Projectile projectile) {
+        Ordinance ordinance = projectile.getOrdinance();
+        return ordinance == Ordinance.ROCKET ||
+                ordinance == Ordinance.GRENADE ||
+                ordinance == Ordinance.SHELL;
+    }
+
+    /**
+     * Create an explosion at a projectile's position (when it reaches max range)
+     */
+    private void createExplosionAtProjectile(Projectile projectile) {
+        Vector2 position = projectile.getPosition();
+        double explosionDamage = projectile.getDamage() * 0.5; // 50% of projectile damage
+        double explosionRadius = projectile.getOrdinance().getSize() * 15; // Scale with projectile size
+
+        RTSCollisionProcessor.ExplosionParams params = new RTSCollisionProcessor.ExplosionParams(
+                explosionDamage,
+                explosionRadius,
+                projectile.getOwnerTeam()
+        );
+
+        createExplosion(position, params);
+        log.debug("Projectile {} exploded at max range ({}, {})",
+                projectile.getId(), position.x, position.y);
+    }
+
+    /**
+     * Process field effect damage (explosions, etc.)
+     */
+    private void processFieldEffects(double deltaTime) {
+        for (FieldEffect effect : fieldEffects.values()) {
+            if (!effect.isActive()) {
+                continue;
+            }
+
+            effect.update(deltaTime);
+
+            // Apply damage to units in range
+            for (Unit unit : units.values()) {
+                if (!unit.isActive()) {
+                    continue;
+                }
+
+                // Skip friendly fire
+                if (unit.getTeamNumber() == effect.getOwnerTeam()) {
+                    continue;
+                }
+
+                if (effect.canAffect(unit)) {
+                    double damage = effect.getDamageAtPosition(unit.getPosition());
+                    unit.takeDamage(damage);
+                    effect.markAsAffected(unit);
+                }
+            }
+
+            // Apply damage to buildings in range
+            for (Building building : buildings.values()) {
+                if (!building.isActive()) {
+                    continue;
+                }
+
+                // Skip friendly fire
+                if (building.getTeamNumber() == effect.getOwnerTeam()) {
+                    continue;
+                }
+
+                if (effect.canAffect(building)) {
+                    double damage = effect.getDamageAtPosition(building.getPosition());
+                    building.takeDamage(damage);
+                    effect.markAsAffected(building);
+                }
+            }
+        }
+
+        // Remove inactive field effects
+        fieldEffects.entrySet().removeIf(entry -> {
+            FieldEffect effect = entry.getValue();
+            if (!effect.isActive()) {
+                world.removeBody(effect.getBody());
+                return true;
+            }
+            return false;
+        });
+    }
+
+    /**
+     * Check win conditions (HQ destruction)
+     */
+    private void checkWinConditions() {
+        // Don't check win conditions for first 5 seconds (let players join)
+        if (System.currentTimeMillis() - gameStartTime < 5000) {
+            return;
+        }
+
+        // Count active HQs per team
+        Map<Integer, Boolean> teamHasHQ = new HashMap<>();
+
+        for (Building building : buildings.values()) {
+            if (building.isActive() && building.getBuildingType() == BuildingType.HEADQUARTERS) {
+                teamHasHQ.put(building.getTeamNumber(), true);
+                log.debug("Found active HQ for team {}", building.getTeamNumber());
+            }
+        }
+
+        log.debug("Win condition check: {} teams have HQs: {}", teamHasHQ.size(), teamHasHQ.keySet());
+
+        // Count how many teams actually have players (to avoid checking before game starts)
+        Set<Integer> teamsWithPlayers = new HashSet<>();
+        for (PlayerFaction faction : playerFactions.values()) {
+            if (faction.getTeamNumber() > 0) {
+                teamsWithPlayers.add(faction.getTeamNumber());
+            }
+        }
+
+        // Don't check win conditions if game just started (need at least 2 teams with players)
+        if (teamsWithPlayers.size() < 2) {
+            log.debug("Not enough teams with players ({}), waiting for more players", teamsWithPlayers.size());
+            return; // Wait for all players to join
+        }
+
+        // Check if only one team has an HQ remaining
+        if (teamHasHQ.size() == 1) {
+            winningTeam = teamHasHQ.keySet().iterator().next();
+            gameOver = true;
+
+            log.info("Game Over! Team {} wins by destroying all enemy headquarters", winningTeam);
+
+            // Send game over message
+            Map<String, Object> gameOverMsg = new HashMap<>();
+            gameOverMsg.put("type", "gameOver");
+            gameOverMsg.put("winningTeam", winningTeam);
+            gameOverMsg.put("reason", "All enemy headquarters destroyed");
+            broadcast(gameOverMsg);
+
+        } else if (teamHasHQ.isEmpty()) {
+            // All HQs destroyed - draw
+            gameOver = true;
+            winningTeam = -1;
+
+            log.info("Game Over! Draw - all headquarters destroyed");
+
+            Map<String, Object> gameOverMsg = new HashMap<>();
+            gameOverMsg.put("type", "gameOver");
+            gameOverMsg.put("winningTeam", -1);
+            gameOverMsg.put("reason", "Draw - all headquarters destroyed");
+            broadcast(gameOverMsg);
+        }
+    }
+
+    /**
+     * Recalculate upkeep for all factions by counting all active units
+     * This ensures accuracy even if units are created outside normal spawn flow
+     */
+    private void recalculateUpkeep() {
+        // Reset all faction upkeep and unit counts
+        playerFactions.values().forEach(faction -> {
+            faction.setCurrentUpkeep(0);
+            faction.setUnitCount(0);
+        });
+
+        // Count all active units
+        units.values().stream()
+                .filter(Unit::isActive)
+                .forEach(unit -> {
+                    PlayerFaction faction = playerFactions.get(unit.getOwnerId());
+                    if (faction != null) {
+                        faction.addUpkeep(unit.getUnitType().getUpkeepCost());
+                        faction.incrementUnitCount();
+                    }
+                });
+    }
+
+    /**
+     * Recalculate power generation and consumption for all factions
+     * Low power stops all unit production
+     */
+    private void recalculatePower() {
+        playerFactions.values().forEach(faction -> {
+            int generated = 0;
+            int consumed = 0;
+
+            // Count power from all completed buildings (not under construction)
+            for (Building building : buildings.values()) {
+                if (building.getOwnerId() == faction.getPlayerId() &&
+                        building.isActive() &&
+                        !building.isUnderConstruction()) {
+
+                    int powerValue = building.getBuildingType().getPowerValue();
+                    if (powerValue > 0) {
+                        generated += powerValue;
+                    } else if (powerValue < 0) {
+                        consumed += Math.abs(powerValue);
+                    }
+                }
+            }
+
+            boolean previousLowPower = faction.isHasLowPower();
+            faction.setPowerGenerated(generated);
+            faction.setPowerConsumed(consumed);
+            faction.setHasLowPower(consumed > generated);
+
+            // Send warning when power becomes low
+            if (!previousLowPower && faction.isHasLowPower()) {
+                log.warn("Player {} has LOW POWER: {}/{}",
+                        faction.getPlayerId(), generated, consumed);
+                sendGameEvent(GameEvent.createPlayerEvent(
+                        "⚡ LOW POWER! All production stopped. Build more Power Plants!",
+                        faction.getPlayerId(),
+                        GameEvent.EventCategory.WARNING
+                ));
+            }
+        });
+    }
+
+    /**
+     * Remove inactive entities
+     */
+    private void removeInactiveEntities() {
+        units.entrySet().removeIf(entry -> {
+            Unit unit = entry.getValue();
+            if (!unit.isActive()) {
+                world.removeBody(unit.getBody());
+                // Note: Upkeep is now recalculated periodically, no need to adjust here
+                return true;
+            }
+            return false;
+        });
+
+        buildings.entrySet().removeIf(entry -> {
+            Building building = entry.getValue();
+            if (!building.isActive()) {
+                // Send event for HQ destruction
+                if (building.getBuildingType() == BuildingType.HEADQUARTERS &&
+                        !eliminatedTeams.contains(building.getTeamNumber())) {
+
+                    eliminatedTeams.add(building.getTeamNumber());
+
+                    String teamName = "Team " + building.getTeamNumber();
+                    sendGameEvent(GameEvent.builder()
+                            .message(String.format("💥 %s's Headquarters has been destroyed!", teamName))
+                            .category(GameEvent.EventCategory.SYSTEM)
+                            .color("#FF4444")
+                            .target(GameEvent.EventTarget.builder()
+                                    .type(GameEvent.EventTarget.TargetType.ALL)
+                                    .build())
+                            .displayDuration(5000L)
+                            .build()
+                    );
+                }
+
+                // Remove wall segments connected to this wall post
+                if (building.getBuildingType() == BuildingType.WALL) {
+                    removeWallSegmentsForPost(building);
+                }
+
+                // Remove shield sensor body for Shield Generator
+                if (building.getBuildingType() == BuildingType.SHIELD_GENERATOR &&
+                        building.getShieldSensorBody() != null) {
+                    world.removeBody(building.getShieldSensorBody());
+                    log.debug("Removed shield sensor body for building {}", building.getId());
+                }
+
+                world.removeBody(building.getBody());
+                return true;
+            }
+            return false;
+        });
+
+        // Remove wall segments with destroyed posts or that are themselves destroyed
+        wallSegments.entrySet().removeIf(entry -> {
+            WallSegment segment = entry.getValue();
+            if (!segment.isActive() || segment.hasDestroyedPost()) {
+                world.removeBody(segment.getBody());
+                log.debug("Removed wall segment {}", entry.getKey());
+                return true;
+            }
+            return false;
+        });
+
+        resourceDeposits.entrySet().removeIf(entry -> {
+            ResourceDeposit deposit = entry.getValue();
+            if (!deposit.isActive()) {
+                world.removeBody(deposit.getBody());
+                return true;
+            }
+            return false;
+        });
+
+        // Remove destroyed obstacles
+        obstacles.entrySet().removeIf(entry -> {
+            Obstacle obstacle = entry.getValue();
+            if (!obstacle.isActive()) {
+                world.removeBody(obstacle.getBody());
+                log.debug("Removed destroyed obstacle {}", entry.getKey());
+                return true;
+            }
+            return false;
+        });
+    }
+
+    /**
+     * Check if faction can afford a building (uses faction-modified cost)
+     */
+    private boolean canAffordBuilding(PlayerFaction faction, BuildingType buildingType) {
+        // Check if faction can build this building type
+        if (!faction.canBuildBuilding(buildingType)) {
+            return false;
+        }
+        
+        // Use faction-modified cost
+        int cost = faction.getBuildingCost(buildingType);
+        return faction.hasResources(ResourceType.CREDITS, cost);
+    }
+
+    /**
+     * Check if faction can afford a unit (uses faction-modified cost)
+     */
+    private boolean canAffordUnit(PlayerFaction faction, UnitType unitType) {
+        // Check if faction can build this unit type
+        if (!faction.canBuildUnit(unitType)) {
+            return false;
+        }
+        
+        // Use faction-modified cost
+        int cost = faction.getUnitCost(unitType);
+        return faction.hasResources(ResourceType.CREDITS, cost)
+                && faction.canBuildMoreUnits()
+                && faction.canAffordUpkeep(unitType.getUpkeepCost());
+    }
+
+    /**
+     * Check if player has the required tech buildings to construct this building
+     */
+    private boolean hasTechRequirements(int playerId, BuildingType buildingType) {
+        // Get player's completed buildings
+        Set<BuildingType> playerBuildings = buildings.values().stream()
+                .filter(b -> b.getOwnerId() == playerId && b.isActive() && !b.isUnderConstruction())
+                .map(Building::getBuildingType)
+                .collect(java.util.stream.Collectors.toSet());
+
+        // Define tech requirements (must match client-side)
+        return switch (buildingType) {
+            // T1 - Always available
+            case POWER_PLANT, BARRACKS, REFINERY, WALL -> true;
+
+            // T2 - Requires Power Plant
+            case RESEARCH_LAB, FACTORY, WEAPONS_DEPOT, TURRET, SHIELD_GENERATOR ->
+                    playerBuildings.contains(BuildingType.POWER_PLANT);
+
+            // T3 - Requires Power Plant + Research Lab
+            case TECH_CENTER, ADVANCED_FACTORY ->
+                    playerBuildings.contains(BuildingType.POWER_PLANT) && playerBuildings.contains(BuildingType.RESEARCH_LAB);
+
+            // Headquarters is special (only one, starting building)
+            case HEADQUARTERS -> false; // Cannot build additional HQs
+
+            default -> {
+                log.warn("Unknown building type for tech requirements: {}", buildingType);
+                yield false;
+            }
+        };
+    }
+
+    /**
+     * Validate building placement location
+     */
+    private boolean isValidBuildLocation(Vector2 location, BuildingType buildingType, int playerId) {
+        // Check if player has a worker selected that can build
+        boolean hasWorkerSelected = units.values().stream()
+                .anyMatch(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().canBuild());
+
+        if (!hasWorkerSelected) {
+            log.debug("No worker selected to build");
+            return false;
+        }
+
+        // Use collision processor for all spatial validation
+        return collisionProcessor.isValidBuildLocation(
+                location,
+                buildingType,
+                resourceDeposits,
+                gameConfig.getWorldWidth(),
+                gameConfig.getWorldHeight()
+        );
+    }
+
+    /**
+     * Send game state to all players (with fog of war)
+     */
+    private void sendGameState() {
+        // Send personalized game state to each player based on their vision
+        playerSessions.forEach((playerId, playerSession) -> {
+            PlayerFaction faction = playerFactions.get(playerId);
+            if (faction != null) {
+                Map<String, Object> gameState = createGameStateForTeam(faction.getTeamNumber());
+                send(playerSession.getSession(), gameState);
+            }
+        });
+    }
+
+    /**
+     * Create game state for a specific team (with fog of war applied)
+     */
+    private Map<String, Object> createGameStateForTeam(int teamNumber) {
+        Map<String, Object> state = new HashMap<>();
+        state.put("type", "gameState");
+        state.put("timestamp", System.currentTimeMillis());
+
+        // Apply fog of war - only send visible units and buildings
+        List<Unit> visibleUnits = FogOfWar.getVisibleUnits(
+                units.values(),
+                buildings.values(),
+                teamNumber
+        );
+
+        List<Building> visibleBuildings = FogOfWar.getVisibleBuildings(
+                units.values(),
+                buildings.values(),
+                teamNumber
+        );
+
+        // Serialize visible units
+        List<Map<String, Object>> unitsList = visibleUnits.stream()
+                .map(this::serializeUnit)
+                .collect(Collectors.toList());
+        state.put("units", unitsList);
+
+        // Serialize visible buildings
+        List<Map<String, Object>> buildingsList = visibleBuildings.stream()
+                .map(this::serializeBuilding)
+                .collect(Collectors.toList());
+        state.put("buildings", buildingsList);
+
+        // Projectiles are always visible (they're fast-moving)
+        List<Map<String, Object>> projectilesList = projectiles.values().stream()
+                .filter(Projectile::isActive)
+                .map(this::serializeProjectile)
+                .collect(Collectors.toList());
+        state.put("projectiles", projectilesList);
+        
+        // Beams (instant-hit weapons)
+        List<Map<String, Object>> beamsList = beams.values().stream()
+                .filter(Beam::isActive)
+                .map(this::serializeBeam)
+                .collect(Collectors.toList());
+        state.put("beams", beamsList);
+
+        // Field effects (explosions, etc.)
+        List<Map<String, Object>> fieldEffectsList = fieldEffects.values().stream()
+                .filter(FieldEffect::isActive)
+                .map(this::serializeFieldEffect)
+                .collect(Collectors.toList());
+        state.put("fieldEffects", fieldEffectsList);
+
+        // Resource deposits and obstacles are always visible (map terrain)
+        List<Map<String, Object>> depositsList = resourceDeposits.values().stream()
+                .map(this::serializeResourceDeposit)
+                .collect(Collectors.toList());
+        state.put("resourceDeposits", depositsList);
+
+        List<Map<String, Object>> obstaclesList = obstacles.values().stream()
+                .map(this::serializeObstacle)
+                .collect(Collectors.toList());
+        state.put("obstacles", obstaclesList);
+
+        // Wall segments are always visible (like obstacles)
+        List<Map<String, Object>> wallSegmentsList = wallSegments.values().stream()
+                .filter(WallSegment::isActive)
+                .map(this::serializeWallSegment)
+                .collect(Collectors.toList());
+        state.put("wallSegments", wallSegmentsList);
+
+        // Player factions - only send own faction's detailed info
+        Map<Integer, Map<String, Object>> factionsMap = new HashMap<>();
+        playerFactions.forEach((playerId, faction) -> {
+            if (faction.getTeamNumber() == teamNumber) {
+                // Full info for own team
+                factionsMap.put(playerId, serializeFaction(faction));
+            } else {
+                // Limited info for other teams (just team number and name)
+                Map<String, Object> limitedInfo = new HashMap<>();
+                limitedInfo.put("playerId", faction.getPlayerId());
+                limitedInfo.put("playerName", faction.getPlayerName());
+                limitedInfo.put("team", faction.getTeamNumber());
+                factionsMap.put(playerId, limitedInfo);
+            }
+        });
+        state.put("factions", factionsMap);
+
+        // Add vision range info for client-side fog rendering
+        state.put("visionRange", FogOfWar.getVisionRange());
+
+        // Add biome info for client-side rendering
+        Map<String, Object> biomeInfo = new HashMap<>();
+        biomeInfo.put("name", rtsWorld.getBiome().name());
+        biomeInfo.put("groundColor", rtsWorld.getBiome().getGroundColor());
+        biomeInfo.put("obstacleColor", rtsWorld.getBiome().getObstacleColor());
+        state.put("biome", biomeInfo);
+
+        // Add world dimensions for client-side camera bounds
+        state.put("worldWidth", gameConfig.getWorldWidth());
+        state.put("worldHeight", gameConfig.getWorldHeight());
+
+        return state;
+    }
+
+    /**
+     * Extract vertices from a physics body for client-side rendering
+     * Returns a list of [x, y] coordinate pairs in local space
+     */
+    private List<List<Double>> extractBodyVertices(Body body) {
+        List<List<Double>> vertices = new ArrayList<>();
+        
+        if (body.getFixtureCount() == 0) {
+            return vertices;
+        }
+        
+        // Get the first fixture (units only have one)
+        org.dyn4j.geometry.Convex convex = body.getFixture(0).getShape();
+        
+        // Check if it's a polygon
+        if (convex instanceof org.dyn4j.geometry.Polygon) {
+            org.dyn4j.geometry.Polygon polygon = (org.dyn4j.geometry.Polygon) convex;
+            Vector2[] polyVertices = polygon.getVertices();
+            
+            for (Vector2 vertex : polyVertices) {
+                List<Double> point = new ArrayList<>();
+                point.add(vertex.x);
+                point.add(vertex.y);
+                vertices.add(point);
+            }
+        } else if (convex instanceof org.dyn4j.geometry.Circle) {
+            // For circles, return empty array (client will draw circle)
+            // Or we could approximate with many vertices
+            return vertices;
+        }
+        
+        return vertices;
+    }
+    
+    /**
+     * Serialize a unit for network transmission
+     */
+    private Map<String, Object> serializeUnit(Unit unit) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", unit.getId());
+        data.put("type", unit.getUnitType().name());
+        data.put("x", unit.getPosition().x);
+        data.put("y", unit.getPosition().y);
+        data.put("rotation", unit.getRotation());
+        data.put("health", unit.getHealth());
+        data.put("maxHealth", unit.getMaxHealth());
+        data.put("ownerId", unit.getOwnerId());
+        data.put("team", unit.getTeamNumber());
+        data.put("size", unit.getUnitType().getSize());
+        data.put("selected", unit.isSelected());
+        data.put("isMoving", unit.isMoving());
+        data.put("aiStance", unit.getAiStance().name());
+        data.put("specialAbility", unit.getUnitType().getSpecialAbility().name());
+        data.put("specialAbilityActive", unit.isSpecialAbilityActive());
+        data.put("specialAbilityReady", unit.isSpecialAbilityReady());
+        
+        // Add physics body vertices for accurate client-side rendering
+        data.put("vertices", extractBodyVertices(unit.getBody()));
+
+        // Serialize turrets if unit has them (e.g., deployed Crawler)
+        if (!unit.getTurrets().isEmpty()) {
+            List<Map<String, Object>> turretsData = new ArrayList<>();
+            for (UnitTurret turret : unit.getTurrets()) {
+                Map<String, Object> turretData = new HashMap<>();
+                turretData.put("index", turret.getIndex());
+                turretData.put("offsetX", turret.getOffset().x);
+                turretData.put("offsetY", turret.getOffset().y);
+                turretData.put("rotation", turret.getRotation());
+                turretsData.add(turretData);
+            }
+            data.put("turrets", turretsData);
+        }
+
+        // Serialize pickaxe durability for miners
+        if (unit.getUnitType().canMine()) {
+            data.put("pickaxeDurability", unit.getPickaxeDurability());
+        }
+
+        return data;
+    }
+
+    /**
+     * Serialize a building for network transmission
+     */
+    private Map<String, Object> serializeBuilding(Building building) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", building.getId());
+        data.put("type", building.getBuildingType().name());
+        data.put("x", building.getPosition().x);
+        data.put("y", building.getPosition().y);
+        data.put("rotation", building.getRotation());
+        data.put("health", building.getHealth());
+        data.put("maxHealth", building.getMaxHealth());
+        data.put("ownerId", building.getOwnerId());
+        data.put("team", building.getTeamNumber());
+        data.put("size", building.getBuildingType().getSize());
+        data.put("active", building.isActive());
+        data.put("underConstruction", building.isUnderConstruction());
+        data.put("constructionPercent", building.getConstructionPercent());
+        data.put("productionPercent", building.getProductionPercent());
+        data.put("productionQueueSize", building.getProductionQueueSize());
+        data.put("canProduceUnits", building.getBuildingType().isCanProduceUnits());
+
+        // Rally point
+        if (building.getRallyPoint() != null) {
+            Map<String, Object> rallyData = new HashMap<>();
+            rallyData.put("x", building.getRallyPoint().x);
+            rallyData.put("y", building.getRallyPoint().y);
+            data.put("rallyPoint", rallyData);
+        }
+
+        // Shield state (for Shield Generator buildings)
+        if (building.getBuildingType() == BuildingType.SHIELD_GENERATOR) {
+            data.put("shieldActive", building.isShieldActive());
+            data.put("shieldRadius", building.getShieldRadius());
+        }
+
+        return data;
+    }
+
+    /**
+     * Serialize a resource deposit for network transmission
+     */
+    private Map<String, Object> serializeResourceDeposit(ResourceDeposit deposit) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", deposit.getId());
+        data.put("type", deposit.getResourceType().name());
+        data.put("x", deposit.getPosition().x);
+        data.put("y", deposit.getPosition().y);
+        data.put("size", 40.0); // Radius for rendering and click detection
+        data.put("remaining", deposit.getRemainingResources());
+        data.put("max", deposit.getMaxResources());
+        data.put("percent", deposit.getResourcePercent());
+        return data;
+    }
+
+    /**
+     * Serialize a faction for network transmission
+     */
+    private Map<String, Object> serializeFaction(PlayerFaction faction) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("playerId", faction.getPlayerId());
+        data.put("playerName", faction.getPlayerName());
+        data.put("team", faction.getTeamNumber());
+        data.put("credits", faction.getResourceAmount(ResourceType.CREDITS));
+        data.put("unitCount", faction.getUnitCount());
+        data.put("maxUnits", faction.getMaxUnits());
+        data.put("currentUpkeep", faction.getCurrentUpkeep());
+        data.put("maxUpkeep", faction.getMaxUpkeep());
+        data.put("powerGenerated", faction.getPowerGenerated());
+        data.put("powerConsumed", faction.getPowerConsumed());
+        data.put("hasLowPower", faction.isHasLowPower());
+        
+        // Faction-specific information
+        data.put("factionType", faction.getFaction().name());
+        data.put("factionName", faction.getFaction().getDisplayName());
+        data.put("factionColor", faction.getFaction().getThemeColor());
+        
+        // Available units and buildings for this faction
+        List<String> availableUnits = new ArrayList<>();
+        for (UnitType unitType : UnitType.values()) {
+            if (faction.canBuildUnit(unitType)) {
+                availableUnits.add(unitType.name());
+            }
+        }
+        data.put("availableUnits", availableUnits);
+        
+        List<String> availableBuildings = new ArrayList<>();
+        for (BuildingType buildingType : BuildingType.values()) {
+            if (faction.canBuildBuilding(buildingType)) {
+                availableBuildings.add(buildingType.name());
+            }
+        }
+        data.put("availableBuildings", availableBuildings);
+        
+        // Faction-modified costs for units (client needs this for UI)
+        Map<String, Integer> unitCosts = new HashMap<>();
+        for (UnitType unitType : UnitType.values()) {
+            if (faction.canBuildUnit(unitType)) {
+                unitCosts.put(unitType.name(), faction.getUnitCost(unitType));
+            }
+        }
+        data.put("unitCosts", unitCosts);
+        
+        // Faction-modified costs for buildings
+        Map<String, Integer> buildingCosts = new HashMap<>();
+        for (BuildingType buildingType : BuildingType.values()) {
+            if (faction.canBuildBuilding(buildingType)) {
+                buildingCosts.put(buildingType.name(), faction.getBuildingCost(buildingType));
+            }
+        }
+        data.put("buildingCosts", buildingCosts);
+        
+        return data;
+    }
+
+    /**
+     * Serialize an obstacle for network transmission
+     */
+    private Map<String, Object> serializeObstacle(Obstacle obstacle) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", obstacle.getId());
+        data.put("x", obstacle.getPosition().x);
+        data.put("y", obstacle.getPosition().y);
+        data.put("size", obstacle.getSize());
+        data.put("shape", obstacle.getShape().name());
+        data.put("width", obstacle.getWidth());
+        data.put("height", obstacle.getHeight());
+        data.put("sides", obstacle.getSides());
+        data.put("destructible", obstacle.isDestructible());
+        data.put("health", obstacle.getHealth());
+        data.put("maxHealth", obstacle.getMaxHealth());
+        return data;
+    }
+
+    /**
+     * Serialize a wall segment for network transmission
+     */
+    private Map<String, Object> serializeWallSegment(WallSegment segment) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", segment.getId());
+        data.put("x", segment.getPosition().x);
+        data.put("y", segment.getPosition().y);
+        data.put("rotation", segment.getRotation());
+        data.put("length", segment.getLength());
+        data.put("health", segment.getHealth());
+        data.put("maxHealth", segment.getMaxHealth());
+        data.put("team", segment.getTeamNumber());
+        data.put("post1Id", segment.getPost1().getId());
+        data.put("post2Id", segment.getPost2().getId());
+        return data;
+    }
+
+    /**
+     * Serialize a projectile for network transmission
+     */
+    private Map<String, Object> serializeProjectile(Projectile projectile) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", projectile.getId());
+        data.put("x", projectile.getPosition().x);
+        data.put("y", projectile.getPosition().y);
+        data.put("vx", projectile.getVelocity().x);
+        data.put("vy", projectile.getVelocity().y);
+        data.put("rotation", projectile.getRotation());
+        data.put("ownerId", projectile.getOwnerId());
+        data.put("team", projectile.getOwnerTeam());
+        data.put("ordinance", projectile.getOrdinance().name());
+        data.put("size", projectile.getSize()); // Use actual projectile size
+        return data;
+    }
+
+    /**
+     * Serialize a field effect for network transmission
+     */
+    private Map<String, Object> serializeFieldEffect(FieldEffect effect) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", effect.getId());
+        data.put("type", effect.getType().name());
+        data.put("x", effect.getPosition().x);
+        data.put("y", effect.getPosition().y);
+        data.put("radius", effect.getRadius());
+        data.put("progress", effect.getProgress());
+        data.put("team", effect.getOwnerTeam());
+        return data;
+    }
+
+    /**
+     * Add an AI player for testing/debug games
+     */
+    public void addAIPlayer() {
+        // Create a dummy player session for AI
+        int aiPlayerId = -1; // Negative ID for AI
+
+        // Assign AI to team 2
+        int aiTeam = 2;
+
+        // Create AI faction
+        PlayerFaction aiFaction = new PlayerFaction(
+                aiPlayerId,
+                aiTeam,
+                "AI Player"
+        );
+        playerFactions.put(aiPlayerId, aiFaction);
+
+        // Create AI starting base
+        Vector2 aiStartPosition = getStartingPosition(aiTeam);
+        createStartingBase(aiPlayerId, aiTeam, aiStartPosition);
+
+        log.info("AI Player added to team {} at position ({}, {}). Total buildings: {}",
+                aiTeam, aiStartPosition.x, aiStartPosition.y, buildings.size());
+
+        // Log all HQs
+        buildings.values().stream()
+                .filter(b -> b.getBuildingType() == BuildingType.HEADQUARTERS)
+                .forEach(hq -> log.info("HQ exists for team {} at ({}, {})",
+                        hq.getTeamNumber(), hq.getPosition().x, hq.getPosition().y));
+    }
+
+    /**
+     * Add a player to the game
+     */
+    public synchronized boolean addPlayer(PlayerSession playerSession, String factionName) {
+        if (playerSessions.size() >= gameConfig.getMaxPlayers()) {
+            return false;
+        }
+
+        playerSessions.put(playerSession.getPlayerId(), playerSession);
+
+        log.info("Adding player {} to game {}, current factions: {}, selected faction: {}",
+                playerSession.getPlayerId(), gameId, playerFactions.keySet(), factionName);
+
+        // Assign team
+        int teamNumber = assignPlayerToTeam();
+
+        log.info("Assigned player {} to team {}", playerSession.getPlayerId(), teamNumber);
+
+        // Parse faction (default to TERRAN if invalid)
+        Faction selectedFaction = Faction.TERRAN;
+        if (factionName != null) {
+            try {
+                selectedFaction = Faction.valueOf(factionName);
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid faction '{}', defaulting to TERRAN", factionName);
+            }
+        }
+
+        // Create faction with selected faction type
+        PlayerFaction faction = new PlayerFaction(
+                playerSession.getPlayerId(),
+                teamNumber,
+                playerSession.getPlayerName(),
+                selectedFaction
+        );
+        playerFactions.put(playerSession.getPlayerId(), faction);
+        
+        log.info("Created PlayerFaction for player {}: faction={}, factionDefinition={}",
+                playerSession.getPlayerId(), faction.getFaction(), faction.getFactionDefinition() != null);
+
+        // Create starting base
+        Vector2 startPosition = getStartingPosition(teamNumber);
+        createStartingBase(playerSession.getPlayerId(), teamNumber, startPosition);
+
+        log.info("Player {} joined RTS game {} on team {} with faction {}",
+                playerSession.getPlayerName(), gameId, teamNumber, selectedFaction);
+
+        return true;
+    }
+
+    /**
+     * Assign player to team with fewest members
+     */
+    private int assignPlayerToTeam() {
+        // Count HUMAN players per team (exclude AI player -1)
+        int[] teamCounts = new int[gameConfig.getMaxPlayers() + 1];
+        playerFactions.values().forEach(faction -> {
+            // Only count human players (playerId >= 0)
+            if (faction.getPlayerId() >= 0) {
+                int team = faction.getTeamNumber();
+                if (team > 0 && team <= gameConfig.getMaxPlayers()) {
+                    teamCounts[team]++;
+                }
+            }
+        });
+
+        log.info("Team counts (human players only): {}", java.util.Arrays.toString(teamCounts));
+
+        // Find team with fewest players
+        int bestTeam = 1;
+        int minCount = Integer.MAX_VALUE;
+        for (int team = 1; team <= gameConfig.getMaxPlayers(); team++) {
+            if (teamCounts[team] < minCount) {
+                minCount = teamCounts[team];
+                bestTeam = team;
+            }
+        }
+
+        log.info("Assigning to team {} (minCount: {})", bestTeam, minCount);
+
+        return bestTeam;
+    }
+
+    /**
+     * Get starting position for a team from RTSWorld
+     */
+    private Vector2 getStartingPosition(int teamNumber) {
+        // Team numbers are 1-indexed, but world uses 0-indexed
+        return rtsWorld.getTeamStartPoint(teamNumber - 1);
+    }
+
+    /**
+     * Create starting base for a player
+     */
+    private void createStartingBase(int playerId, int teamNumber, Vector2 position) {
+        // Get player faction for modifiers
+        PlayerFaction faction = playerFactions.get(playerId);
+        
+        // Create headquarters (with faction-modified health)
+        double hqMaxHealth = faction != null 
+                ? faction.getBuildingHealth(BuildingType.HEADQUARTERS)
+                : BuildingType.HEADQUARTERS.getMaxHealth();
+        Building hq = new Building(
+                IdGenerator.nextEntityId(),
+                BuildingType.HEADQUARTERS,
+                position.x, position.y,
+                playerId,
+                teamNumber,
+                hqMaxHealth
+        );
+        buildings.put(hq.getId(), hq);
+        world.addBody(hq.getBody());
+
+        log.info("Created HQ {} for player {} (team {}): active={}, underConstruction={}",
+                hq.getId(), playerId, teamNumber, hq.isActive(), hq.isUnderConstruction());
+
+        // Create starting workers
+        for (int i = 0; i < 3; i++) {
+            double angle = (Math.PI * 2 * i) / 3;
+            double offset = 100;
+            double x = position.x + Math.cos(angle) * offset;
+            double y = position.y + Math.sin(angle) * offset;
+
+            Unit worker = new Unit(
+                    IdGenerator.nextEntityId(),
+                    UnitType.WORKER,
+                    x, y,
+                    playerId,
+                    teamNumber
+            );
+            units.put(worker.getId(), worker);
+            world.addBody(worker.getBody());
+        }
+
+        // Create a test infantry unit for debugging
+        Unit infantry = new Unit(
+                IdGenerator.nextEntityId(),
+                UnitType.INFANTRY,
+                position.x + 150, position.y,
+                playerId,
+                teamNumber
+        );
+        units.put(infantry.getId(), infantry);
+        world.addBody(infantry.getBody());
+
+        log.info("Created starting base for player {} at ({}, {})", playerId, position.x, position.y);
+    }
+
+    /**
+     * Remove a player from the game
+     */
+    public void removePlayer(int playerId) {
+        playerSessions.remove(playerId);
+        playerFactions.remove(playerId);
+
+        // Remove player's units and buildings
+        units.entrySet().removeIf(entry -> {
+            if (entry.getValue().belongsTo(playerId)) {
+                world.removeBody(entry.getValue().getBody());
+                return true;
+            }
+            return false;
+        });
+
+        buildings.entrySet().removeIf(entry -> {
+            if (entry.getValue().belongsTo(playerId)) {
+                world.removeBody(entry.getValue().getBody());
+                return true;
+            }
+            return false;
+        });
+
+        log.info("Player {} removed from RTS game {}", playerId, gameId);
+    }
+
+    /**
+     * Accept player input
+     */
+    public void acceptPlayerInput(int playerId, RTSPlayerInput input) {
+        if (input != null) {
+            playerInputs.put(playerId, input);
+        }
+    }
+
+    /**
+     * Broadcast message to all players
+     */
+    public void broadcast(Object message) {
+        playerSessions.values().forEach(player -> {
+            if (player.getSession().isOpen()) {
+                send(player.getSession(), message);
+            }
+        });
+    }
+
+    /**
+     * Send a GameEvent to specific players based on targeting
+     */
+    public void sendGameEvent(GameEvent event) {
+        GameEvent.EventTarget target = event.getTarget();
+
+        if (target == null || target.getType() == GameEvent.EventTarget.TargetType.ALL) {
+            // Broadcast to all players
+            broadcast(event);
+            return;
+        }
+
+        playerSessions.values().forEach(player -> {
+            if (!player.getSession().isOpen()) {
+                return;
+            }
+
+            int playerId = player.getPlayerId();
+            PlayerFaction faction = playerFactions.get(playerId);
+            if (faction == null) {
+                return;
+            }
+
+            boolean shouldReceive = false;
+
+            switch (target.getType()) {
+                case TEAM:
+                    if (target.getTeamIds() != null && target.getTeamIds().contains(faction.getTeamNumber())) {
+                        shouldReceive = true;
+                    }
+                    break;
+                case SPECIFIC:
+                    if (target.getPlayerIds() != null && target.getPlayerIds().contains(playerId)) {
+                        shouldReceive = true;
+                    }
+                    break;
+                case SPECTATORS:
+                    // TODO: Implement spectator system
+                    break;
+            }
+
+            // Check exclusions
+            if (shouldReceive && target.getExcludePlayerIds() != null &&
+                    target.getExcludePlayerIds().contains(playerId)) {
+                shouldReceive = false;
+            }
+
+            if (shouldReceive) {
+                send(player.getSession(), event);
+            }
+        });
+    }
+
+    /**
+     * Send message to specific session
+     */
+    public void send(WebSocketSession session, Object message) {
+        try {
+            if (session.isWritable() && session.isOpen()) {
+                String json = objectMapper.writeValueAsString(message);
+                session.sendAsync(json);
+            }
+        } catch (JsonProcessingException e) {
+            log.error("Error serializing message", e);
+        } catch (WebSocketSessionException e) {
+            if (!(e.getCause() instanceof InterruptedException)) {
+                log.error("Error sending message", e);
+            }
+        }
+    }
+
+    /**
+     * Serialize a beam for client rendering
+     */
+    private Map<String, Object> serializeBeam(Beam beam) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", beam.getId());
+        data.put("startX", beam.getStartPosition().x);
+        data.put("startY", beam.getStartPosition().y);
+        data.put("endX", beam.getEndPosition().x);
+        data.put("endY", beam.getEndPosition().y);
+        data.put("width", beam.getWidth());
+        data.put("beamType", beam.getBeamType().name());
+        data.put("duration", beam.getDuration());
+        data.put("elapsed", beam.getElapsed());
+        return data;
+    }
+
+    /**
+     * Apply damage from a beam to the entity it hit
+     */
+    private void applyBeamDamage(Beam beam) {
+        Body hitBody = beam.getHitBody();
+        if (hitBody == null) {
+            return;
+        }
+        
+        // Find the entity associated with this body
+        // Check units
+        for (Unit unit : units.values()) {
+            if (unit.getBody() == hitBody) {
+                unit.takeDamage(beam.getDamage());
+                return;
+            }
+        }
+        
+        // Check buildings
+        for (Building building : buildings.values()) {
+            if (building.getBody() == hitBody) {
+                building.takeDamage(beam.getDamage());
+                return;
+            }
+        }
+        
+        // Check obstacles
+        for (Obstacle obstacle : obstacles.values()) {
+            if (obstacle.getBody() == hitBody) {
+                obstacle.takeDamage(beam.getDamage());
+                return;
+            }
+        }
+        
+        // Check wall segments
+        for (WallSegment segment : wallSegments.values()) {
+            if (segment.getBody() == hitBody) {
+                segment.takeDamage(beam.getDamage());
+                return;
+            }
+        }
+    }
+
+    /**
+     * Shutdown the game
+     */
+    public void shutdown() {
+        shutdown.set(true);
+        updateTask.cancel(true);
+        log.info("RTS Game {} shut down", gameId);
+    }
+
+    /**
+     * Get player count
+     */
+    public int getPlayerCount() {
+        return playerSessions.size();
+    }
+}
+

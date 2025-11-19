@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Full Steam RTS</title>
+    <link rel="stylesheet" type="text/css" href="unified.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/8.13.2/pixi.min.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #1a1a1a;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #pixi-container {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* RTS UI Overlay */
+        #rts-ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        /* Resource Display */
+        #resource-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #FFD700;
+            border-radius: 8px;
+            padding: 15px;
+            color: white;
+            pointer-events: all;
+            min-width: 200px;
+        }
+        
+        /* Game Event Feed */
+        #event-feed {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 400px;
+            max-height: 300px;
+            pointer-events: none;
+            z-index: 100;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 8px;
+        }
+        
+        .game-event {
+            background: rgba(0, 0, 0, 0.85);
+            border-left: 4px solid;
+            padding: 12px 16px;
+            border-radius: 4px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.4;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            animation: slideInRight 0.3s ease-out, fadeOut 0.5s ease-in forwards;
+            animation-delay: 0s, 4.5s;
+        }
+        
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+        }
+        
+        .game-event.warning {
+            border-left-color: #FF8800;
+            color: #FFAA00;
+        }
+        
+        .game-event.system {
+            border-left-color: #FFAA00;
+            color: #FFFFFF;
+        }
+        
+        .game-event.info {
+            border-left-color: #00AAFF;
+            color: #AADDFF;
+        }
+        
+        .resource-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 16px;
+        }
+        
+        .resource-label {
+            color: #FFD700;
+            font-weight: bold;
+        }
+        
+        .resource-value {
+            color: #00FF00;
+        }
+        
+        /* Unit Info Panel */
+        #unit-info-panel {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00AAFF;
+            border-radius: 8px;
+            padding: 15px;
+            color: white;
+            pointer-events: all;
+            min-width: 250px;
+            display: none;
+        }
+        
+        .unit-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00AAFF;
+            margin-bottom: 10px;
+        }
+        
+        .unit-stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .health-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e74c3c, #2ecc71);
+            transition: width 0.2s;
+        }
+        
+        /* Build Menu */
+        #build-menu {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #FFD700;
+            border-radius: 8px;
+            padding: 15px;
+            color: white;
+            pointer-events: all;
+            display: none;
+        }
+        
+        .build-menu-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #FFD700;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .build-category {
+            font-size: 14px;
+            font-weight: bold;
+            color: #00CED1;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            padding: 5px;
+            background: rgba(0, 206, 209, 0.2);
+            border-left: 3px solid #00CED1;
+        }
+        
+        .build-category:first-of-type {
+            margin-top: 5px;
+        }
+        
+        .build-button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background: #333;
+            border: 2px solid #666;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+        
+        .build-button:hover {
+            background: #555;
+            border-color: #FFD700;
+            transform: translateX(5px);
+        }
+        
+        .build-cost {
+            float: right;
+            color: #FFD700;
+            font-weight: bold;
+        }
+        
+        .build-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .build-cost {
+            color: #00FF00;
+            font-size: 12px;
+        }
+        
+        /* Loading Screen */
+        #loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .loading-content {
+            text-align: center;
+            color: white;
+        }
+        
+        .loading-bar {
+            width: 300px;
+            height: 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        
+        .loading-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+        <script src="js/rts/RTSEngine.js?v=68"></script>
+    <script type="text/javascript">
+        window.addEventListener('load', () => {
+            try {
+                new RTSEngine();
+            } catch (error) {
+                console.error('Failed to initialize RTS game:', error);
+                document.getElementById('loading-status').textContent = 'Failed to load game: ' + error.message;
+            }
+        });
+    </script>
+</head>
+<body>
+<div id="game-container">
+    <div id="loading-screen">
+        <div class="loading-content">
+            <h2>Loading RTS Game...</h2>
+            <div class="loading-bar">
+                <div class="loading-progress" id="loading-progress"></div>
+            </div>
+            <div id="loading-status">Initializing...</div>
+        </div>
+    </div>
+    
+    <div id="rts-ui" style="display: none;">
+        <!-- Resource Panel -->
+        <div id="resource-panel">
+            <div class="resource-item">
+                <span class="resource-label">Player:</span>
+                <span class="resource-value" id="player-info">-</span>
+            </div>
+            <div class="resource-item">
+                <span class="resource-label">Credits:</span>
+                <span class="resource-value" id="credits-value">1000</span>
+            </div>
+            <div class="resource-item">
+                <span class="resource-label">Upkeep:</span>
+                <span class="resource-value" id="upkeep-value">0/100</span>
+            </div>
+            <div class="resource-item">
+                <span class="resource-label">Power:</span>
+                <span class="resource-value" id="power-value">0/0</span>
+            </div>
+        </div>
+        
+        <!-- Game Event Feed -->
+        <div id="event-feed"></div>
+        
+        <!-- Unit Info Panel -->
+        <div id="unit-info-panel" style="display: none;">
+            <!-- Single unit display -->
+            <div id="single-unit-info">
+                <div class="unit-name" id="unit-name">Worker</div>
+                <div class="health-bar">
+                    <div class="health-fill" id="unit-health-fill" style="width: 100%;"></div>
+                </div>
+                <div class="unit-stat">
+                    <span>Health:</span>
+                    <span id="unit-health">50/50</span>
+                </div>
+                <div class="unit-stat">
+                    <span>Type:</span>
+                    <span id="unit-type">Worker</span>
+                </div>
+                <div class="unit-stat" id="unit-special-ability" style="display: none;">
+                    <span>Ability:</span>
+                    <span id="unit-ability-name">-</span>
+                </div>
+            </div>
+            
+            <!-- Multiple units display -->
+            <div id="multi-unit-info" style="display: none;">
+                <div class="unit-name">Multiple Units Selected</div>
+                <div id="unit-count-list"></div>
+            </div>
+        </div>
+        
+        <!-- Build Menu -->
+        <div id="build-menu">
+            <div class="build-menu-title">Build Menu</div>
+            
+            <!-- Tier 1 Buildings -->
+            <div class="build-category">Basic</div>
+            <button class="build-button" data-building="POWER_PLANT">
+                ⚡ Power Plant <span class="build-cost">(250)</span>
+            </button>
+            <button class="build-button" data-building="BARRACKS">
+                🏰 Barracks <span class="build-cost">(200)</span>
+            </button>
+            <button class="build-button" data-building="REFINERY">
+                🏭 Refinery <span class="build-cost">(300)</span>
+            </button>
+            <button class="build-button" data-building="WALL">
+                🧱 Wall <span class="build-cost">(50)</span>
+            </button>
+            
+            <!-- Tier 2 Buildings -->
+            <div class="build-category">Advanced (T2)</div>
+            <button class="build-button" data-building="RESEARCH_LAB">
+                🔬 Research Lab <span class="build-cost">(500)</span>
+            </button>
+            <button class="build-button" data-building="FACTORY">
+                🚗 Factory <span class="build-cost">(400)</span>
+            </button>
+            <button class="build-button" data-building="WEAPONS_DEPOT">
+                🔫 Weapons Depot <span class="build-cost">(400)</span>
+            </button>
+            <button class="build-button" data-building="TURRET">
+                🎯 Turret <span class="build-cost">(250)</span>
+            </button>
+            <button class="build-button" data-building="SHIELD_GENERATOR">
+                🛡️ Shield Generator <span class="build-cost">(400)</span>
+            </button>
+            
+            <!-- Tier 3 Buildings -->
+            <div class="build-category">Elite (T3)</div>
+            <button class="build-button" data-building="TECH_CENTER">
+                🧪 Tech Center <span class="build-cost">(800)</span>
+            </button>
+            <button class="build-button" data-building="ADVANCED_FACTORY">
+                🏭 Advanced Factory <span class="build-cost">(1000)</span>
+            </button>
+            <button class="build-button" data-building="BANK">
+                💰 Bank <span class="build-cost">(600)</span>
+            </button>
+        </div>
+        
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 10000; justify-content: center; align-items: center; pointer-events: all;">
+            <div style="text-align: center; color: white; pointer-events: all;">
+                <h1 id="game-over-title" style="font-size: 72px; margin-bottom: 20px; text-shadow: 0 0 20px currentColor;">VICTORY</h1>
+                <p id="game-over-winner" style="font-size: 32px; margin-bottom: 20px; font-weight: bold;"></p>
+                <p id="game-over-reason" style="font-size: 24px; margin-bottom: 40px;">You destroyed all enemy headquarters!</p>
+                <button id="play-again-btn" style="padding: 15px 40px; font-size: 20px; background: #FFD700; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; pointer-events: all;">
+                    Play Again
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="pixi-container"></div>
+</div>
+</body>
+</html>
+

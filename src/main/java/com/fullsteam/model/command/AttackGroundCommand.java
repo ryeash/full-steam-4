@@ -1,0 +1,76 @@
+package com.fullsteam.model.command;
+
+import com.fullsteam.model.AbstractOrdinance;
+import com.fullsteam.model.Projectile;
+import com.fullsteam.model.Unit;
+import lombok.Getter;
+import org.dyn4j.geometry.Vector2;
+
+import java.util.List;
+
+/**
+ * Command to attack a specific ground location (force attack - CMD/CTRL + right click)
+ * Useful for artillery and area denial
+ */
+@Getter
+public class AttackGroundCommand extends UnitCommand {
+    private final Vector2 groundTarget;
+    
+    public AttackGroundCommand(Unit unit, Vector2 groundTarget, boolean isPlayerOrder) {
+        super(unit, isPlayerOrder);
+        this.groundTarget = groundTarget.copy();
+    }
+    
+    @Override
+    public boolean update(double deltaTime) {
+        // Command stays active until cancelled
+        return true;
+    }
+    
+    @Override
+    public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
+        Vector2 currentPos = unit.getPosition();
+        double distance = currentPos.distance(groundTarget);
+        double attackRange = unit.getUnitType().getAttackRange();
+        
+        // Move into range if too far
+        if (distance > attackRange * 0.9) {
+            unit.applySteeringForces(groundTarget, nearbyUnits, deltaTime);
+        } else {
+            // In range, stop moving
+            unit.getBody().setLinearVelocity(0, 0);
+        }
+    }
+    
+    @Override
+    public AbstractOrdinance updateCombat(double deltaTime) {
+        Vector2 currentPos = unit.getPosition();
+        double distance = currentPos.distance(groundTarget);
+        double attackRange = unit.getUnitType().getAttackRange();
+        
+        // Only fire if in range
+        if (distance <= attackRange * 0.9) {
+            return unit.engageGroundTarget(groundTarget, deltaTime);
+        }
+        
+        return null;
+    }
+    
+    @Override
+    public Vector2 getTargetPosition() {
+        return groundTarget;
+    }
+    
+    @Override
+    public boolean isMoving() {
+        double distance = unit.getPosition().distance(groundTarget);
+        double attackRange = unit.getUnitType().getAttackRange();
+        return distance > attackRange * 0.9;
+    }
+    
+    @Override
+    public String getDescription() {
+        return String.format("Attack ground at (%.1f, %.1f)", groundTarget.x, groundTarget.y);
+    }
+}
+
