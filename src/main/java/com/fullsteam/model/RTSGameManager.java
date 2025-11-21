@@ -1069,11 +1069,41 @@ public class RTSGameManager {
                         building != null && building.belongsTo(playerId),
                         canAffordUnit(faction, unitType));
 
-                if (building != null && building.belongsTo(playerId) && canAffordUnit(faction, unitType)) {
+                if (building != null && building.belongsTo(playerId)) {
                     // Check if this building can produce this unit for this faction
                     if (!faction.canBuildingProduceUnit(building.getBuildingType(), unitType)) {
                         log.warn("Player {} tried to produce {} at {} but faction doesn't allow it",
                                 playerId, unitType, building.getBuildingType());
+                        return;
+                    }
+
+                    // Check if player has low power
+                    if (faction.isHasLowPower()) {
+                        log.warn("Player {} tried to produce {} but has LOW POWER", playerId, unitType);
+                        sendGameEvent(GameEvent.createPlayerEvent(
+                                "⚡ Cannot start production: LOW POWER! Build more Power Plants!",
+                                playerId,
+                                GameEvent.EventCategory.WARNING
+                        ));
+                        return;
+                    }
+
+                    // Check if player can afford the upkeep
+                    if (!faction.canAffordUpkeep(unitType.getUpkeepCost())) {
+                        log.warn("Player {} tried to produce {} but upkeep limit reached ({}/{})",
+                                playerId, unitType, faction.getCurrentUpkeep(), faction.getMaxUpkeep());
+                        sendGameEvent(GameEvent.createPlayerEvent(
+                                String.format("⚠️ Cannot produce unit: Upkeep limit reached (%d/%d)!",
+                                        faction.getCurrentUpkeep(), faction.getMaxUpkeep()),
+                                playerId,
+                                GameEvent.EventCategory.WARNING
+                        ));
+                        return;
+                    }
+
+                    // Check if player can afford the unit
+                    if (!canAffordUnit(faction, unitType)) {
+                        log.warn("Player {} tried to produce {} but cannot afford it", playerId, unitType);
                         return;
                     }
 
@@ -2018,32 +2048,57 @@ public class RTSGameManager {
      * Extract vertices from a physics body for client-side rendering
      * Returns a list of [x, y] coordinate pairs in local space
      */
-    private List<List<Double>> extractBodyVertices(Body body) {
-        List<List<Double>> vertices = new ArrayList<>();
+    /**
+     * Extract vertices from all fixtures in a physics body
+     * Returns a list of fixtures, where each fixture is a list of vertices (x,y pairs)
+     * This supports multi-fixture bodies for compound shapes
+     */
+    private List<List<List<Double>>> extractBodyVertices(Body body) {
+        List<List<List<Double>>> allFixtures = new ArrayList<>();
 
         if (body.getFixtureCount() == 0) {
-            return vertices;
+            return allFixtures;
         }
 
-        // Get the first fixture (units only have one)
-        Convex convex = body.getFixture(0).getShape();
+        // Iterate through all fixtures in the body
+        for (int i = 0; i < body.getFixtureCount(); i++) {
+            List<List<Double>> fixtureVertices = new ArrayList<>();
+            Convex convex = body.getFixture(i).getShape();
 
-        // Check if it's a polygon
-        if (convex instanceof Polygon polygon) {
-            Vector2[] polyVertices = polygon.getVertices();
-            for (Vector2 vertex : polyVertices) {
-                List<Double> point = new ArrayList<>();
-                point.add(vertex.x);
-                point.add(vertex.y);
-                vertices.add(point);
+            // Check if it's a polygon
+            if (convex instanceof Polygon polygon) {
+                Vector2[] polyVertices = polygon.getVertices();
+                for (Vector2 vertex : polyVertices) {
+                    List<Double> point = new ArrayList<>();
+                    point.add(vertex.x);
+                    point.add(vertex.y);
+                    fixtureVertices.add(point);
+                }
+            } else if (convex instanceof Circle circle) {
+                // Approximate circle with vertices (16-sided polygon)
+                int segments = 16;
+                double radius = circle.getRadius();
+                Vector2 center = circle.getCenter();
+                
+                for (int j = 0; j < segments; j++) {
+                    double angle = (2.0 * Math.PI * j) / segments;
+                    double x = center.x + radius * Math.cos(angle);
+                    double y = center.y + radius * Math.sin(angle);
+                    
+                    List<Double> point = new ArrayList<>();
+                    point.add(x);
+                    point.add(y);
+                    fixtureVertices.add(point);
+                }
             }
-        } else if (convex instanceof Circle) {
-            // For circles, return empty array (client will draw circle)
-            // Or we could approximate with many vertices
-            return vertices;
+
+            // Only add non-empty fixtures
+            if (!fixtureVertices.isEmpty()) {
+                allFixtures.add(fixtureVertices);
+            }
         }
 
-        return vertices;
+        return allFixtures;
     }
 
     /**
@@ -2204,12 +2259,15 @@ public class RTSGameManager {
 
         // Faction-modified costs for units (client needs this for UI)
         Map<String, Integer> unitCosts = new HashMap<>();
+        Map<String, Integer> unitUpkeep = new HashMap<>();
         for (UnitType unitType : UnitType.values()) {
             if (faction.canBuildUnit(unitType)) {
                 unitCosts.put(unitType.name(), faction.getUnitCost(unitType));
+                unitUpkeep.put(unitType.name(), unitType.getUpkeepCost());
             }
         }
         data.put("unitCosts", unitCosts);
+        data.put("unitUpkeep", unitUpkeep);
 
         // Faction-modified costs for buildings
         Map<String, Integer> buildingCosts = new HashMap<>();

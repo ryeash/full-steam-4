@@ -5,6 +5,8 @@ import org.dyn4j.geometry.Convex;
 import org.dyn4j.geometry.Geometry;
 import org.dyn4j.geometry.Vector2;
 
+import java.util.List;
+
 /**
  * Defines the different types of units available in the RTS game.
  * Each unit type has specific attributes like cost, health, speed, damage, etc.
@@ -266,9 +268,9 @@ public enum UnitType {
             BuildingType.ADVANCED_FACTORY,
             60       // upkeep cost
     ),
-    
+
     // ===== HERO UNITS =====
-    
+
     // PALADIN - Terran hero unit, balanced powerhouse
     PALADIN(
             "Paladin",
@@ -285,7 +287,7 @@ public enum UnitType {
             BuildingType.ADVANCED_FACTORY,
             55       // upkeep cost
     ),
-    
+
     // RAIDER - Nomads hero unit, fast hit-and-run cavalry
     RAIDER(
             "Raider",
@@ -302,7 +304,7 @@ public enum UnitType {
             BuildingType.ADVANCED_FACTORY,
             45       // upkeep cost
     ),
-    
+
     // COLOSSUS - Synthesis hero unit, massive walker
     COLOSSUS(
             "Colossus",
@@ -319,9 +321,9 @@ public enum UnitType {
             BuildingType.ADVANCED_FACTORY,
             75       // upkeep cost (VERY HIGH!)
     ),
-    
+
     // ===== TECH ALLIANCE BEAM WEAPON UNITS =====
-    
+
     // PLASMA_TROOPER - Basic beam infantry (Tech Alliance equivalent of Infantry)
     PLASMA_TROOPER(
             "Plasma Trooper",
@@ -338,7 +340,7 @@ public enum UnitType {
             BuildingType.BARRACKS,
             11       // upkeep cost
     ),
-    
+
     // ION_RANGER - Long-range beam sniper
     ION_RANGER(
             "Ion Ranger",
@@ -355,7 +357,7 @@ public enum UnitType {
             BuildingType.WEAPONS_DEPOT,
             14       // upkeep cost
     ),
-    
+
     // PHOTON_SCOUT - Fast beam vehicle
     PHOTON_SCOUT(
             "Photon Scout",
@@ -372,7 +374,7 @@ public enum UnitType {
             BuildingType.FACTORY,
             22       // upkeep cost
     ),
-    
+
     // BEAM_TANK - Heavy beam vehicle
     BEAM_TANK(
             "Beam Tank",
@@ -389,7 +391,7 @@ public enum UnitType {
             BuildingType.FACTORY,
             32       // upkeep cost
     ),
-    
+
     // PULSE_ARTILLERY - Long-range beam artillery
     PULSE_ARTILLERY(
             "Pulse Artillery",
@@ -406,7 +408,7 @@ public enum UnitType {
             BuildingType.ADVANCED_FACTORY,
             42       // upkeep cost
     ),
-    
+
     // PHOTON_TITAN - Hero unit, massive beam platform
     PHOTON_TITAN(
             "Photon Titan",
@@ -439,15 +441,16 @@ public enum UnitType {
     private final int upkeepCost; // supply/upkeep cost
 
     /**
-     * Create a physics fixture for this unit type
-     * This allows each unit to have a custom shape (not just regular polygons)
-     * Returns a Convex shape that will be added to the unit's physics body
+     * Create physics fixtures for this unit type
+     * This allows each unit to have custom shapes (including multi-fixture compound shapes)
+     * Returns a list of Convex shapes that will be added to the unit's physics body
+     * Most units return a single fixture, but complex units can return multiple fixtures
+     * for compound shapes (e.g., hourglass, dumbbell, star shapes)
      */
-    public Convex createPhysicsFixture() {
+    public List<Convex> createPhysicsFixtures() {
         return switch (this) {
             // Basic Infantry - standard triangle (pointing forward)
-            case INFANTRY, LASER_INFANTRY, PLASMA_TROOPER -> 
-                    Geometry.createPolygonalCircle(3, size);
+            case INFANTRY, LASER_INFANTRY, PLASMA_TROOPER -> List.of(Geometry.createPolygonalCircle(3, size));
 
             // Rocket Soldier - wider pentagon (anti-vehicle specialist with launcher)
             case ROCKET_SOLDIER -> {
@@ -460,7 +463,7 @@ public enum UnitType {
                         new Vector2(size * 0.3, size * 0.9),  // Right shoulder (wide)
                         new Vector2(-size * 0.8, size * 0.6)  // Back right
                 };
-                yield Geometry.createPolygon(vertices);
+                yield List.of(Geometry.createPolygon(vertices));
             }
 
             // Sniper - elongated narrow triangle (long rifle look)
@@ -473,7 +476,7 @@ public enum UnitType {
                         new Vector2(size * 1.3, 0),           // Front point (long barrel, pointing right)
                         new Vector2(-size * 0.7, size * 0.5)  // Back top (narrow base)
                 };
-                yield Geometry.createPolygon(vertices);
+                yield List.of(Geometry.createPolygon(vertices));
             }
 
             // Ion Ranger - elongated pentagon (advanced beam sniper)
@@ -486,18 +489,18 @@ public enum UnitType {
                         new Vector2(size * 0.2, size * 0.7),  // Right side
                         new Vector2(-size * 0.9, size * 0.5)  // Back right
                 };
-                yield Geometry.createPolygon(vertices);
+                yield List.of(Geometry.createPolygon(vertices));
             }
 
             // Worker/Support units - circular for easy navigation
-            case WORKER, MINER, MEDIC, ENGINEER -> Geometry.createCircle(size);
+            case WORKER, MINER, MEDIC, ENGINEER -> List.of(Geometry.createCircle(size));
 
             // Light vehicles - elongated rectangle (fast, nimble)
-            case JEEP, PHOTON_SCOUT -> Geometry.createRectangle(size * 1.6, size);
+            case JEEP, PHOTON_SCOUT -> List.of(Geometry.createRectangle(size * 1.6, size));
 
             // Standard Tank - hexagonal turret platform (balanced)
-            case TANK -> Geometry.createPolygonalCircle(6, size);
-            
+            case TANK -> List.of(Geometry.createPolygonalCircle(6, size));
+
             // Beam Tank - wider hexagon (beam weapon platform)
             case BEAM_TANK -> {
                 // Pointing right (positive X direction)
@@ -509,7 +512,7 @@ public enum UnitType {
                         new Vector2(size * 0.4, size * 1.1),  // Front right (wider)
                         new Vector2(-size * 0.4, size * 1.1)  // Back right (wider)
                 };
-                yield Geometry.createPolygon(vertices);
+                yield List.of(Geometry.createPolygon(vertices));
             }
 
             // Stealth Tank - sleek diamond (low profile, streamlined)
@@ -521,7 +524,7 @@ public enum UnitType {
                         new Vector2(size * 1.0, 0),           // Front point (sleek, pointing right)
                         new Vector2(0, size * 0.7)            // Right point (narrow)
                 };
-                yield Geometry.createPolygon(vertices);
+                yield List.of(Geometry.createPolygon(vertices));
             }
 
             // Mammoth Tank - massive wide rectangle (dual-cannon heavy assault)
@@ -538,7 +541,7 @@ public enum UnitType {
                         new Vector2(-size * 0.6, size * 1.1), // Right side back
                         new Vector2(-size * 0.9, size * 0.8)  // Back right
                 };
-                yield Geometry.createPolygon(vertices);
+                yield List.of(Geometry.createPolygon(vertices));
             }
 
             // Artillery - elongated pentagon (long barrel siege weapon)
@@ -551,9 +554,9 @@ public enum UnitType {
                         new Vector2(size * 0.3, size * 0.8),  // Right side
                         new Vector2(-size * 0.8, size * 0.7)  // Back right
                 };
-                yield Geometry.createPolygon(vertices);
+                yield List.of(Geometry.createPolygon(vertices));
             }
-            
+
             // Pulse Artillery - wide hexagon (beam artillery platform)
             case PULSE_ARTILLERY -> {
                 // Pointing right (positive X direction)
@@ -565,7 +568,7 @@ public enum UnitType {
                         new Vector2(size * 0.5, size * 1.0),  // Front right (wide)
                         new Vector2(-size * 0.5, size * 1.0)  // Back right (wide)
                 };
-                yield Geometry.createPolygon(vertices);
+                yield List.of(Geometry.createPolygon(vertices));
             }
 
             // Gigantonaut - trapezoid (wide at back, tapered at front for heavy artillery look)
@@ -578,26 +581,21 @@ public enum UnitType {
                         new Vector2(size * 1.2, size * 0.6),  // Front right (tapered)
                         new Vector2(-size * 0.8, size * 0.9)   // Back right (wide)
                 };
-                yield Geometry.createPolygon(vertices);
+                yield List.of(Geometry.createPolygon(vertices));
             }
 
-            // Crawler - wide fortress rectangle (mobile fortress)
+            // Crawler - dumbbell shape (MULTI-FIXTURE PROOF OF CONCEPT!)
+            // This is a compound shape: two circular "treads" connected by a rectangular body
             case CRAWLER -> {
-                // Massive wide rectangle with reinforced corners
-                // Pointing right (positive X direction)
-                Vector2[] vertices = new Vector2[]{
-                        new Vector2(-size * 1.3, -size * 0.9), // Back left
-                        new Vector2(-size * 1.0, -size * 1.2), // Left back corner
-                        new Vector2(size * 1.0, -size * 1.2),  // Left front corner
-                        new Vector2(size * 1.5, -size * 0.9),  // Front left (pointing right)
-                        new Vector2(size * 1.5, size * 0.9),   // Front right
-                        new Vector2(size * 1.0, size * 1.2),   // Right front corner
-                        new Vector2(-size * 1.0, size * 1.2),  // Right back corner
-                        new Vector2(-size * 1.3, size * 0.9)   // Back right
-                };
-                yield Geometry.createPolygon(vertices);
+                // Create a dumbbell/tank-tread shape with 3 fixtures
+                Convex frontTread = Geometry.createCircle(size * .6);
+                frontTread.translate(size * .3, 0);
+                Convex rearTread = Geometry.createCircle(size * .6);
+                rearTread.translate(-size * .3, 0);
+                Convex body = Geometry.createRectangle(size * 1.8, size);
+                yield List.of(frontTread, rearTread, body);
             }
-            
+
             // Paladin - shield shape (Terran hero knight)
             case PALADIN -> {
                 // Shield-like hexagon
@@ -610,9 +608,9 @@ public enum UnitType {
                         new Vector2(size * 0.5, size * 1.0),  // Right shoulder
                         new Vector2(-size * 0.6, size * 0.9)  // Right bottom
                 };
-                yield Geometry.createPolygon(vertices);
+                yield List.of(Geometry.createPolygon(vertices));
             }
-            
+
             // Raider - elongated arrow (fast cavalry)
             case RAIDER -> {
                 // Stretched triangle like an arrow (fast, agile)
@@ -622,9 +620,9 @@ public enum UnitType {
                         new Vector2(size * 1.4, 0),           // Front point (very long, pointing right)
                         new Vector2(-size * 0.9, size * 0.8)  // Back right (wide stance)
                 };
-                yield Geometry.createPolygon(vertices);
+                yield List.of(Geometry.createPolygon(vertices));
             }
-            
+
             // Photon Titan - energy platform hexagon (massive beam hero)
             case PHOTON_TITAN -> {
                 // Wide hexagonal energy platform
@@ -637,9 +635,9 @@ public enum UnitType {
                         new Vector2(size * 0.6, size * 1.2),  // Front right (very wide)
                         new Vector2(-size * 0.6, size * 1.2)  // Back right (very wide)
                 };
-                yield Geometry.createPolygon(vertices);
+                yield List.of(Geometry.createPolygon(vertices));
             }
-            
+
             // Colossus - wide diamond (imposing massive walker)
             case COLOSSUS -> {
                 // Create a wide diamond: wider than it is long for imposing presence
@@ -650,7 +648,7 @@ public enum UnitType {
                         new Vector2(size * 0.7, 0),           // Front point (forward, pointing right)
                         new Vector2(0, size * 1.3)            // Right point (wide)
                 };
-                yield Geometry.createPolygon(vertices);
+                yield List.of(Geometry.createPolygon(vertices));
             }
         };
     }
@@ -754,12 +752,12 @@ public enum UnitType {
      */
     public boolean firesBeams() {
         return this == LASER_INFANTRY ||
-               this == PLASMA_TROOPER ||
-               this == ION_RANGER ||
-               this == PHOTON_SCOUT ||
-               this == BEAM_TANK ||
-               this == PULSE_ARTILLERY ||
-               this == PHOTON_TITAN;
+                this == PLASMA_TROOPER ||
+                this == ION_RANGER ||
+                this == PHOTON_SCOUT ||
+                this == BEAM_TANK ||
+                this == PULSE_ARTILLERY ||
+                this == PHOTON_TITAN;
     }
 
     /**
@@ -767,13 +765,13 @@ public enum UnitType {
      */
     public boolean isInfantry() {
         return this == INFANTRY ||
-               this == LASER_INFANTRY ||
-               this == PLASMA_TROOPER ||
-               this == ROCKET_SOLDIER ||
-               this == SNIPER ||
-               this == ION_RANGER ||
-               this == MEDIC ||
-               this == ENGINEER;
+                this == LASER_INFANTRY ||
+                this == PLASMA_TROOPER ||
+                this == ROCKET_SOLDIER ||
+                this == SNIPER ||
+                this == ION_RANGER ||
+                this == MEDIC ||
+                this == ENGINEER;
     }
 
     /**

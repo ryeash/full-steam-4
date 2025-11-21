@@ -109,14 +109,18 @@ public class Building extends GameEntity {
     private static Body createBuildingBody(double x, double y, BuildingType buildingType) {
         Body body = new Body();
         
-        // Use custom physics fixture from BuildingType (allows complex shapes)
-        Convex shape = buildingType.createPhysicsFixture();
-        BodyFixture fixture = body.addFixture(shape);
+        // Use custom physics fixtures from BuildingType (supports multi-fixture compound shapes)
+        List<Convex> shapes = buildingType.createPhysicsFixtures();
         
-        // Configure fixture properties
-        fixture.setFriction(0.1);      // Low friction
-        fixture.setRestitution(0.0);   // No bounce
-        fixture.setSensor(false);      // Solid collision (not a sensor)
+        // Add all fixtures to the body
+        for (Convex shape : shapes) {
+            BodyFixture fixture = body.addFixture(shape);
+            
+            // Configure fixture properties
+            fixture.setFriction(0.1);      // Low friction
+            fixture.setRestitution(0.0);   // No bounce
+            fixture.setSensor(false);      // Solid collision (not a sensor)
+        }
         
         body.setMass(MassType.INFINITE); // Buildings don't move
         body.getTransform().setTranslation(x, y);

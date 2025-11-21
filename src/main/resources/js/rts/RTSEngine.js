@@ -810,14 +810,23 @@ class RTSEngine {
         const shape = new PIXI.Graphics();
         // Use physics body vertices if available, otherwise fall back to manual drawing
         if (unitData.vertices && unitData.vertices.length > 0) {
-            // Debug logging for custom shapes
-            if (unitData.type === 'GIGANTONAUT') {
+            // Check if this is multi-fixture format (array of fixtures) or single-fixture format
+            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
+            
+            if (isMultiFixture) {
+                // Multi-fixture: vertices is [fixture1, fixture2, ...]
+                // where each fixture is [[x1, y1], [x2, y2], ...]
+                for (const fixtureVertices of unitData.vertices) {
+                    if (fixtureVertices.length > 0) {
+                        this.drawPhysicsPolygon(shape, fixtureVertices, typeInfo.color, unitData.team);
+                    }
+                }
+            } else {
+                // Single-fixture (backward compatibility): vertices is [[x1, y1], [x2, y2], ...]
+                this.drawPhysicsPolygon(shape, unitData.vertices, typeInfo.color, unitData.team);
             }
-            this.drawPhysicsPolygon(shape, unitData.vertices, typeInfo.color, unitData.team);
         } else {
             // Fallback for circles or if vertices not provided
-            if (unitData.type === 'GIGANTONAUT') {
-            }
             this.drawPolygon(shape, typeInfo.sides, typeInfo.size, typeInfo.color, unitData.team);
         }
         rotatingContainer.addChild(shape);
@@ -898,9 +907,24 @@ class RTSEngine {
             if (buildingData.underConstruction) {
                 // Dotted outline for buildings under construction
                 if (hasVertices) {
-                    this.drawPhysicsPolygonOutline(shape, buildingData.vertices, 
-                                                   buildingContainer.typeInfo.color, 
-                                                   buildingData.team);
+                    // Check if this is multi-fixture format
+                    const isMultiFixture = Array.isArray(buildingData.vertices[0]) && Array.isArray(buildingData.vertices[0][0]);
+                    
+                    if (isMultiFixture) {
+                        // Multi-fixture: draw each fixture separately
+                        for (const fixtureVertices of buildingData.vertices) {
+                            if (fixtureVertices.length > 0) {
+                                this.drawPhysicsPolygonOutline(shape, fixtureVertices, 
+                                                               buildingContainer.typeInfo.color, 
+                                                               buildingData.team);
+                            }
+                        }
+                    } else {
+                        // Single-fixture (backward compatibility)
+                        this.drawPhysicsPolygonOutline(shape, buildingData.vertices, 
+                                                       buildingContainer.typeInfo.color, 
+                                                       buildingData.team);
+                    }
                 } else {
                     this.drawPolygonOutline(shape, buildingContainer.typeInfo.sides, 
                                            buildingContainer.typeInfo.size, 
@@ -910,9 +934,24 @@ class RTSEngine {
             } else {
                 // Solid fill for completed buildings
                 if (hasVertices) {
-                    this.drawPhysicsPolygon(shape, buildingData.vertices, 
-                                           buildingContainer.typeInfo.color, 
-                                           buildingData.team);
+                    // Check if this is multi-fixture format
+                    const isMultiFixture = Array.isArray(buildingData.vertices[0]) && Array.isArray(buildingData.vertices[0][0]);
+                    
+                    if (isMultiFixture) {
+                        // Multi-fixture: draw each fixture separately
+                        for (const fixtureVertices of buildingData.vertices) {
+                            if (fixtureVertices.length > 0) {
+                                this.drawPhysicsPolygon(shape, fixtureVertices, 
+                                                       buildingContainer.typeInfo.color, 
+                                                       buildingData.team);
+                            }
+                        }
+                    } else {
+                        // Single-fixture (backward compatibility)
+                        this.drawPhysicsPolygon(shape, buildingData.vertices, 
+                                               buildingContainer.typeInfo.color, 
+                                               buildingData.team);
+                    }
                 } else {
                     this.drawPolygon(shape, buildingContainer.typeInfo.sides, 
                                    buildingContainer.typeInfo.size, 
@@ -923,13 +962,13 @@ class RTSEngine {
         }
         
         // Update turret rotation for TURRET buildings (hide barrel during construction)
-        if (buildingContainer.rotatingContainer) {
+        if (buildingContainer.rotatingContainer && buildingContainer.turretBarrel) {
             if (buildingData.underConstruction) {
-                // Hide turret barrel while under construction
-                buildingContainer.rotatingContainer.visible = false;
+                // Hide only the turret barrel while under construction (keep base visible)
+                buildingContainer.turretBarrel.visible = false;
             } else {
                 // Show and rotate turret barrel when construction is complete
-                buildingContainer.rotatingContainer.visible = true;
+                buildingContainer.turretBarrel.visible = true;
                 if (buildingData.rotation !== undefined) {
                     buildingContainer.rotatingContainer.rotation = buildingData.rotation;
                 }
@@ -3055,7 +3094,7 @@ class RTSEngine {
             availableUnits.forEach(unitType => {
                 const button = document.createElement('button');
                 button.className = 'build-button';
-                button.innerHTML = `${unitType.name} <span class="build-cost">(${unitType.cost})</span>`;
+                button.innerHTML = `${unitType.name} <span class="build-cost">(💰${unitType.cost} ⚙️${unitType.upkeep})</span>`;
                 button.onclick = () => this.queueUnitProduction(buildingData.id, unitType.type);
                 
                 // Disable if can't afford
@@ -3239,7 +3278,8 @@ class RTSEngine {
                     name: this.getUnitDisplayName(unitInfo.unitType),
                     cost: unitInfo.cost, // Faction-modified cost
                     baseCost: unitInfo.baseCost,
-                    costModifier: unitInfo.costModifier
+                    costModifier: unitInfo.costModifier,
+                    upkeep: unitInfo.upkeep // Upkeep cost
                 };
             }).filter(u => u !== null);
             

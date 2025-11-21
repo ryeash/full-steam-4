@@ -5,6 +5,8 @@ import org.dyn4j.geometry.Convex;
 import org.dyn4j.geometry.Geometry;
 import org.dyn4j.geometry.Vector2;
 
+import java.util.List;
+
 /**
  * Defines the different types of buildings available in the RTS game.
  * Shape rendering is handled by the number of sides (3=triangle, 4=rectangle, etc.)
@@ -399,46 +401,53 @@ public enum BuildingType {
      * This allows each building to have a custom shape (not just regular polygons)
      * Returns a Convex shape that will be added to the building's physics body
      */
-    public Convex createPhysicsFixture() {
+    /**
+     * Create physics fixtures for this building type
+     * This allows each building to have custom shapes (including multi-fixture compound shapes)
+     * Returns a list of Convex shapes that will be added to the building's physics body
+     * Most buildings return a single fixture, but complex buildings can return multiple fixtures
+     * for compound shapes (e.g., L-shaped factories, star-shaped monuments)
+     */
+    public List<Convex> createPhysicsFixtures() {
         return switch (this) {
             // Headquarters - large octagon (main base)
-            case HEADQUARTERS -> Geometry.createPolygonalCircle(8, size);
+            case HEADQUARTERS -> List.of(Geometry.createPolygonalCircle(8, size));
             
             // Refinery - hexagonal storage tanks
-            case REFINERY -> Geometry.createPolygonalCircle(6, size);
+            case REFINERY -> List.of(Geometry.createPolygonalCircle(6, size));
             
             // Barracks - rectangular barracks building
-            case BARRACKS -> Geometry.createRectangle(size * 1.8, size * 1.2);
+            case BARRACKS -> List.of(Geometry.createRectangle(size * 1.8, size * 1.2));
             
             // Power Plant - hexagonal reactor
-            case POWER_PLANT -> Geometry.createPolygonalCircle(6, size);
+            case POWER_PLANT -> List.of(Geometry.createPolygonalCircle(6, size));
             
             // Factory - large rectangular factory floor
-            case FACTORY -> Geometry.createRectangle(size * 2.0, size * 1.4);
+            case FACTORY -> List.of(Geometry.createRectangle(size * 2.0, size * 1.4));
             
             // Research Lab - hexagonal research facility
-            case RESEARCH_LAB -> Geometry.createPolygonalCircle(6, size);
+            case RESEARCH_LAB -> List.of(Geometry.createPolygonalCircle(6, size));
             
             // Weapons Depot - pentagonal armory
-            case WEAPONS_DEPOT -> Geometry.createPolygonalCircle(5, size);
+            case WEAPONS_DEPOT -> List.of(Geometry.createPolygonalCircle(5, size));
             
             // Tech Center - large octagon (advanced tech)
-            case TECH_CENTER -> Geometry.createPolygonalCircle(8, size);
+            case TECH_CENTER -> List.of(Geometry.createPolygonalCircle(8, size));
             
             // Advanced Factory - massive rectangular production facility
-            case ADVANCED_FACTORY -> Geometry.createRectangle(size * 2.2, size * 1.5);
+            case ADVANCED_FACTORY -> List.of(Geometry.createRectangle(size * 2.2, size * 1.5));
             
             // Wall - small square segment
-            case WALL -> Geometry.createSquare(size * 2.0);
+            case WALL -> List.of(Geometry.createSquare(size * 2.0));
             
             // Turret - pentagonal defensive structure
-            case TURRET -> Geometry.createPolygonalCircle(5, size);
+            case TURRET -> List.of(Geometry.createPolygonalCircle(5, size));
             
             // Shield Generator - hexagonal energy projector
-            case SHIELD_GENERATOR -> Geometry.createPolygonalCircle(6, size);
+            case SHIELD_GENERATOR -> List.of(Geometry.createPolygonalCircle(6, size));
             
             // Bank - octagonal vault
-            case BANK -> Geometry.createPolygonalCircle(8, size);
+            case BANK -> List.of(Geometry.createPolygonalCircle(8, size));
             
             // Bunker - rotated hexagonal fortified structure (distinct from barracks)
             case BUNKER -> {
@@ -452,17 +461,17 @@ public enum BuildingType {
                         Math.sin(theta) * size
                     );
                 }
-                yield Geometry.createPolygon(vertices);
+                yield List.of(Geometry.createPolygon(vertices));
             }
             
             // Sandstorm Generator - hexagonal weather control station
-            case SANDSTORM_GENERATOR -> Geometry.createPolygonalCircle(6, size);
+            case SANDSTORM_GENERATOR -> List.of(Geometry.createPolygonalCircle(6, size));
             
             // Quantum Nexus - large octagon (quantum energy)
-            case QUANTUM_NEXUS -> Geometry.createPolygonalCircle(8, size);
+            case QUANTUM_NEXUS -> List.of(Geometry.createPolygonalCircle(8, size));
             
             // Photon Spire - hexagonal beam amplifier
-            case PHOTON_SPIRE -> Geometry.createPolygonalCircle(6, size);
+            case PHOTON_SPIRE -> List.of(Geometry.createPolygonalCircle(6, size));
         };
     }
 }

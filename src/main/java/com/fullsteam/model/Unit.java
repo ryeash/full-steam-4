@@ -120,18 +120,23 @@ public class Unit extends GameEntity {
     private static Body createUnitBody(double x, double y, UnitType unitType) {
         Body body = new Body();
 
-        // Create custom physics fixture for this unit type
-        Convex shape = unitType.createPhysicsFixture();
-        BodyFixture fixture = body.addFixture(shape);
-
-        // Configure fixture properties
-        fixture.setFriction(0.1);      // Low friction for smooth movement
-        fixture.setRestitution(0.0);   // No bounce
-        fixture.setSensor(false);      // Solid collision (not a sensor)
+        // Create custom physics fixtures for this unit type (supports multi-fixture bodies)
+        List<Convex> shapes = unitType.createPhysicsFixtures();
+        
+        // Add all fixtures to the body
+        for (Convex shape : shapes) {
+            BodyFixture fixture = body.addFixture(shape);
+            
+            // Configure fixture properties
+            fixture.setFriction(0.1);      // Low friction for smooth movement
+            fixture.setRestitution(0.0);   // No bounce
+            fixture.setSensor(false);      // Solid collision (not a sensor)
+        }
 
         // Rotate polygons to face right by default (positive X direction)
         // Circles don't need rotation, rectangles are already oriented correctly
-        if (shape instanceof Polygon) {
+        // Check the first fixture to determine if rotation is needed
+        if (!shapes.isEmpty() && shapes.get(0) instanceof Polygon) {
             body.rotate(-Math.PI / 2.0);
         }
 
