@@ -1,5 +1,7 @@
-package com.fullsteam.model;
+package com.fullsteam.model.factions;
 
+import com.fullsteam.model.BuildingType;
+import com.fullsteam.model.UnitType;
 import lombok.Builder;
 import lombok.Getter;
 

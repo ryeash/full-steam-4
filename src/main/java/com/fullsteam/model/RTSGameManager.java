@@ -2,6 +2,7 @@ package com.fullsteam.model;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fullsteam.model.factions.Faction;
 import com.fullsteam.util.IdGenerator;
 import io.micronaut.websocket.WebSocketSession;
 import io.micronaut.websocket.exceptions.WebSocketSessionException;
@@ -56,6 +57,10 @@ public class RTSGameManager {
     @Getter
     private final Map<Integer, PlayerFaction> playerFactions = new ConcurrentHashMap<>();
     private final Set<Integer> eliminatedTeams = ConcurrentHashMap.newKeySet(); // Track eliminated teams for events
+    
+    // Event throttling - track last notification times per player (in milliseconds)
+    private final Map<Integer, Long> lastUnitDeathNotification = new ConcurrentHashMap<>();
+    private static final long UNIT_DEATH_NOTIFICATION_COOLDOWN = 5000; // 5 seconds
 
     // Game entities - bundled together for easy passing to commands/AI
     @Getter
@@ -527,31 +532,47 @@ public class RTSGameManager {
 
                 building.update(deltaTime, hasLowPower);
 
-                // If construction just completed, create wall segments for wall posts
-                if (wasUnderConstruction && !building.isUnderConstruction() &&
-                        building.getBuildingType() == BuildingType.WALL) {
-                    createWallSegments(building);
-                    log.debug("Wall post {} construction completed, creating wall segments", building.getId());
-                }
-
-                // If construction just completed for Shield Generator, create shield sensor body
-                if (wasUnderConstruction && !building.isUnderConstruction() &&
-                        building.getBuildingType() == BuildingType.SHIELD_GENERATOR) {
-                    Body shieldSensor = building.createShieldSensorBody();
-                    if (shieldSensor != null) {
-                        building.setShieldSensorBody(shieldSensor);
-                        world.addBody(shieldSensor);
-                        log.debug("Shield Generator {} construction completed, shield sensor body created", building.getId());
+                // If construction just completed, send notification and handle post-construction logic
+                if (wasUnderConstruction && !building.isUnderConstruction()) {
+                    // Send construction complete notification (except for walls - too spammy)
+                    if (building.getBuildingType() != BuildingType.WALL && faction != null) {
+                        String buildingName = building.getBuildingType().name()
+                                .replace("_", " ")
+                                .toLowerCase();
+                        // Capitalize first letter
+                        buildingName = buildingName.substring(0, 1).toUpperCase() + buildingName.substring(1);
+                        
+                        sendGameEvent(GameEvent.createPlayerEvent(
+                                "🏗️ " + buildingName + " construction complete",
+                                faction.getPlayerId(),
+                                GameEvent.EventCategory.INFO
+                        ));
                     }
-                }
-                
-                // If construction just completed for monument building, create aura sensor body
-                if (wasUnderConstruction && !building.isUnderConstruction() && building.isMonument()) {
-                    Body auraSensor = building.createAuraSensorBody();
-                    if (auraSensor != null) {
-                        building.setAuraSensorBody(auraSensor);
-                        world.addBody(auraSensor);
-                        log.debug("Monument {} construction completed, aura sensor body created", building.getId());
+                    
+                    // Create wall segments for wall posts
+                    if (building.getBuildingType() == BuildingType.WALL) {
+                        createWallSegments(building);
+                        log.debug("Wall post {} construction completed, creating wall segments", building.getId());
+                    }
+
+                    // Create shield sensor body for Shield Generator
+                    if (building.getBuildingType() == BuildingType.SHIELD_GENERATOR) {
+                        Body shieldSensor = building.createShieldSensorBody();
+                        if (shieldSensor != null) {
+                            building.setShieldSensorBody(shieldSensor);
+                            world.addBody(shieldSensor);
+                            log.debug("Shield Generator {} construction completed, shield sensor body created", building.getId());
+                        }
+                    }
+                    
+                    // Create aura sensor body for monument building
+                    if (building.isMonument()) {
+                        Body auraSensor = building.createAuraSensorBody();
+                        if (auraSensor != null) {
+                            building.setAuraSensorBody(auraSensor);
+                            world.addBody(auraSensor);
+                            log.debug("Monument {} construction completed, aura sensor body created", building.getId());
+                        }
                     }
                 }
                 
@@ -566,6 +587,15 @@ public class RTSGameManager {
                             log.info("Bank {} paid {} credits interest to player {} ({}% of {} credits)",
                                     building.getId(), interest, building.getOwnerId(), 
                                     (int)(interestRate * 100), currentCredits);
+                            
+                            // Notify player of interest payment (only if significant - 50+ credits)
+                            if (interest >= 50) {
+                                sendGameEvent(GameEvent.createPlayerEvent(
+                                        "💰 Bank paid +" + interest + " credits interest",
+                                        faction.getPlayerId(),
+                                        GameEvent.EventCategory.INFO
+                                ));
+                            }
                         }
                     }
                 }
@@ -1599,6 +1629,17 @@ public class RTSGameManager {
                         GameEvent.EventCategory.WARNING
                 ));
             }
+            
+            // Send info when power is restored
+            if (previousLowPower && !faction.isHasLowPower()) {
+                log.info("Player {} power restored: {}/{}",
+                        faction.getPlayerId(), generated, consumed);
+                sendGameEvent(GameEvent.createPlayerEvent(
+                        "✓ Power restored! Production resumed.",
+                        faction.getPlayerId(),
+                        GameEvent.EventCategory.INFO
+                ));
+            }
         });
     }
 
@@ -1609,6 +1650,29 @@ public class RTSGameManager {
         units.entrySet().removeIf(entry -> {
             Unit unit = entry.getValue();
             if (!unit.isActive()) {
+                // Send unit death notification (throttled to avoid spam)
+                int ownerId = unit.getOwnerId();
+                long currentTime = System.currentTimeMillis();
+                Long lastNotification = lastUnitDeathNotification.get(ownerId);
+                
+                if (lastNotification == null || (currentTime - lastNotification) >= UNIT_DEATH_NOTIFICATION_COOLDOWN) {
+                    PlayerFaction faction = playerFactions.get(ownerId);
+                    if (faction != null) {
+                        String unitName = unit.getUnitType().name()
+                                .replace("_", " ")
+                                .toLowerCase();
+                        // Capitalize first letter
+                        unitName = unitName.substring(0, 1).toUpperCase() + unitName.substring(1);
+                        
+                        sendGameEvent(GameEvent.createPlayerEvent(
+                                "⚠️ Your " + unitName + " was destroyed!",
+                                ownerId,
+                                GameEvent.EventCategory.WARNING
+                        ));
+                        lastUnitDeathNotification.put(ownerId, currentTime);
+                    }
+                }
+                
                 world.removeBody(unit.getBody());
                 // Note: Upkeep is now recalculated periodically, no need to adjust here
                 return true;
@@ -1636,6 +1700,41 @@ public class RTSGameManager {
                             .displayDuration(5000L)
                             .build()
                     );
+                }
+                
+                // Send notification for important building destructions (to the owner)
+                PlayerFaction faction = playerFactions.get(building.getOwnerId());
+                if (faction != null && !building.isUnderConstruction()) {
+                    // Notify for important buildings only
+                    boolean shouldNotify = switch (building.getBuildingType()) {
+                        case REFINERY -> true;  // Resource collection
+                        case FACTORY, ADVANCED_FACTORY -> true;  // Unit production
+                        case BARRACKS -> true;  // Unit production
+                        case TECH_CENTER -> true;  // Tech unlocks
+                        case RESEARCH_LAB -> true;  // Research
+                        case POWER_PLANT -> true;  // Power generation
+                        case BANK -> true;  // Economy
+                        case SHIELD_GENERATOR -> true;  // Defense
+                        case TURRET -> true;  // Defense
+                        case BUNKER -> true;  // Defense
+                        // Monuments
+                        case PHOTON_SPIRE, QUANTUM_NEXUS, SANDSTORM_GENERATOR -> true;
+                        default -> false;  // Don't notify for walls, etc.
+                    };
+                    
+                    if (shouldNotify) {
+                        String buildingName = building.getBuildingType().name()
+                                .replace("_", " ")
+                                .toLowerCase();
+                        // Capitalize first letter
+                        buildingName = buildingName.substring(0, 1).toUpperCase() + buildingName.substring(1);
+                        
+                        sendGameEvent(GameEvent.createPlayerEvent(
+                                "🔥 Your " + buildingName + " was destroyed!",
+                                building.getOwnerId(),
+                                GameEvent.EventCategory.WARNING
+                        ));
+                    }
                 }
 
                 // Remove wall segments connected to this wall post

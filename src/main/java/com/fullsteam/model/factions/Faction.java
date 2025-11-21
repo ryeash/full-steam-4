@@ -1,4 +1,4 @@
-package com.fullsteam.model;
+package com.fullsteam.model.factions;
 
 import lombok.Getter;
 

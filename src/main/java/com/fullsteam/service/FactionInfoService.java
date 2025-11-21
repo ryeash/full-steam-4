@@ -2,6 +2,8 @@ package com.fullsteam.service;
 
 import com.fullsteam.dto.FactionInfoDTO;
 import com.fullsteam.model.*;
+import com.fullsteam.model.factions.Faction;
+import com.fullsteam.model.factions.FactionDefinition;
 import com.fullsteam.model.factions.FactionRegistry;
 import jakarta.inject.Singleton;
 
@@ -242,6 +244,15 @@ public class FactionInfoService {
                 penalties.add("All units cost 30% more");
                 penalties.add("Cannot build: Infantry, Medic");
                 break;
+                
+            case TECH_ALLIANCE:
+                bonuses.add("All units use instant-hit beam weapons (no projectile travel time)");
+                bonuses.add("20% better power efficiency");
+                bonuses.add("Buildings cost 10% less");
+                bonuses.add("Photon Spire monument amplifies beam damage by 35%");
+                penalties.add("All units cost 15% more");
+                penalties.add("Cannot build: Standard projectile units");
+                break;
         }
     }
     
@@ -256,6 +267,8 @@ public class FactionInfoService {
                 return "🏎️";
             case SYNTHESIS:
                 return "⚡";
+            case TECH_ALLIANCE:
+                return "🔬";
             default:
                 return "❓";
         }

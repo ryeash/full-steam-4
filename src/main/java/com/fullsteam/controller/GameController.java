@@ -1,7 +1,7 @@
 package com.fullsteam.controller;
 
 import com.fullsteam.dto.FactionInfoDTO;
-import com.fullsteam.model.Faction;
+import com.fullsteam.model.factions.Faction;
 import com.fullsteam.model.RTSGameManager;
 import com.fullsteam.model.GameConfig;
 import com.fullsteam.service.FactionInfoService;

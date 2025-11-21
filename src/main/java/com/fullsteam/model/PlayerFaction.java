@@ -1,5 +1,7 @@
 package com.fullsteam.model;
 
+import com.fullsteam.model.factions.Faction;
+import com.fullsteam.model.factions.FactionDefinition;
 import com.fullsteam.model.factions.FactionRegistry;
 import lombok.Data;
 

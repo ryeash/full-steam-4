@@ -1,9 +1,6 @@
 package com.fullsteam.model.factions;
 
 import com.fullsteam.model.BuildingType;
-import com.fullsteam.model.Faction;
-import com.fullsteam.model.FactionDefinition;
-import com.fullsteam.model.FactionTechTree;
 import com.fullsteam.model.UnitType;
 
 import java.util.Arrays;
@@ -11,7 +8,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Central registry for all faction definitions.
