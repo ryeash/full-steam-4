@@ -161,6 +161,58 @@ public enum BuildingType {
             35.0,    // size (radius)
             8,       // sides (octagon)
             0xFFD700, // gold
+            false,   // cannot produce units
+            0        // no garrison capacity
+    ),
+    
+    // ===== HERO/MONUMENT BUILDINGS =====
+    
+    // Hero building - Terran faction - infantry can garrison inside and fire out
+    BUNKER(
+            "Bunker",
+            400,     // resource cost
+            25,      // build time (seconds)
+            800,     // max health (very durable)
+            40.0,    // size (radius)
+            4,       // sides (rectangle)
+            0x556B2F, // dark olive green
+            false,   // cannot produce units
+            6        // can garrison 6 infantry units
+    ),
+    
+    // Monument - Nomads faction - creates periodic sandstorms for area denial
+    SANDSTORM_GENERATOR(
+            "Sandstorm Generator",
+            600,     // resource cost
+            35,      // build time (seconds)
+            700,     // max health
+            45.0,    // size (radius)
+            6,       // sides (hexagon)
+            0xDEB887, // burlywood (sandy color)
+            false    // cannot produce units
+    ),
+    
+    // Monument - Synthesis faction - provides shield/armor bonus to nearby units
+    QUANTUM_NEXUS(
+            "Quantum Nexus",
+            700,     // resource cost
+            40,      // build time (seconds)
+            900,     // max health
+            50.0,    // size (radius)
+            8,       // sides (octagon)
+            0x9370DB, // medium purple (quantum energy)
+            false    // cannot produce units
+    ),
+    
+    // Monument - Tech Alliance faction - amplifies beam weapon damage
+    PHOTON_SPIRE(
+            "Photon Spire",
+            650,     // resource cost
+            38,      // build time (seconds)
+            750,     // max health
+            48.0,    // size (radius)
+            6,       // sides (hexagon)
+            0x00FF00, // bright green (photon energy)
             false    // cannot produce units
     );
 
@@ -172,9 +224,15 @@ public enum BuildingType {
     private final int sides; // number of sides for polygon rendering
     private final int color; // hex color for rendering
     private final boolean canProduceUnits;
+    private final int garrisonCapacity; // Number of units that can garrison (0 = no garrison)
 
     BuildingType(String displayName, int resourceCost, int buildTimeSeconds, double maxHealth,
                  double size, int sides, int color, boolean canProduceUnits) {
+        this(displayName, resourceCost, buildTimeSeconds, maxHealth, size, sides, color, canProduceUnits, 0);
+    }
+    
+    BuildingType(String displayName, int resourceCost, int buildTimeSeconds, double maxHealth,
+                 double size, int sides, int color, boolean canProduceUnits, int garrisonCapacity) {
         this.displayName = displayName;
         this.resourceCost = resourceCost;
         this.buildTimeSeconds = buildTimeSeconds;
@@ -183,6 +241,7 @@ public enum BuildingType {
         this.sides = sides;
         this.color = color;
         this.canProduceUnits = canProduceUnits;
+        this.garrisonCapacity = garrisonCapacity;
     }
 
     /**
@@ -195,13 +254,37 @@ public enum BuildingType {
         }
 
         // Use a switch to avoid circular dependency during enum initialization
+        // This returns ALL possible units a building can produce (used for "all available" factions)
         return switch (this) {
             case HEADQUARTERS -> new UnitType[]{UnitType.WORKER, UnitType.MINER};
-            case BARRACKS -> new UnitType[]{UnitType.INFANTRY, UnitType.LASER_INFANTRY, UnitType.MEDIC};
-            case FACTORY -> new UnitType[]{UnitType.JEEP, UnitType.TANK};
-            case WEAPONS_DEPOT -> new UnitType[]{UnitType.ROCKET_SOLDIER, UnitType.SNIPER, UnitType.ENGINEER};
-            case ADVANCED_FACTORY -> new UnitType[]{UnitType.ARTILLERY, UnitType.GIGANTONAUT, UnitType.CRAWLER,
-                    UnitType.STEALTH_TANK, UnitType.MAMMOTH_TANK};
+            case BARRACKS -> new UnitType[]{
+                    UnitType.INFANTRY, 
+                    UnitType.LASER_INFANTRY, 
+                    UnitType.PLASMA_TROOPER,  // Tech Alliance
+                    UnitType.MEDIC
+            };
+            case FACTORY -> new UnitType[]{
+                    UnitType.JEEP, 
+                    UnitType.TANK,
+                    UnitType.PHOTON_SCOUT,  // Tech Alliance
+                    UnitType.BEAM_TANK      // Tech Alliance
+            };
+            case WEAPONS_DEPOT -> new UnitType[]{
+                    UnitType.ROCKET_SOLDIER, 
+                    UnitType.SNIPER, 
+                    UnitType.ION_RANGER,  // Tech Alliance
+                    UnitType.ENGINEER
+            };
+            case ADVANCED_FACTORY -> new UnitType[]{
+                    UnitType.ARTILLERY, 
+                    UnitType.GIGANTONAUT, 
+                    UnitType.CRAWLER,
+                    UnitType.STEALTH_TANK, 
+                    UnitType.MAMMOTH_TANK,
+                    UnitType.PULSE_ARTILLERY  // Tech Alliance
+                    // Note: Hero units (PALADIN, RAIDER, COLOSSUS, PHOTON_TITAN) are faction-specific
+                    // and defined in FactionRegistry, not in this base list
+            };
             default -> new UnitType[]{};
         };
     }
@@ -269,7 +352,7 @@ public enum BuildingType {
         return switch (this) {
             case HEADQUARTERS, REFINERY, BARRACKS, POWER_PLANT, WALL -> 1;
             case FACTORY, RESEARCH_LAB, WEAPONS_DEPOT, TURRET, SHIELD_GENERATOR -> 2;
-            case TECH_CENTER, ADVANCED_FACTORY, BANK -> 3;
+            case TECH_CENTER, ADVANCED_FACTORY, BANK, BUNKER, SANDSTORM_GENERATOR, QUANTUM_NEXUS, PHOTON_SPIRE -> 3;
         };
     }
 
@@ -299,6 +382,12 @@ public enum BuildingType {
             case TECH_CENTER -> -50;
             case ADVANCED_FACTORY -> -45;
             case BANK -> -30; // Moderate power for financial systems
+            case BUNKER -> -15; // Low power for life support systems
+            
+            // Monument buildings (high power consumption for special effects)
+            case SANDSTORM_GENERATOR -> -40; // Weather control systems
+            case QUANTUM_NEXUS -> -55; // Quantum field generators (very high!)
+            case PHOTON_SPIRE -> -45; // Beam amplification systems
         };
     }
 }

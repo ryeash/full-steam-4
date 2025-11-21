@@ -49,7 +49,9 @@ public class FactionInfoService {
         // Build building info list
         List<FactionInfoDTO.BuildingInfo> buildings = new ArrayList<>();
         for (BuildingType buildingType : BuildingType.values()) {
-            if (definition.getTechTree().canBuildBuilding(buildingType)) {
+            // Include HEADQUARTERS even though it's not buildable (needed for unit production info)
+            // Also include any building that can be built by this faction
+            if (buildingType == BuildingType.HEADQUARTERS || definition.getTechTree().canBuildBuilding(buildingType)) {
                 buildings.add(buildBuildingInfo(buildingType, definition));
             }
         }
@@ -150,43 +152,17 @@ public class FactionInfoService {
         int basePower = buildingType.getPowerValue();
         int factionPower = definition.getPowerValue(basePower);
         
-        // Get produced units (filtered by faction tech tree)
+        // Get produced units directly from faction tech tree (single source of truth)
         List<String> producedUnits = new ArrayList<>();
         if (buildingType.isCanProduceUnits()) {
-            UnitType[] producibleArray = buildingType.getProducibleUnits();
-            System.out.println("Building " + buildingType + " can produce units.");
-            System.out.println("  producibleUnits array: " + (producibleArray == null ? "NULL" : "length=" + producibleArray.length));
-            
-            if (producibleArray != null) {
-                for (int i = 0; i < producibleArray.length; i++) {
-                    UnitType unitType = producibleArray[i];
-                    System.out.println("  [" + i + "] Checking if " + buildingType + " can produce " + unitType);
-                    
-                    if (unitType == null) {
-                        System.out.println("    WARNING: UnitType at index " + i + " is NULL!");
-                        continue;
-                    }
-                    
-                    boolean canProduce = definition.getTechTree().canBuildingProduceUnit(buildingType, unitType);
-                    System.out.println("    Result: " + canProduce);
-                    if (canProduce) {
-                        producedUnits.add(unitType.name());
-                    }
-                }
+            List<UnitType> factionUnits = definition.getTechTree().getUnitsProducedBy(buildingType);
+            for (UnitType unitType : factionUnits) {
+                producedUnits.add(unitType.name());
             }
-            System.out.println("Final produced units for " + buildingType + ": " + producedUnits);
         }
         
         // Get tech requirements (buildings required before this can be built)
-        List<String> techReqs = new ArrayList<>();
-        // For now, we'll determine tech requirements based on tier
-        int tier = buildingType.getRequiredTechTier();
-        if (tier >= 2) {
-            techReqs.add("POWER_PLANT"); // Tier 2+ requires power
-        }
-        if (tier >= 3) {
-            techReqs.add("TECH_CENTER"); // Tier 3 requires tech center
-        }
+        List<String> techReqs = getTechRequirements(buildingType);
         
         return FactionInfoDTO.BuildingInfo.builder()
                 .buildingType(buildingType.name())
@@ -214,6 +190,29 @@ public class FactionInfoService {
                 .healthModifier(healthMod)
                 .powerModifier(basePower != factionPower ? (double) factionPower / basePower : null)
                 .build();
+    }
+    
+    /**
+     * Get tech requirements for a building type
+     * This is the single source of truth for building dependencies
+     */
+    private List<String> getTechRequirements(BuildingType buildingType) {
+        return switch (buildingType) {
+            // T1 - Always available (no requirements)
+            case HEADQUARTERS, POWER_PLANT, BARRACKS, REFINERY, WALL -> List.of();
+            
+            // T2 - Requires Power Plant
+            case RESEARCH_LAB, FACTORY, WEAPONS_DEPOT, TURRET, SHIELD_GENERATOR -> 
+                List.of("POWER_PLANT");
+            
+            // T3 - Requires Power Plant + Research Lab
+            case TECH_CENTER, ADVANCED_FACTORY, BANK -> 
+                List.of("POWER_PLANT", "RESEARCH_LAB");
+            
+            // Monument Buildings - Requires Power Plant + Research Lab (T3)
+            case BUNKER, SANDSTORM_GENERATOR, QUANTUM_NEXUS, PHOTON_SPIRE -> 
+                List.of("POWER_PLANT", "RESEARCH_LAB");
+        };
     }
     
     /**

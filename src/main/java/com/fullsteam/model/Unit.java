@@ -5,6 +5,7 @@ import com.fullsteam.model.command.AttackGroundCommand;
 import com.fullsteam.model.command.AttackUnitCommand;
 import com.fullsteam.model.command.AttackWallSegmentCommand;
 import com.fullsteam.model.command.ConstructCommand;
+import com.fullsteam.model.command.GarrisonBunkerCommand;
 import com.fullsteam.model.command.HarvestCommand;
 import com.fullsteam.model.command.IdleCommand;
 import com.fullsteam.model.command.MineCommand;
@@ -103,6 +104,7 @@ public class Unit extends GameEntity {
 
     // Selection state
     private boolean selected = false;
+    private boolean garrisoned = false; // True if unit is inside a building (bunker)
 
     public Unit(int id, UnitType unitType, double x, double y, int ownerId, int teamNumber) {
         super(id, createUnitBody(x, y, unitType), unitType.getMaxHealth());
@@ -1207,6 +1209,19 @@ public class Unit extends GameEntity {
         issueCommand(mineCommand);
         log.info("Miner {} ordered to mine obstacle {} (pickaxe: {}%)",
                 id, obstacle.getId(), (int) pickaxeDurability);
+    }
+
+    /**
+     * Give this unit a garrison order (enter bunker)
+     */
+    public void orderGarrison(Building bunker) {
+        if (!unitType.isInfantry()) {
+            return; // Only infantry can garrison
+        }
+
+        GarrisonBunkerCommand garrisonCommand = new GarrisonBunkerCommand(this, bunker, true);
+        issueCommand(garrisonCommand);
+        log.info("Unit {} ordered to garrison in bunker {}", id, bunker.getId());
     }
 
     /**

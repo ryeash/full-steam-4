@@ -8,3 +8,4 @@ public enum DamageApplicationType {
     DAMAGE_OVER_TIME
 }
 
+

@@ -265,6 +265,163 @@ public enum UnitType {
             0x556B2F, // dark olive green
             BuildingType.ADVANCED_FACTORY,
             60       // upkeep cost
+    ),
+    
+    // ===== HERO UNITS =====
+    
+    // PALADIN - Terran hero unit, balanced powerhouse
+    PALADIN(
+            "Paladin",
+            1100,    // resource cost
+            32,      // build time (seconds)
+            850,     // max health (very tanky)
+            95.0,    // movement speed (moderate)
+            70,      // damage (high)
+            1.5,     // attack rate (balanced)
+            220,     // attack range
+            32.0,    // size (radius)
+            8,       // sides (octagon - balanced)
+            0xC0C0C0, // silver (Terran hero)
+            BuildingType.ADVANCED_FACTORY,
+            55       // upkeep cost
+    ),
+    
+    // RAIDER - Nomads hero unit, fast hit-and-run cavalry
+    RAIDER(
+            "Raider",
+            900,     // resource cost
+            28,      // build time (seconds)
+            280,     // max health (moderate)
+            220.0,   // movement speed (VERY FAST - fastest unit!)
+            55,      // damage (high)
+            2.2,     // attack rate (fast)
+            180,     // attack range
+            22.0,    // size (radius)
+            3,       // sides (triangle - agile)
+            0xDC143C, // crimson (raider red)
+            BuildingType.ADVANCED_FACTORY,
+            45       // upkeep cost
+    ),
+    
+    // COLOSSUS - Synthesis hero unit, massive walker
+    COLOSSUS(
+            "Colossus",
+            1600,    // resource cost (VERY EXPENSIVE!)
+            45,      // build time (seconds) (VERY LONG!)
+            2200,    // max health (EXTREMELY TANKY!)
+            40.0,    // movement speed (VERY SLOW)
+            95,      // damage (very high)
+            0.9,     // attack rate (moderate)
+            250,     // attack range
+            50.0,    // size (radius) (MASSIVE!)
+            6,       // sides (hexagon)
+            0x4B0082, // indigo (synthesis purple)
+            BuildingType.ADVANCED_FACTORY,
+            75       // upkeep cost (VERY HIGH!)
+    ),
+    
+    // ===== TECH ALLIANCE BEAM WEAPON UNITS =====
+    
+    // PLASMA_TROOPER - Basic beam infantry (Tech Alliance equivalent of Infantry)
+    PLASMA_TROOPER(
+            "Plasma Trooper",
+            100,     // resource cost
+            6,       // build time (seconds)
+            85,      // max health (slightly tankier than infantry)
+            115.0,   // movement speed
+            18,      // damage
+            2.0,     // attack rate (fast)
+            170,     // attack range
+            12.0,    // size (radius)
+            3,       // sides (triangle)
+            0x00FF7F, // spring green (plasma color)
+            BuildingType.BARRACKS,
+            11       // upkeep cost
+    ),
+    
+    // ION_RANGER - Long-range beam sniper
+    ION_RANGER(
+            "Ion Ranger",
+            250,     // resource cost
+            12,      // build time (seconds)
+            60,      // max health (fragile)
+            105.0,   // movement speed
+            60,      // damage (very high)
+            0.6,     // attack rate (slow, precise)
+            320,     // attack range (very long)
+            12.0,    // size (radius)
+            3,       // sides (triangle)
+            0x9370DB, // medium purple (ion beam)
+            BuildingType.WEAPONS_DEPOT,
+            14       // upkeep cost
+    ),
+    
+    // PHOTON_SCOUT - Fast beam vehicle
+    PHOTON_SCOUT(
+            "Photon Scout",
+            220,     // resource cost
+            11,      // build time (seconds)
+            110,     // max health
+            190.0,   // movement speed (very fast!)
+            22,      // damage
+            2.5,     // attack rate (rapid fire)
+            190,     // attack range
+            18.0,    // size (radius)
+            4,       // sides (rectangle)
+            0x7FFF00, // chartreuse (bright energy)
+            BuildingType.FACTORY,
+            22       // upkeep cost
+    ),
+    
+    // BEAM_TANK - Heavy beam vehicle
+    BEAM_TANK(
+            "Beam Tank",
+            450,     // resource cost
+            16,      // build time (seconds)
+            320,     // max health (tankier than regular tank)
+            75.0,    // movement speed (slow)
+            65,      // damage
+            1.3,     // attack rate
+            230,     // attack range
+            30.0,    // size (radius)
+            6,       // sides (hexagon)
+            0x00FA9A, // medium spring green
+            BuildingType.FACTORY,
+            32       // upkeep cost
+    ),
+    
+    // PULSE_ARTILLERY - Long-range beam artillery
+    PULSE_ARTILLERY(
+            "Pulse Artillery",
+            550,     // resource cost
+            22,      // build time (seconds)
+            140,     // max health
+            55.0,    // movement speed (very slow)
+            110,     // damage (very high!)
+            0.6,     // attack rate (slow)
+            420,     // attack range (very long!)
+            26.0,    // size (radius)
+            6,       // sides (hexagon)
+            0xFFD700, // gold (energy pulse)
+            BuildingType.ADVANCED_FACTORY,
+            42       // upkeep cost
+    ),
+    
+    // PHOTON_TITAN - Hero unit, massive beam platform
+    PHOTON_TITAN(
+            "Photon Titan",
+            1400,    // resource cost (VERY EXPENSIVE!)
+            40,      // build time (seconds) (LONG!)
+            350,     // max health (very tanky!)
+            35.0,    // movement speed (VERY SLOW!)
+            280,     // damage (MASSIVE!)
+            0.4,     // attack rate (slow but devastating)
+            460,     // attack range (LONGEST!)
+            38.0,    // size (radius) (HUGE!)
+            8,       // sides (octagon)
+            0x00FF00, // bright green (pure energy)
+            BuildingType.ADVANCED_FACTORY,
+            65       // upkeep cost (VERY HIGH!)
     );
 
     private final String displayName;
@@ -289,19 +446,20 @@ public enum UnitType {
     public Convex createPhysicsFixture() {
         return switch (this) {
             // Infantry units - triangular (pointing forward)
-            case INFANTRY, LASER_INFANTRY, ROCKET_SOLDIER, SNIPER -> Geometry.createPolygonalCircle(3, size);
+            case INFANTRY, LASER_INFANTRY, ROCKET_SOLDIER, SNIPER, PLASMA_TROOPER, ION_RANGER -> 
+                    Geometry.createPolygonalCircle(3, size);
 
             // Worker/Support units - circular for easy navigation
             case WORKER, MINER, MEDIC, ENGINEER -> Geometry.createCircle(size);
 
-            // Jeep - elongated rectangle (fast, nimble)
-            case JEEP -> Geometry.createRectangle(size * 1.6, size);
+            // Light vehicles - elongated rectangle (fast, nimble)
+            case JEEP, PHOTON_SCOUT -> Geometry.createRectangle(size * 1.6, size);
 
             // Tanks - hexagonal (balanced)
-            case TANK, STEALTH_TANK -> Geometry.createPolygonalCircle(6, size);
+            case TANK, STEALTH_TANK, BEAM_TANK -> Geometry.createPolygonalCircle(6, size);
 
             // Artillery - pentagonal (specialized)
-            case ARTILLERY -> Geometry.createPolygonalCircle(5, size);
+            case ARTILLERY, PULSE_ARTILLERY -> Geometry.createPolygonalCircle(5, size);
 
             // Gigantonaut - trapezoid (wide at back, tapered at front for heavy artillery look)
             case GIGANTONAUT -> {
@@ -321,6 +479,18 @@ public enum UnitType {
 
             // Crawler - wide rectangle when mobile, transforms when deployed
             case CRAWLER -> Geometry.createRectangle(size * 2.0, size * 1.2);
+            
+            // Photon Titan - large octagon (hero unit)
+            case PHOTON_TITAN -> Geometry.createPolygonalCircle(8, size);
+            
+            // Paladin - octagon (balanced hero)
+            case PALADIN -> Geometry.createPolygonalCircle(8, size);
+            
+            // Raider - triangle (fast, agile)
+            case RAIDER -> Geometry.createPolygonalCircle(3, size);
+            
+            // Colossus - large hexagon (massive walker)
+            case COLOSSUS -> Geometry.createPolygonalCircle(6, size);
         };
     }
 
@@ -422,7 +592,27 @@ public enum UnitType {
      * Check if this unit fires beam weapons instead of projectiles
      */
     public boolean firesBeams() {
-        return this == LASER_INFANTRY;
+        return this == LASER_INFANTRY ||
+               this == PLASMA_TROOPER ||
+               this == ION_RANGER ||
+               this == PHOTON_SCOUT ||
+               this == BEAM_TANK ||
+               this == PULSE_ARTILLERY ||
+               this == PHOTON_TITAN;
+    }
+
+    /**
+     * Check if this is an infantry unit (can garrison in bunkers)
+     */
+    public boolean isInfantry() {
+        return this == INFANTRY ||
+               this == LASER_INFANTRY ||
+               this == PLASMA_TROOPER ||
+               this == ROCKET_SOLDIER ||
+               this == SNIPER ||
+               this == ION_RANGER ||
+               this == MEDIC ||
+               this == ENGINEER;
     }
 
     /**

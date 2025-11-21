@@ -8,8 +8,10 @@ import org.dyn4j.geometry.Geometry;
 import org.dyn4j.geometry.MassType;
 import org.dyn4j.geometry.Vector2;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 
@@ -53,6 +55,22 @@ public class Building extends GameEntity {
     private static final double BANK_INTEREST_INTERVAL = 30.0; // Pay interest every 30 seconds
     private static final double BANK_INTEREST_RATE = 0.02; // 2% interest per interval
     
+    // Garrison fields (for Bunker)
+    private final List<Unit> garrisonedUnits = new ArrayList<>();
+    private int maxGarrisonCapacity = 0; // Set by building type
+    
+    // Monument aura fields
+    private Body auraSensorBody = null;
+    private boolean auraActive = false;
+    private static final double PHOTON_SPIRE_RADIUS = 250.0; // Beam damage amplification radius
+    private static final double QUANTUM_NEXUS_RADIUS = 220.0; // Shield/armor bonus radius
+    private static final double SANDSTORM_RADIUS = 200.0; // Sandstorm damage radius
+    private static final double PHOTON_SPIRE_DAMAGE_MULTIPLIER = 1.35; // +35% beam damage
+    private static final double QUANTUM_NEXUS_HEALTH_MULTIPLIER = 1.25; // +25% max health
+    private double sandstormTimer = 0; // Time accumulator for sandstorm pulses
+    private static final double SANDSTORM_INTERVAL = 3.0; // Damage every 3 seconds
+    private static final double SANDSTORM_DAMAGE = 15.0; // Damage per pulse
+    
     public Building(int id, BuildingType buildingType, double x, double y, int ownerId, int teamNumber) {
         this(id, buildingType, x, y, ownerId, teamNumber, buildingType.getMaxHealth());
     }
@@ -65,6 +83,9 @@ public class Building extends GameEntity {
         this.buildingType = buildingType;
         this.ownerId = ownerId;
         this.teamNumber = teamNumber;
+        
+        // Set garrison capacity from building type
+        this.maxGarrisonCapacity = buildingType.getGarrisonCapacity();
         
         // Headquarters starts fully constructed
         if (buildingType == BuildingType.HEADQUARTERS) {
@@ -136,6 +157,11 @@ public class Building extends GameEntity {
             updateTurretBehavior(deltaTime);
         }
         
+        // Update bunker behavior (garrisoned units fire)
+        if (buildingType == BuildingType.BUNKER) {
+            updateBunkerBehavior(deltaTime);
+        }
+        
         // Update shield generator (deactivate if low power)
         if (buildingType == BuildingType.SHIELD_GENERATOR) {
             updateShield(hasLowPower);
@@ -144,6 +170,16 @@ public class Building extends GameEntity {
         // Update bank (accumulate interest timer)
         if (buildingType == BuildingType.BANK && !hasLowPower) {
             bankInterestTimer += deltaTime;
+        }
+        
+        // Update monument auras (deactivate if low power)
+        if (isMonument()) {
+            updateMonumentAura(hasLowPower);
+        }
+        
+        // Update sandstorm timer
+        if (buildingType == BuildingType.SANDSTORM_GENERATOR && !hasLowPower && !underConstruction) {
+            sandstormTimer += deltaTime;
         }
     }
     
@@ -234,13 +270,10 @@ public class Building extends GameEntity {
     
     /**
      * Queue a unit for production
-     * @return true if successfully queued, false if building can't produce this unit
+     * Note: Validation should be done by the caller (RTSGameManager) using faction tech tree
+     * @return true if successfully queued
      */
     public boolean queueUnitProduction(UnitType unitType) {
-        if (!buildingType.canProduce(unitType)) {
-            return false;
-        }
-        
         productionQueue.add(new ProductionOrder(unitType));
         return true;
     }
@@ -456,6 +489,376 @@ public class Building extends GameEntity {
      */
     public double getShieldRadius() {
         return SHIELD_RADIUS;
+    }
+    
+    /**
+     * Check if this is a monument building
+     */
+    public boolean isMonument() {
+        return buildingType == BuildingType.PHOTON_SPIRE ||
+               buildingType == BuildingType.QUANTUM_NEXUS ||
+               buildingType == BuildingType.SANDSTORM_GENERATOR;
+    }
+    
+    /**
+     * Create aura sensor body for monument buildings
+     */
+    public Body createAuraSensorBody() {
+        if (!isMonument()) {
+            return null;
+        }
+        
+        double radius = switch (buildingType) {
+            case PHOTON_SPIRE -> PHOTON_SPIRE_RADIUS;
+            case QUANTUM_NEXUS -> QUANTUM_NEXUS_RADIUS;
+            case SANDSTORM_GENERATOR -> SANDSTORM_RADIUS;
+            default -> 0.0;
+        };
+        
+        if (radius == 0.0) {
+            return null;
+        }
+        
+        Body sensor = new Body();
+        sensor.addFixture(Geometry.createCircle(radius), 0.0, 0.0, 0.0);
+        sensor.getFixture(0).setSensor(true); // Make it a sensor (no collision response)
+        sensor.setMass(MassType.INFINITE);
+        sensor.getTransform().setTranslation(getPosition().x, getPosition().y);
+        sensor.setUserData(this); // Link back to building
+        
+        return sensor;
+    }
+    
+    /**
+     * Update monument aura state (activate/deactivate based on power)
+     */
+    private void updateMonumentAura(boolean hasLowPower) {
+        boolean shouldBeActive = !hasLowPower && !underConstruction;
+        
+        if (shouldBeActive && !auraActive) {
+            activateAura();
+        } else if (!shouldBeActive && auraActive) {
+            deactivateAura();
+        }
+    }
+    
+    /**
+     * Activate the monument aura
+     */
+    public void activateAura() {
+        if (!isMonument() || auraActive) {
+            return;
+        }
+        
+        auraActive = true;
+        log.debug("Monument aura activated for building {} ({})", id, buildingType);
+    }
+    
+    /**
+     * Deactivate the monument aura
+     */
+    public void deactivateAura() {
+        if (!auraActive) {
+            return;
+        }
+        
+        auraActive = false;
+        log.debug("Monument aura deactivated for building {}", id);
+    }
+    
+    /**
+     * Get the aura radius for this monument
+     */
+    public double getAuraRadius() {
+        return switch (buildingType) {
+            case PHOTON_SPIRE -> PHOTON_SPIRE_RADIUS;
+            case QUANTUM_NEXUS -> QUANTUM_NEXUS_RADIUS;
+            case SANDSTORM_GENERATOR -> SANDSTORM_RADIUS;
+            default -> 0.0;
+        };
+    }
+    
+    /**
+     * Get the beam damage multiplier from Photon Spire
+     */
+    public double getBeamDamageMultiplier() {
+        if (buildingType == BuildingType.PHOTON_SPIRE && auraActive) {
+            return PHOTON_SPIRE_DAMAGE_MULTIPLIER;
+        }
+        return 1.0;
+    }
+    
+    /**
+     * Get the health multiplier from Quantum Nexus
+     */
+    public double getHealthMultiplier() {
+        if (buildingType == BuildingType.QUANTUM_NEXUS && auraActive) {
+            return QUANTUM_NEXUS_HEALTH_MULTIPLIER;
+        }
+        return 1.0;
+    }
+    
+    /**
+     * Check if sandstorm is ready to pulse and reset timer
+     * @return true if sandstorm should pulse
+     */
+    public boolean checkAndResetSandstorm() {
+        if (buildingType != BuildingType.SANDSTORM_GENERATOR || !auraActive) {
+            return false;
+        }
+        
+        if (sandstormTimer >= SANDSTORM_INTERVAL) {
+            sandstormTimer = 0;
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Get sandstorm damage amount
+     */
+    public double getSandstormDamage() {
+        return SANDSTORM_DAMAGE;
+    }
+    
+    /**
+     * Garrison a unit inside this building (for Bunker)
+     * @return true if successfully garrisoned, false if full or not allowed
+     */
+    public boolean garrisonUnit(Unit unit) {
+        if (maxGarrisonCapacity == 0) {
+            return false; // Building doesn't support garrison
+        }
+        
+        if (garrisonedUnits.size() >= maxGarrisonCapacity) {
+            return false; // Garrison is full
+        }
+        
+        if (unit.getTeamNumber() != teamNumber) {
+            return false; // Can only garrison friendly units
+        }
+        
+        // Only infantry units can be garrisoned
+        if (!unit.getUnitType().isInfantry()) {
+            return false;
+        }
+        
+        garrisonedUnits.add(unit);
+        unit.setGarrisoned(true);
+        // Don't set active=false! That would cause the unit to be deleted by removeInactiveEntities()
+        // Instead, we'll filter garrisoned units from serialization
+        unit.getBody().setEnabled(false); // Disable physics
+        
+        log.info("Unit {} garrisoned in building {}", unit.getId(), id);
+        return true;
+    }
+    
+    /**
+     * Ungarrison a unit from this building
+     * @param unit The unit to ungarrison (null = ungarrison first unit)
+     * @return The ungarrisoned unit, or null if none available
+     */
+    public Unit ungarrisonUnit(Unit unit) {
+        if (garrisonedUnits.isEmpty()) {
+            return null;
+        }
+        
+        Unit toUngarrison;
+        if (unit != null && garrisonedUnits.contains(unit)) {
+            toUngarrison = unit;
+            garrisonedUnits.remove(unit);
+        } else {
+            // Ungarrison first unit in list
+            toUngarrison = garrisonedUnits.remove(0);
+        }
+        
+        // Place unit near building exit
+        Vector2 exitPos = calculateExitPosition();
+        toUngarrison.getBody().getTransform().setTranslation(exitPos.x, exitPos.y);
+        toUngarrison.setGarrisoned(false);
+        // Unit is already active, just re-enable physics
+        toUngarrison.getBody().setEnabled(true);
+        
+        log.info("Unit {} ungarrisoned from building {}", toUngarrison.getId(), id);
+        return toUngarrison;
+    }
+    
+    /**
+     * Ungarrison all units from this building
+     * @return List of ungarrisoned units
+     */
+    public List<Unit> ungarrisonAllUnits() {
+        List<Unit> ungarrisoned = new ArrayList<>();
+        while (!garrisonedUnits.isEmpty()) {
+            Unit unit = ungarrisonUnit(null);
+            if (unit != null) {
+                ungarrisoned.add(unit);
+            }
+        }
+        return ungarrisoned;
+    }
+    
+    /**
+     * Calculate exit position for ungarrisoning units
+     */
+    private Vector2 calculateExitPosition() {
+        Vector2 pos = getPosition();
+        double size = buildingType.getSize();
+        
+        // Place units at a random angle around the building
+        double angle = Math.random() * Math.PI * 2;
+        double distance = size + 30.0; // Place outside building radius
+        
+        return new Vector2(
+            pos.x + Math.cos(angle) * distance,
+            pos.y + Math.sin(angle) * distance
+        );
+    }
+    
+    /**
+     * Get number of garrisoned units
+     */
+    public int getGarrisonCount() {
+        return garrisonedUnits.size();
+    }
+    
+    /**
+     * Check if garrison is full
+     */
+    public boolean isGarrisonFull() {
+        return garrisonedUnits.size() >= maxGarrisonCapacity;
+    }
+    
+    /**
+     * Check if this building can garrison units
+     */
+    public boolean canGarrison() {
+        return maxGarrisonCapacity > 0;
+    }
+    
+    /**
+     * Set the maximum garrison capacity
+     */
+    public void setMaxGarrisonCapacity(int capacity) {
+        this.maxGarrisonCapacity = capacity;
+    }
+    
+    /**
+     * Get list of garrisoned units (read-only)
+     */
+    public List<Unit> getGarrisonedUnits() {
+        return new ArrayList<>(garrisonedUnits);
+    }
+    
+    /**
+     * Update bunker behavior - garrisoned units independently acquire targets and fire
+     */
+    private void updateBunkerBehavior(double deltaTime) {
+        // Each garrisoned unit operates independently
+        // Target acquisition and firing is handled in fireBunkerWeapons()
+    }
+    
+    /**
+     * Fire weapons from garrisoned units (called by RTSGameManager)
+     * Each unit independently acquires targets and fires based on its own stats
+     */
+    public List<AbstractOrdinance> fireBunkerWeapons(GameEntities gameEntities) {
+        List<AbstractOrdinance> ordinances = new ArrayList<>();
+        
+        if (buildingType != BuildingType.BUNKER || garrisonedUnits.isEmpty() || gameEntities == null) {
+            return ordinances;
+        }
+        
+        Vector2 bunkerPos = getPosition();
+        
+        // Each garrisoned unit operates independently
+        for (Unit garrisonedUnit : garrisonedUnits) {
+            // Skip if unit can't attack
+            if (!garrisonedUnit.getUnitType().canAttack()) {
+                continue;
+            }
+            
+            // Clear invalid target
+            if (garrisonedUnit.getTargetUnit() != null && !garrisonedUnit.getTargetUnit().isActive()) {
+                garrisonedUnit.setTargetUnit(null);
+            }
+            
+            // Acquire target if needed (each unit finds its own target)
+            if (garrisonedUnit.getTargetUnit() == null) {
+                Unit target = findBunkerTargetForUnit(garrisonedUnit, gameEntities);
+                garrisonedUnit.setTargetUnit(target);
+            }
+            
+            Unit target = garrisonedUnit.getTargetUnit();
+            if (target == null || !target.isActive()) {
+                continue;
+            }
+            
+            // Check if target is in range (use garrisoned unit's range)
+            Vector2 targetPos = target.getPosition();
+            double distance = bunkerPos.distance(targetPos);
+            double attackRange = garrisonedUnit.getUnitType().getAttackRange();
+            
+            if (distance > attackRange) {
+                garrisonedUnit.setTargetUnit(null); // Target out of range
+                continue;
+            }
+            
+            // Check attack cooldown (each unit has its own)
+            long now = System.currentTimeMillis();
+            double attackInterval = 1000.0 / garrisonedUnit.getUnitType().getAttackRate();
+            if (now - garrisonedUnit.getLastAttackTime() < attackInterval) {
+                continue; // Still on cooldown
+            }
+            
+            // Fire weapon from bunker position
+            AbstractOrdinance ordinance = garrisonedUnit.fireAt(targetPos, gameEntities.getWorld());
+            if (ordinance != null) {
+                // Override ordinance position to fire from bunker
+                if (ordinance instanceof Projectile projectile) {
+                    projectile.getBody().getTransform().setTranslation(bunkerPos.x, bunkerPos.y);
+                } else if (ordinance instanceof Beam beam) {
+                    // Beams are created with raycasting from origin
+                    // The beam was already created from the garrisoned unit's position
+                    // but we want it to appear from the bunker
+                    // This is handled correctly by the beam's raycasting
+                }
+                ordinances.add(ordinance);
+                
+                // Update unit's last attack time
+                garrisonedUnit.setLastAttackTime(now);
+            }
+        }
+        
+        return ordinances;
+    }
+    
+    /**
+     * Find a target for a specific garrisoned unit
+     * Each unit independently scans for enemies in its range
+     */
+    private Unit findBunkerTargetForUnit(Unit garrisonedUnit, GameEntities gameEntities) {
+        Vector2 bunkerPos = getPosition();
+        double attackRange = garrisonedUnit.getUnitType().getAttackRange();
+        
+        Unit closestEnemy = null;
+        double closestDistance = Double.MAX_VALUE;
+        
+        // Scan for enemies in range
+        for (Unit enemy : gameEntities.getUnits().values()) {
+            if (!enemy.isActive() || enemy.getTeamNumber() == teamNumber || enemy.isGarrisoned()) {
+                continue;
+            }
+            
+            double distance = bunkerPos.distance(enemy.getPosition());
+            if (distance <= attackRange && distance < closestDistance) {
+                closestEnemy = enemy;
+                closestDistance = distance;
+            }
+        }
+        
+        return closestEnemy;
     }
     
     /**

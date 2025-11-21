@@ -96,7 +96,7 @@ class RTSEngine {
         await this.app.init({
             width: window.innerWidth,
             height: window.innerHeight,
-            backgroundColor: 0x1a1a1a,
+            backgroundColor: 0x000000, // Black background outside world bounds
             antialias: true,
             resolution: window.devicePixelRatio || 1,
             autoDensity: true
@@ -110,13 +110,17 @@ class RTSEngine {
         this.selectionBoxGraphics = new PIXI.Graphics(); // Selection box
         this.uiContainer = new PIXI.Container();
         
+        // Create world bounds background (will be colored with biome color)
+        this.worldBoundsGraphics = new PIXI.Graphics();
+        
         // Flip Y-axis to match physics
         this.gameContainer.scale.y = -1;
         
         this.app.stage.addChild(this.gameContainer);
         this.app.stage.addChild(this.uiContainer);
         
-        // Add fog and selection box to game container so they follow camera
+        // Add world bounds first (bottom layer), then fog and selection box
+        this.gameContainer.addChild(this.worldBoundsGraphics);
         this.gameContainer.addChild(this.fogContainer);
         this.gameContainer.addChild(this.selectionBoxGraphics);
         
@@ -135,6 +139,21 @@ class RTSEngine {
     }
     
     /**
+     * Draw the world bounds rectangle with the biome color
+     * Everything outside this rectangle will be black
+     */
+    drawWorldBounds() {
+        this.worldBoundsGraphics.clear();
+        this.worldBoundsGraphics.rect(
+            -this.worldBounds.width / 2,
+            -this.worldBounds.height / 2,
+            this.worldBounds.width,
+            this.worldBounds.height
+        );
+        this.worldBoundsGraphics.fill(this.groundColor);
+    }
+    
+    /**
      * Center camera on player's headquarters
      */
     centerCameraOnHQ(buildings) {
@@ -144,7 +163,6 @@ class RTSEngine {
         for (const buildingData of buildings) {
             if (buildingData.ownerId === this.myPlayerId && 
                 buildingData.type === 'HEADQUARTERS') {
-                console.log('Centering camera on HQ at', buildingData.x, buildingData.y);
                 this.camera.x = buildingData.x;
                 this.camera.y = buildingData.y;
                 this.updateCameraTransform();
@@ -193,7 +211,6 @@ class RTSEngine {
         
         if (!gameId) {
             // Create new game
-            console.log('Creating new RTS game...');
             const response = await fetch('/api/rts/games', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -206,7 +223,6 @@ class RTSEngine {
             
             const data = await response.json();
             gameId = data.gameId;
-            console.log('Created RTS game:', gameId);
             
             // Update URL with game ID
             const newUrl = `${window.location.pathname}?gameId=${gameId}`;
@@ -221,12 +237,10 @@ class RTSEngine {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/rts/${gameId}`;
         
-        console.log('Connecting to WebSocket:', wsUrl);
         this.websocket = new WebSocket(wsUrl);
         this.websocket.binaryType = 'arraybuffer';
         
         this.websocket.onopen = () => {
-            console.log('WebSocket connected to RTS game:', gameId);
         };
         
         this.websocket.onerror = (error) => {
@@ -234,7 +248,6 @@ class RTSEngine {
         };
         
         this.websocket.onclose = (event) => {
-            console.log('WebSocket closed:', event.code, event.reason);
         };
         
         this.websocket.onmessage = (event) => {
@@ -247,7 +260,6 @@ class RTSEngine {
         };
         
         this.websocket.onclose = () => {
-            console.log('Disconnected from server');
         };
     }
     
@@ -258,7 +270,6 @@ class RTSEngine {
                 break;
             case 'playerId':
                 this.myPlayerId = data.playerId;
-                console.log('Assigned player ID:', this.myPlayerId);
                 break;
             case 'gameOver':
                 this.handleGameOver(data);
@@ -362,7 +373,6 @@ class RTSEngine {
             // Add new listener
             newBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                console.log('Play Again clicked - navigating to lobby');
                 window.location.href = '/rts-lobby.html';
             });
         }
@@ -428,7 +438,6 @@ class RTSEngine {
                 if (!currentDepositIds.has(id)) {
                     this.gameContainer.removeChild(depositContainer);
                     this.resourceDeposits.delete(id);
-                    console.log('Removed depleted resource deposit', id);
                 }
             });
             
@@ -558,14 +567,24 @@ class RTSEngine {
             this.biome = state.biome.name;
             this.groundColor = state.biome.groundColor;
             this.obstacleColor = state.biome.obstacleColor;
-            this.app.renderer.background.color = this.groundColor;
-            console.log('Biome set to:', this.biome, 'Ground color:', this.groundColor.toString(16));
+            
+            // Draw the world bounds rectangle with the biome color
+            // Everything outside this will be black
+            this.drawWorldBounds();
+            
         }
         
         // Update world dimensions (for camera bounds)
         if (state.worldWidth && state.worldHeight) {
+            const boundsChanged = this.worldBounds.width !== state.worldWidth || 
+                                  this.worldBounds.height !== state.worldHeight;
             this.worldBounds.width = state.worldWidth;
             this.worldBounds.height = state.worldHeight;
+            
+            // Redraw world bounds if dimensions changed and we have a biome color
+            if (boundsChanged && this.biome) {
+                this.drawWorldBounds();
+            }
         }
         
         // Update build menu based on available tech
@@ -760,7 +779,18 @@ class RTSEngine {
             'GIGANTONAUT': { sides: 8, size: 35, color: 0x8B0000 }, // Super heavy artillery!
             'CRAWLER': { sides: 8, size: 50, color: 0x4A4A4A },
             'STEALTH_TANK': { sides: 5, size: 28, color: 0x2F4F4F },
-            'MAMMOTH_TANK': { sides: 6, size: 40, color: 0x556B2F }
+            'MAMMOTH_TANK': { sides: 6, size: 40, color: 0x556B2F },
+            // Hero units
+            'PALADIN': { sides: 8, size: 32, color: 0xC0C0C0 }, // Silver (Terran hero)
+            'RAIDER': { sides: 3, size: 22, color: 0xDC143C }, // Crimson (Nomads hero)
+            'COLOSSUS': { sides: 6, size: 50, color: 0x4B0082 }, // Indigo (Synthesis hero)
+            // Tech Alliance beam weapon units
+            'PLASMA_TROOPER': { sides: 3, size: 12, color: 0x00FF7F }, // Spring green
+            'ION_RANGER': { sides: 3, size: 12, color: 0x9370DB }, // Medium purple
+            'PHOTON_SCOUT': { sides: 4, size: 18, color: 0x7FFF00 }, // Chartreuse
+            'BEAM_TANK': { sides: 6, size: 30, color: 0x00FA9A }, // Medium spring green
+            'PULSE_ARTILLERY': { sides: 6, size: 26, color: 0xFFD700 }, // Gold
+            'PHOTON_TITAN': { sides: 8, size: 38, color: 0x00FF00 } // Bright green (hero unit)
         };
         return unitTypes[unitType] || { sides: 4, size: 15, color: 0xFFFFFF };
     }
@@ -782,13 +812,11 @@ class RTSEngine {
         if (unitData.vertices && unitData.vertices.length > 0) {
             // Debug logging for custom shapes
             if (unitData.type === 'GIGANTONAUT') {
-                console.log('Gigantonaut vertices:', unitData.vertices);
             }
             this.drawPhysicsPolygon(shape, unitData.vertices, typeInfo.color, unitData.team);
         } else {
             // Fallback for circles or if vertices not provided
             if (unitData.type === 'GIGANTONAUT') {
-                console.log('Gigantonaut using fallback rendering (no vertices)');
             }
             this.drawPolygon(shape, typeInfo.sides, typeInfo.size, typeInfo.color, unitData.team);
         }
@@ -1042,6 +1070,60 @@ class RTSEngine {
             }
         }
         
+        // Update aura visualization for monuments
+        const monumentTypes = {
+            'PHOTON_SPIRE': { radius: 250, color: 0x00FF00 },
+            'QUANTUM_NEXUS': { radius: 220, color: 0x9370DB },
+            'SANDSTORM_GENERATOR': { radius: 200, color: 0xDEB887 }
+        };
+        
+        if (monumentTypes[buildingData.type]) {
+            if (!buildingContainer.auraGraphics) {
+                const auraGraphics = new PIXI.Graphics();
+                buildingContainer.addChild(auraGraphics);
+                buildingContainer.auraGraphics = auraGraphics;
+            }
+            
+            const aura = buildingContainer.auraGraphics;
+            aura.clear();
+            
+            // Only show aura if active and not under construction
+            if (buildingData.auraActive && !buildingData.underConstruction) {
+                const monumentInfo = monumentTypes[buildingData.type];
+                
+                // Pulsing effect based on time
+                const pulseSpeed = 2.0;
+                const pulseAmount = 0.15;
+                const pulse = Math.sin(Date.now() / 1000 * pulseSpeed) * pulseAmount + 1.0;
+                
+                aura.circle(0, 0, monumentInfo.radius);
+                aura.stroke({ width: 2, color: monumentInfo.color, alpha: 0.2 * pulse });
+                aura.fill({ color: monumentInfo.color, alpha: 0.03 * pulse });
+                
+                // Add glow to the building itself
+                if (buildingContainer.shapeGraphics) {
+                    buildingContainer.shapeGraphics.filters = buildingContainer.shapeGraphics.filters || [];
+                    // Simple glow by adding a slight alpha overlay
+                    buildingContainer.alpha = 0.9 + (0.1 * pulse);
+                }
+            } else {
+                // Reset alpha when inactive
+                if (buildingContainer.shapeGraphics) {
+                    buildingContainer.alpha = 1.0;
+                }
+            }
+        }
+        
+        // Update garrison label (for bunkers)
+        if (buildingContainer.garrisonLabel) {
+            if (buildingData.garrisonCount > 0) {
+                buildingContainer.garrisonLabel.text = `[${buildingData.garrisonCount}/${buildingData.maxGarrisonCapacity}]`;
+                buildingContainer.garrisonLabel.visible = true;
+            } else {
+                buildingContainer.garrisonLabel.visible = false;
+            }
+        }
+        
         // Store data
         buildingContainer.buildingData = buildingData;
     }
@@ -1063,7 +1145,12 @@ class RTSEngine {
             'WALL': { sides: 4, size: 15, color: 0x708090, rotation: 0 },
             'TURRET': { sides: 5, size: 25, color: 0xFF4500, rotation: 0 },
             'SHIELD_GENERATOR': { sides: 6, size: 30, color: 0x00BFFF, rotation: 0 },
-            'BANK': { sides: 8, size: 35, color: 0xFFD700, rotation: Math.PI / 8 }
+            'BANK': { sides: 8, size: 35, color: 0xFFD700, rotation: Math.PI / 8 },
+            'BUNKER': { sides: 4, size: 40, color: 0x556B2F, rotation: Math.PI / 4 },
+            // Monument buildings
+            'SANDSTORM_GENERATOR': { sides: 6, size: 45, color: 0xDEB887, rotation: 0 },
+            'QUANTUM_NEXUS': { sides: 8, size: 50, color: 0x9370DB, rotation: Math.PI / 8 },
+            'PHOTON_SPIRE': { sides: 6, size: 48, color: 0x00FF00, rotation: Math.PI / 6 }
         };
         
         const typeInfo = buildingTypes[buildingData.type] || { sides: 4, size: 50, color: 0xFFFFFF, rotation: 0 };
@@ -1129,7 +1216,11 @@ class RTSEngine {
             'TECH_CENTER': 'TC',
             'ADVANCED_FACTORY': 'AF',
             'SHIELD_GENERATOR': 'SG',
-            'BANK': '$'
+            'BANK': '$',
+            'BUNKER': '⚔',
+            'PHOTON_SPIRE': '⚡',
+            'QUANTUM_NEXUS': '◈',
+            'SANDSTORM_GENERATOR': '☁'
         };
         const label = new PIXI.Text(labelMap[buildingData.type] || '?', {
             fontFamily: 'Arial',
@@ -1173,6 +1264,22 @@ class RTSEngine {
         selectionCircle.visible = false;
         container.addChild(selectionCircle);
         container.selectionCircle = selectionCircle;
+        
+        // Create garrison indicator (for bunkers)
+        if (buildingData.type === 'BUNKER') {
+            const garrisonLabel = new PIXI.Text('', {
+                fontFamily: 'Arial',
+                fontSize: 14,
+                fill: 0xFFFFFF,
+                stroke: { color: 0x000000, width: 2 }
+            });
+            garrisonLabel.anchor.set(0.5, 0.5);
+            garrisonLabel.scale.y = -1; // Flip vertically
+            garrisonLabel.y = typeInfo.size + 25; // Below building
+            garrisonLabel.visible = false;
+            container.addChild(garrisonLabel);
+            container.garrisonLabel = garrisonLabel;
+        }
         
         return container;
     }
@@ -1329,8 +1436,20 @@ class RTSEngine {
             shape.rect(-halfWidth, -halfHeight, obstacleData.width, obstacleData.height);
             shape.fill(fillColor);
             shape.stroke({ width: 2, color: strokeColor });
+        } else if (obstacleData.shape === 'IRREGULAR_POLYGON' && obstacleData.vertices) {
+            // Irregular polygon with custom vertices
+            const vertices = obstacleData.vertices;
+            if (vertices.length >= 3) {
+                shape.moveTo(vertices[0].x, vertices[0].y);
+                for (let i = 1; i < vertices.length; i++) {
+                    shape.lineTo(vertices[i].x, vertices[i].y);
+                }
+                shape.closePath();
+                shape.fill(fillColor);
+                shape.stroke({ width: 2, color: strokeColor });
+            }
         } else if (obstacleData.shape === 'POLYGON') {
-            // Polygon obstacle
+            // Regular polygon
             this.drawPolygon(shape, obstacleData.sides, obstacleData.size, fillColor, 0);
             shape.stroke({ width: 2, color: strokeColor });
         } else {
@@ -1663,6 +1782,11 @@ class RTSEngine {
     }
     
     updateUnitInfoPanel() {
+        // If a building is selected, don't touch the panel at all - let building UI handle it
+        if (this.selectedBuilding) {
+            return;
+        }
+        
         const panel = document.getElementById('unit-info-panel');
         const singleInfo = document.getElementById('single-unit-info');
         const multiInfo = document.getElementById('multi-unit-info');
@@ -1680,8 +1804,8 @@ class RTSEngine {
             }
         });
         
-        // Hide panel if no units selected OR if a building is selected
-        if (selectedUnits.length === 0 || this.selectedBuilding) {
+        // Hide panel if no units selected
+        if (selectedUnits.length === 0) {
             panel.style.display = 'none';
         } else if (selectedUnits.length === 1) {
             // Single unit selected
@@ -1716,7 +1840,7 @@ class RTSEngine {
                     abilityDiv.style.display = 'none';
                 }
             }
-        } else {
+        } else if (selectedUnits.length > 1) {
             // Multiple units selected
             panel.style.display = 'block';
             singleInfo.style.display = 'none';
@@ -1860,7 +1984,6 @@ class RTSEngine {
         const screenPos = { x: e.clientX, y: e.clientY };
         this.mouseWorldPos = this.screenToWorld(screenPos);
         
-        console.log('Mouse down - button:', e.button, 'attackMoveMode:', this.attackMoveMode, 'buildMode:', this.buildMode);
         
         if (e.button === 0) { // Left click
             if (this.buildMode) {
@@ -1868,7 +1991,6 @@ class RTSEngine {
                 this.exitBuildMode();
             } else if (this.attackMoveMode) {
                 // Handle attack-move
-                console.log('Sending attack-move order to', this.mouseWorldPos);
                 this.sendInput({ 
                     attackMoveOrder: { x: this.mouseWorldPos.x, y: this.mouseWorldPos.y }
                 });
@@ -1883,7 +2005,6 @@ class RTSEngine {
                             activateSpecialAbility: true,
                             specialAbilityTargetUnit: clickedUnit.id
                         });
-                        console.log('Healing unit', clickedUnit.id);
                     }
                 } else if (this.specialAbilityTargetType === 'building') {
                     const clickedBuilding = this.getBuildingAtPosition(this.mouseWorldPos);
@@ -1893,7 +2014,6 @@ class RTSEngine {
                             activateSpecialAbility: true,
                             specialAbilityTargetBuilding: clickedBuilding.id
                         });
-                        console.log('Repairing building', clickedBuilding.id);
                     }
                 }
                 // Exit targeting mode
@@ -1901,10 +2021,6 @@ class RTSEngine {
             } else {
                 // Check if clicking on a building first
                 const clickedBuilding = this.getBuildingAtPosition(this.mouseWorldPos);
-                console.log('Left-click at', this.mouseWorldPos, 'found building:', clickedBuilding);
-                if (clickedBuilding) {
-                    console.log('Building ownerId:', clickedBuilding.ownerId, 'myPlayerId:', this.myPlayerId);
-                }
                 if (clickedBuilding && clickedBuilding.ownerId === this.myPlayerId) {
                     // Select building
                     this.selectBuilding(clickedBuilding);
@@ -1987,7 +2103,6 @@ class RTSEngine {
             this.activateSpecialAbility();
         } else if (e.key === 'q' || e.key === 'Q') {
             // Attack-move hotkey
-            console.log('Q key pressed, attempting to enter attack-move mode');
             this.enterAttackMoveMode();
         }
     }
@@ -2087,7 +2202,6 @@ class RTSEngine {
     issueOrder(worldPos, forceAttack = false) {
         // If force attack mode (CMD/CTRL held), skip target detection and attack ground
         if (forceAttack) {
-            console.log('Force attack at', worldPos);
             this.sendInput({ forceAttackOrder: { x: worldPos.x, y: worldPos.y } });
             return;
         }
@@ -2199,6 +2313,9 @@ class RTSEngine {
             } else if (targetBuilding.underConstruction) {
                 // Help construct friendly building (for workers)
                 this.sendInput({ constructOrder: targetBuilding.id });
+            } else if (targetBuilding.type === 'BUNKER' && this.hasInfantrySelected()) {
+                // Garrison infantry into bunker
+                this.sendInput({ garrisonOrder: targetBuilding.id });
             } else {
                 // Move near friendly building
                 this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
@@ -2226,6 +2343,31 @@ class RTSEngine {
             // Just move to location
             this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
         }
+    }
+    
+    /**
+     * Check if any selected units are infantry (can garrison)
+     */
+    hasInfantrySelected() {
+        const infantryTypes = ['INFANTRY', 'LASER_INFANTRY', 'PLASMA_TROOPER', 'ROCKET_SOLDIER', 
+                               'SNIPER', 'ION_RANGER', 'MEDIC', 'ENGINEER'];
+        for (const unitId of this.selectedUnits) {
+            const unitContainer = this.units.get(unitId);
+            if (unitContainer && unitContainer.unitData && infantryTypes.includes(unitContainer.unitData.type)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Ungarrison units from a bunker
+     */
+    ungarrisonUnit(buildingId, ungarrisonAll) {
+        this.sendInput({
+            ungarrisonBuildingId: buildingId,
+            ungarrisonAll: ungarrisonAll
+        });
     }
     
     enterBuildMode(buildingType) {
@@ -2273,11 +2415,9 @@ class RTSEngine {
         this.specialAbilityTargetingMode = false;
         this.specialAbilityTargetType = null;
         document.body.style.cursor = 'default';
-        console.log('Exited special ability targeting mode');
     }
     
     enterAttackMoveMode() {
-        console.log('enterAttackMoveMode called, selectedUnits:', this.selectedUnits.size);
         
         // Check if any selected units can attack
         let hasAttackUnit = false;
@@ -2285,7 +2425,6 @@ class RTSEngine {
             const unitContainer = this.units.get(id);
             if (unitContainer && unitContainer.unitData) {
                 const unitType = unitContainer.unitData.type;
-                console.log('Checking unit', id, 'type:', unitType);
                 // Workers, Medics, Engineers cannot attack
                 if (unitType !== 'WORKER' && unitType !== 'MEDIC' && unitType !== 'ENGINEER') {
                     hasAttackUnit = true;
@@ -2294,21 +2433,17 @@ class RTSEngine {
             }
         }
         
-        console.log('hasAttackUnit:', hasAttackUnit);
         
         if (hasAttackUnit) {
             this.attackMoveMode = true;
             document.body.style.cursor = 'crosshair';
-            console.log('Entered attack-move mode - cursor should be crosshair');
         } else {
-            console.log('No attack units selected, cannot enter attack-move mode');
         }
     }
     
     exitAttackMoveMode() {
         this.attackMoveMode = false;
         document.body.style.cursor = 'default';
-        console.log('Exited attack-move mode');
     }
     
     getBuildingInfo(buildingType) {
@@ -2334,7 +2469,6 @@ class RTSEngine {
         const buildingInfo = this.getBuildingInfo(buildingType);
         const size = buildingInfo.size;
         
-        console.log(`Checking build location: (${worldPos.x.toFixed(1)}, ${worldPos.y.toFixed(1)}) for ${buildingType} (size: ${size})`);
         
         // Check if too close to other buildings
         for (const [id, container] of this.buildings) {
@@ -2346,7 +2480,6 @@ class RTSEngine {
                 );
                 const minDist = size + building.size + 20; // 20 unit buffer
                 if (dist < minDist) {
-                    console.log(`Too close to building ${id}: dist=${dist.toFixed(1)}, minDist=${minDist.toFixed(1)}`);
                     return false;
                 }
             }
@@ -2365,7 +2498,6 @@ class RTSEngine {
                     // Check if building overlaps with obstacle (with buffer)
                     if (Math.abs(worldPos.x - obstacle.x) < halfWidth + buffer &&
                         Math.abs(worldPos.y - obstacle.y) < halfHeight + buffer) {
-                        console.log(`Too close to rectangular obstacle ${id}: obstacle bounds (${(obstacle.x - halfWidth).toFixed(1)}, ${(obstacle.y - halfHeight).toFixed(1)}) to (${(obstacle.x + halfWidth).toFixed(1)}, ${(obstacle.y + halfHeight).toFixed(1)})`);
                         return false;
                     }
                 } else {
@@ -2376,7 +2508,6 @@ class RTSEngine {
                     );
                     const minDist = size + obstacle.size + 10;
                     if (dist < minDist) {
-                        console.log(`Too close to obstacle ${id}: dist=${dist.toFixed(1)}, minDist=${minDist.toFixed(1)}, obstacle at (${obstacle.x.toFixed(1)}, ${obstacle.y.toFixed(1)})`);
                         return false;
                     }
                 }
@@ -2394,7 +2525,6 @@ class RTSEngine {
                     );
                     const minDist = size + resource.size + 50; // Increased buffer to prevent overlap
                     if (dist < minDist) {
-                        console.log(`Too close to resource ${id}: dist=${dist.toFixed(1)}, minDist=${minDist.toFixed(1)}`);
                         return false;
                     }
                 }
@@ -2406,18 +2536,15 @@ class RTSEngine {
         const halfHeight = this.worldBounds.height / 2;
         if (Math.abs(worldPos.x) > halfWidth - size || 
             Math.abs(worldPos.y) > halfHeight - size) {
-            console.log(`Outside world bounds: halfWidth=${halfWidth}, halfHeight=${halfHeight}`);
             return false;
         }
         
-        console.log('Build location is valid!');
         return true;
     }
     
     placeBuilding(buildingType, worldPos) {
         // Validate placement
         if (!this.isValidBuildLocation(worldPos, buildingType)) {
-            console.log('Invalid build location');
             return;
         }
         
@@ -2457,65 +2584,33 @@ class RTSEngine {
             ? this.myFaction.credits 
             : 0;
         
-        // Get faction's available buildings (if faction data loaded)
-        const availableBuildings = this.myFaction && this.myFaction.availableBuildings
-            ? new Set(this.myFaction.availableBuildings)
-            : null;
-        
-        // Check tech requirements
-        const hasPowerPlant = myBuildingTypes.has('POWER_PLANT');
-        const hasResearchLab = myBuildingTypes.has('RESEARCH_LAB');
-        const hasTechCenter = myBuildingTypes.has('TECH_CENTER');
-        
-        // Define tech requirements for each building
-        const techRequirements = {
-            // T1 - Always available
-            'POWER_PLANT': { tier: 1, requires: [] },
-            'BARRACKS': { tier: 1, requires: [] },
-            'REFINERY': { tier: 1, requires: [] },
-            'WALL': { tier: 1, requires: [] },
-            
-            // T2 - Requires Power Plant
-            'RESEARCH_LAB': { tier: 2, requires: ['POWER_PLANT'] },
-            'FACTORY': { tier: 2, requires: ['POWER_PLANT'] },
-            'WEAPONS_DEPOT': { tier: 2, requires: ['POWER_PLANT'] },
-            'TURRET': { tier: 2, requires: ['POWER_PLANT'] },
-            'SHIELD_GENERATOR': { tier: 2, requires: ['POWER_PLANT'] },
-            
-            // T3 - Requires Power Plant + Research Lab
-            'TECH_CENTER': { tier: 3, requires: ['POWER_PLANT', 'RESEARCH_LAB'] },
-            'ADVANCED_FACTORY': { tier: 3, requires: ['POWER_PLANT', 'RESEARCH_LAB'] },
-            'BANK': { tier: 3, requires: ['POWER_PLANT', 'RESEARCH_LAB'] }
-        };
+        // If faction data not loaded yet, can't update availability
+        if (!this.myFactionData || !this.myFactionData.availableBuildings) {
+            return;
+        }
         
         // Update each button
         document.querySelectorAll('.build-button').forEach(button => {
             const buildingType = button.getAttribute('data-building');
-            const requirements = techRequirements[buildingType];
             
-            if (!requirements) {
-                return; // Unknown building type
-            }
+            // Find building in faction data
+            const buildingInfo = this.myFactionData.availableBuildings.find(b => b.buildingType === buildingType);
             
-            // Check if faction can build this building type
-            if (availableBuildings && !availableBuildings.has(buildingType)) {
-                // Faction cannot build this building - hide it completely
+            if (!buildingInfo) {
+                // Building not available for this faction - should not happen if menu is generated correctly
                 button.style.display = 'none';
                 return;
-            } else {
-                // Faction can build this - make sure it's visible
-                button.style.display = 'block';
             }
             
-            // Get building cost
-            const buildingInfo = this.getBuildingInfo(buildingType);
+            // Get tech requirements from faction data
+            const requiredBuildings = buildingInfo.techRequirements || [];
             const cost = buildingInfo.cost;
             
             // Check if all tech requirements are met
             let hasTech = true;
             let missingRequirements = [];
             
-            for (const required of requirements.requires) {
+            for (const required of requiredBuildings) {
                 if (!myBuildingTypes.has(required)) {
                     hasTech = false;
                     missingRequirements.push(this.getBuildingDisplayName(required));
@@ -2545,24 +2640,6 @@ class RTSEngine {
         });
     }
     
-    getBuildingDisplayName(buildingType) {
-        const names = {
-            'POWER_PLANT': 'Power Plant',
-            'RESEARCH_LAB': 'Research Lab',
-            'TECH_CENTER': 'Tech Center',
-            'BARRACKS': 'Barracks',
-            'FACTORY': 'Factory',
-            'WEAPONS_DEPOT': 'Weapons Depot',
-            'ADVANCED_FACTORY': 'Advanced Factory',
-            'TURRET': 'Turret',
-            'SHIELD_GENERATOR': 'Shield Generator',
-            'REFINERY': 'Refinery',
-            'WALL': 'Wall',
-            'BANK': 'Bank'
-        };
-        return names[buildingType] || buildingType;
-    }
-    
     activateSpecialAbility() {
         // Check if any selected units have special abilities that require targets
         let needsTarget = false;
@@ -2588,7 +2665,6 @@ class RTSEngine {
             // Enter targeting mode
             this.specialAbilityTargetingMode = true;
             this.specialAbilityTargetType = targetType;
-            console.log(`Entering special ability targeting mode: ${targetType}`);
             
             // Visual feedback - change cursor or show message
             document.body.style.cursor = 'crosshair';
@@ -2664,10 +2740,6 @@ class RTSEngine {
     }
     
     selectBuilding(buildingData) {
-        console.log('Selected building:', buildingData);
-        console.log('canProduceUnits:', buildingData.canProduceUnits);
-        console.log('underConstruction:', buildingData.underConstruction);
-        
         this.selectedBuilding = buildingData;
         
         // Clear unit selection
@@ -2676,12 +2748,17 @@ class RTSEngine {
         // Hide build menu when selecting a building
         this.hideBuildMenu();
         
-        // Show production UI if building can produce units and is not under construction
-        if (buildingData.canProduceUnits && !buildingData.underConstruction) {
-            console.log('Showing production UI');
+        // Show production UI if:
+        // 1. Building can produce units and is not under construction, OR
+        // 2. Building is a bunker (has garrison UI), OR
+        // 3. Building is a monument (has aura info)
+        const isBunker = buildingData.type === 'BUNKER';
+        const isMonument = ['PHOTON_SPIRE', 'QUANTUM_NEXUS', 'SANDSTORM_GENERATOR'].includes(buildingData.type);
+        const shouldShowUI = (buildingData.canProduceUnits && !buildingData.underConstruction) || isBunker || isMonument;
+        
+        if (shouldShowUI) {
             this.showProductionUI(buildingData);
         } else {
-            console.log('Hiding production UI');
             this.hideProductionUI();
         }
     }
@@ -2715,8 +2792,73 @@ class RTSEngine {
         healthText.innerHTML = `<span>Health:</span><span>${Math.floor(buildingData.health)}/${buildingData.maxHealth}</span>`;
         panel.appendChild(healthText);
         
+        // Garrison info (for bunkers)
+        if (buildingData.type === 'BUNKER') {
+            const garrisonInfo = document.createElement('div');
+            garrisonInfo.className = 'unit-stat';
+            garrisonInfo.innerHTML = `<span>Garrison:</span><span>${buildingData.garrisonCount || 0}/${buildingData.maxGarrisonCapacity || 0}</span>`;
+            panel.appendChild(garrisonInfo);
+            
+            // Ungarrison button (if units are garrisoned)
+            if (buildingData.garrisonCount > 0) {
+                const ungarrisonTitle = document.createElement('div');
+                ungarrisonTitle.style.marginTop = '15px';
+                ungarrisonTitle.style.fontWeight = 'bold';
+                ungarrisonTitle.style.color = '#FFD700';
+                ungarrisonTitle.textContent = 'Garrison:';
+                panel.appendChild(ungarrisonTitle);
+                
+                const ungarrisonButton = document.createElement('button');
+                ungarrisonButton.className = 'build-button';
+                ungarrisonButton.textContent = 'Ungarrison One';
+                ungarrisonButton.onclick = () => this.ungarrisonUnit(buildingData.id, false);
+                panel.appendChild(ungarrisonButton);
+                
+                const ungarrisonAllButton = document.createElement('button');
+                ungarrisonAllButton.className = 'build-button';
+                ungarrisonAllButton.textContent = 'Ungarrison All';
+                ungarrisonAllButton.onclick = () => this.ungarrisonUnit(buildingData.id, true);
+                panel.appendChild(ungarrisonAllButton);
+            }
+        }
+        
+        // Monument aura info
+        const monumentInfo = {
+            'PHOTON_SPIRE': { name: 'Beam Amplifier', effect: '+35% beam damage', radius: 250 },
+            'QUANTUM_NEXUS': { name: 'Quantum Shield', effect: '+25% max health', radius: 220 },
+            'SANDSTORM_GENERATOR': { name: 'Sandstorm', effect: '15 damage/3s to enemies', radius: 200 }
+        };
+        
+        if (monumentInfo[buildingData.type]) {
+            const info = monumentInfo[buildingData.type];
+            
+            const monumentTitle = document.createElement('div');
+            monumentTitle.style.marginTop = '15px';
+            monumentTitle.style.fontWeight = 'bold';
+            monumentTitle.style.color = '#FFD700';
+            monumentTitle.textContent = info.name + ':';
+            panel.appendChild(monumentTitle);
+            
+            const effectInfo = document.createElement('div');
+            effectInfo.className = 'unit-stat';
+            effectInfo.innerHTML = `<span>Effect:</span><span>${info.effect}</span>`;
+            panel.appendChild(effectInfo);
+            
+            const radiusInfo = document.createElement('div');
+            radiusInfo.className = 'unit-stat';
+            radiusInfo.innerHTML = `<span>Radius:</span><span>${info.radius}</span>`;
+            panel.appendChild(radiusInfo);
+            
+            const statusInfo = document.createElement('div');
+            statusInfo.className = 'unit-stat';
+            const status = buildingData.auraActive ? '✓ Active' : '✗ Inactive';
+            const statusColor = buildingData.auraActive ? '#00FF00' : '#FF0000';
+            statusInfo.innerHTML = `<span>Status:</span><span style="color: ${statusColor}">${status}</span>`;
+            panel.appendChild(statusInfo);
+        }
+        
         // Production buttons
-        if (buildingData.canProduceUnits) {
+        if (buildingData.canProduceUnits && !buildingData.underConstruction) {
             const productionTitle = document.createElement('div');
             productionTitle.style.marginTop = '15px';
             productionTitle.style.fontWeight = 'bold';
@@ -2734,8 +2876,9 @@ class RTSEngine {
                 button.onclick = () => this.queueUnitProduction(buildingData.id, unitType.type);
                 
                 // Disable if can't afford
-                if (this.myFaction && this.myFaction.credits < unitType.cost) {
+                if (this.myMoney < unitType.cost) {
                     button.disabled = true;
+                    button.style.opacity = '0.5';
                 }
                 
                 panel.appendChild(button);
@@ -2757,35 +2900,155 @@ class RTSEngine {
                 throw new Error(`Failed to fetch faction data for ${factionType}`);
             }
             this.myFactionData = await response.json();
-            console.log('Loaded faction data:', this.myFactionData);
+            
+            // Generate build menu dynamically based on faction data
+            this.generateBuildMenu();
         } catch (error) {
             console.error('Error fetching faction data:', error);
         }
     }
     
     /**
+     * Generate build menu dynamically based on faction's available buildings
+     */
+    generateBuildMenu() {
+        if (!this.myFactionData || !this.myFactionData.availableBuildings) {
+            console.warn('Cannot generate build menu: faction data not loaded');
+            return;
+        }
+        
+        const buildMenu = document.getElementById('build-menu');
+        if (!buildMenu) return;
+        
+        // Clear existing content except title
+        const title = buildMenu.querySelector('.build-menu-title');
+        buildMenu.innerHTML = '';
+        if (title) {
+            buildMenu.appendChild(title);
+        } else {
+            buildMenu.innerHTML = '<div class="build-menu-title">Build Menu</div>';
+        }
+        
+        // Group buildings by tier
+        const buildingsByTier = {
+            1: [],
+            2: [],
+            3: []
+        };
+        
+        this.myFactionData.availableBuildings.forEach(building => {
+            const tier = building.requiredTechTier || 1;
+            buildingsByTier[tier].push(building);
+        });
+        
+        // Define tier categories
+        const tierCategories = {
+            1: 'Basic',
+            2: 'Advanced (T2)',
+            3: 'Elite (T3)'
+        };
+        
+        // Create buttons for each tier
+        [1, 2, 3].forEach(tier => {
+            if (buildingsByTier[tier].length === 0) return;
+            
+            // Add category header
+            const category = document.createElement('div');
+            category.className = 'build-category';
+            category.textContent = tierCategories[tier];
+            buildMenu.appendChild(category);
+            
+            // Add building buttons
+            buildingsByTier[tier].forEach(building => {
+                const button = document.createElement('button');
+                button.className = 'build-button';
+                button.setAttribute('data-building', building.buildingType);
+                
+                // Get building icon
+                const icon = this.getBuildingIcon(building.buildingType);
+                const name = this.getBuildingDisplayName(building.buildingType);
+                const cost = building.cost;
+                
+                button.innerHTML = `${icon} ${name} <span class="build-cost">(${cost})</span>`;
+                
+                button.addEventListener('click', () => {
+                    this.enterBuildMode(building.buildingType);
+                });
+                
+                buildMenu.appendChild(button);
+            });
+        });
+        
+    }
+    
+    /**
+     * Get display icon for a building type
+     */
+    getBuildingIcon(buildingType) {
+        const icons = {
+            'HEADQUARTERS': '🏛️',
+            'POWER_PLANT': '⚡',
+            'BARRACKS': '🏰',
+            'REFINERY': '🏭',
+            'WALL': '🧱',
+            'RESEARCH_LAB': '🔬',
+            'FACTORY': '🚗',
+            'WEAPONS_DEPOT': '🔫',
+            'TURRET': '🎯',
+            'SHIELD_GENERATOR': '🛡️',
+            'TECH_CENTER': '🧪',
+            'ADVANCED_FACTORY': '🏭',
+            'BANK': '💰',
+            'BUNKER': '🏰',
+            'SANDSTORM_GENERATOR': '🌪️',
+            'QUANTUM_NEXUS': '⚛️',
+            'PHOTON_SPIRE': '💎'
+        };
+        return icons[buildingType] || '🏢';
+    }
+    
+    /**
+     * Get display name for a building type
+     */
+    getBuildingDisplayName(buildingType) {
+        const names = {
+            'HEADQUARTERS': 'Headquarters',
+            'POWER_PLANT': 'Power Plant',
+            'BARRACKS': 'Barracks',
+            'REFINERY': 'Refinery',
+            'WALL': 'Wall',
+            'RESEARCH_LAB': 'Research Lab',
+            'FACTORY': 'Factory',
+            'WEAPONS_DEPOT': 'Weapons Depot',
+            'TURRET': 'Turret',
+            'SHIELD_GENERATOR': 'Shield Generator',
+            'TECH_CENTER': 'Tech Center',
+            'ADVANCED_FACTORY': 'Advanced Factory',
+            'BANK': 'Bank',
+            'BUNKER': 'Bunker',
+            'SANDSTORM_GENERATOR': 'Sandstorm Generator',
+            'QUANTUM_NEXUS': 'Quantum Nexus',
+            'PHOTON_SPIRE': 'Photon Spire'
+        };
+        return names[buildingType] || buildingType.replace(/_/g, ' ');
+    }
+    
+    /**
      * Get available units for a building, filtered by faction
      */
     getAvailableUnits(buildingType) {
-        console.log(`getAvailableUnits called for ${buildingType}, myFactionData:`, this.myFactionData ? 'loaded' : 'null');
-        
         // If we have faction data, use it
         if (this.myFactionData) {
             // Get the building info from faction data
             const building = this.myFactionData.availableBuildings.find(b => b.buildingType === buildingType);
-            console.log(`getAvailableUnits(${buildingType}):`, building);
             
             if (!building || !building.producedUnits || building.producedUnits.length === 0) {
-                console.warn(`No units found for ${buildingType}`, building);
                 return [];
             }
-            
-            console.log(`${buildingType} produces:`, building.producedUnits);
             
             // Map produced units to the format expected by UI
             const units = building.producedUnits.map(unitType => {
                 const unitInfo = this.myFactionData.availableUnits.find(u => u.unitType === unitType);
-                console.log(`Looking for unit ${unitType}:`, unitInfo);
                 if (!unitInfo) return null;
                 
                 return {
@@ -2797,7 +3060,6 @@ class RTSEngine {
                 };
             }).filter(u => u !== null);
             
-            console.log(`Returning ${units.length} units for ${buildingType}:`, units);
             return units;
         }
         
@@ -2840,6 +3102,7 @@ class RTSEngine {
             'WORKER': '👷 Worker',
             'MINER': '⛏️ Miner',
             'INFANTRY': '🪖 Infantry',
+            'LASER_INFANTRY': '⚡ Laser Infantry',
             'MEDIC': '⚕️ Medic',
             'ROCKET_SOLDIER': '🚀 Rocket Soldier',
             'SNIPER': '🎯 Sniper',
@@ -2850,13 +3113,23 @@ class RTSEngine {
             'GIGANTONAUT': '🏔️ Gigantonaut',
             'CRAWLER': '🦂 Crawler',
             'STEALTH_TANK': '👻 Stealth Tank',
-            'MAMMOTH_TANK': '🦣 Mammoth Tank'
+            'MAMMOTH_TANK': '🦣 Mammoth Tank',
+            // Hero units
+            'PALADIN': '⚔️ Paladin',
+            'RAIDER': '🏇 Raider',
+            'COLOSSUS': '🗿 Colossus',
+            'PHOTON_TITAN': '💎 Photon Titan',
+            // Beam units
+            'PLASMA_TROOPER': '⚡ Plasma Trooper',
+            'ION_RANGER': '🔫 Ion Ranger',
+            'PHOTON_SCOUT': '✨ Photon Scout',
+            'BEAM_TANK': '💠 Beam Tank',
+            'PULSE_ARTILLERY': '🌟 Pulse Artillery'
         };
         return names[unitType] || unitType;
     }
     
     queueUnitProduction(buildingId, unitType) {
-        console.log(`Queueing unit production: ${unitType} at building ${buildingId}`);
         this.sendInput({
             produceUnitOrder: unitType,
             produceBuildingId: buildingId
@@ -2864,7 +3137,6 @@ class RTSEngine {
     }
     
     setRallyPoint(buildingId, worldPos) {
-        console.log(`Setting rally point for building ${buildingId} to (${worldPos.x.toFixed(1)}, ${worldPos.y.toFixed(1)})`);
         this.sendInput({
             setRallyBuildingId: buildingId,
             rallyPoint: { x: worldPos.x, y: worldPos.y }

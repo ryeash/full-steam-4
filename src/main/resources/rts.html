@@ -139,7 +139,27 @@
             color: white;
             pointer-events: all;
             min-width: 250px;
+            max-width: 350px;
             display: none;
+        }
+        
+        /* Custom scrollbar for unit info panel */
+        #unit-info-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #unit-info-panel::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+        }
+        
+        #unit-info-panel::-webkit-scrollbar-thumb {
+            background: #00AAFF;
+            border-radius: 4px;
+        }
+        
+        #unit-info-panel::-webkit-scrollbar-thumb:hover {
+            background: #0088DD;
         }
         
         .unit-name {
@@ -209,7 +229,8 @@
         }
         
         .build-button {
-            display: block;
+            display: block !important;
+            visibility: visible !important;
             width: 100%;
             padding: 10px;
             margin: 5px 0;
@@ -220,6 +241,7 @@
             cursor: pointer;
             transition: all 0.2s;
             text-align: left;
+            min-height: 40px;
         }
         
         .build-button:hover {
@@ -356,54 +378,10 @@
             </div>
         </div>
         
-        <!-- Build Menu -->
+        <!-- Build Menu (dynamically generated based on faction) -->
         <div id="build-menu">
             <div class="build-menu-title">Build Menu</div>
-            
-            <!-- Tier 1 Buildings -->
-            <div class="build-category">Basic</div>
-            <button class="build-button" data-building="POWER_PLANT">
-                ⚡ Power Plant <span class="build-cost">(250)</span>
-            </button>
-            <button class="build-button" data-building="BARRACKS">
-                🏰 Barracks <span class="build-cost">(200)</span>
-            </button>
-            <button class="build-button" data-building="REFINERY">
-                🏭 Refinery <span class="build-cost">(300)</span>
-            </button>
-            <button class="build-button" data-building="WALL">
-                🧱 Wall <span class="build-cost">(50)</span>
-            </button>
-            
-            <!-- Tier 2 Buildings -->
-            <div class="build-category">Advanced (T2)</div>
-            <button class="build-button" data-building="RESEARCH_LAB">
-                🔬 Research Lab <span class="build-cost">(500)</span>
-            </button>
-            <button class="build-button" data-building="FACTORY">
-                🚗 Factory <span class="build-cost">(400)</span>
-            </button>
-            <button class="build-button" data-building="WEAPONS_DEPOT">
-                🔫 Weapons Depot <span class="build-cost">(400)</span>
-            </button>
-            <button class="build-button" data-building="TURRET">
-                🎯 Turret <span class="build-cost">(250)</span>
-            </button>
-            <button class="build-button" data-building="SHIELD_GENERATOR">
-                🛡️ Shield Generator <span class="build-cost">(400)</span>
-            </button>
-            
-            <!-- Tier 3 Buildings -->
-            <div class="build-category">Elite (T3)</div>
-            <button class="build-button" data-building="TECH_CENTER">
-                🧪 Tech Center <span class="build-cost">(800)</span>
-            </button>
-            <button class="build-button" data-building="ADVANCED_FACTORY">
-                🏭 Advanced Factory <span class="build-cost">(1000)</span>
-            </button>
-            <button class="build-button" data-building="BANK">
-                💰 Bank <span class="build-cost">(600)</span>
-            </button>
+            <!-- Buildings will be populated dynamically when faction data loads -->
         </div>
         
         <!-- Game Over Screen -->

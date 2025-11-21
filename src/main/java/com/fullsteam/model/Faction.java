@@ -39,6 +39,17 @@ public enum Faction {
             "Advanced technology faction with powerful units and superior power efficiency. " +
             "Units are expensive but come with shield technology.",
             0x00CED1  // Dark turquoise
+    ),
+    
+    /**
+     * TECH_ALLIANCE - High-tech faction specializing in beam weapons and energy technology.
+     * Theme: Beam weapons, energy shields, and advanced technology.
+     */
+    TECH_ALLIANCE(
+            "Tech Alliance",
+            "Cutting-edge technology faction specializing in beam weapons and energy systems. " +
+            "All units use instant-hit beam weapons with high precision and no projectile travel time.",
+            0x00FF00  // Bright green (energy theme)
     );
     
     private final String displayName;

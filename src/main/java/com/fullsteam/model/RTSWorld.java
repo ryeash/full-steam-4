@@ -288,37 +288,54 @@ public class RTSWorld {
     private ObstacleSpawn generateBiomeObstacle(Vector2 position, double size, Random random) {
         return switch (biome) {
             case GRASSLAND -> {
-                // Trees: Mix of circles (round trees) and 6-8 sided polygons (bushy trees)
-                if (random.nextDouble() < 0.6) {
-                    yield new ObstacleSpawn(position, size); // Circle
+                // Trees: Mix of circles (round trees) and irregular organic shapes
+                if (random.nextDouble() < 0.3) {
+                    yield new ObstacleSpawn(position, size); // Circle (round tree)
                 } else {
+                    // Bushy, organic tree shapes
                     int sides = 6 + random.nextInt(3); // 6-8 sides
-                    yield new ObstacleSpawn(position, size, sides);
+                    double irregularity = 0.3 + random.nextDouble() * 0.3; // 0.3-0.6
+                    double spikiness = 0.2 + random.nextDouble() * 0.3;    // 0.2-0.5
+                    Vector2[] vertices = generateIrregularPolygon(size, sides, irregularity, spikiness, random);
+                    yield new ObstacleSpawn(position, vertices);
                 }
             }
             case DESERT -> {
-                // Rocks: Irregular polygons with 5-8 sides
+                // Rocks: Very irregular, weathered shapes
                 int sides = 5 + random.nextInt(4); // 5-8 sides
-                yield new ObstacleSpawn(position, size, sides);
+                double irregularity = 0.4 + random.nextDouble() * 0.4; // 0.4-0.8 (very irregular)
+                double spikiness = 0.3 + random.nextDouble() * 0.4;    // 0.3-0.7 (quite spiky)
+                Vector2[] vertices = generateIrregularPolygon(size, sides, irregularity, spikiness, random);
+                yield new ObstacleSpawn(position, vertices);
             }
             case SNOW -> {
-                // Ice: Mix of hexagons (crystals) and irregular shapes
-                if (random.nextDouble() < 0.5) {
-                    yield new ObstacleSpawn(position, size, 6); // Hexagon (ice crystal)
+                // Ice: Mix of regular crystals and irregular chunks
+                if (random.nextDouble() < 0.4) {
+                    yield new ObstacleSpawn(position, size, 6); // Regular hexagon (ice crystal)
                 } else {
+                    // Irregular ice chunks
                     int sides = 5 + random.nextInt(3); // 5-7 sides
-                    yield new ObstacleSpawn(position, size, sides);
+                    double irregularity = 0.2 + random.nextDouble() * 0.3; // 0.2-0.5
+                    double spikiness = 0.3 + random.nextDouble() * 0.4;    // 0.3-0.7 (sharp edges)
+                    Vector2[] vertices = generateIrregularPolygon(size, sides, irregularity, spikiness, random);
+                    yield new ObstacleSpawn(position, vertices);
                 }
             }
             case VOLCANIC -> {
-                // Lava rocks: Sharp, angular shapes with 4-7 sides
+                // Lava rocks: Sharp, angular, highly irregular shapes
                 int sides = 4 + random.nextInt(4); // 4-7 sides
-                yield new ObstacleSpawn(position, size, sides);
+                double irregularity = 0.5 + random.nextDouble() * 0.4; // 0.5-0.9 (very angular)
+                double spikiness = 0.4 + random.nextDouble() * 0.5;    // 0.4-0.9 (very spiky)
+                Vector2[] vertices = generateIrregularPolygon(size, sides, irregularity, spikiness, random);
+                yield new ObstacleSpawn(position, vertices);
             }
             case URBAN -> {
-                // Rubble: Very irregular shapes with 4-9 sides
+                // Rubble: Extremely irregular, chaotic shapes
                 int sides = 4 + random.nextInt(6); // 4-9 sides
-                yield new ObstacleSpawn(position, size, sides);
+                double irregularity = 0.6 + random.nextDouble() * 0.3; // 0.6-0.9 (chaotic)
+                double spikiness = 0.5 + random.nextDouble() * 0.4;    // 0.5-0.9 (very varied)
+                Vector2[] vertices = generateIrregularPolygon(size, sides, irregularity, spikiness, random);
+                yield new ObstacleSpawn(position, vertices);
             }
         };
     }
@@ -494,6 +511,7 @@ public class RTSWorld {
         private final double size;
         private final Obstacle.Shape shape;
         private final int sides; // For polygons
+        private final Vector2[] vertices; // For irregular polygons
 
         // Circle constructor
         public ObstacleSpawn(Vector2 position, double size) {
@@ -501,6 +519,7 @@ public class RTSWorld {
             this.size = size;
             this.shape = Obstacle.Shape.CIRCLE;
             this.sides = 0;
+            this.vertices = null;
         }
 
         // Polygon constructor
@@ -509,7 +528,97 @@ public class RTSWorld {
             this.size = size;
             this.shape = Obstacle.Shape.POLYGON;
             this.sides = sides;
+            this.vertices = null;
         }
+        
+        // Irregular polygon constructor
+        public ObstacleSpawn(Vector2 position, Vector2[] vertices) {
+            this.position = position;
+            this.shape = Obstacle.Shape.IRREGULAR_POLYGON;
+            this.sides = vertices.length;
+            this.vertices = vertices;
+            
+            // Calculate bounding size from vertices
+            double maxDist = 0.0;
+            for (Vector2 v : vertices) {
+                double dist = Math.sqrt(v.x * v.x + v.y * v.y);
+                maxDist = Math.max(maxDist, dist);
+            }
+            this.size = maxDist;
+        }
+        
+        public Vector2 getPosition() { return position; }
+        public double getSize() { return size; }
+        public Obstacle.Shape getShape() { return shape; }
+        public int getSides() { return sides; }
+        public Vector2[] getVertices() { return vertices; }
+    }
+    
+    /**
+     * Generate a random irregular polygon with the given number of vertices
+     * GUARANTEED to be convex (required by dyn4j)
+     * 
+     * @param baseRadius Average distance from center
+     * @param vertexCount Number of vertices (3-12)
+     * @param irregularity How much vertices deviate from regular polygon (0.0-1.0)
+     * @param spikiness How much radius varies per vertex (0.0-1.0)
+     * @param random Random number generator
+     * @return Array of vertices in counter-clockwise order, guaranteed convex
+     */
+    public static Vector2[] generateIrregularPolygon(double baseRadius, int vertexCount, 
+                                                     double irregularity, double spikiness, 
+                                                     java.util.Random random) {
+        // Clamp parameters
+        vertexCount = Math.max(3, Math.min(12, vertexCount));
+        irregularity = Math.max(0.0, Math.min(1.0, irregularity));
+        spikiness = Math.max(0.0, Math.min(1.0, spikiness));
+        
+        // Generate evenly spaced angles first
+        double angleStep = (2.0 * Math.PI) / vertexCount;
+        
+        // Limit angle variation to prevent concave shapes
+        // Max variation is 40% of angle step to ensure convexity
+        double maxAngleVariation = angleStep * 0.4 * irregularity;
+        
+        double[] angles = new double[vertexCount];
+        double currentAngle = 0.0;
+        
+        for (int i = 0; i < vertexCount; i++) {
+            // Add controlled randomness to angle
+            double variation = (random.nextDouble() * 2.0 - 1.0) * maxAngleVariation;
+            angles[i] = currentAngle + variation;
+            currentAngle += angleStep;
+        }
+        
+        // Ensure angles are properly ordered (maintain convexity)
+        // Clamp each angle to stay within its sector
+        for (int i = 0; i < vertexCount; i++) {
+            double minAngle = angleStep * i;
+            double maxAngle = angleStep * (i + 1);
+            angles[i] = Math.max(minAngle, Math.min(maxAngle, angles[i]));
+        }
+        
+        // Generate vertices with varying radii (limited to maintain convexity)
+        Vector2[] vertices = new Vector2[vertexCount];
+        
+        // Limit radius variation to prevent extreme spikes that could cause concavity
+        double maxRadiusVariation = baseRadius * spikiness * 0.5; // Max 50% variation
+        
+        for (int i = 0; i < vertexCount; i++) {
+            // Random radius variation (limited)
+            double radiusOffset = (random.nextDouble() * 2.0 - 1.0) * maxRadiusVariation;
+            double radius = baseRadius + radiusOffset;
+            
+            // Ensure minimum radius (70% of base to maintain shape)
+            radius = Math.max(baseRadius * 0.7, Math.min(baseRadius * 1.3, radius));
+            
+            // Calculate vertex position
+            double x = Math.cos(angles[i]) * radius;
+            double y = Math.sin(angles[i]) * radius;
+            vertices[i] = new Vector2(x, y);
+        }
+        
+        return vertices;
     }
 }
 

@@ -26,6 +26,7 @@ public class FactionRegistry {
         FACTION_DEFINITIONS.put(Faction.TERRAN, createTerranDefinition());
         FACTION_DEFINITIONS.put(Faction.NOMADS, createNomadsDefinition());
         FACTION_DEFINITIONS.put(Faction.SYNTHESIS, createSynthesisDefinition());
+        FACTION_DEFINITIONS.put(Faction.TECH_ALLIANCE, createTechAllianceDefinition());
     }
 
     /**
@@ -46,16 +47,51 @@ public class FactionRegistry {
      * TERRAN - Balanced faction with all standard units
      */
     private static FactionDefinition createTerranDefinition() {
-        // Terran has access to everything - use the helper method
-        FactionTechTree techTree = FactionTechTree.createAllAvailable();
+        // Terran has access to all standard buildings (explicit list)
+        // Note: HEADQUARTERS excluded - it's a starting building only, cannot be built
+        Set<BuildingType> terranBuildings = Set.of(
+                BuildingType.POWER_PLANT,
+                BuildingType.BARRACKS,
+                BuildingType.REFINERY,
+                BuildingType.WALL,
+                BuildingType.RESEARCH_LAB,
+                BuildingType.FACTORY,
+                BuildingType.WEAPONS_DEPOT,
+                BuildingType.TURRET,
+                BuildingType.SHIELD_GENERATOR,
+                BuildingType.TECH_CENTER,
+                BuildingType.ADVANCED_FACTORY,
+                BuildingType.BANK,
+                BuildingType.BUNKER  // Terran monument
+        );
+        
+        // Terran has access to all standard units (explicit list)
+        Map<BuildingType, List<UnitType>> buildingProducers = new HashMap<>();
+        buildingProducers.put(BuildingType.HEADQUARTERS, List.of(UnitType.WORKER, UnitType.MINER));
+        buildingProducers.put(BuildingType.BARRACKS, List.of(UnitType.INFANTRY, UnitType.MEDIC, UnitType.LASER_INFANTRY));
+        buildingProducers.put(BuildingType.FACTORY, List.of(UnitType.JEEP, UnitType.TANK));
+        buildingProducers.put(BuildingType.WEAPONS_DEPOT, List.of(UnitType.ROCKET_SOLDIER, UnitType.SNIPER, UnitType.ENGINEER));
+        buildingProducers.put(BuildingType.ADVANCED_FACTORY, List.of(
+                UnitType.ARTILLERY, 
+                UnitType.GIGANTONAUT, 
+                UnitType.CRAWLER, 
+                UnitType.STEALTH_TANK, 
+                UnitType.MAMMOTH_TANK,
+                UnitType.PALADIN  // Terran hero
+        ));
+        
+        FactionTechTree techTree = FactionTechTree.builder()
+                .availableBuildings(terranBuildings)
+                .buildingProducers(buildingProducers)
+                .buildingTechTiers(new HashMap<>())
+                .build();
 
         return FactionDefinition.builder()
                 .faction(Faction.TERRAN)
                 .techTree(techTree)
-                .heroUnit(null) // TODO: Add hero units in Phase 3
-                .monumentBuilding(null) // TODO: Add monuments in Phase 3
-                // Terran bonus: +10% building health
-                .buildingHealthMultiplier(1.1)
+                .heroUnit(UnitType.PALADIN)
+                .monumentBuilding(BuildingType.BUNKER)
+                .buildingHealthMultiplier(1.1)  // +10% building health
                 .build();
     }
 
@@ -63,19 +99,35 @@ public class FactionRegistry {
      * NOMADS - Mobile warfare faction
      */
     private static FactionDefinition createNomadsDefinition() {
-        // Nomads have all buildings
-        Set<BuildingType> nomadBuildings = Arrays.stream(BuildingType.values())
-                .collect(Collectors.toSet());
+        // Nomads have all standard buildings (explicit list)
+        // Note: HEADQUARTERS excluded - it's a starting building only, cannot be built
+        Set<BuildingType> nomadBuildings = Set.of(
+                BuildingType.POWER_PLANT,
+                BuildingType.BARRACKS,
+                BuildingType.REFINERY,
+                BuildingType.WALL,
+                BuildingType.RESEARCH_LAB,
+                BuildingType.FACTORY,
+                BuildingType.WEAPONS_DEPOT,
+                BuildingType.TURRET,
+                BuildingType.SHIELD_GENERATOR,
+                BuildingType.TECH_CENTER,
+                BuildingType.ADVANCED_FACTORY,
+                BuildingType.BANK,
+                BuildingType.SANDSTORM_GENERATOR  // Nomads monument
+        );
 
-        // Build buildingProducers map (which units each building can produce)
-        // Nomads have most units but no heavy vehicles (MAMMOTH_TANK, ARTILLERY, GIGANTONAUT)
-        // and no advanced tech like LASER_INFANTRY
+        // Nomads focus on light, fast units - no heavy vehicles
         Map<BuildingType, List<UnitType>> buildingProducers = new HashMap<>();
-        buildingProducers.put(BuildingType.HEADQUARTERS, Arrays.asList(UnitType.WORKER, UnitType.MINER));
-        buildingProducers.put(BuildingType.BARRACKS, Arrays.asList(UnitType.INFANTRY, UnitType.MEDIC)); // No LASER_INFANTRY
-        buildingProducers.put(BuildingType.FACTORY, Arrays.asList(UnitType.JEEP, UnitType.TANK));
-        buildingProducers.put(BuildingType.WEAPONS_DEPOT, Arrays.asList(UnitType.ROCKET_SOLDIER, UnitType.SNIPER, UnitType.ENGINEER));
-        buildingProducers.put(BuildingType.ADVANCED_FACTORY, Arrays.asList(UnitType.CRAWLER, UnitType.STEALTH_TANK));
+        buildingProducers.put(BuildingType.HEADQUARTERS, List.of(UnitType.WORKER, UnitType.MINER));
+        buildingProducers.put(BuildingType.BARRACKS, List.of(UnitType.INFANTRY, UnitType.MEDIC));
+        buildingProducers.put(BuildingType.FACTORY, List.of(UnitType.JEEP, UnitType.TANK));
+        buildingProducers.put(BuildingType.WEAPONS_DEPOT, List.of(UnitType.ROCKET_SOLDIER, UnitType.SNIPER, UnitType.ENGINEER));
+        buildingProducers.put(BuildingType.ADVANCED_FACTORY, List.of(
+                UnitType.CRAWLER, 
+                UnitType.STEALTH_TANK, 
+                UnitType.RAIDER  // Nomads hero
+        ));
 
         FactionTechTree techTree = FactionTechTree.builder()
                 .availableBuildings(nomadBuildings)
@@ -102,9 +154,8 @@ public class FactionRegistry {
         return FactionDefinition.builder()
                 .faction(Faction.NOMADS)
                 .techTree(techTree)
-                .heroUnit(null) // TODO: Phase 3
-                .monumentBuilding(null) // TODO: Phase 3
-                // Nomad bonuses/penalties
+                .heroUnit(UnitType.RAIDER)
+                .monumentBuilding(BuildingType.SANDSTORM_GENERATOR)
                 .upkeepMultiplier(1.5)  // +50% upkeep limit
                 .buildingHealthMultiplier(0.8)  // -20% building health
                 .unitCostModifiers(costModifiers)
@@ -116,18 +167,36 @@ public class FactionRegistry {
      * SYNTHESIS - Advanced technology faction
      */
     private static FactionDefinition createSynthesisDefinition() {
-        // Synthesis has all buildings except the barracks
-        Set<BuildingType> synthesisBuildings = Arrays.stream(BuildingType.values())
-                .filter(b -> b != BuildingType.BARRACKS)
-                .collect(Collectors.toSet());
+        // Synthesis has advanced buildings, no barracks (explicit list)
+        // Note: HEADQUARTERS excluded - it's a starting building only, cannot be built
+        Set<BuildingType> synthesisBuildings = Set.of(
+                BuildingType.POWER_PLANT,
+                BuildingType.REFINERY,
+                BuildingType.WALL,
+                BuildingType.RESEARCH_LAB,
+                BuildingType.FACTORY,
+                BuildingType.WEAPONS_DEPOT,
+                BuildingType.TURRET,
+                BuildingType.SHIELD_GENERATOR,
+                BuildingType.TECH_CENTER,
+                BuildingType.ADVANCED_FACTORY,
+                BuildingType.BANK,
+                BuildingType.QUANTUM_NEXUS  // Synthesis monument
+        );
 
-        // Build buildingProducers map (which units each building can produce)
-        // Synthesis has advanced units only (no basic infantry/medic, no jeep)
+        // Synthesis focuses on advanced, heavy units - no basic infantry
         Map<BuildingType, List<UnitType>> buildingProducers = new HashMap<>();
         buildingProducers.put(BuildingType.HEADQUARTERS, List.of(UnitType.WORKER, UnitType.MINER));
-        buildingProducers.put(BuildingType.FACTORY, List.of(UnitType.TANK)); // No Jeep
+        buildingProducers.put(BuildingType.FACTORY, List.of(UnitType.TANK));  // No Jeep
         buildingProducers.put(BuildingType.WEAPONS_DEPOT, List.of(UnitType.ROCKET_SOLDIER, UnitType.SNIPER, UnitType.ENGINEER));
-        buildingProducers.put(BuildingType.ADVANCED_FACTORY, List.of(UnitType.ARTILLERY, UnitType.GIGANTONAUT, UnitType.CRAWLER, UnitType.STEALTH_TANK, UnitType.MAMMOTH_TANK));
+        buildingProducers.put(BuildingType.ADVANCED_FACTORY, List.of(
+                UnitType.ARTILLERY, 
+                UnitType.GIGANTONAUT, 
+                UnitType.CRAWLER, 
+                UnitType.STEALTH_TANK, 
+                UnitType.MAMMOTH_TANK, 
+                UnitType.COLOSSUS  // Synthesis hero
+        ));
 
         FactionTechTree techTree = FactionTechTree.builder()
                 .availableBuildings(synthesisBuildings)
@@ -138,12 +207,62 @@ public class FactionRegistry {
         return FactionDefinition.builder()
                 .faction(Faction.SYNTHESIS)
                 .techTree(techTree)
-                .heroUnit(null) // TODO: Phase 3
-                .monumentBuilding(null) // TODO: Phase 3
-                // Synthesis bonuses/penalties
+                .heroUnit(UnitType.COLOSSUS)
+                .monumentBuilding(BuildingType.QUANTUM_NEXUS)
                 .powerEfficiencyMultiplier(0.7)  // -30% power consumption
                 .unitCostMultiplier(1.3)  // +30% unit costs
                 .buildingHealthMultiplier(1.15)  // +15% building health
+                .build();
+    }
+    
+    /**
+     * TECH ALLIANCE - High-tech faction specializing in beam weapons
+     */
+    private static FactionDefinition createTechAllianceDefinition() {
+        // Tech Alliance has standard buildings (explicit list)
+        // Note: HEADQUARTERS excluded - it's a starting building only, cannot be built
+        Set<BuildingType> techAllianceBuildings = Set.of(
+                BuildingType.POWER_PLANT,
+                BuildingType.REFINERY,
+                BuildingType.BARRACKS,
+                BuildingType.FACTORY,
+                BuildingType.TURRET,
+                BuildingType.WEAPONS_DEPOT,
+                BuildingType.ADVANCED_FACTORY,
+                BuildingType.SHIELD_GENERATOR,
+                BuildingType.BANK,
+                BuildingType.RESEARCH_LAB,
+                BuildingType.TECH_CENTER,
+                BuildingType.WALL,
+                BuildingType.PHOTON_SPIRE  // Tech Alliance monument
+        );
+        
+        // Tech Alliance uses beam weapons exclusively (explicit list)
+        Map<BuildingType, List<UnitType>> buildingProducers = new HashMap<>();
+        buildingProducers.put(BuildingType.HEADQUARTERS, List.of(UnitType.WORKER, UnitType.MINER));
+        buildingProducers.put(BuildingType.BARRACKS, List.of(UnitType.PLASMA_TROOPER, UnitType.MEDIC));
+        buildingProducers.put(BuildingType.WEAPONS_DEPOT, List.of(UnitType.ION_RANGER, UnitType.ENGINEER));
+        buildingProducers.put(BuildingType.FACTORY, List.of(UnitType.PHOTON_SCOUT, UnitType.BEAM_TANK));
+        buildingProducers.put(BuildingType.ADVANCED_FACTORY, List.of(
+                UnitType.PULSE_ARTILLERY, 
+                UnitType.PHOTON_TITAN,  // Tech Alliance hero
+                UnitType.CRAWLER
+        ));
+        
+        FactionTechTree techTree = FactionTechTree.builder()
+                .availableBuildings(techAllianceBuildings)
+                .buildingProducers(buildingProducers)
+                .buildingTechTiers(new HashMap<>())
+                .build();
+        
+        return FactionDefinition.builder()
+                .faction(Faction.TECH_ALLIANCE)
+                .techTree(techTree)
+                .heroUnit(UnitType.PHOTON_TITAN)
+                .monumentBuilding(BuildingType.PHOTON_SPIRE)
+                .unitCostMultiplier(1.15)  // +15% unit costs (advanced tech)
+                .buildingCostMultiplier(0.9)  // -10% building costs
+                .powerEfficiencyMultiplier(0.8)  // -20% power consumption
                 .build();
     }
 }

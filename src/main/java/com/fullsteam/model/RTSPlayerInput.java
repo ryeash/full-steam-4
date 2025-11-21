@@ -53,6 +53,11 @@ public class RTSPlayerInput {
     // Special abilities
     private boolean activateSpecialAbility; // Activate special ability for selected units
     private Integer specialAbilityTargetUnit; // Target unit ID for heal/repair
+    
+    // Garrison/Ungarrison
+    private Integer garrisonOrder; // Building ID to garrison into (bunker)
+    private Integer ungarrisonBuildingId; // Building ID to ungarrison from
+    private boolean ungarrisonAll; // If true, ungarrison all units from building
     private Integer specialAbilityTargetBuilding; // Target building ID for repair
     
     // Camera/viewport
