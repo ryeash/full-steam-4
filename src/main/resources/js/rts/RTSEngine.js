@@ -892,18 +892,33 @@ class RTSEngine {
             const shape = buildingContainer.shapeGraphics;
             shape.clear();
             
+            // Use physics body vertices if available for accurate shape rendering
+            const hasVertices = buildingData.vertices && buildingData.vertices.length > 0;
+            
             if (buildingData.underConstruction) {
                 // Dotted outline for buildings under construction
-                this.drawPolygonOutline(shape, buildingContainer.typeInfo.sides, 
-                                       buildingContainer.typeInfo.size, 
-                                       buildingContainer.typeInfo.color, 
-                                       buildingData.team);
+                if (hasVertices) {
+                    this.drawPhysicsPolygonOutline(shape, buildingData.vertices, 
+                                                   buildingContainer.typeInfo.color, 
+                                                   buildingData.team);
+                } else {
+                    this.drawPolygonOutline(shape, buildingContainer.typeInfo.sides, 
+                                           buildingContainer.typeInfo.size, 
+                                           buildingContainer.typeInfo.color, 
+                                           buildingData.team);
+                }
             } else {
                 // Solid fill for completed buildings
-                this.drawPolygon(shape, buildingContainer.typeInfo.sides, 
-                               buildingContainer.typeInfo.size, 
-                               buildingContainer.typeInfo.color, 
-                               buildingData.team);
+                if (hasVertices) {
+                    this.drawPhysicsPolygon(shape, buildingData.vertices, 
+                                           buildingContainer.typeInfo.color, 
+                                           buildingData.team);
+                } else {
+                    this.drawPolygon(shape, buildingContainer.typeInfo.sides, 
+                                   buildingContainer.typeInfo.size, 
+                                   buildingContainer.typeInfo.color, 
+                                   buildingData.team);
+                }
             }
         }
         
@@ -1498,36 +1513,169 @@ class RTSEngine {
         projectileContainer.position.set(projectileData.x, projectileData.y);
         projectileContainer.rotation = projectileData.rotation;
         
+        // Animate trails
+        if (projectileContainer.fireTrail) {
+            // Animate rocket fire trail (flickering effect)
+            const time = Date.now() / 100;
+            projectileContainer.fireTrail.alpha = 0.8 + Math.sin(time) * 0.2;
+        }
+        
+        if (projectileContainer.smokeTrail) {
+            // Animate smoke trail (pulsing effect)
+            const time = Date.now() / 200;
+            projectileContainer.smokeTrail.alpha = 0.6 + Math.sin(time) * 0.2;
+        }
+        
         // Store data
         projectileContainer.projectileData = projectileData;
     }
     
     createProjectileGraphics(projectileData) {
         const container = new PIXI.Container();
+        const size = projectileData.size;
         
-        // Get projectile color based on ordinance type
-        const colors = {
-            'BULLET': 0xFFFF00,      // Yellow
-            'ROCKET': 0xFF4500,      // Orange-red
-            'GRENADE': 0x8B4513,     // Brown
-            'PLASMA': 0x00FFFF,      // Cyan
-            'DART': 0xC0C0C0,        // Silver
-            'FLAMETHROWER': 0xFF6600 // Orange
-        };
-        
-        const color = colors[projectileData.ordinance] || 0xFFFFFF;
-        
-        // Create circle for projectile
+        // Create projectile shape based on ordinance type
         const shape = new PIXI.Graphics();
-        shape.circle(0, 0, projectileData.size);
-        shape.fill(color);
         
-        // Add trail effect for rockets
-        if (projectileData.ordinance === 'ROCKET' || projectileData.ordinance === 'GRENADE') {
-            shape.stroke({ width: 1, color: 0xFF8800 });
+        switch (projectileData.ordinance) {
+            case 'ROCKET':
+                // Rocket: Cone-shaped with fire trail
+                shape.moveTo(size * 2, 0);  // Nose (pointing right)
+                shape.lineTo(-size, -size * 0.6);  // Top fin
+                shape.lineTo(-size, size * 0.6);   // Bottom fin
+                shape.closePath();
+                shape.fill(0xFF4500);  // Orange-red body
+                
+                // Add metallic tip
+                shape.moveTo(size * 2, 0);
+                shape.lineTo(size * 0.5, -size * 0.3);
+                shape.lineTo(size * 0.5, size * 0.3);
+                shape.closePath();
+                shape.fill(0xC0C0C0);  // Silver tip
+                
+                // Fire trail (animated particles will be added in update)
+                const fireTrail = new PIXI.Graphics();
+                for (let i = 0; i < 5; i++) {
+                    const offset = -size - (i * size * 0.8);
+                    const trailSize = size * (1 - i * 0.15);
+                    const alpha = 1 - (i * 0.2);
+                    fireTrail.circle(offset, 0, trailSize);
+                    fireTrail.fill({ color: i % 2 === 0 ? 0xFF6600 : 0xFFAA00, alpha: alpha });
+                }
+                container.addChild(fireTrail);
+                container.addChild(shape);
+                container.fireTrail = fireTrail;  // Store reference for animation
+                break;
+                
+            case 'GRENADE':
+            case 'SHELL':
+                // Grenade/Shell: Oval shape with smoke trail
+                shape.ellipse(0, 0, size * 1.2, size * 0.8);
+                shape.fill(projectileData.ordinance === 'GRENADE' ? 0x4A4A4A : 0x8B7355);
+                
+                // Add metallic band
+                shape.rect(-size * 0.3, -size * 0.8, size * 0.6, size * 1.6);
+                shape.fill(0x696969);
+                
+                // Smoke trail
+                const smokeTrail = new PIXI.Graphics();
+                for (let i = 0; i < 4; i++) {
+                    const offset = -size - (i * size * 1.2);
+                    const smokeSize = size * (0.6 + i * 0.2);
+                    const alpha = 0.4 - (i * 0.1);
+                    smokeTrail.circle(offset, 0, smokeSize);
+                    smokeTrail.fill({ color: 0x808080, alpha: alpha });
+                }
+                container.addChild(smokeTrail);
+                container.addChild(shape);
+                container.smokeTrail = smokeTrail;
+                break;
+                
+            case 'BULLET':
+                // Bullet: Elongated bullet shape
+                const bulletLength = size * 3;
+                const bulletWidth = size * 0.8;
+                
+                // Bullet casing (brass)
+                shape.rect(-bulletLength * 0.3, -bulletWidth, bulletLength * 0.6, bulletWidth * 2);
+                shape.fill(0xB8860B);  // Dark golden rod
+                
+                // Bullet tip (lead/copper)
+                shape.moveTo(bulletLength * 0.3, 0);
+                shape.lineTo(bulletLength * 0.8, -bulletWidth * 0.6);
+                shape.lineTo(bulletLength * 0.8, bulletWidth * 0.6);
+                shape.closePath();
+                shape.fill(0xCD7F32);  // Copper
+                
+                // Add slight glow
+                shape.circle(0, 0, size);
+                shape.fill({ color: 0xFFFF00, alpha: 0.3 });
+                
+                container.addChild(shape);
+                break;
+                
+            case 'PLASMA':
+                // Plasma: Glowing energy ball with corona
+                // Outer glow
+                shape.circle(0, 0, size * 1.5);
+                shape.fill({ color: 0x00FFFF, alpha: 0.3 });
+                
+                // Middle layer
+                shape.circle(0, 0, size * 1.1);
+                shape.fill({ color: 0x00FFFF, alpha: 0.6 });
+                
+                // Core
+                shape.circle(0, 0, size * 0.7);
+                shape.fill(0xFFFFFF);
+                
+                container.addChild(shape);
+                break;
+                
+            case 'DART':
+                // Dart: Thin, sharp projectile
+                const dartLength = size * 4;
+                const dartWidth = size * 0.4;
+                
+                // Shaft
+                shape.rect(-dartLength * 0.4, -dartWidth, dartLength * 0.8, dartWidth * 2);
+                shape.fill(0xC0C0C0);
+                
+                // Tip
+                shape.moveTo(dartLength * 0.4, 0);
+                shape.lineTo(dartLength * 0.8, -dartWidth * 0.5);
+                shape.lineTo(dartLength * 0.8, dartWidth * 0.5);
+                shape.closePath();
+                shape.fill(0x808080);
+                
+                // Fletching
+                shape.moveTo(-dartLength * 0.4, 0);
+                shape.lineTo(-dartLength * 0.6, -dartWidth * 2);
+                shape.lineTo(-dartLength * 0.5, 0);
+                shape.lineTo(-dartLength * 0.6, dartWidth * 2);
+                shape.closePath();
+                shape.fill(0xFF0000);
+                
+                container.addChild(shape);
+                break;
+                
+            case 'FLAMETHROWER':
+                // Flamethrower: Fire particle cluster
+                for (let i = 0; i < 3; i++) {
+                    const offset = (i - 1) * size * 0.5;
+                    const fireSize = size * (1 + Math.random() * 0.5);
+                    const fireColor = i === 1 ? 0xFFFF00 : (i === 0 ? 0xFF6600 : 0xFF0000);
+                    shape.circle(offset, 0, fireSize);
+                    shape.fill({ color: fireColor, alpha: 0.8 });
+                }
+                container.addChild(shape);
+                break;
+                
+            default:
+                // Default: Simple circle
+                shape.circle(0, 0, size);
+                shape.fill(0xFFFFFF);
+                container.addChild(shape);
         }
-        
-        container.addChild(shape);
         
         return container;
     }
@@ -1696,6 +1844,41 @@ class RTSEngine {
         graphics.poly(points);
         graphics.fill(fillColor);
         graphics.stroke({ width: 2, color: strokeColor });
+    }
+    
+    drawPhysicsPolygonOutline(graphics, vertices, fillColor, team) {
+        // Team colors
+        const teamColors = [
+            0xFFFFFF, // No team (white)
+            0xFF0000, // Team 1 (red)
+            0x0000FF, // Team 2 (blue)
+            0x00FF00, // Team 3 (green)
+            0xFFFF00  // Team 4 (yellow)
+        ];
+        
+        const strokeColor = teamColors[team] || 0xFFFFFF;
+        
+        // Convert vertices array [[x1, y1], [x2, y2], ...] to flat array [x1, y1, x2, y2, ...]
+        const points = [];
+        for (const vertex of vertices) {
+            points.push(vertex[0], vertex[1]);
+        }
+        
+        // Draw polygon with dotted outline (no fill) using physics vertices
+        graphics.poly(points);
+        graphics.stroke({ 
+            width: 3, 
+            color: strokeColor, 
+            alpha: 0.8,
+            cap: 'round',
+            join: 'round',
+            // Create dashed line effect
+            dashArray: [10, 5]
+        });
+        
+        // Add semi-transparent fill to show it's under construction
+        graphics.poly(points);
+        graphics.fill({ color: fillColor, alpha: 0.2 });
     }
     
     drawPolygonOutline(graphics, sides, radius, fillColor, team) {

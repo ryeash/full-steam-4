@@ -36,9 +36,9 @@ public enum UnitType {
             5,       // build time (seconds)
             80,      // max health
             120.0,   // movement speed
-            15,      // damage
+            18,      // damage (+30% vs beam infantry)
             2.0,     // attack rate
-            150,     // attack range
+            170,     // attack range (+15% vs beam infantry)
             12.0,    // size (radius)
             3,       // sides (triangle)
             0x00FF00, // green
@@ -104,9 +104,9 @@ public enum UnitType {
             10,      // build time (seconds)
             50,      // max health (very fragile)
             100.0,   // movement speed
-            50,      // damage (high)
+            65,      // damage (+30% vs beam sniper)
             0.5,     // attack rate (slow, precise shots)
-            300,     // attack range (very long)
+            345,     // attack range (+15% vs beam sniper)
             12.0,    // size (radius)
             3,       // sides (triangle)
             0x8B4513, // brown
@@ -155,9 +155,9 @@ public enum UnitType {
             10,      // build time (seconds)
             120,     // max health
             180.0,   // movement speed (fast!)
-            20,      // damage
+            26,      // damage (+30% vs beam scout)
             3.0,     // attack rate
-            180,     // attack range
+            207,     // attack range (+15% vs beam scout)
             20.0,    // size (radius)
             4,       // sides (rectangle)
             0x00FFFF, // cyan
@@ -172,9 +172,9 @@ public enum UnitType {
             15,      // build time (seconds)
             300,     // max health
             80.0,    // movement speed (slow)
-            60,      // damage
+            68,      // damage (+30% vs beam tank)
             1.2,     // attack rate
-            220,     // attack range
+            240,     // attack range (+15% vs beam tank)
             30.0,    // size (radius)
             5,       // sides (pentagon)
             0x8888FF, // light blue
@@ -189,9 +189,9 @@ public enum UnitType {
             20,      // build time (seconds)
             150,     // max health
             60.0,    // movement speed (very slow)
-            100,     // damage (high!)
+            117,     // damage (+30% vs beam artillery)
             0.5,     // attack rate (very slow)
-            400,     // attack range (very long!)
+            437,     // attack range (+15% vs beam artillery)
             25.0,    // size (radius)
             6,       // sides (hexagon)
             0xFF00FF, // magenta
@@ -329,9 +329,9 @@ public enum UnitType {
             6,       // build time (seconds)
             85,      // max health (slightly tankier than infantry)
             115.0,   // movement speed
-            18,      // damage
+            14,      // damage (instant hit beam weapon)
             2.0,     // attack rate (fast)
-            170,     // attack range
+            148,     // attack range (instant hit beam weapon)
             12.0,    // size (radius)
             3,       // sides (triangle)
             0x00FF7F, // spring green (plasma color)
@@ -346,9 +346,9 @@ public enum UnitType {
             12,      // build time (seconds)
             60,      // max health (fragile)
             105.0,   // movement speed
-            60,      // damage (very high)
+            50,      // damage (instant hit beam weapon)
             0.6,     // attack rate (slow, precise)
-            320,     // attack range (very long)
+            300,     // attack range (instant hit beam weapon)
             12.0,    // size (radius)
             3,       // sides (triangle)
             0x9370DB, // medium purple (ion beam)
@@ -363,9 +363,9 @@ public enum UnitType {
             11,      // build time (seconds)
             110,     // max health
             190.0,   // movement speed (very fast!)
-            22,      // damage
+            20,      // damage (instant hit beam weapon)
             2.5,     // attack rate (rapid fire)
-            190,     // attack range
+            180,     // attack range (instant hit beam weapon)
             18.0,    // size (radius)
             4,       // sides (rectangle)
             0x7FFF00, // chartreuse (bright energy)
@@ -380,9 +380,9 @@ public enum UnitType {
             16,      // build time (seconds)
             320,     // max health (tankier than regular tank)
             75.0,    // movement speed (slow)
-            65,      // damage
+            52,      // damage (instant hit beam weapon)
             1.3,     // attack rate
-            230,     // attack range
+            209,     // attack range (instant hit beam weapon)
             30.0,    // size (radius)
             6,       // sides (hexagon)
             0x00FA9A, // medium spring green
@@ -397,9 +397,9 @@ public enum UnitType {
             22,      // build time (seconds)
             140,     // max health
             55.0,    // movement speed (very slow)
-            110,     // damage (very high!)
+            90,      // damage (instant hit beam weapon)
             0.6,     // attack rate (slow)
-            420,     // attack range (very long!)
+            380,     // attack range (instant hit beam weapon)
             26.0,    // size (radius)
             6,       // sides (hexagon)
             0xFFD700, // gold (energy pulse)
@@ -445,9 +445,49 @@ public enum UnitType {
      */
     public Convex createPhysicsFixture() {
         return switch (this) {
-            // Infantry units - triangular (pointing forward)
-            case INFANTRY, LASER_INFANTRY, ROCKET_SOLDIER, SNIPER, PLASMA_TROOPER, ION_RANGER -> 
+            // Basic Infantry - standard triangle (pointing forward)
+            case INFANTRY, LASER_INFANTRY, PLASMA_TROOPER -> 
                     Geometry.createPolygonalCircle(3, size);
+
+            // Rocket Soldier - wider pentagon (anti-vehicle specialist with launcher)
+            case ROCKET_SOLDIER -> {
+                // Pentagon with wider shoulders for rocket launcher
+                // Pointing right (positive X direction)
+                Vector2[] vertices = new Vector2[]{
+                        new Vector2(-size * 0.8, -size * 0.6),// Back left
+                        new Vector2(size * 0.3, -size * 0.9), // Left shoulder (wide)
+                        new Vector2(size * 1.1, 0),           // Front point (pointing right)
+                        new Vector2(size * 0.3, size * 0.9),  // Right shoulder (wide)
+                        new Vector2(-size * 0.8, size * 0.6)  // Back right
+                };
+                yield Geometry.createPolygon(vertices);
+            }
+
+            // Sniper - elongated narrow triangle (long rifle look)
+            case SNIPER -> {
+                // Symmetric triangle like infantry, but longer and narrower
+                // Pointing right (positive X direction, 0 radians) to match other infantry
+                // Counter-clockwise winding: back-bottom -> front -> back-top
+                Vector2[] vertices = new Vector2[]{
+                        new Vector2(-size * 0.7, -size * 0.5),// Back bottom (narrow base)
+                        new Vector2(size * 1.3, 0),           // Front point (long barrel, pointing right)
+                        new Vector2(-size * 0.7, size * 0.5)  // Back top (narrow base)
+                };
+                yield Geometry.createPolygon(vertices);
+            }
+
+            // Ion Ranger - elongated pentagon (advanced beam sniper)
+            case ION_RANGER -> {
+                // Pointing right (positive X direction)
+                Vector2[] vertices = new Vector2[]{
+                        new Vector2(-size * 0.9, -size * 0.5),// Back left
+                        new Vector2(size * 0.2, -size * 0.7), // Left side
+                        new Vector2(size * 1.3, 0),           // Front point (beam emitter, pointing right)
+                        new Vector2(size * 0.2, size * 0.7),  // Right side
+                        new Vector2(-size * 0.9, size * 0.5)  // Back right
+                };
+                yield Geometry.createPolygon(vertices);
+            }
 
             // Worker/Support units - circular for easy navigation
             case WORKER, MINER, MEDIC, ENGINEER -> Geometry.createCircle(size);
@@ -455,11 +495,78 @@ public enum UnitType {
             // Light vehicles - elongated rectangle (fast, nimble)
             case JEEP, PHOTON_SCOUT -> Geometry.createRectangle(size * 1.6, size);
 
-            // Tanks - hexagonal (balanced)
-            case TANK, STEALTH_TANK, BEAM_TANK -> Geometry.createPolygonalCircle(6, size);
+            // Standard Tank - hexagonal turret platform (balanced)
+            case TANK -> Geometry.createPolygonalCircle(6, size);
+            
+            // Beam Tank - wider hexagon (beam weapon platform)
+            case BEAM_TANK -> {
+                // Pointing right (positive X direction)
+                Vector2[] vertices = new Vector2[]{
+                        new Vector2(-size * 0.9, 0),          // Back
+                        new Vector2(-size * 0.4, -size * 1.1),// Back left (wider)
+                        new Vector2(size * 0.4, -size * 1.1), // Front left (wider)
+                        new Vector2(size * 0.9, 0),           // Front (pointing right)
+                        new Vector2(size * 0.4, size * 1.1),  // Front right (wider)
+                        new Vector2(-size * 0.4, size * 1.1)  // Back right (wider)
+                };
+                yield Geometry.createPolygon(vertices);
+            }
 
-            // Artillery - pentagonal (specialized)
-            case ARTILLERY, PULSE_ARTILLERY -> Geometry.createPolygonalCircle(5, size);
+            // Stealth Tank - sleek diamond (low profile, streamlined)
+            case STEALTH_TANK -> {
+                // Pointing right (positive X direction)
+                Vector2[] vertices = new Vector2[]{
+                        new Vector2(-size * 1.0, 0),          // Back point
+                        new Vector2(0, -size * 0.7),          // Left point (narrow)
+                        new Vector2(size * 1.0, 0),           // Front point (sleek, pointing right)
+                        new Vector2(0, size * 0.7)            // Right point (narrow)
+                };
+                yield Geometry.createPolygon(vertices);
+            }
+
+            // Mammoth Tank - massive wide rectangle (dual-cannon heavy assault)
+            case MAMMOTH_TANK -> {
+                // Wide, imposing rectangle with angled front
+                // Pointing right (positive X direction)
+                Vector2[] vertices = new Vector2[]{
+                        new Vector2(-size * 0.9, -size * 0.8),// Back left
+                        new Vector2(-size * 0.6, -size * 1.1),// Left side back
+                        new Vector2(size * 0.6, -size * 1.1), // Left side front
+                        new Vector2(size * 1.1, -size * 0.8), // Front left (angled, pointing right)
+                        new Vector2(size * 1.1, size * 0.8),  // Front right (angled)
+                        new Vector2(size * 0.6, size * 1.1),  // Right side front
+                        new Vector2(-size * 0.6, size * 1.1), // Right side back
+                        new Vector2(-size * 0.9, size * 0.8)  // Back right
+                };
+                yield Geometry.createPolygon(vertices);
+            }
+
+            // Artillery - elongated pentagon (long barrel siege weapon)
+            case ARTILLERY -> {
+                // Pointing right (positive X direction)
+                Vector2[] vertices = new Vector2[]{
+                        new Vector2(-size * 0.8, -size * 0.7),// Back left
+                        new Vector2(size * 0.3, -size * 0.8), // Left side
+                        new Vector2(size * 1.3, 0),           // Front (long barrel, pointing right)
+                        new Vector2(size * 0.3, size * 0.8),  // Right side
+                        new Vector2(-size * 0.8, size * 0.7)  // Back right
+                };
+                yield Geometry.createPolygon(vertices);
+            }
+            
+            // Pulse Artillery - wide hexagon (beam artillery platform)
+            case PULSE_ARTILLERY -> {
+                // Pointing right (positive X direction)
+                Vector2[] vertices = new Vector2[]{
+                        new Vector2(-size * 1.0, 0),          // Back
+                        new Vector2(-size * 0.5, -size * 1.0),// Back left (wide)
+                        new Vector2(size * 0.5, -size * 1.0), // Front left (wide)
+                        new Vector2(size * 1.2, 0),           // Front (beam emitter, pointing right)
+                        new Vector2(size * 0.5, size * 1.0),  // Front right (wide)
+                        new Vector2(-size * 0.5, size * 1.0)  // Back right (wide)
+                };
+                yield Geometry.createPolygon(vertices);
+            }
 
             // Gigantonaut - trapezoid (wide at back, tapered at front for heavy artillery look)
             case GIGANTONAUT -> {
@@ -474,23 +581,77 @@ public enum UnitType {
                 yield Geometry.createPolygon(vertices);
             }
 
-            // Mammoth Tank - large octagon (heavy armor)
-            case MAMMOTH_TANK -> Geometry.createPolygonalCircle(8, size);
-
-            // Crawler - wide rectangle when mobile, transforms when deployed
-            case CRAWLER -> Geometry.createRectangle(size * 2.0, size * 1.2);
+            // Crawler - wide fortress rectangle (mobile fortress)
+            case CRAWLER -> {
+                // Massive wide rectangle with reinforced corners
+                // Pointing right (positive X direction)
+                Vector2[] vertices = new Vector2[]{
+                        new Vector2(-size * 1.3, -size * 0.9), // Back left
+                        new Vector2(-size * 1.0, -size * 1.2), // Left back corner
+                        new Vector2(size * 1.0, -size * 1.2),  // Left front corner
+                        new Vector2(size * 1.5, -size * 0.9),  // Front left (pointing right)
+                        new Vector2(size * 1.5, size * 0.9),   // Front right
+                        new Vector2(size * 1.0, size * 1.2),   // Right front corner
+                        new Vector2(-size * 1.0, size * 1.2),  // Right back corner
+                        new Vector2(-size * 1.3, size * 0.9)   // Back right
+                };
+                yield Geometry.createPolygon(vertices);
+            }
             
-            // Photon Titan - large octagon (hero unit)
-            case PHOTON_TITAN -> Geometry.createPolygonalCircle(8, size);
+            // Paladin - shield shape (Terran hero knight)
+            case PALADIN -> {
+                // Shield-like hexagon
+                // Pointing right (positive X direction)
+                Vector2[] vertices = new Vector2[]{
+                        new Vector2(-size * 1.0, 0),          // Bottom point (back)
+                        new Vector2(-size * 0.6, -size * 0.9),// Left bottom
+                        new Vector2(size * 0.5, -size * 1.0), // Left shoulder
+                        new Vector2(size * 1.2, 0),           // Top point (shield front, pointing right)
+                        new Vector2(size * 0.5, size * 1.0),  // Right shoulder
+                        new Vector2(-size * 0.6, size * 0.9)  // Right bottom
+                };
+                yield Geometry.createPolygon(vertices);
+            }
             
-            // Paladin - octagon (balanced hero)
-            case PALADIN -> Geometry.createPolygonalCircle(8, size);
+            // Raider - elongated arrow (fast cavalry)
+            case RAIDER -> {
+                // Stretched triangle like an arrow (fast, agile)
+                // Pointing right (positive X direction)
+                Vector2[] vertices = new Vector2[]{
+                        new Vector2(-size * 0.9, -size * 0.8),// Back left (wide stance)
+                        new Vector2(size * 1.4, 0),           // Front point (very long, pointing right)
+                        new Vector2(-size * 0.9, size * 0.8)  // Back right (wide stance)
+                };
+                yield Geometry.createPolygon(vertices);
+            }
             
-            // Raider - triangle (fast, agile)
-            case RAIDER -> Geometry.createPolygonalCircle(3, size);
+            // Photon Titan - energy platform hexagon (massive beam hero)
+            case PHOTON_TITAN -> {
+                // Wide hexagonal energy platform
+                // Pointing right (positive X direction)
+                Vector2[] vertices = new Vector2[]{
+                        new Vector2(-size * 1.1, 0),          // Back
+                        new Vector2(-size * 0.6, -size * 1.2),// Back left (very wide)
+                        new Vector2(size * 0.6, -size * 1.2), // Front left (very wide)
+                        new Vector2(size * 1.1, 0),           // Front (pointing right)
+                        new Vector2(size * 0.6, size * 1.2),  // Front right (very wide)
+                        new Vector2(-size * 0.6, size * 1.2)  // Back right (very wide)
+                };
+                yield Geometry.createPolygon(vertices);
+            }
             
-            // Colossus - large hexagon (massive walker)
-            case COLOSSUS -> Geometry.createPolygonalCircle(6, size);
+            // Colossus - wide diamond (imposing massive walker)
+            case COLOSSUS -> {
+                // Create a wide diamond: wider than it is long for imposing presence
+                // Pointing right (positive X direction)
+                Vector2[] vertices = new Vector2[]{
+                        new Vector2(-size * 0.7, 0),          // Back point (rear)
+                        new Vector2(0, -size * 1.3),          // Left point (wide)
+                        new Vector2(size * 0.7, 0),           // Front point (forward, pointing right)
+                        new Vector2(0, size * 1.3)            // Right point (wide)
+                };
+                yield Geometry.createPolygon(vertices);
+            }
         };
     }
 

@@ -2,6 +2,10 @@ package com.fullsteam.model;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fullsteam.model.command.AttackMoveCommand;
+import com.fullsteam.model.command.HarvestCommand;
+import com.fullsteam.model.command.MineCommand;
+import com.fullsteam.model.command.MoveCommand;
 import com.fullsteam.model.factions.Faction;
 import com.fullsteam.util.IdGenerator;
 import io.micronaut.websocket.WebSocketSession;
@@ -10,19 +14,25 @@ import lombok.Getter;
 import org.dyn4j.collision.AxisAlignedBounds;
 import org.dyn4j.dynamics.Body;
 import org.dyn4j.dynamics.Settings;
+import org.dyn4j.geometry.Circle;
+import org.dyn4j.geometry.Convex;
+import org.dyn4j.geometry.Polygon;
 import org.dyn4j.geometry.Vector2;
 import org.dyn4j.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -57,7 +67,7 @@ public class RTSGameManager {
     @Getter
     private final Map<Integer, PlayerFaction> playerFactions = new ConcurrentHashMap<>();
     private final Set<Integer> eliminatedTeams = ConcurrentHashMap.newKeySet(); // Track eliminated teams for events
-    
+
     // Event throttling - track last notification times per player (in milliseconds)
     private final Map<Integer, Long> lastUnitDeathNotification = new ConcurrentHashMap<>();
     private static final long UNIT_DEATH_NOTIFICATION_COOLDOWN = 5000; // 5 seconds
@@ -74,7 +84,7 @@ public class RTSGameManager {
     private final Map<Integer, Projectile> projectiles = gameEntities.getProjectiles();
     private final Map<Integer, FieldEffect> fieldEffects = gameEntities.getFieldEffects();
     private final Map<Integer, WallSegment> wallSegments = gameEntities.getWallSegments();
-    
+
     // Beams (instant-hit weapons)
     private final Map<Integer, Beam> beams = new ConcurrentSkipListMap<>();
 
@@ -121,7 +131,7 @@ public class RTSGameManager {
         settings.setMaximumTranslation(300.0);
         this.world.setSettings(settings);
         this.world.setGravity(new Vector2(0, 0));
-        
+
         // Set world reference in gameEntities for beam raycasting
         this.gameEntities.setWorld(this.world);
 
@@ -186,7 +196,7 @@ public class RTSGameManager {
      * Place obstacles from RTSWorld symmetric layout
      */
     private void placeObstacles() {
-        java.util.Random random = new java.util.Random();
+        Random random = new Random();
         int destructibleCount = 0;
 
         for (RTSWorld.ObstacleSpawn spawn : rtsWorld.getObstacleSpawns()) {
@@ -297,7 +307,7 @@ public class RTSGameManager {
      * Schedule the update task
      */
     private ScheduledFuture<?> scheduleUpdateTask() {
-        return java.util.concurrent.Executors.newScheduledThreadPool(1)
+        return Executors.newScheduledThreadPool(1)
                 .scheduleAtFixedRate(this::update, 0, 16, TimeUnit.MILLISECONDS);
     }
 
@@ -341,17 +351,14 @@ public class RTSGameManager {
                 if (unit.isGarrisoned()) {
                     return;
                 }
-                
+
                 // Provide gameEntities to the unit's command for intelligent decision-making
                 if (unit.getCurrentCommand() != null) {
                     unit.getCurrentCommand().setGameEntities(gameEntities);
                 }
 
                 // Help workers find/update their target refinery when returning resources
-                if (unit.getCurrentCommand() instanceof com.fullsteam.model.command.HarvestCommand) {
-                    com.fullsteam.model.command.HarvestCommand harvestCmd =
-                            (com.fullsteam.model.command.HarvestCommand) unit.getCurrentCommand();
-
+                if (unit.getCurrentCommand() instanceof HarvestCommand harvestCmd) {
                     if (harvestCmd.isReturningResources()) {
                         Building currentRefinery = harvestCmd.getTargetRefinery();
 
@@ -375,10 +382,7 @@ public class RTSGameManager {
 
                 // Check if worker is at refinery to deposit resources
                 if (unit.getUnitType().canHarvest() && unit.getCarriedResources() > 0) {
-                    if (unit.getCurrentCommand() instanceof com.fullsteam.model.command.HarvestCommand) {
-                        com.fullsteam.model.command.HarvestCommand harvestCmd =
-                                (com.fullsteam.model.command.HarvestCommand) unit.getCurrentCommand();
-
+                    if (unit.getCurrentCommand() instanceof HarvestCommand harvestCmd) {
                         if (harvestCmd.isReturningResources()) {
                             Building refinery = harvestCmd.getTargetRefinery();
                             if (refinery != null && refinery.isActive()) {
@@ -398,9 +402,7 @@ public class RTSGameManager {
                 }
 
                 // Help miners find headquarters when returning for pickaxe repair
-                if (unit.getCurrentCommand() instanceof com.fullsteam.model.command.MineCommand) {
-                    com.fullsteam.model.command.MineCommand mineCmd =
-                            (com.fullsteam.model.command.MineCommand) unit.getCurrentCommand();
+                if (unit.getCurrentCommand() instanceof MineCommand mineCmd) {
 
                     if (mineCmd.isReturningForRepair()) {
                         Building currentHQ = mineCmd.getTargetHeadquarters();
@@ -462,12 +464,10 @@ public class RTSGameManager {
 
                     // Add projectile or beam to world
                     if (ordinance != null) {
-                        if (ordinance instanceof Projectile) {
-                            Projectile projectile = (Projectile) ordinance;
+                        if (ordinance instanceof Projectile projectile) {
                             projectiles.put(projectile.getId(), projectile);
                             world.addBody(projectile.getBody());
-                        } else if (ordinance instanceof Beam) {
-                            Beam beam = (Beam) ordinance;
+                        } else if (ordinance instanceof Beam beam) {
                             beams.put(beam.getId(), beam);
                             // Beams don't need to be added to world (sensor body, instant hit)
                             // Apply damage immediately to hit body
@@ -492,9 +492,7 @@ public class RTSGameManager {
                 // AI behavior: scan for enemies and auto-attack (every 30 frames / ~0.5 seconds)
                 if (frameCount % 30 == 0) {
                     // AttackMoveCommand still uses the old scanForEnemies method (legacy)
-                    if (unit.getCurrentCommand() instanceof com.fullsteam.model.command.AttackMoveCommand) {
-                        com.fullsteam.model.command.AttackMoveCommand attackMoveCmd =
-                                (com.fullsteam.model.command.AttackMoveCommand) unit.getCurrentCommand();
+                    if (unit.getCurrentCommand() instanceof AttackMoveCommand attackMoveCmd) {
                         attackMoveCmd.scanForEnemies(new ArrayList<>(units.values()), new ArrayList<>(buildings.values()));
                     }
                     // IdleCommand now uses gameEntities automatically (no manual setup needed)
@@ -541,14 +539,14 @@ public class RTSGameManager {
                                 .toLowerCase();
                         // Capitalize first letter
                         buildingName = buildingName.substring(0, 1).toUpperCase() + buildingName.substring(1);
-                        
+
                         sendGameEvent(GameEvent.createPlayerEvent(
                                 "🏗️ " + buildingName + " construction complete",
                                 faction.getPlayerId(),
                                 GameEvent.EventCategory.INFO
                         ));
                     }
-                    
+
                     // Create wall segments for wall posts
                     if (building.getBuildingType() == BuildingType.WALL) {
                         createWallSegments(building);
@@ -564,7 +562,7 @@ public class RTSGameManager {
                             log.debug("Shield Generator {} construction completed, shield sensor body created", building.getId());
                         }
                     }
-                    
+
                     // Create aura sensor body for monument building
                     if (building.isMonument()) {
                         Body auraSensor = building.createAuraSensorBody();
@@ -575,7 +573,7 @@ public class RTSGameManager {
                         }
                     }
                 }
-                
+
                 // Check if Bank is ready to pay interest
                 if (building.getBuildingType() == BuildingType.BANK && faction != null) {
                     double interestRate = building.checkAndResetBankInterest();
@@ -585,9 +583,9 @@ public class RTSGameManager {
                         if (interest > 0) {
                             faction.addResources(ResourceType.CREDITS, interest);
                             log.info("Bank {} paid {} credits interest to player {} ({}% of {} credits)",
-                                    building.getId(), interest, building.getOwnerId(), 
-                                    (int)(interestRate * 100), currentCredits);
-                            
+                                    building.getId(), interest, building.getOwnerId(),
+                                    (int) (interestRate * 100), currentCredits);
+
                             // Notify player of interest payment (only if significant - 50+ credits)
                             if (interest >= 50) {
                                 sendGameEvent(GameEvent.createPlayerEvent(
@@ -634,19 +632,17 @@ public class RTSGameManager {
                         world.addBody(projectile.getBody());
                     }
                 }
-                
+
                 // Update bunker firing (only if construction is complete and has garrisoned units)
                 // Each garrisoned unit independently acquires targets and fires
                 if (building.getBuildingType() == BuildingType.BUNKER && !building.isUnderConstruction() && building.getGarrisonCount() > 0) {
                     // Fire weapons from garrisoned units (they handle their own target acquisition)
                     List<AbstractOrdinance> bunkerOrdinances = building.fireBunkerWeapons(gameEntities);
                     for (AbstractOrdinance ordinance : bunkerOrdinances) {
-                        if (ordinance instanceof Projectile) {
-                            Projectile proj = (Projectile) ordinance;
+                        if (ordinance instanceof Projectile proj) {
                             projectiles.put(proj.getId(), proj);
                             world.addBody(proj.getBody());
-                        } else if (ordinance instanceof Beam) {
-                            Beam beam = (Beam) ordinance;
+                        } else if (ordinance instanceof Beam beam) {
                             beams.put(beam.getId(), beam);
                             if (beam.getHitBody() != null) {
                                 applyBeamDamage(beam);
@@ -654,24 +650,24 @@ public class RTSGameManager {
                         }
                     }
                 }
-                
+
                 // Process sandstorm damage (periodic area damage)
-                if (building.getBuildingType() == BuildingType.SANDSTORM_GENERATOR && 
-                    !building.isUnderConstruction() && building.checkAndResetSandstorm()) {
+                if (building.getBuildingType() == BuildingType.SANDSTORM_GENERATOR &&
+                        !building.isUnderConstruction() && building.checkAndResetSandstorm()) {
                     // Deal damage to all enemy units in range
                     Vector2 sandstormPos = building.getPosition();
                     double sandstormRadius = building.getAuraRadius();
                     double damage = building.getSandstormDamage();
-                    
+
                     units.values().stream()
-                        .filter(u -> u.isActive() && u.getTeamNumber() != building.getTeamNumber())
-                        .forEach(u -> {
-                            double distance = sandstormPos.distance(u.getPosition());
-                            if (distance <= sandstormRadius) {
-                                u.takeDamage(damage);
-                                log.debug("Sandstorm damaged unit {} for {}", u.getId(), damage);
-                            }
-                        });
+                            .filter(u -> u.isActive() && u.getTeamNumber() != building.getTeamNumber())
+                            .forEach(u -> {
+                                double distance = sandstormPos.distance(u.getPosition());
+                                if (distance <= sandstormRadius) {
+                                    u.takeDamage(damage);
+                                    log.debug("Sandstorm damaged unit {} for {}", u.getId(), damage);
+                                }
+                            });
                 }
             });
 
@@ -691,12 +687,12 @@ public class RTSGameManager {
                 }
                 return false;
             });
-            
+
             // Update beams (they fade out over time)
             beams.entrySet().removeIf(entry -> {
                 Beam beam = entry.getValue();
                 beam.update(deltaTime);
-                
+
                 // Remove inactive beams
                 return !beam.isActive();
             });
@@ -772,8 +768,8 @@ public class RTSGameManager {
                         u.orderMove(destination);
 
                         // Set the pathfinding path on the command
-                        if (u.getCurrentCommand() instanceof com.fullsteam.model.command.MoveCommand) {
-                            ((com.fullsteam.model.command.MoveCommand) u.getCurrentCommand()).setPath(path);
+                        if (u.getCurrentCommand() instanceof MoveCommand) {
+                            ((MoveCommand) u.getCurrentCommand()).setPath(path);
                         }
                     });
         }
@@ -967,24 +963,24 @@ public class RTSGameManager {
                         });
             }
         }
-        
+
         // Handle garrison orders
         if (input.getGarrisonOrder() != null) {
             Building bunker = buildings.get(input.getGarrisonOrder());
-            if (bunker != null && bunker.getBuildingType() == BuildingType.BUNKER && 
-                bunker.belongsTo(playerId) && !bunker.isUnderConstruction()) {
+            if (bunker != null && bunker.getBuildingType() == BuildingType.BUNKER &&
+                    bunker.belongsTo(playerId) && !bunker.isUnderConstruction()) {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().isInfantry())
                         .forEach(u -> u.orderGarrison(bunker));
                 log.info("Player {} ordered units to garrison in bunker {}", playerId, bunker.getId());
             }
         }
-        
+
         // Handle ungarrison orders
         if (input.getUngarrisonBuildingId() != null) {
             Building bunker = buildings.get(input.getUngarrisonBuildingId());
-            if (bunker != null && bunker.getBuildingType() == BuildingType.BUNKER && 
-                bunker.belongsTo(playerId)) {
+            if (bunker != null && bunker.getBuildingType() == BuildingType.BUNKER &&
+                    bunker.belongsTo(playerId)) {
                 if (input.isUngarrisonAll()) {
                     // Ungarrison all units
                     List<Unit> ungarrisoned = bunker.ungarrisonAllUnits();
@@ -994,7 +990,7 @@ public class RTSGameManager {
                             world.addBody(unit.getBody());
                         }
                     }
-                    log.info("Player {} ungarrisoned {} units from bunker {}", 
+                    log.info("Player {} ungarrisoned {} units from bunker {}",
                             playerId, ungarrisoned.size(), bunker.getId());
                 } else {
                     // Ungarrison one unit
@@ -1004,7 +1000,7 @@ public class RTSGameManager {
                         if (!world.containsBody(ungarrisoned.getBody())) {
                             world.addBody(ungarrisoned.getBody());
                         }
-                        log.info("Player {} ungarrisoned unit {} from bunker {}", 
+                        log.info("Player {} ungarrisoned unit {} from bunker {}",
                                 playerId, ungarrisoned.getId(), bunker.getId());
                     }
                 }
@@ -1080,14 +1076,14 @@ public class RTSGameManager {
                                 playerId, unitType, building.getBuildingType());
                         return;
                     }
-                    
+
                     // Deduct resources (use faction-modified cost)
                     int cost = faction.getUnitCost(unitType);
                     faction.removeResources(ResourceType.CREDITS, cost);
 
                     // Queue production
                     building.queueUnitProduction(unitType);
-                    log.info("Player {} queued {} production at building {} (cost: {})", 
+                    log.info("Player {} queued {} production at building {} (cost: {})",
                             playerId, unitType, buildingId, cost);
                 }
             }
@@ -1149,18 +1145,36 @@ public class RTSGameManager {
      */
     private Vector2 findSpawnPosition(Building building) {
         Vector2 buildingPos = building.getPosition();
-        double offset = building.getBuildingType().getSize() + 30;
-
-        // Try positions around the building
-        for (int i = 0; i < 8; i++) {
-            double angle = (Math.PI * 2 * i) / 8;
-            double x = buildingPos.x + Math.cos(angle) * offset;
-            double y = buildingPos.y + Math.sin(angle) * offset;
-
-            // TODO: Check if position is valid (not blocked)
-            return new Vector2(x, y);
+        double buildingSize = building.getBuildingType().getSize();
+        double unitSize = 15.0; // Approximate unit size for collision checking
+        
+        // Try positions at increasing distances from the building
+        for (int ring = 0; ring < 3; ring++) {
+            double offset = buildingSize + 30 + (ring * 25); // Increase distance each ring
+            
+            // Try 8 positions around the building at this distance
+            for (int i = 0; i < 8; i++) {
+                double angle = (Math.PI * 2 * i) / 8;
+                double x = buildingPos.x + Math.cos(angle) * offset;
+                double y = buildingPos.y + Math.sin(angle) * offset;
+                Vector2 candidatePos = new Vector2(x, y);
+                
+                // Use collision processor for validation (centralized spatial logic)
+                if (collisionProcessor.isValidSpawnPosition(
+                        candidatePos, 
+                        unitSize,
+                        resourceDeposits,
+                        gameConfig.getWorldWidth(),
+                        gameConfig.getWorldHeight()
+                )) {
+                    return candidatePos;
+                }
+            }
         }
-
+        
+        // If no valid position found after 3 rings, spawn at building position (fallback)
+        log.warn("Could not find valid spawn position near building {}, spawning at building location", 
+                building.getId());
         return buildingPos.copy();
     }
 
@@ -1334,7 +1348,7 @@ public class RTSGameManager {
 
         turret.setTargetUnit(nearestEnemy);
     }
-    
+
     /**
      * Get damage multiplier for a unit based on nearby Photon Spires
      */
@@ -1342,15 +1356,15 @@ public class RTSGameManager {
         if (!unit.getUnitType().firesBeams()) {
             return 1.0; // Only beam units get the bonus
         }
-        
+
         Vector2 unitPos = unit.getPosition();
         double multiplier = 1.0;
-        
+
         for (Building building : buildings.values()) {
             if (building.getBuildingType() == BuildingType.PHOTON_SPIRE &&
-                building.isAuraActive() &&
-                building.getTeamNumber() == unit.getTeamNumber()) {
-                
+                    building.isAuraActive() &&
+                    building.getTeamNumber() == unit.getTeamNumber()) {
+
                 double distance = unitPos.distance(building.getPosition());
                 if (distance <= building.getAuraRadius()) {
                     multiplier *= building.getBeamDamageMultiplier();
@@ -1358,22 +1372,22 @@ public class RTSGameManager {
                 }
             }
         }
-        
+
         return multiplier;
     }
-    
+
     /**
      * Get max health multiplier for a unit based on nearby Quantum Nexus
      */
     private double getUnitHealthMultiplier(Unit unit) {
         Vector2 unitPos = unit.getPosition();
         double multiplier = 1.0;
-        
+
         for (Building building : buildings.values()) {
             if (building.getBuildingType() == BuildingType.QUANTUM_NEXUS &&
-                building.isAuraActive() &&
-                building.getTeamNumber() == unit.getTeamNumber()) {
-                
+                    building.isAuraActive() &&
+                    building.getTeamNumber() == unit.getTeamNumber()) {
+
                 double distance = unitPos.distance(building.getPosition());
                 if (distance <= building.getAuraRadius()) {
                     multiplier *= building.getHealthMultiplier();
@@ -1381,10 +1395,10 @@ public class RTSGameManager {
                 }
             }
         }
-        
+
         return multiplier;
     }
-    
+
 
     /**
      * Process projectile collisions with units and buildings
@@ -1629,7 +1643,7 @@ public class RTSGameManager {
                         GameEvent.EventCategory.WARNING
                 ));
             }
-            
+
             // Send info when power is restored
             if (previousLowPower && !faction.isHasLowPower()) {
                 log.info("Player {} power restored: {}/{}",
@@ -1654,7 +1668,7 @@ public class RTSGameManager {
                 int ownerId = unit.getOwnerId();
                 long currentTime = System.currentTimeMillis();
                 Long lastNotification = lastUnitDeathNotification.get(ownerId);
-                
+
                 if (lastNotification == null || (currentTime - lastNotification) >= UNIT_DEATH_NOTIFICATION_COOLDOWN) {
                     PlayerFaction faction = playerFactions.get(ownerId);
                     if (faction != null) {
@@ -1663,7 +1677,7 @@ public class RTSGameManager {
                                 .toLowerCase();
                         // Capitalize first letter
                         unitName = unitName.substring(0, 1).toUpperCase() + unitName.substring(1);
-                        
+
                         sendGameEvent(GameEvent.createPlayerEvent(
                                 "⚠️ Your " + unitName + " was destroyed!",
                                 ownerId,
@@ -1672,7 +1686,7 @@ public class RTSGameManager {
                         lastUnitDeathNotification.put(ownerId, currentTime);
                     }
                 }
-                
+
                 world.removeBody(unit.getBody());
                 // Note: Upkeep is now recalculated periodically, no need to adjust here
                 return true;
@@ -1701,7 +1715,7 @@ public class RTSGameManager {
                             .build()
                     );
                 }
-                
+
                 // Send notification for important building destructions (to the owner)
                 PlayerFaction faction = playerFactions.get(building.getOwnerId());
                 if (faction != null && !building.isUnderConstruction()) {
@@ -1721,14 +1735,14 @@ public class RTSGameManager {
                         case PHOTON_SPIRE, QUANTUM_NEXUS, SANDSTORM_GENERATOR -> true;
                         default -> false;  // Don't notify for walls, etc.
                     };
-                    
+
                     if (shouldNotify) {
                         String buildingName = building.getBuildingType().name()
                                 .replace("_", " ")
                                 .toLowerCase();
                         // Capitalize first letter
                         buildingName = buildingName.substring(0, 1).toUpperCase() + buildingName.substring(1);
-                        
+
                         sendGameEvent(GameEvent.createPlayerEvent(
                                 "🔥 Your " + buildingName + " was destroyed!",
                                 building.getOwnerId(),
@@ -1748,7 +1762,7 @@ public class RTSGameManager {
                     world.removeBody(building.getShieldSensorBody());
                     log.debug("Removed shield sensor body for building {}", building.getId());
                 }
-                
+
                 // Remove aura sensor body for monuments
                 if (building.isMonument() && building.getAuraSensorBody() != null) {
                     world.removeBody(building.getAuraSensorBody());
@@ -1801,7 +1815,7 @@ public class RTSGameManager {
         if (!faction.canBuildBuilding(buildingType)) {
             return false;
         }
-        
+
         // Use faction-modified cost
         int cost = faction.getBuildingCost(buildingType);
         return faction.hasResources(ResourceType.CREDITS, cost);
@@ -1815,7 +1829,7 @@ public class RTSGameManager {
         if (!faction.canBuildUnit(unitType)) {
             return false;
         }
-        
+
         // Use faction-modified cost
         int cost = faction.getUnitCost(unitType);
         return faction.hasResources(ResourceType.CREDITS, cost)
@@ -1831,7 +1845,7 @@ public class RTSGameManager {
         Set<BuildingType> playerBuildings = buildings.values().stream()
                 .filter(b -> b.getOwnerId() == playerId && b.isActive() && !b.isUnderConstruction())
                 .map(Building::getBuildingType)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
 
         // Define tech requirements (must match FactionInfoService)
         return switch (buildingType) {
@@ -1843,14 +1857,13 @@ public class RTSGameManager {
                     playerBuildings.contains(BuildingType.POWER_PLANT);
 
             // T3 - Requires Power Plant + Research Lab
-            case TECH_CENTER, ADVANCED_FACTORY, BANK ->
-                    playerBuildings.contains(BuildingType.POWER_PLANT) && 
+            case TECH_CENTER, ADVANCED_FACTORY, BANK -> playerBuildings.contains(BuildingType.POWER_PLANT) &&
                     playerBuildings.contains(BuildingType.RESEARCH_LAB);
-            
+
             // Monument Buildings - Requires Power Plant + Research Lab (T3)
             case BUNKER, SANDSTORM_GENERATOR, QUANTUM_NEXUS, PHOTON_SPIRE ->
-                    playerBuildings.contains(BuildingType.POWER_PLANT) && 
-                    playerBuildings.contains(BuildingType.RESEARCH_LAB);
+                    playerBuildings.contains(BuildingType.POWER_PLANT) &&
+                            playerBuildings.contains(BuildingType.RESEARCH_LAB);
 
             // Headquarters is special (only one, starting building)
             case HEADQUARTERS -> false; // Cannot build additional HQs
@@ -1934,7 +1947,7 @@ public class RTSGameManager {
                 .map(this::serializeProjectile)
                 .collect(Collectors.toList());
         state.put("projectiles", projectilesList);
-        
+
         // Beams (instant-hit weapons)
         List<Map<String, Object>> beamsList = beams.values().stream()
                 .filter(Beam::isActive)
@@ -2007,34 +2020,32 @@ public class RTSGameManager {
      */
     private List<List<Double>> extractBodyVertices(Body body) {
         List<List<Double>> vertices = new ArrayList<>();
-        
+
         if (body.getFixtureCount() == 0) {
             return vertices;
         }
-        
+
         // Get the first fixture (units only have one)
-        org.dyn4j.geometry.Convex convex = body.getFixture(0).getShape();
-        
+        Convex convex = body.getFixture(0).getShape();
+
         // Check if it's a polygon
-        if (convex instanceof org.dyn4j.geometry.Polygon) {
-            org.dyn4j.geometry.Polygon polygon = (org.dyn4j.geometry.Polygon) convex;
+        if (convex instanceof Polygon polygon) {
             Vector2[] polyVertices = polygon.getVertices();
-            
             for (Vector2 vertex : polyVertices) {
                 List<Double> point = new ArrayList<>();
                 point.add(vertex.x);
                 point.add(vertex.y);
                 vertices.add(point);
             }
-        } else if (convex instanceof org.dyn4j.geometry.Circle) {
+        } else if (convex instanceof Circle) {
             // For circles, return empty array (client will draw circle)
             // Or we could approximate with many vertices
             return vertices;
         }
-        
+
         return vertices;
     }
-    
+
     /**
      * Serialize a unit for network transmission
      */
@@ -2056,7 +2067,7 @@ public class RTSGameManager {
         data.put("specialAbility", unit.getUnitType().getSpecialAbility().name());
         data.put("specialAbilityActive", unit.isSpecialAbilityActive());
         data.put("specialAbilityReady", unit.isSpecialAbilityReady());
-        
+
         // Add physics body vertices for accurate client-side rendering
         data.put("vertices", extractBodyVertices(unit.getBody()));
 
@@ -2104,6 +2115,9 @@ public class RTSGameManager {
         data.put("productionQueueSize", building.getProductionQueueSize());
         data.put("canProduceUnits", building.getBuildingType().isCanProduceUnits());
 
+        // Add physics body vertices for accurate client-side rendering
+        data.put("vertices", extractBodyVertices(building.getBody()));
+
         // Rally point
         if (building.getRallyPoint() != null) {
             Map<String, Object> rallyData = new HashMap<>();
@@ -2117,13 +2131,13 @@ public class RTSGameManager {
             data.put("shieldActive", building.isShieldActive());
             data.put("shieldRadius", building.getShieldRadius());
         }
-        
+
         // Aura state (for monument buildings)
         if (building.isMonument()) {
             data.put("auraActive", building.isAuraActive());
             data.put("auraRadius", building.getAuraRadius());
         }
-        
+
         // Garrison state (for Bunker)
         if (building.getBuildingType() == BuildingType.BUNKER) {
             data.put("garrisonCount", building.getGarrisonCount());
@@ -2165,12 +2179,12 @@ public class RTSGameManager {
         data.put("powerGenerated", faction.getPowerGenerated());
         data.put("powerConsumed", faction.getPowerConsumed());
         data.put("hasLowPower", faction.isHasLowPower());
-        
+
         // Faction-specific information
         data.put("factionType", faction.getFaction().name());
         data.put("factionName", faction.getFaction().getDisplayName());
         data.put("factionColor", faction.getFaction().getThemeColor());
-        
+
         // Available units and buildings for this faction
         List<String> availableUnits = new ArrayList<>();
         for (UnitType unitType : UnitType.values()) {
@@ -2179,7 +2193,7 @@ public class RTSGameManager {
             }
         }
         data.put("availableUnits", availableUnits);
-        
+
         List<String> availableBuildings = new ArrayList<>();
         for (BuildingType buildingType : BuildingType.values()) {
             if (faction.canBuildBuilding(buildingType)) {
@@ -2187,7 +2201,7 @@ public class RTSGameManager {
             }
         }
         data.put("availableBuildings", availableBuildings);
-        
+
         // Faction-modified costs for units (client needs this for UI)
         Map<String, Integer> unitCosts = new HashMap<>();
         for (UnitType unitType : UnitType.values()) {
@@ -2196,7 +2210,7 @@ public class RTSGameManager {
             }
         }
         data.put("unitCosts", unitCosts);
-        
+
         // Faction-modified costs for buildings
         Map<String, Integer> buildingCosts = new HashMap<>();
         for (BuildingType buildingType : BuildingType.values()) {
@@ -2205,7 +2219,7 @@ public class RTSGameManager {
             }
         }
         data.put("buildingCosts", buildingCosts);
-        
+
         return data;
     }
 
@@ -2225,7 +2239,7 @@ public class RTSGameManager {
         data.put("destructible", obstacle.isDestructible());
         data.put("health", obstacle.getHealth());
         data.put("maxHealth", obstacle.getMaxHealth());
-        
+
         // Include vertices for irregular polygons
         if (obstacle.getShape() == Obstacle.Shape.IRREGULAR_POLYGON && obstacle.getVertices() != null) {
             List<Map<String, Double>> verticesList = new ArrayList<>();
@@ -2237,7 +2251,7 @@ public class RTSGameManager {
             }
             data.put("vertices", verticesList);
         }
-        
+
         return data;
     }
 
@@ -2360,7 +2374,7 @@ public class RTSGameManager {
                 selectedFaction
         );
         playerFactions.put(playerSession.getPlayerId(), faction);
-        
+
         log.info("Created PlayerFaction for player {}: faction={}, factionDefinition={}",
                 playerSession.getPlayerId(), faction.getFaction(), faction.getFactionDefinition() != null);
 
@@ -2390,7 +2404,7 @@ public class RTSGameManager {
             }
         });
 
-        log.info("Team counts (human players only): {}", java.util.Arrays.toString(teamCounts));
+        log.info("Team counts (human players only): {}", Arrays.toString(teamCounts));
 
         // Find team with fewest players
         int bestTeam = 1;
@@ -2421,9 +2435,9 @@ public class RTSGameManager {
     private void createStartingBase(int playerId, int teamNumber, Vector2 position) {
         // Get player faction for modifiers
         PlayerFaction faction = playerFactions.get(playerId);
-        
+
         // Create headquarters (with faction-modified health)
-        double hqMaxHealth = faction != null 
+        double hqMaxHealth = faction != null
                 ? faction.getBuildingHealth(BuildingType.HEADQUARTERS)
                 : BuildingType.HEADQUARTERS.getMaxHealth();
         Building hq = new Building(
@@ -2615,7 +2629,7 @@ public class RTSGameManager {
         if (hitBody == null) {
             return;
         }
-        
+
         // Find the entity associated with this body
         // Check units
         for (Unit unit : units.values()) {
@@ -2624,7 +2638,7 @@ public class RTSGameManager {
                 return;
             }
         }
-        
+
         // Check buildings
         for (Building building : buildings.values()) {
             if (building.getBody() == hitBody) {
@@ -2632,7 +2646,7 @@ public class RTSGameManager {
                 return;
             }
         }
-        
+
         // Check obstacles
         for (Obstacle obstacle : obstacles.values()) {
             if (obstacle.getBody() == hitBody) {
@@ -2640,7 +2654,7 @@ public class RTSGameManager {
                 return;
             }
         }
-        
+
         // Check wall segments
         for (WallSegment segment : wallSegments.values()) {
             if (segment.getBody() == hitBody) {

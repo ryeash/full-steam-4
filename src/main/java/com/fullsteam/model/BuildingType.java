@@ -1,6 +1,9 @@
 package com.fullsteam.model;
 
 import lombok.Getter;
+import org.dyn4j.geometry.Convex;
+import org.dyn4j.geometry.Geometry;
+import org.dyn4j.geometry.Vector2;
 
 /**
  * Defines the different types of buildings available in the RTS game.
@@ -388,6 +391,78 @@ public enum BuildingType {
             case SANDSTORM_GENERATOR -> -40; // Weather control systems
             case QUANTUM_NEXUS -> -55; // Quantum field generators (very high!)
             case PHOTON_SPIRE -> -45; // Beam amplification systems
+        };
+    }
+
+    /**
+     * Create a physics fixture for this building type
+     * This allows each building to have a custom shape (not just regular polygons)
+     * Returns a Convex shape that will be added to the building's physics body
+     */
+    public Convex createPhysicsFixture() {
+        return switch (this) {
+            // Headquarters - large octagon (main base)
+            case HEADQUARTERS -> Geometry.createPolygonalCircle(8, size);
+            
+            // Refinery - hexagonal storage tanks
+            case REFINERY -> Geometry.createPolygonalCircle(6, size);
+            
+            // Barracks - rectangular barracks building
+            case BARRACKS -> Geometry.createRectangle(size * 1.8, size * 1.2);
+            
+            // Power Plant - hexagonal reactor
+            case POWER_PLANT -> Geometry.createPolygonalCircle(6, size);
+            
+            // Factory - large rectangular factory floor
+            case FACTORY -> Geometry.createRectangle(size * 2.0, size * 1.4);
+            
+            // Research Lab - hexagonal research facility
+            case RESEARCH_LAB -> Geometry.createPolygonalCircle(6, size);
+            
+            // Weapons Depot - pentagonal armory
+            case WEAPONS_DEPOT -> Geometry.createPolygonalCircle(5, size);
+            
+            // Tech Center - large octagon (advanced tech)
+            case TECH_CENTER -> Geometry.createPolygonalCircle(8, size);
+            
+            // Advanced Factory - massive rectangular production facility
+            case ADVANCED_FACTORY -> Geometry.createRectangle(size * 2.2, size * 1.5);
+            
+            // Wall - small square segment
+            case WALL -> Geometry.createSquare(size * 2.0);
+            
+            // Turret - pentagonal defensive structure
+            case TURRET -> Geometry.createPolygonalCircle(5, size);
+            
+            // Shield Generator - hexagonal energy projector
+            case SHIELD_GENERATOR -> Geometry.createPolygonalCircle(6, size);
+            
+            // Bank - octagonal vault
+            case BANK -> Geometry.createPolygonalCircle(8, size);
+            
+            // Bunker - rotated hexagonal fortified structure (distinct from barracks)
+            case BUNKER -> {
+                // Create a hexagon rotated 30 degrees (not aligned to any axis)
+                double angle = Math.PI / 6; // 30 degree rotation
+                Vector2[] vertices = new Vector2[6];
+                for (int i = 0; i < 6; i++) {
+                    double theta = (Math.PI * 2 * i / 6) + angle;
+                    vertices[i] = new Vector2(
+                        Math.cos(theta) * size,
+                        Math.sin(theta) * size
+                    );
+                }
+                yield Geometry.createPolygon(vertices);
+            }
+            
+            // Sandstorm Generator - hexagonal weather control station
+            case SANDSTORM_GENERATOR -> Geometry.createPolygonalCircle(6, size);
+            
+            // Quantum Nexus - large octagon (quantum energy)
+            case QUANTUM_NEXUS -> Geometry.createPolygonalCircle(8, size);
+            
+            // Photon Spire - hexagonal beam amplifier
+            case PHOTON_SPIRE -> Geometry.createPolygonalCircle(6, size);
         };
     }
 }

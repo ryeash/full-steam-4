@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.dyn4j.dynamics.Body;
+import org.dyn4j.dynamics.BodyFixture;
+import org.dyn4j.geometry.Convex;
 import org.dyn4j.geometry.Geometry;
 import org.dyn4j.geometry.MassType;
 import org.dyn4j.geometry.Vector2;
@@ -57,6 +59,10 @@ public class Building extends GameEntity {
     
     // Garrison fields (for Bunker)
     private final List<Unit> garrisonedUnits = new ArrayList<>();
+    /**
+     * -- SETTER --
+     *  Set the maximum garrison capacity
+     */
     private int maxGarrisonCapacity = 0; // Set by building type
     
     // Monument aura fields
@@ -103,11 +109,9 @@ public class Building extends GameEntity {
     private static Body createBuildingBody(double x, double y, BuildingType buildingType) {
         Body body = new Body();
         
-        // Create polygon fixture based on building sides (like units)
-        int sides = buildingType.getSides();
-        double radius = buildingType.getSize();
-        org.dyn4j.geometry.Convex shape = Geometry.createPolygonalCircle(sides, radius);
-        org.dyn4j.dynamics.BodyFixture fixture = body.addFixture(shape);
+        // Use custom physics fixture from BuildingType (allows complex shapes)
+        Convex shape = buildingType.createPhysicsFixture();
+        BodyFixture fixture = body.addFixture(shape);
         
         // Configure fixture properties
         fixture.setFriction(0.1);      // Low friction
@@ -736,14 +740,7 @@ public class Building extends GameEntity {
     public boolean canGarrison() {
         return maxGarrisonCapacity > 0;
     }
-    
-    /**
-     * Set the maximum garrison capacity
-     */
-    public void setMaxGarrisonCapacity(int capacity) {
-        this.maxGarrisonCapacity = capacity;
-    }
-    
+
     /**
      * Get list of garrisoned units (read-only)
      */

@@ -504,9 +504,12 @@ public class Unit extends GameEntity {
      * Engage and attack target wall segment
      * Called by AttackWallSegmentCommand
      *
-     * @return Projectile if fired, null otherwise
+     * @param target       The target wall segment
+     * @param deltaTime    Time since last update
+     * @param gameEntities Game entities (includes World for beam raycasting)
+     * @return AbstractOrdinance (Projectile or Beam) if fired, null otherwise
      */
-    public Projectile engageWallSegment(WallSegment target, double deltaTime) {
+    public AbstractOrdinance engageWallSegment(WallSegment target, double deltaTime, GameEntities gameEntities) {
         if (target == null || !target.isActive()) {
             return null;
         }
@@ -533,7 +536,8 @@ public class Unit extends GameEntity {
             double attackInterval = 1000.0 / attackRate;
             if (now - lastAttackTime >= attackInterval) {
                 lastAttackTime = now;
-                return fireAt(targetPos);
+                // Fire projectile or beam at wall segment (world from gameEntities)
+                return fireAt(targetPos, gameEntities != null ? gameEntities.getWorld() : null);
             }
         }
 
@@ -541,13 +545,23 @@ public class Unit extends GameEntity {
     }
 
     /**
+     * Engage and attack target wall segment (backward compatibility - projectiles only)
+     */
+    public AbstractOrdinance engageWallSegment(WallSegment target, double deltaTime) {
+        return engageWallSegment(target, deltaTime, null);
+    }
+
+    /**
      * Engage and attack ground target (force attack - CMD/CTRL + right click)
      * Fires at a specific ground location for area denial
      * Called by AttackGroundCommand
      *
-     * @return Projectile if fired, null otherwise
+     * @param groundTarget The ground position to fire at
+     * @param deltaTime    Time since last update
+     * @param gameEntities Game entities (includes World for beam raycasting)
+     * @return AbstractOrdinance (Projectile or Beam) if fired, null otherwise
      */
-    public Projectile engageGroundTarget(Vector2 groundTarget, double deltaTime) {
+    public AbstractOrdinance engageGroundTarget(Vector2 groundTarget, double deltaTime, GameEntities gameEntities) {
         if (groundTarget == null) {
             return null;
         }
@@ -572,12 +586,19 @@ public class Unit extends GameEntity {
             double attackInterval = 1000.0 / attackRate;
             if (now - lastAttackTime >= attackInterval) {
                 lastAttackTime = now;
-                // Fire projectile at ground location
-                return fireAt(groundTarget);
+                // Fire projectile or beam at ground location (world from gameEntities)
+                return fireAt(groundTarget, gameEntities != null ? gameEntities.getWorld() : null);
             }
         }
 
         return null;
+    }
+
+    /**
+     * Engage and attack ground target (backward compatibility - projectiles only)
+     */
+    public AbstractOrdinance engageGroundTarget(Vector2 groundTarget, double deltaTime) {
+        return engageGroundTarget(groundTarget, deltaTime, null);
     }
 
     /**

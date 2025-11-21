@@ -58,8 +58,8 @@ public class AttackWallSegmentCommand extends UnitCommand {
             return null;
         }
         
-        // Delegate to unit's engage method with target parameter
-        return unit.engageWallSegment(target, deltaTime);
+        // Delegate to unit's engage method with target parameter and gameEntities
+        return unit.engageWallSegment(target, deltaTime, gameEntities);
     }
     
     @Override

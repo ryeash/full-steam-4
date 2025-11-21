@@ -494,6 +494,93 @@ public class RTSCollisionProcessor {
     }
     
     /**
+     * Check if a position is valid for spawning a unit
+     * Used by buildings to find safe spawn locations for produced units
+     */
+    public boolean isValidSpawnPosition(
+            Vector2 position, 
+            double unitSize,
+            Map<Integer, ResourceDeposit> resourceDeposits,
+            double worldWidth,
+            double worldHeight
+    ) {
+        // Check world bounds
+        double halfWidth = worldWidth / 2.0;
+        double halfHeight = worldHeight / 2.0;
+        if (Math.abs(position.x) > halfWidth - unitSize || 
+            Math.abs(position.y) > halfHeight - unitSize) {
+            return false; // Too close to world edge
+        }
+        
+        // Check distance to obstacles
+        for (Obstacle obstacle : obstacles.values()) {
+            if (!obstacle.isActive()) {
+                continue;
+            }
+            
+            double distance = position.distance(obstacle.getPosition());
+            double minDistance = unitSize + obstacle.getSize() + 5; // 5 unit buffer
+            if (distance < minDistance) {
+                return false; // Too close to obstacle
+            }
+        }
+        
+        // Check distance to buildings
+        for (Building building : buildings.values()) {
+            if (!building.isActive()) {
+                continue;
+            }
+            
+            double distance = position.distance(building.getPosition());
+            double minDistance = unitSize + building.getBuildingType().getSize() + 5; // 5 unit buffer
+            if (distance < minDistance) {
+                return false; // Too close to building
+            }
+        }
+        
+        // Check distance to wall segments
+        for (WallSegment segment : wallSegments.values()) {
+            if (!segment.isActive()) {
+                continue;
+            }
+            
+            double distance = position.distance(segment.getPosition());
+            double minDistance = unitSize + 15; // Wall segments are thin, use fixed buffer
+            if (distance < minDistance) {
+                return false; // Too close to wall
+            }
+        }
+        
+        // Check distance to other units (avoid spawning on top of existing units)
+        for (Unit unit : units.values()) {
+            if (!unit.isActive()) {
+                continue;
+            }
+            
+            double distance = position.distance(unit.getPosition());
+            double minDistance = unitSize + unit.getUnitType().getSize() + 3; // 3 unit buffer
+            if (distance < minDistance) {
+                return false; // Too close to another unit
+            }
+        }
+        
+        // Check distance to resource deposits (don't spawn on resources)
+        for (ResourceDeposit deposit : resourceDeposits.values()) {
+            if (!deposit.isActive()) {
+                continue;
+            }
+            
+            double distance = position.distance(deposit.getPosition());
+            double minDistance = unitSize + 40 + 5; // Resource deposit radius + buffer
+            if (distance < minDistance) {
+                return false; // Too close to resource deposit
+            }
+        }
+        
+        return true; // Position is valid
+    }
+    
+    /**
      * Check if a projectile collides with any active shields
      * @return true if projectile was destroyed by a shield
      */

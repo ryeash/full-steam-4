@@ -50,7 +50,7 @@ public class AttackGroundCommand extends UnitCommand {
         
         // Only fire if in range
         if (distance <= attackRange * 0.9) {
-            return unit.engageGroundTarget(groundTarget, deltaTime);
+            return unit.engageGroundTarget(groundTarget, deltaTime, gameEntities);
         }
         
         return null;

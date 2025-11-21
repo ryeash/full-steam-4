@@ -258,7 +258,7 @@ public class FactionRegistry {
                 .monumentBuilding(BuildingType.PHOTON_SPIRE)
                 .unitCostMultiplier(1.15)  // +15% unit costs (advanced tech)
                 .buildingCostMultiplier(0.9)  // -10% building costs
-                .powerEfficiencyMultiplier(0.8)  // -20% power consumption
+                .powerEfficiencyMultiplier(1.2)  // +20% power consumption (high-tech energy weapons)
                 .build();
     }
 }
