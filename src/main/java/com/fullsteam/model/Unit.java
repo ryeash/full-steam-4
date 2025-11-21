@@ -122,11 +122,11 @@ public class Unit extends GameEntity {
 
         // Create custom physics fixtures for this unit type (supports multi-fixture bodies)
         List<Convex> shapes = unitType.createPhysicsFixtures();
-        
+
         // Add all fixtures to the body
         for (Convex shape : shapes) {
             BodyFixture fixture = body.addFixture(shape);
-            
+
             // Configure fixture properties
             fixture.setFriction(0.1);      // Low friction for smooth movement
             fixture.setRestitution(0.0);   // No bounce
@@ -169,10 +169,6 @@ public class Unit extends GameEntity {
                 currentCommand = new IdleCommand(this);
             }
         }
-
-        // Commands now handle all the work!
-        // The old harvestResources(), constructBuilding(), mineObstacle() methods
-        // are now called by their respective commands
     }
 
     /**
@@ -187,8 +183,6 @@ public class Unit extends GameEntity {
             moveTowardsTarget(deltaTime, nearbyUnits);
         }
     }
-
-    // ===== STEERING BEHAVIORS =====
 
     /**
      * Calculate seek steering force towards a target position
@@ -600,13 +594,6 @@ public class Unit extends GameEntity {
     }
 
     /**
-     * Engage and attack ground target (backward compatibility - projectiles only)
-     */
-    public AbstractOrdinance engageGroundTarget(Vector2 groundTarget, double deltaTime) {
-        return engageGroundTarget(groundTarget, deltaTime, null);
-    }
-
-    /**
      * Override setRotation to prevent deployed Crawler from rotating
      */
     @Override
@@ -626,13 +613,8 @@ public class Unit extends GameEntity {
         if (!unitType.canAttack()) {
             return false;
         }
-
         // Crawler can only attack when deployed (turrets do the work)
-        if (unitType == UnitType.CRAWLER && !specialAbilityActive) {
-            return false;
-        }
-
-        return true;
+        return unitType != UnitType.CRAWLER || specialAbilityActive;
     }
 
     /**
@@ -1357,7 +1339,6 @@ public class Unit extends GameEntity {
 
         // Find nearest enemy building in vision range (lower priority than units)
         Building nearestEnemyBuilding = null;
-        nearestDistance = Double.MAX_VALUE;
 
         for (Building building : allBuildings) {
             if (building.getTeamNumber() == this.teamNumber || !building.isActive()) {
