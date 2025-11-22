@@ -202,7 +202,7 @@ public class FactionInfoService {
     private List<String> getTechRequirements(BuildingType buildingType) {
         return switch (buildingType) {
             // T1 - Always available (no requirements)
-            case HEADQUARTERS, POWER_PLANT, BARRACKS, REFINERY, WALL -> List.of();
+            case HEADQUARTERS, POWER_PLANT, BARRACKS, REFINERY, BUNKER, WALL -> List.of();
 
             // T2 - Requires Power Plant
             case RESEARCH_LAB, FACTORY, WEAPONS_DEPOT, TURRET, SHIELD_GENERATOR -> List.of("POWER_PLANT");
@@ -211,7 +211,7 @@ public class FactionInfoService {
             case TECH_CENTER, ADVANCED_FACTORY, BANK -> List.of("POWER_PLANT", "RESEARCH_LAB");
 
             // Monument Buildings - Requires Power Plant + Research Lab (T3)
-            case BUNKER, SANDSTORM_GENERATOR, QUANTUM_NEXUS, PHOTON_SPIRE -> List.of("POWER_PLANT", "RESEARCH_LAB");
+            case SANDSTORM_GENERATOR, QUANTUM_NEXUS, PHOTON_SPIRE -> List.of("POWER_PLANT", "RESEARCH_LAB");
         };
     }
 

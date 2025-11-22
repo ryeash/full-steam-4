@@ -18,7 +18,7 @@ public enum BuildingType {
             "Headquarters",
             0,       // free (starting building)
             0,       // no build time
-            1000,    // max health
+            1050,    // max health (+5%)
             80.0,    // size (radius)
             8,       // sides (octagon)
             0xFFD700, // gold
@@ -30,7 +30,7 @@ public enum BuildingType {
             "Refinery",
             300,     // resource cost
             20,      // build time (seconds)
-            500,     // max health
+            525,     // max health (+5%)
             50.0,    // size (radius)
             6,       // sides (hexagon)
             0x808080, // gray
@@ -42,7 +42,7 @@ public enum BuildingType {
             "Barracks",
             200,     // resource cost
             15,      // build time (seconds)
-            600,     // max health
+            630,     // max health (+5%)
             45.0,    // size (radius)
             4,       // sides (rectangle)
             0x8B4513, // brown
@@ -54,7 +54,7 @@ public enum BuildingType {
             "Power Plant",
             250,     // resource cost
             20,      // build time (seconds)
-            400,     // max health
+            420,     // max health (+5%)
             40.0,    // size (radius)
             6,       // sides (hexagon)
             0xFFFF00, // yellow
@@ -66,7 +66,7 @@ public enum BuildingType {
             "Factory",
             400,     // resource cost
             25,      // build time (seconds)
-            700,     // max health
+            735,     // max health (+5%)
             55.0,    // size (radius)
             4,       // sides (rectangle)
             0x696969, // dark gray
@@ -78,7 +78,7 @@ public enum BuildingType {
             "Research Lab",
             500,     // resource cost
             30,      // build time (seconds)
-            600,     // max health
+            630,     // max health (+5%)
             50.0,    // size (radius)
             6,       // sides (hexagon)
             0x00CED1, // dark turquoise
@@ -90,7 +90,7 @@ public enum BuildingType {
             "Weapons Depot",
             400,     // resource cost
             25,      // build time (seconds)
-            650,     // max health
+            683,     // max health (+5%)
             48.0,    // size (radius)
             5,       // sides (pentagon)
             0x8B0000, // dark red
@@ -102,7 +102,7 @@ public enum BuildingType {
             "Tech Center",
             800,     // resource cost
             40,      // build time (seconds)
-            800,     // max health
+            840,     // max health (+5%)
             60.0,    // size (radius)
             8,       // sides (octagon)
             0x4169E1, // royal blue
@@ -114,7 +114,7 @@ public enum BuildingType {
             "Advanced Factory",
             1000,    // resource cost
             45,      // build time (seconds)
-            900,     // max health
+            945,     // max health (+5%)
             65.0,    // size (radius)
             6,       // sides (hexagon)
             0x2F4F4F, // dark slate gray
@@ -126,7 +126,7 @@ public enum BuildingType {
             "Wall",
             50,      // resource cost
             5,       // build time (seconds)
-            400,     // max health
+            420,     // max health (+5%)
             15.0,    // size (radius) - small for tight placement
             4,       // sides (square)
             0x708090, // slate gray
@@ -138,11 +138,24 @@ public enum BuildingType {
             "Turret",
             250,     // resource cost
             15,      // build time (seconds)
-            400,     // max health
+            420,     // max health (+5%)
             25.0,    // size (radius)
             5,       // sides (pentagon)
             0xFF4500, // orange red
             false    // cannot produce units
+    ),
+    
+    // Defensive structure - infantry can garrison inside and fire out
+    BUNKER(
+            "Bunker",
+            250,     // resource cost - reduced to make it accessible as T1
+            18,      // build time (seconds)
+            840,     // max health (+5%)
+            35.0,    // size (radius)
+            4,       // sides (rectangle)
+            0x556B2F, // dark olive green
+            false,   // cannot produce units
+            6        // can garrison 6 infantry units
     ),
 
     // Defensive structure - projects shield that destroys incoming projectiles
@@ -150,7 +163,7 @@ public enum BuildingType {
             "Shield Generator",
             400,     // resource cost
             25,      // build time (seconds)
-            500,     // max health
+            525,     // max health (+5%)
             30.0,    // size (radius)
             6,       // sides (hexagon)
             0x00BFFF, // deep sky blue
@@ -162,7 +175,7 @@ public enum BuildingType {
             "Bank",
             600,     // resource cost (expensive T3 building)
             30,      // build time (seconds)
-            400,     // max health
+            420,     // max health (+5%)
             35.0,    // size (radius)
             8,       // sides (octagon)
             0xFFD700, // gold
@@ -172,26 +185,13 @@ public enum BuildingType {
     
     // ===== HERO/MONUMENT BUILDINGS =====
     
-    // Hero building - Terran faction - infantry can garrison inside and fire out
-    BUNKER(
-            "Bunker",
-            400,     // resource cost
-            25,      // build time (seconds)
-            800,     // max health (very durable)
-            40.0,    // size (radius)
-            4,       // sides (rectangle)
-            0x556B2F, // dark olive green
-            false,   // cannot produce units
-            6        // can garrison 6 infantry units
-    ),
-    
     // Monument - Nomads faction - creates periodic sandstorms for area denial
     SANDSTORM_GENERATOR(
             "Sandstorm Generator",
             600,     // resource cost
             35,      // build time (seconds)
-            700,     // max health
-            45.0,    // size (radius)
+            735,     // max health (+5%)
+            35.0,    // size (radius) - reduced from 45
             6,       // sides (hexagon)
             0xDEB887, // burlywood (sandy color)
             false    // cannot produce units
@@ -202,8 +202,8 @@ public enum BuildingType {
             "Quantum Nexus",
             700,     // resource cost
             40,      // build time (seconds)
-            900,     // max health
-            50.0,    // size (radius)
+            945,     // max health (+5%)
+            40.0,    // size (radius) - reduced from 50
             8,       // sides (octagon)
             0x9370DB, // medium purple (quantum energy)
             false    // cannot produce units
@@ -214,7 +214,7 @@ public enum BuildingType {
             "Photon Spire",
             650,     // resource cost
             38,      // build time (seconds)
-            750,     // max health
+            788,     // max health (+5%)
             48.0,    // size (radius)
             6,       // sides (hexagon)
             0x00FF00, // bright green (photon energy)
@@ -355,9 +355,9 @@ public enum BuildingType {
      */
     public int getRequiredTechTier() {
         return switch (this) {
-            case HEADQUARTERS, REFINERY, BARRACKS, POWER_PLANT, WALL -> 1;
+            case HEADQUARTERS, REFINERY, BARRACKS, POWER_PLANT, BUNKER, WALL -> 1;
             case FACTORY, RESEARCH_LAB, WEAPONS_DEPOT, TURRET, SHIELD_GENERATOR -> 2;
-            case TECH_CENTER, ADVANCED_FACTORY, BANK, BUNKER, SANDSTORM_GENERATOR, QUANTUM_NEXUS, PHOTON_SPIRE -> 3;
+            case TECH_CENTER, ADVANCED_FACTORY, BANK, SANDSTORM_GENERATOR, QUANTUM_NEXUS, PHOTON_SPIRE -> 3;
         };
     }
 
@@ -391,7 +391,7 @@ public enum BuildingType {
             
             // Monument buildings (high power consumption for special effects)
             case SANDSTORM_GENERATOR -> -40; // Weather control systems
-            case QUANTUM_NEXUS -> -55; // Quantum field generators (very high!)
+            case QUANTUM_NEXUS -> -70; // Quantum field generators (VERY high power!)
             case PHOTON_SPIRE -> -45; // Beam amplification systems
         };
     }

@@ -1,15 +1,6 @@
 package com.fullsteam.model;
 
-import com.fullsteam.model.command.AttackBuildingCommand;
-import com.fullsteam.model.command.AttackGroundCommand;
-import com.fullsteam.model.command.AttackUnitCommand;
-import com.fullsteam.model.command.AttackWallSegmentCommand;
-import com.fullsteam.model.command.ConstructCommand;
-import com.fullsteam.model.command.GarrisonBunkerCommand;
-import com.fullsteam.model.command.HarvestCommand;
 import com.fullsteam.model.command.IdleCommand;
-import com.fullsteam.model.command.MineCommand;
-import com.fullsteam.model.command.MoveCommand;
 import com.fullsteam.model.command.UnitCommand;
 import lombok.Getter;
 import lombok.Setter;
@@ -27,7 +18,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Represents a unit in the RTS game (worker, infantry, vehicle, etc.)
+ * Represents a unit (worker, infantry, vehicle, etc.)
  */
 @Slf4j
 @Getter
@@ -36,15 +27,7 @@ public class Unit extends GameEntity {
     private final UnitType unitType;
     private final int ownerId; // Player who owns this unit
     private final int teamNumber;
-
-    /**
-     * -- GETTER --
-     * Get the current command (for debugging/inspection)
-     */
-    // Command Pattern - all unit orders managed through commands
     private UnitCommand currentCommand = null;
-
-    // Movement
     private double movementSpeed;
 
     // LEGACY fields kept for backward compatibility with existing logic
@@ -52,13 +35,8 @@ public class Unit extends GameEntity {
     private Vector2 targetPosition = null; // Used by legacy pathfinding
     private Unit targetUnit = null; // Used by legacy combat
     private Building targetBuilding = null; // Used by legacy combat/harvesting
-    private WallSegment targetWallSegment = null; // Used by legacy combat
-    private ResourceDeposit targetResourceDeposit = null; // Used by harvesting
     private boolean isMoving = false; // Used by legacy movement
     private boolean hasPlayerOrder = false; // Used by AI scanning
-    private boolean isAttackMoving = false; // Used by AI scanning
-    private boolean attackingGround = false; // Used by legacy combat
-    private Vector2 groundAttackTarget = null; // Used by legacy combat
 
     // Pathfinding
     private List<Vector2> currentPath = new ArrayList<>();
@@ -67,14 +45,13 @@ public class Unit extends GameEntity {
     // AI stance
     private AIStance aiStance = AIStance.DEFENSIVE; // Default stance
     private Vector2 homePosition = null; // For defensive stance
-    private static final double DEFENSIVE_LEASH_RANGE = 300.0; // Max distance from home for defensive units
 
     // Special ability system
     private boolean specialAbilityActive = false; // For toggle abilities (deploy, stealth, etc.)
     private long lastSpecialAbilityTime = 0; // For cooldown tracking
 
     // Multi-turret system (for Crawler when deployed)
-    private List<UnitTurret> turrets = new ArrayList<>();
+    private List<Turret> turrets = new ArrayList<>();
 
     // Combat
     private long lastAttackTime = 0;
@@ -175,12 +152,8 @@ public class Unit extends GameEntity {
      * Update movement with steering behaviors (called from RTSGameManager with nearby units)
      */
     public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
-        // NEW: Delegate to command if present
         if (currentCommand != null) {
             currentCommand.updateMovement(deltaTime, nearbyUnits);
-        } else if (isMoving && targetPosition != null) {
-            // LEGACY: Fallback to old movement logic
-            moveTowardsTarget(deltaTime, nearbyUnits);
         }
     }
 
@@ -302,64 +275,6 @@ public class Unit extends GameEntity {
     }
 
     /**
-     * Move unit towards target position using pathfinding and steering behaviors
-     */
-    private void moveTowardsTarget(double deltaTime, List<Unit> nearbyUnits) {
-        Vector2 currentPos = getPosition();
-
-        // If we have a path, follow it
-        if (!currentPath.isEmpty() && currentPathIndex < currentPath.size()) {
-            Vector2 waypointTarget = currentPath.get(currentPathIndex);
-            double distance = currentPos.distance(waypointTarget);
-
-            // Use larger threshold for waypoint advancement
-            double waypointThreshold = 25.0;
-
-            // Check if we've reached the current waypoint
-            if (distance < waypointThreshold) {
-                currentPathIndex++;
-
-                // Check if we've completed the path
-                if (currentPathIndex >= currentPath.size()) {
-                    // Stop when very close to final destination
-                    if (distance < 10.0) {
-                        isMoving = false;
-                        hasPlayerOrder = false; // Order completed
-                        // Actively stop to prevent drift
-                        body.setLinearVelocity(0, 0);
-                        currentPath.clear();
-                        currentPathIndex = 0;
-                        return;
-                    }
-                } else {
-                    // Move to next waypoint
-                    waypointTarget = currentPath.get(currentPathIndex);
-                    distance = currentPos.distance(waypointTarget);
-                }
-            }
-
-            // Apply steering forces to move towards waypoint
-            applySteeringForces(waypointTarget, nearbyUnits, deltaTime);
-
-        } else if (targetPosition != null) {
-            // No path, simple direct movement (fallback)
-            double distance = currentPos.distance(targetPosition);
-
-            // Stop when very close to target
-            if (distance < 10.0) {
-                isMoving = false;
-                hasPlayerOrder = false; // Order completed
-                // Actively stop to prevent drift
-                body.setLinearVelocity(0, 0);
-                return;
-            }
-
-            // Apply steering forces to move towards target
-            applySteeringForces(targetPosition, nearbyUnits, deltaTime);
-        }
-    }
-
-    /**
      * Set a new path for the unit to follow
      *
      * @param path          The path to follow
@@ -384,213 +299,6 @@ public class Unit extends GameEntity {
      */
     public void setPath(List<Vector2> path) {
         setPath(path, false);
-    }
-
-    /**
-     * Clear current path
-     */
-    public void clearPath() {
-        this.currentPath.clear();
-        this.currentPathIndex = 0;
-    }
-
-    /**
-     * Engage and attack target unit
-     * Called by AttackUnitCommand
-     *
-     * @param target       The target unit
-     * @param deltaTime    Time since last update
-     * @param gameEntities Game entities (includes World for beam raycasting)
-     * @return Projectile or Beam if fired, null otherwise
-     */
-    public AbstractOrdinance engageTarget(Unit target, double deltaTime, GameEntities gameEntities) {
-        if (target == null || !target.isActive()) {
-            return null;
-        }
-
-        Vector2 currentPos = getPosition();
-        Vector2 targetPos = target.getPosition();
-        double distance = currentPos.distance(targetPos);
-
-        // Movement is handled by AttackUnitCommand.updateMovement()
-        // This method just does the actual combat
-
-        // Check if in range
-        if (distance <= attackRange * 0.9) { // 90% of range to account for movement
-            // Stop moving when in range
-            body.setLinearVelocity(0, 0);
-
-            // Face target
-            Vector2 direction = targetPos.copy().subtract(currentPos);
-            setRotation(Math.atan2(direction.y, direction.x));
-
-            // Attack if cooldown is ready
-            long now = System.currentTimeMillis();
-            double attackInterval = 1000.0 / attackRate;
-            if (now - lastAttackTime >= attackInterval) {
-                lastAttackTime = now;
-                // Use predictive aiming for moving targets
-                Vector2 interceptPos = calculateInterceptPoint(target);
-                // Fire projectile or beam (world from gameEntities)
-                return fireAt(interceptPos, gameEntities != null ? gameEntities.getWorld() : null);
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Engage and attack target unit (backward compatibility - projectiles only)
-     */
-    public Projectile engageTarget(Unit target, double deltaTime) {
-        AbstractOrdinance ordinance = engageTarget(target, deltaTime, null);
-        return ordinance instanceof Projectile ? (Projectile) ordinance : null;
-    }
-
-    /**
-     * Engage and attack target building
-     * Called by AttackBuildingCommand
-     *
-     * @param target       The target building
-     * @param deltaTime    Time since last update
-     * @param gameEntities Game entities (includes World for beam raycasting)
-     * @return Projectile or Beam if fired, null otherwise
-     */
-    public AbstractOrdinance engageBuilding(Building target, double deltaTime, GameEntities gameEntities) {
-        if (target == null || !target.isActive()) {
-            return null;
-        }
-
-        Vector2 currentPos = getPosition();
-        Vector2 targetPos = target.getPosition();
-        double distance = currentPos.distance(targetPos);
-        double effectiveRange = attackRange + target.getBuildingType().getSize();
-
-        // Movement is handled by AttackBuildingCommand.updateMovement()
-        // This method just does the actual combat
-
-        // Check if in range
-        if (distance <= effectiveRange * 0.9) {
-            // Stop moving when in range
-            body.setLinearVelocity(0, 0);
-
-            // Face target
-            Vector2 direction = targetPos.copy().subtract(currentPos);
-            setRotation(Math.atan2(direction.y, direction.x));
-
-            // Attack if cooldown is ready
-            long now = System.currentTimeMillis();
-            double attackInterval = 1000.0 / attackRate;
-            if (now - lastAttackTime >= attackInterval) {
-                lastAttackTime = now;
-                // Fire projectile or beam (world from gameEntities)
-                return fireAt(target.getPosition(), gameEntities != null ? gameEntities.getWorld() : null);
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Engage and attack target building (backward compatibility - projectiles only)
-     */
-    public Projectile engageBuilding(Building target, double deltaTime) {
-        AbstractOrdinance ordinance = engageBuilding(target, deltaTime, null);
-        return ordinance instanceof Projectile ? (Projectile) ordinance : null;
-    }
-
-    /**
-     * Engage and attack target wall segment
-     * Called by AttackWallSegmentCommand
-     *
-     * @param target       The target wall segment
-     * @param deltaTime    Time since last update
-     * @param gameEntities Game entities (includes World for beam raycasting)
-     * @return AbstractOrdinance (Projectile or Beam) if fired, null otherwise
-     */
-    public AbstractOrdinance engageWallSegment(WallSegment target, double deltaTime, GameEntities gameEntities) {
-        if (target == null || !target.isActive()) {
-            return null;
-        }
-
-        Vector2 currentPos = getPosition();
-        Vector2 targetPos = target.getPosition();
-        double distance = currentPos.distance(targetPos);
-        double effectiveRange = attackRange + 20.0; // Wall segments have ~8 thickness
-
-        // Movement is handled by AttackWallSegmentCommand.updateMovement()
-        // This method just does the actual combat
-
-        // Check if in range
-        if (distance <= effectiveRange * 0.9) {
-            // Stop moving when in range
-            body.setLinearVelocity(0, 0);
-
-            // Face target
-            Vector2 direction = targetPos.copy().subtract(currentPos);
-            setRotation(Math.atan2(direction.y, direction.x));
-
-            // Attack if cooldown is ready
-            long now = System.currentTimeMillis();
-            double attackInterval = 1000.0 / attackRate;
-            if (now - lastAttackTime >= attackInterval) {
-                lastAttackTime = now;
-                // Fire projectile or beam at wall segment (world from gameEntities)
-                return fireAt(targetPos, gameEntities != null ? gameEntities.getWorld() : null);
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Engage and attack target wall segment (backward compatibility - projectiles only)
-     */
-    public AbstractOrdinance engageWallSegment(WallSegment target, double deltaTime) {
-        return engageWallSegment(target, deltaTime, null);
-    }
-
-    /**
-     * Engage and attack ground target (force attack - CMD/CTRL + right click)
-     * Fires at a specific ground location for area denial
-     * Called by AttackGroundCommand
-     *
-     * @param groundTarget The ground position to fire at
-     * @param deltaTime    Time since last update
-     * @param gameEntities Game entities (includes World for beam raycasting)
-     * @return AbstractOrdinance (Projectile or Beam) if fired, null otherwise
-     */
-    public AbstractOrdinance engageGroundTarget(Vector2 groundTarget, double deltaTime, GameEntities gameEntities) {
-        if (groundTarget == null) {
-            return null;
-        }
-
-        Vector2 currentPos = getPosition();
-        double distance = currentPos.distance(groundTarget);
-
-        // Movement is handled by AttackGroundCommand.updateMovement()
-        // This method just does the actual combat
-
-        // Check if in range
-        if (distance <= attackRange * 0.9) {
-            // Stop moving when in range
-            body.setLinearVelocity(0, 0);
-
-            // Face target
-            Vector2 direction = groundTarget.copy().subtract(currentPos);
-            setRotation(Math.atan2(direction.y, direction.x));
-
-            // Attack if cooldown is ready
-            long now = System.currentTimeMillis();
-            double attackInterval = 1000.0 / attackRate;
-            if (now - lastAttackTime >= attackInterval) {
-                lastAttackTime = now;
-                // Fire projectile or beam at ground location (world from gameEntities)
-                return fireAt(groundTarget, gameEntities != null ? gameEntities.getWorld() : null);
-            }
-        }
-
-        return null;
     }
 
     /**
@@ -662,7 +370,7 @@ public class Unit extends GameEntity {
      * @param target The target unit to intercept
      * @return The predicted intercept position
      */
-    private Vector2 calculateInterceptPoint(Unit target) {
+    public Vector2 calculateInterceptPoint(Unit target) {
         Vector2 shooterPos = getPosition();
         Vector2 targetPos = target.getPosition();
         Vector2 targetVelocity = target.getBody().getLinearVelocity();
@@ -1101,8 +809,6 @@ public class Unit extends GameEntity {
         return false; // Continue repairing
     }
 
-    // ===== COMMAND PATTERN METHODS =====
-
     /**
      * Issue a new command to this unit (replaces current command)
      */
@@ -1111,144 +817,6 @@ public class Unit extends GameEntity {
             currentCommand.onCancel(); // Clean up old command
         }
         currentCommand = newCommand;
-        log.debug("Unit {} issued command: {}", id, newCommand.getDescription());
-    }
-
-    // ===== ORDER METHODS =====
-
-    /**
-     * Give this unit a move order
-     */
-    public void orderMove(Vector2 destination) {
-        MoveCommand moveCommand = new MoveCommand(this, destination, true);
-        issueCommand(moveCommand);
-    }
-
-    /**
-     * Give this unit a force attack order (attack ground - CMD/CTRL + right click)
-     * Units will move into range and fire at the ground location
-     * Useful for artillery/AoE units doing area denial
-     */
-    public void orderForceAttack(Vector2 groundTarget) {
-        if (!unitType.canAttack()) {
-            return;
-        }
-
-        AttackGroundCommand attackGroundCommand = new AttackGroundCommand(this, groundTarget, true);
-        issueCommand(attackGroundCommand);
-        log.info("Unit {} ordered to attack ground at ({}, {})", id, groundTarget.x, groundTarget.y);
-    }
-
-    /**
-     * Give this unit an attack order on another unit
-     */
-    public void orderAttack(Unit target) {
-        if (!unitType.canAttack()) {
-            return;
-        }
-
-        AttackUnitCommand attackCommand = new AttackUnitCommand(this, target, true);
-        issueCommand(attackCommand);
-    }
-
-    /**
-     * Give this unit an attack order on a building
-     */
-    public void orderAttackBuilding(Building target) {
-        if (!unitType.canAttack()) {
-            return;
-        }
-
-        AttackBuildingCommand attackCommand = new AttackBuildingCommand(this, target, true);
-        issueCommand(attackCommand);
-    }
-
-    /**
-     * Give this unit an attack order on a wall segment
-     */
-    public void orderAttackWallSegment(WallSegment target) {
-        if (!unitType.canAttack()) {
-            return;
-        }
-
-        AttackWallSegmentCommand attackCommand = new AttackWallSegmentCommand(this, target, true);
-        issueCommand(attackCommand);
-    }
-
-    /**
-     * Give this unit a harvest order
-     */
-    public void orderHarvest(ResourceDeposit deposit) {
-        if (!unitType.canHarvest()) {
-            return;
-        }
-
-        HarvestCommand harvestCommand = new HarvestCommand(this, deposit, true);
-        issueCommand(harvestCommand);
-    }
-
-    /**
-     * Give this unit a construction order
-     */
-    public void orderConstruct(Building building) {
-        if (!unitType.canBuild()) {
-            return;
-        }
-
-        ConstructCommand constructCommand = new ConstructCommand(this, building, true);
-        issueCommand(constructCommand);
-    }
-
-    /**
-     * Give this unit a mining order
-     */
-    public void orderMine(Obstacle obstacle) {
-        if (!unitType.canMine()) {
-            return;
-        }
-
-        // Check if obstacle is destructible
-        if (!obstacle.isDestructible()) {
-            log.warn("Miner {} cannot mine indestructible obstacle {}", id, obstacle.getId());
-            return;
-        }
-
-        MineCommand mineCommand = new MineCommand(this, obstacle, true);
-        issueCommand(mineCommand);
-        log.info("Miner {} ordered to mine obstacle {} (pickaxe: {}%)",
-                id, obstacle.getId(), (int) pickaxeDurability);
-    }
-
-    /**
-     * Give this unit a garrison order (enter bunker)
-     */
-    public void orderGarrison(Building bunker) {
-        if (!unitType.isInfantry()) {
-            return; // Only infantry can garrison
-        }
-
-        GarrisonBunkerCommand garrisonCommand = new GarrisonBunkerCommand(this, bunker, true);
-        issueCommand(garrisonCommand);
-        log.info("Unit {} ordered to garrison in bunker {}", id, bunker.getId());
-    }
-
-    /**
-     * Stop all current orders
-     */
-    public void orderStop() {
-        IdleCommand idleCommand = new IdleCommand(this);
-        issueCommand(idleCommand);
-    }
-
-    /**
-     * Deposit carried resources at a refinery
-     *
-     * @return amount of resources deposited
-     */
-    public int depositResources() {
-        int amount = (int) Math.round(carriedResources);
-        carriedResources = 0;
-        return amount;
     }
 
     /**
@@ -1256,117 +824,6 @@ public class Unit extends GameEntity {
      */
     public boolean belongsTo(int playerId) {
         return this.ownerId == playerId;
-    }
-
-    /**
-     * Check if this unit is on a specific team
-     */
-    public boolean isOnTeam(int team) {
-        return this.teamNumber == team;
-    }
-
-    /**
-     * AI behavior: scan for enemies and auto-attack based on stance
-     *
-     * @return true if an enemy was engaged
-     */
-    public boolean scanForEnemies(List<Unit> allUnits, List<Building> allBuildings) {
-        // Only combat units with auto-attack enabled OR attack-moving units
-        if (!unitType.canAttack()) {
-            return false;
-        }
-
-        // Attack-move units should always scan, but respect player orders for non-attack-move
-        if (!isAttackMoving) {
-            if (!aiStance.isAutoAttack()) {
-                return false;
-            }
-
-            // Don't interrupt player orders or existing AI orders (unless aggressive or attack-moving)
-            if (hasPlayerOrder) {
-                return false; // Never interrupt player commands
-            }
-            if (aiStance != AIStance.AGGRESSIVE && (targetUnit != null || targetBuilding != null || isHarvesting || isConstructing)) {
-                return false;
-            }
-        }
-
-        Vector2 currentPos = getPosition();
-        double visionRange = unitType.getVisionRange(); // Vision range (varies by unit type)
-
-        // Check for defensive leash (don't chase too far from home) - not for attack-move
-        if (!isAttackMoving && aiStance == AIStance.DEFENSIVE && homePosition != null) {
-            double distanceFromHome = currentPos.distance(homePosition);
-            if (distanceFromHome > DEFENSIVE_LEASH_RANGE) {
-                // Return to home position
-                this.targetPosition = homePosition.copy();
-                this.isMoving = true;
-                this.targetUnit = null;
-                this.targetBuilding = null;
-                return false;
-            }
-        }
-
-        // Find nearest enemy unit in vision range
-        Unit nearestEnemy = null;
-        double nearestDistance = Double.MAX_VALUE;
-
-        for (Unit unit : allUnits) {
-            if (unit.getTeamNumber() == this.teamNumber || !unit.isActive()) {
-                continue;
-            }
-
-            double distance = currentPos.distance(unit.getPosition());
-            if (distance < visionRange && distance < nearestDistance) {
-                // For defensive stance, only engage if enemy is close to home
-                if (aiStance == AIStance.DEFENSIVE && homePosition != null) {
-                    double enemyDistanceFromHome = unit.getPosition().distance(homePosition);
-                    if (enemyDistanceFromHome > DEFENSIVE_LEASH_RANGE) {
-                        continue;
-                    }
-                }
-
-                nearestEnemy = unit;
-                nearestDistance = distance;
-            }
-        }
-
-        // If found an enemy unit, engage it
-        if (nearestEnemy != null) {
-            orderAttack(nearestEnemy);
-            return true;
-        }
-
-        // Find nearest enemy building in vision range (lower priority than units)
-        Building nearestEnemyBuilding = null;
-
-        for (Building building : allBuildings) {
-            if (building.getTeamNumber() == this.teamNumber || !building.isActive()) {
-                continue;
-            }
-
-            double distance = currentPos.distance(building.getPosition());
-            if (distance < visionRange && distance < nearestDistance) {
-                // For defensive stance, only engage if building is close to home
-                if (aiStance == AIStance.DEFENSIVE && homePosition != null) {
-                    double buildingDistanceFromHome = building.getPosition().distance(homePosition);
-                    if (buildingDistanceFromHome > DEFENSIVE_LEASH_RANGE) {
-                        continue;
-                    }
-                }
-
-                nearestEnemyBuilding = building;
-                nearestDistance = distance;
-            }
-        }
-
-        // If found an enemy building, engage it
-        if (nearestEnemyBuilding != null) {
-            orderAttackBuilding(nearestEnemyBuilding);
-            return true;
-        }
-
-        return false;
     }
 
     /**
@@ -1540,9 +997,12 @@ public class Unit extends GameEntity {
         Vector2 currentPos = getPosition();
         double distanceFromHome = currentPos.distance(homePosition);
 
-        return !isMoving && !isHarvesting && !isConstructing &&
-                targetUnit == null && targetBuilding == null &&
-                distanceFromHome > 50.0; // Return if more than 50 units from home
+        return !isMoving
+                && !isHarvesting
+                && !isConstructing
+                && targetUnit == null
+                && targetBuilding == null
+                && distanceFromHome > 50.0; // Return if more than 50 units from home
     }
 
     /**
@@ -1676,13 +1136,14 @@ public class Unit extends GameEntity {
                     damage = unitType.getDamage() * 1.5;
                     movementSpeed = 0; // Immobile when deployed
 
-                    // Create 4 turrets at corners of the Crawler
+                    // Create 4 turrets at corners of the Crawler (RELATIVE OFFSETS, not absolute positions)
                     turrets.clear();
                     double turretOffset = unitType.getSize() * 0.6; // 60% of unit size
-                    turrets.add(new UnitTurret(0, new Vector2(turretOffset, turretOffset)));   // Top-right
-                    turrets.add(new UnitTurret(1, new Vector2(-turretOffset, turretOffset)));  // Top-left
-                    turrets.add(new UnitTurret(2, new Vector2(-turretOffset, -turretOffset))); // Bottom-left
-                    turrets.add(new UnitTurret(3, new Vector2(turretOffset, -turretOffset)));  // Bottom-right
+                    // Store as offsets from unit center, not absolute world positions
+                    turrets.add(new Turret(0, new Vector2(turretOffset, turretOffset)));   // Top-right
+                    turrets.add(new Turret(1, new Vector2(-turretOffset, turretOffset)));  // Top-left
+                    turrets.add(new Turret(2, new Vector2(-turretOffset, -turretOffset))); // Bottom-left
+                    turrets.add(new Turret(3, new Vector2(turretOffset, -turretOffset)));  // Bottom-right
 
                     log.info("Crawler {} deployed - range: {}, damage: {}, turrets: {}",
                             id, attackRange, damage, turrets.size());

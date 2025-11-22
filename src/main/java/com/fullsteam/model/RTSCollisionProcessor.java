@@ -87,7 +87,8 @@ public class RTSCollisionProcessor {
      * @return true if any collision occurred
      */
     private boolean checkProjectileUnitCollisions(Projectile projectile) {
-        Vector2 projPos = projectile.getPosition();
+        // Use physics body position for accurate collision detection
+        Vector2 projPos = projectile.getBody().getWorldCenter();
         double projRadius = projectile.getOrdinance().getSize();
         boolean hitSomething = false;
         
@@ -131,7 +132,8 @@ public class RTSCollisionProcessor {
      * @return true if any collision occurred
      */
     private boolean checkProjectileBuildingCollisions(Projectile projectile) {
-        Vector2 projPos = projectile.getPosition();
+        // Use physics body position for accurate collision detection
+        Vector2 projPos = projectile.getBody().getWorldCenter();
         double projRadius = projectile.getOrdinance().getSize();
         boolean hitSomething = false;
         
@@ -173,7 +175,8 @@ public class RTSCollisionProcessor {
      * @return true if any collision occurred
      */
     private boolean checkProjectileWallSegmentCollisions(Projectile projectile) {
-        Vector2 projPos = projectile.getPosition();
+        // Use physics body position for accurate collision detection
+        Vector2 projPos = projectile.getBody().getWorldCenter();
         double projRadius = projectile.getOrdinance().getSize();
         boolean hitSomething = false;
         
@@ -221,7 +224,8 @@ public class RTSCollisionProcessor {
      * @return true if collision occurred
      */
     private boolean checkProjectileObstacleCollisions(Projectile projectile) {
-        Vector2 projPos = projectile.getPosition();
+        // Use physics body position for accurate collision detection
+        Vector2 projPos = projectile.getBody().getWorldCenter();
         double projRadius = projectile.getOrdinance().getSize();
         
         for (Obstacle obstacle : obstacles.values()) {

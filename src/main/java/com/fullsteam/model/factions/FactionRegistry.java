@@ -33,13 +33,6 @@ public class FactionRegistry {
     }
 
     /**
-     * Get all available factions
-     */
-    public static List<Faction> getAllFactions() {
-        return Arrays.asList(Faction.values());
-    }
-
-    /**
      * TERRAN - Balanced faction with all standard units
      */
     private static FactionDefinition createTerranDefinition() {
@@ -54,11 +47,12 @@ public class FactionRegistry {
                 BuildingType.FACTORY,
                 BuildingType.WEAPONS_DEPOT,
                 BuildingType.TURRET,
+                BuildingType.BUNKER,  // Common defensive building
                 BuildingType.SHIELD_GENERATOR,
                 BuildingType.TECH_CENTER,
                 BuildingType.ADVANCED_FACTORY,
-                BuildingType.BANK,
-                BuildingType.BUNKER  // Terran monument
+                BuildingType.BANK
+                // TODO: Add Terran-specific monument building later
         );
         
         // Terran has access to all standard units (explicit list)
@@ -86,7 +80,7 @@ public class FactionRegistry {
                 .faction(Faction.TERRAN)
                 .techTree(techTree)
                 .heroUnit(UnitType.PALADIN)
-                .monumentBuilding(BuildingType.BUNKER)
+                .monumentBuilding(null)  // TODO: Design new Terran monument
                 .buildingHealthMultiplier(1.1)  // +10% building health
                 .build();
     }
@@ -106,6 +100,7 @@ public class FactionRegistry {
                 BuildingType.FACTORY,
                 BuildingType.WEAPONS_DEPOT,
                 BuildingType.TURRET,
+                BuildingType.BUNKER,  // Common defensive building
                 BuildingType.SHIELD_GENERATOR,
                 BuildingType.TECH_CENTER,
                 BuildingType.ADVANCED_FACTORY,
@@ -173,6 +168,7 @@ public class FactionRegistry {
                 BuildingType.FACTORY,
                 BuildingType.WEAPONS_DEPOT,
                 BuildingType.TURRET,
+                BuildingType.BUNKER,  // Common defensive building
                 BuildingType.SHIELD_GENERATOR,
                 BuildingType.TECH_CENTER,
                 BuildingType.ADVANCED_FACTORY,
@@ -223,6 +219,7 @@ public class FactionRegistry {
                 BuildingType.BARRACKS,
                 BuildingType.FACTORY,
                 BuildingType.TURRET,
+                BuildingType.BUNKER,  // Common defensive building
                 BuildingType.WEAPONS_DEPOT,
                 BuildingType.ADVANCED_FACTORY,
                 BuildingType.SHIELD_GENERATOR,

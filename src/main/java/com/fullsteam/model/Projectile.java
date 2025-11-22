@@ -12,15 +12,14 @@ import java.util.Set;
 /**
  * Represents a ballistic projectile fired by units or buildings in the RTS game.
  * Projectiles travel over time and are affected by physics.
+ * Position and velocity are managed by the physics body (single source of truth).
  */
 @Getter
 @Setter
 public class Projectile extends AbstractOrdinance {
-    private Vector2 position;
-    private Vector2 velocity;
     private double maxRange;
-    private double linearDamping;
     private double distanceTraveled = 0.0;
+    private Vector2 previousPosition; // For tracking distance traveled
 
     public Projectile(int id, double x, double y, double vx, double vy,
                       double damage, double maxRange, int ownerTeam,
@@ -29,10 +28,8 @@ public class Projectile extends AbstractOrdinance {
         super(id, createProjectileBody(size), id, ownerTeam, 
               new Vector2(x, y), damage, bulletEffects, ordinance, size);
         
-        this.position = new Vector2(x, y);
-        this.velocity = new Vector2(vx, vy);
         this.maxRange = maxRange;
-        this.linearDamping = linearDamping;
+        this.previousPosition = new Vector2(x, y);
         
         body.translate(x, y);
         body.setLinearDamping(linearDamping);
@@ -47,7 +44,7 @@ public class Projectile extends AbstractOrdinance {
     }
 
     /**
-     * Update projectile position and check if it should be deactivated
+     * Update projectile state and check if it should be deactivated
      */
     @Override
     public void update(double deltaTime) {
@@ -55,33 +52,23 @@ public class Projectile extends AbstractOrdinance {
             return;
         }
 
-        // Apply damping to velocity
-        double dampingFactor = Math.pow(1.0 - linearDamping, deltaTime);
-        velocity = velocity.product(dampingFactor);
-
-        // Update position
-        Vector2 movement = velocity.product(deltaTime);
-        position = position.sum(movement);
-        distanceTraveled += movement.getMagnitude();
+        // Track distance traveled using physics body position (single source of truth)
+        Vector2 currentPosition = body.getWorldCenter();
+        distanceTraveled += currentPosition.distance(previousPosition);
+        previousPosition = currentPosition.copy();
 
         // Deactivate if traveled too far
         if (distanceTraveled >= maxRange) {
             active = false;
         }
     }
-
-    /**
-     * Get the angle of the projectile's velocity
-     */
-    public double getAngle() {
-        return Math.atan2(velocity.y, velocity.x);
-    }
     
     /**
-     * Get the rotation angle for rendering
+     * Get the rotation angle for rendering (based on physics body velocity)
      */
     public double getRotation() {
-        return getAngle();
+        Vector2 velocity = body.getLinearVelocity();
+        return Math.atan2(velocity.y, velocity.x);
     }
     
     /**

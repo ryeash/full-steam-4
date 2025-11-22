@@ -6,6 +6,7 @@ import org.dyn4j.geometry.Vector2;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Represents the RTS game world with bounded rectangle, start points, and symmetric resource/obstacle placement.
@@ -49,10 +50,9 @@ public class RTSWorld {
         this.maxY = height / 2.0;
 
         // Generate symmetric world layout
-        Random random = new Random(seed);
         this.teamStartPoints = generateTeamStartPoints();
-        this.resourceSpawns = generateResourceSpawns(random);
-        this.obstacleSpawns = generateObstacleSpawns(random);
+        this.resourceSpawns = generateResourceSpawns();
+        this.obstacleSpawns = generateObstacleSpawns();
     }
 
     /**
@@ -105,11 +105,11 @@ public class RTSWorld {
      * Generate resource deposit spawns with 90-degree symmetry.
      * Creates a base pattern in one quadrant and mirrors it to others.
      */
-    private List<ResourceDepositSpawn> generateResourceSpawns(Random random) {
+    private List<ResourceDepositSpawn> generateResourceSpawns() {
         List<ResourceDepositSpawn> spawns = new ArrayList<>();
 
         // Generate base pattern in first quadrant (or half for 2 teams)
-        List<ResourceDepositSpawn> basePattern = generateBaseResourcePattern(random);
+        List<ResourceDepositSpawn> basePattern = generateBaseResourcePattern();
 
         // Mirror pattern based on team count
         if (teamCount == 2) {
@@ -133,7 +133,7 @@ public class RTSWorld {
     /**
      * Generate base resource pattern in one quadrant/section.
      */
-    private List<ResourceDepositSpawn> generateBaseResourcePattern(Random random) {
+    private List<ResourceDepositSpawn> generateBaseResourcePattern() {
         List<ResourceDepositSpawn> pattern = new ArrayList<>();
 
         // Define the working area (one quadrant for 4 teams, one half for 2 teams)
@@ -141,30 +141,27 @@ public class RTSWorld {
         double workHeight = height / 2.0;
 
         // Place 2-3 resource deposits in this section
-        int depositsInSection = 2 + random.nextInt(2);
+        int depositsInSection = 2 + ThreadLocalRandom.current().nextInt(2);
 
         for (int i = 0; i < depositsInSection; i++) {
             // Random position within the working area, avoiding edges
             double margin = 100; // Stay away from edges
-            double x = margin + random.nextDouble() * (workWidth - 2 * margin);
-            double y = margin + random.nextDouble() * (workHeight - 2 * margin);
+            double x = margin + ThreadLocalRandom.current().nextDouble() * (workWidth - 2 * margin);
+            double y = margin + ThreadLocalRandom.current().nextDouble() * (workHeight - 2 * margin);
 
             // For 4 teams, place in first quadrant (positive x, positive y)
             // For 2 teams, place in bottom half (any x, negative y)
-            if (teamCount == 4) {
-                x = x; // Already positive
-                y = y; // Already positive
-            } else {
+            if (teamCount != 4) {
                 x = x - workWidth / 2.0; // Center around 0
                 y = -y; // Place in bottom half
             }
 
-            int resources = 5000 + random.nextInt(5000); // 5000-10000 resources
+            int resources = 5000 + ThreadLocalRandom.current().nextInt(5000); // 5000-10000 resources
             pattern.add(new ResourceDepositSpawn(new Vector2(x, y), resources));
         }
 
         // Add one central resource deposit (shared/contested)
-        if (pattern.isEmpty() || random.nextDouble() < 0.5) {
+        if (pattern.isEmpty() || ThreadLocalRandom.current().nextDouble() < 0.5) {
             pattern.add(new ResourceDepositSpawn(new Vector2(0, 0), 10000));
         }
 
@@ -174,11 +171,11 @@ public class RTSWorld {
     /**
      * Generate obstacle spawns with 90-degree symmetry.
      */
-    private List<ObstacleSpawn> generateObstacleSpawns(Random random) {
+    private List<ObstacleSpawn> generateObstacleSpawns() {
         List<ObstacleSpawn> spawns = new ArrayList<>();
 
         // Generate base pattern
-        List<ObstacleSpawn> basePattern = generateBaseObstaclePattern(random);
+        List<ObstacleSpawn> basePattern = generateBaseObstaclePattern();
 
         // Mirror pattern based on team count
         if (teamCount == 2) {
@@ -199,7 +196,7 @@ public class RTSWorld {
     /**
      * Generate base obstacle pattern.
      */
-    private List<ObstacleSpawn> generateBaseObstaclePattern(Random random) {
+    private List<ObstacleSpawn> generateBaseObstaclePattern() {
         List<ObstacleSpawn> pattern = new ArrayList<>();
 
         // Use most of the map (90% of width/height) instead of restricted area
@@ -215,7 +212,7 @@ public class RTSWorld {
         double scaledCount = baseObstacleCount * obstacleDensityMultiplier;
         int minObstacles = (int) Math.ceil(scaledCount * 0.75);
         int maxObstacles = (int) Math.ceil(scaledCount * 1.25);
-        int obstaclesInSection = minObstacles + random.nextInt(Math.max(1, maxObstacles - minObstacles + 1));
+        int obstaclesInSection = minObstacles + ThreadLocalRandom.current().nextInt(Math.max(1, maxObstacles - minObstacles + 1));
         obstaclesInSection = Math.max(2, obstaclesInSection); // At least 2 obstacles
 
         // Define exclusion radius around starting positions (to prevent blocking HQ and starting units)
@@ -234,12 +231,12 @@ public class RTSWorld {
 
             if (teamCount == 4) {
                 // For 4 teams, generate in first quadrant (positive x, positive y)
-                x = margin + random.nextDouble() * (workWidth / 2.0 - 2 * margin);
-                y = margin + random.nextDouble() * (workHeight / 2.0 - 2 * margin);
+                x = margin + ThreadLocalRandom.current().nextDouble() * (workWidth / 2.0 - 2 * margin);
+                y = margin + ThreadLocalRandom.current().nextDouble() * (workHeight / 2.0 - 2 * margin);
             } else {
                 // For 2 teams, generate across full width, bottom half
-                x = -workWidth / 2.0 + margin + random.nextDouble() * (workWidth - 2 * margin);
-                y = -workHeight / 2.0 + margin + random.nextDouble() * (workHeight / 2.0 - 2 * margin);
+                x = -workWidth / 2.0 + margin + ThreadLocalRandom.current().nextDouble() * (workWidth - 2 * margin);
+                y = -workHeight / 2.0 + margin + ThreadLocalRandom.current().nextDouble() * (workHeight / 2.0 - 2 * margin);
             }
 
             Vector2 obstaclePos = new Vector2(x, y);
@@ -259,10 +256,10 @@ public class RTSWorld {
                 // Vary obstacle size based on biome
                 double baseSize = getBiomeObstacleSize();
                 double sizeVariation = baseSize * 0.5; // ±50% variation
-                double size = baseSize + (random.nextDouble() * 2 - 1) * sizeVariation;
+                double size = baseSize + (ThreadLocalRandom.current().nextDouble() * 2 - 1) * sizeVariation;
 
                 // Generate obstacle with biome-specific shape
-                pattern.add(generateBiomeObstacle(obstaclePos, size, random));
+                pattern.add(generateBiomeObstacle(obstaclePos, size, ThreadLocalRandom.current()));
             }
         }
 
@@ -365,10 +362,7 @@ public class RTSWorld {
         for (ResourceDepositSpawn spawn : pattern) {
             Vector2 pos = spawn.getPosition();
             // 90-degree clockwise: (x, y) -> (y, -x)
-            rotated.add(new ResourceDepositSpawn(
-                    new Vector2(pos.y, -pos.x),
-                    spawn.getResources()
-            ));
+            rotated.add(new ResourceDepositSpawn(new Vector2(pos.y, -pos.x), spawn.getResources()));
         }
         return rotated;
     }
@@ -377,7 +371,7 @@ public class RTSWorld {
      * Rotate resource deposits 180 degrees
      */
     private List<ResourceDepositSpawn> rotate180(List<ResourceDepositSpawn> pattern) {
-        return mirror180(pattern); // Same as 180-degree rotation
+        return mirror180(pattern);
     }
 
     /**
@@ -388,31 +382,19 @@ public class RTSWorld {
         for (ResourceDepositSpawn spawn : pattern) {
             Vector2 pos = spawn.getPosition();
             // 270-degree clockwise: (x, y) -> (-y, x)
-            rotated.add(new ResourceDepositSpawn(
-                    new Vector2(-pos.y, pos.x),
-                    spawn.getResources()
-            ));
+            rotated.add(new ResourceDepositSpawn(new Vector2(-pos.y, pos.x), spawn.getResources()));
         }
         return rotated;
     }
-
-    // Obstacle symmetry methods
 
     private List<ObstacleSpawn> mirror180Obstacles(List<ObstacleSpawn> pattern) {
         List<ObstacleSpawn> mirrored = new ArrayList<>();
         for (ObstacleSpawn spawn : pattern) {
             Vector2 pos = spawn.getPosition();
             if (spawn.getShape() == Obstacle.Shape.CIRCLE) {
-                mirrored.add(new ObstacleSpawn(
-                        new Vector2(-pos.x, -pos.y),
-                        spawn.getSize()
-                ));
+                mirrored.add(new ObstacleSpawn(new Vector2(-pos.x, -pos.y), spawn.getSize()));
             } else {
-                mirrored.add(new ObstacleSpawn(
-                        new Vector2(-pos.x, -pos.y),
-                        spawn.getSize(),
-                        spawn.getSides()
-                ));
+                mirrored.add(new ObstacleSpawn(new Vector2(-pos.x, -pos.y), spawn.getSize(), spawn.getSides()));
             }
         }
         return mirrored;
@@ -423,16 +405,9 @@ public class RTSWorld {
         for (ObstacleSpawn spawn : pattern) {
             Vector2 pos = spawn.getPosition();
             if (spawn.getShape() == Obstacle.Shape.CIRCLE) {
-                rotated.add(new ObstacleSpawn(
-                        new Vector2(pos.y, -pos.x),
-                        spawn.getSize()
-                ));
+                rotated.add(new ObstacleSpawn(new Vector2(pos.y, -pos.x), spawn.getSize()));
             } else {
-                rotated.add(new ObstacleSpawn(
-                        new Vector2(pos.y, -pos.x),
-                        spawn.getSize(),
-                        spawn.getSides()
-                ));
+                rotated.add(new ObstacleSpawn(new Vector2(pos.y, -pos.x), spawn.getSize(), spawn.getSides()));
             }
         }
         return rotated;
@@ -447,35 +422,12 @@ public class RTSWorld {
         for (ObstacleSpawn spawn : pattern) {
             Vector2 pos = spawn.getPosition();
             if (spawn.getShape() == Obstacle.Shape.CIRCLE) {
-                rotated.add(new ObstacleSpawn(
-                        new Vector2(-pos.y, pos.x),
-                        spawn.getSize()
-                ));
+                rotated.add(new ObstacleSpawn(new Vector2(-pos.y, pos.x), spawn.getSize()));
             } else {
-                rotated.add(new ObstacleSpawn(
-                        new Vector2(-pos.y, pos.x),
-                        spawn.getSize(),
-                        spawn.getSides()
-                ));
+                rotated.add(new ObstacleSpawn(new Vector2(-pos.y, pos.x), spawn.getSize(), spawn.getSides()));
             }
         }
         return rotated;
-    }
-
-    /**
-     * Check if a position is within world bounds
-     */
-    public boolean isInBounds(Vector2 position) {
-        return position.x >= minX && position.x <= maxX
-                && position.y >= minY && position.y <= maxY;
-    }
-
-    /**
-     * Check if a position is within world bounds with margin
-     */
-    public boolean isInBounds(Vector2 position, double margin) {
-        return position.x >= minX + margin && position.x <= maxX - margin
-                && position.y >= minY + margin && position.y <= maxY - margin;
     }
 
     /**
@@ -530,14 +482,14 @@ public class RTSWorld {
             this.sides = sides;
             this.vertices = null;
         }
-        
+
         // Irregular polygon constructor
         public ObstacleSpawn(Vector2 position, Vector2[] vertices) {
             this.position = position;
             this.shape = Obstacle.Shape.IRREGULAR_POLYGON;
             this.sides = vertices.length;
             this.vertices = vertices;
-            
+
             // Calculate bounding size from vertices
             double maxDist = 0.0;
             for (Vector2 v : vertices) {
@@ -546,50 +498,64 @@ public class RTSWorld {
             }
             this.size = maxDist;
         }
-        
-        public Vector2 getPosition() { return position; }
-        public double getSize() { return size; }
-        public Obstacle.Shape getShape() { return shape; }
-        public int getSides() { return sides; }
-        public Vector2[] getVertices() { return vertices; }
+
+        public Vector2 getPosition() {
+            return position;
+        }
+
+        public double getSize() {
+            return size;
+        }
+
+        public Obstacle.Shape getShape() {
+            return shape;
+        }
+
+        public int getSides() {
+            return sides;
+        }
+
+        public Vector2[] getVertices() {
+            return vertices;
+        }
     }
-    
+
     /**
      * Generate a random irregular polygon with the given number of vertices
      * GUARANTEED to be convex (required by dyn4j)
-     * 
-     * @param baseRadius Average distance from center
-     * @param vertexCount Number of vertices (3-12)
+     *
+     * @param baseRadius   Average distance from center
+     * @param vertexCount  Number of vertices (3-12)
      * @param irregularity How much vertices deviate from regular polygon (0.0-1.0)
-     * @param spikiness How much radius varies per vertex (0.0-1.0)
-     * @param random Random number generator
+     * @param spikiness    How much radius varies per vertex (0.0-1.0)
+     * @param random       Random number generator
      * @return Array of vertices in counter-clockwise order, guaranteed convex
      */
-    public static Vector2[] generateIrregularPolygon(double baseRadius, int vertexCount, 
-                                                     double irregularity, double spikiness, 
+    public static Vector2[] generateIrregularPolygon(double baseRadius, int vertexCount,
+                                                     double irregularity, double spikiness,
                                                      java.util.Random random) {
         // Clamp parameters
         vertexCount = Math.max(3, Math.min(12, vertexCount));
         irregularity = Math.max(0.0, Math.min(1.0, irregularity));
         spikiness = Math.max(0.0, Math.min(1.0, spikiness));
-        
+
         // Generate evenly spaced angles first
         double angleStep = (2.0 * Math.PI) / vertexCount;
-        
+
         // Limit angle variation to prevent concave shapes
         // Max variation is 40% of angle step to ensure convexity
         double maxAngleVariation = angleStep * 0.4 * irregularity;
-        
+
         double[] angles = new double[vertexCount];
         double currentAngle = 0.0;
-        
+
         for (int i = 0; i < vertexCount; i++) {
             // Add controlled randomness to angle
             double variation = (random.nextDouble() * 2.0 - 1.0) * maxAngleVariation;
             angles[i] = currentAngle + variation;
             currentAngle += angleStep;
         }
-        
+
         // Ensure angles are properly ordered (maintain convexity)
         // Clamp each angle to stay within its sector
         for (int i = 0; i < vertexCount; i++) {
@@ -597,27 +563,27 @@ public class RTSWorld {
             double maxAngle = angleStep * (i + 1);
             angles[i] = Math.max(minAngle, Math.min(maxAngle, angles[i]));
         }
-        
+
         // Generate vertices with varying radii (limited to maintain convexity)
         Vector2[] vertices = new Vector2[vertexCount];
-        
+
         // Limit radius variation to prevent extreme spikes that could cause concavity
         double maxRadiusVariation = baseRadius * spikiness * 0.5; // Max 50% variation
-        
+
         for (int i = 0; i < vertexCount; i++) {
             // Random radius variation (limited)
             double radiusOffset = (random.nextDouble() * 2.0 - 1.0) * maxRadiusVariation;
             double radius = baseRadius + radiusOffset;
-            
+
             // Ensure minimum radius (70% of base to maintain shape)
             radius = Math.max(baseRadius * 0.7, Math.min(baseRadius * 1.3, radius));
-            
+
             // Calculate vertex position
             double x = Math.cos(angles[i]) * radius;
             double y = Math.sin(angles[i]) * radius;
             vertices[i] = new Vector2(x, y);
         }
-        
+
         return vertices;
     }
 }

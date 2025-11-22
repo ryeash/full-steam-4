@@ -25,11 +25,11 @@ public abstract class AbstractOrdinance extends GameEntity {
     protected double size; // Visual size
     protected boolean active = true;
     protected Set<Integer> affectedEntities = new HashSet<>(); // For piercing/multi-hit tracking
-    
-    public AbstractOrdinance(int id, Body body, int ownerId, int ownerTeam, 
-                            Vector2 origin, double damage, 
-                            Set<BulletEffect> bulletEffects, 
-                            Ordinance ordinanceType, double size) {
+
+    public AbstractOrdinance(int id, Body body, int ownerId, int ownerTeam,
+                             Vector2 origin, double damage,
+                             Set<BulletEffect> bulletEffects,
+                             Ordinance ordinanceType, double size) {
         super(id, body, 0);
         this.id = id;
         this.ownerId = ownerId;
@@ -40,40 +40,12 @@ public abstract class AbstractOrdinance extends GameEntity {
         this.ordinanceType = ordinanceType;
         this.size = size;
     }
-    
+
     /**
      * Update the ordinance state
+     *
      * @param deltaTime Time since last update
      */
     public abstract void update(double deltaTime);
-    
-    /**
-     * Check if this ordinance has a specific bullet effect
-     */
-    public boolean hasEffect(BulletEffect effect) {
-        return bulletEffects.contains(effect);
-    }
-    
-    /**
-     * Check if this ordinance has already affected a specific entity
-     * Used for piercing weapons to track what they've hit
-     */
-    public boolean hasAffectedEntity(int entityId) {
-        return affectedEntities.contains(entityId);
-    }
-    
-    /**
-     * Mark an entity as affected by this ordinance
-     */
-    public void markEntityAffected(int entityId) {
-        affectedEntities.add(entityId);
-    }
-    
-    /**
-     * Deactivate this ordinance
-     */
-    public void deactivate() {
-        this.active = false;
-    }
 }
 

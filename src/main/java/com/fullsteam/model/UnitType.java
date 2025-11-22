@@ -19,7 +19,7 @@ public enum UnitType {
             "Worker",
             50,      // resource cost
             10,      // build time (seconds)
-            50,      // max health
+            75,      // max health (+50%)
             100.0,   // movement speed
             5,       // damage
             1.0,     // attack rate
@@ -36,7 +36,7 @@ public enum UnitType {
             "Infantry",
             75,      // resource cost
             5,       // build time (seconds)
-            80,      // max health
+            128,     // max health (+60%)
             120.0,   // movement speed
             18,      // damage (+30% vs beam infantry)
             2.0,     // attack rate
@@ -53,7 +53,7 @@ public enum UnitType {
             "Laser Infantry",
             125,     // resource cost (more expensive than regular infantry)
             7,       // build time (seconds)
-            80,      // max health (same as infantry)
+            128,     // max health (+60%)
             120.0,   // movement speed (same as infantry)
             20,      // damage (higher than infantry)
             1.5,     // attack rate (faster than infantry)
@@ -70,7 +70,7 @@ public enum UnitType {
             "Medic",
             100,     // resource cost
             8,       // build time (seconds)
-            60,      // max health (fragile)
+            90,      // max health (+50%)
             110.0,   // movement speed
             0,       // damage (cannot attack)
             0.0,     // attack rate
@@ -87,7 +87,7 @@ public enum UnitType {
             "Rocket Soldier",
             150,     // resource cost
             8,       // build time (seconds)
-            70,      // max health
+            112,     // max health (+60%)
             110.0,   // movement speed
             40,      // damage
             0.8,     // attack rate (slower)
@@ -104,7 +104,7 @@ public enum UnitType {
             "Sniper",
             200,     // resource cost
             10,      // build time (seconds)
-            50,      // max health (very fragile)
+            80,      // max health (+60%, still fragile)
             100.0,   // movement speed
             65,      // damage (+30% vs beam sniper)
             0.5,     // attack rate (slow, precise shots)
@@ -121,14 +121,14 @@ public enum UnitType {
             "Engineer",
             150,     // resource cost
             12,      // build time (seconds)
-            70,      // max health
+            105,     // max health (+50%)
             105.0,   // movement speed
             0,       // damage (cannot attack)
             0.0,     // attack rate
             0,       // attack range
             13.0,    // size (radius)
             6,       // sides (hexagon)
-            0xFFD700, // gold
+            0x00CED1, // dark turquoise (distinct from yellow worker)
             BuildingType.WEAPONS_DEPOT,
             10       // upkeep cost
     ),
@@ -138,7 +138,7 @@ public enum UnitType {
             "Miner",
             100,     // resource cost
             10,      // build time (seconds)
-            60,      // max health
+            90,      // max health (+50%)
             95.0,    // movement speed (slower than worker)
             0,       // damage (cannot attack)
             0.0,     // attack rate
@@ -155,7 +155,7 @@ public enum UnitType {
             "Jeep",
             200,     // resource cost
             10,      // build time (seconds)
-            120,     // max health
+            168,     // max health (+40%)
             180.0,   // movement speed (fast!)
             26,      // damage (+30% vs beam scout)
             3.0,     // attack rate
@@ -172,7 +172,7 @@ public enum UnitType {
             "Tank",
             400,     // resource cost
             15,      // build time (seconds)
-            300,     // max health
+            390,     // max health (+30%)
             80.0,    // movement speed (slow)
             68,      // damage (+30% vs beam tank)
             1.2,     // attack rate
@@ -189,7 +189,7 @@ public enum UnitType {
             "Artillery",
             500,     // resource cost
             20,      // build time (seconds)
-            150,     // max health
+            180,     // max health (+20%)
             60.0,    // movement speed (very slow)
             117,     // damage (+30% vs beam artillery)
             0.5,     // attack rate (very slow)
@@ -206,7 +206,7 @@ public enum UnitType {
             "Gigantonaut",
             1200,    // resource cost (VERY EXPENSIVE!)
             35,      // build time (seconds) (LONG!)
-            300,     // max health (tanky!)
+            360,     // max health (+20%)
             30.0,    // movement speed (SLOWEST!)
             250,     // damage (MASSIVE!)
             0.3,     // attack rate (EXTREMELY SLOW!)
@@ -223,7 +223,7 @@ public enum UnitType {
             "Crawler",
             1500,    // resource cost (EXPENSIVE!)
             45,      // build time (seconds) (LONG!)
-            2000,    // max health (MASSIVE!)
+            2300,    // max health (+15%)
             40.0,    // movement speed (VERY SLOW!)
             60,      // damage (per turret)
             1.0,     // attack rate
@@ -240,7 +240,7 @@ public enum UnitType {
             "Stealth Tank",
             800,     // resource cost
             25,      // build time (seconds)
-            200,     // max health
+            260,     // max health (+30%)
             100.0,   // movement speed
             50,      // damage
             1.5,     // attack rate
@@ -257,7 +257,7 @@ public enum UnitType {
             "Mammoth Tank",
             1200,    // resource cost
             35,      // build time (seconds)
-            1500,    // max health (very tanky)
+            1800,    // max health (+20%)
             50.0,    // movement speed (very slow)
             80,      // damage (high)
             0.8,     // attack rate (slow but powerful)
@@ -276,7 +276,7 @@ public enum UnitType {
             "Paladin",
             1100,    // resource cost
             32,      // build time (seconds)
-            850,     // max health (very tanky)
+            1105,    // max health (+30%)
             95.0,    // movement speed (moderate)
             70,      // damage (high)
             1.5,     // attack rate (balanced)
@@ -293,7 +293,7 @@ public enum UnitType {
             "Raider",
             900,     // resource cost
             28,      // build time (seconds)
-            280,     // max health (moderate)
+            364,     // max health (+30%)
             220.0,   // movement speed (VERY FAST - fastest unit!)
             55,      // damage (high)
             2.2,     // attack rate (fast)
@@ -310,7 +310,7 @@ public enum UnitType {
             "Colossus",
             1600,    // resource cost (VERY EXPENSIVE!)
             45,      // build time (seconds) (VERY LONG!)
-            2200,    // max health (EXTREMELY TANKY!)
+            2640,    // max health (+20%)
             40.0,    // movement speed (VERY SLOW)
             95,      // damage (very high)
             0.9,     // attack rate (moderate)
@@ -329,7 +329,7 @@ public enum UnitType {
             "Plasma Trooper",
             100,     // resource cost
             6,       // build time (seconds)
-            85,      // max health (slightly tankier than infantry)
+            136,     // max health (+60%)
             115.0,   // movement speed
             14,      // damage (instant hit beam weapon)
             2.0,     // attack rate (fast)
@@ -346,7 +346,7 @@ public enum UnitType {
             "Ion Ranger",
             250,     // resource cost
             12,      // build time (seconds)
-            60,      // max health (fragile)
+            96,      // max health (+60%)
             105.0,   // movement speed
             50,      // damage (instant hit beam weapon)
             0.6,     // attack rate (slow, precise)
@@ -363,7 +363,7 @@ public enum UnitType {
             "Photon Scout",
             220,     // resource cost
             11,      // build time (seconds)
-            110,     // max health
+            154,     // max health (+40%)
             190.0,   // movement speed (very fast!)
             20,      // damage (instant hit beam weapon)
             2.5,     // attack rate (rapid fire)
@@ -380,7 +380,7 @@ public enum UnitType {
             "Beam Tank",
             450,     // resource cost
             16,      // build time (seconds)
-            320,     // max health (tankier than regular tank)
+            416,     // max health (+30%)
             75.0,    // movement speed (slow)
             52,      // damage (instant hit beam weapon)
             1.3,     // attack rate
@@ -397,7 +397,7 @@ public enum UnitType {
             "Pulse Artillery",
             550,     // resource cost
             22,      // build time (seconds)
-            140,     // max health
+            168,     // max health (+20%)
             55.0,    // movement speed (very slow)
             90,      // damage (instant hit beam weapon)
             0.6,     // attack rate (slow)
@@ -414,7 +414,7 @@ public enum UnitType {
             "Photon Titan",
             1400,    // resource cost (VERY EXPENSIVE!)
             40,      // build time (seconds) (LONG!)
-            350,     // max health (very tanky!)
+            420,     // max health (+20%)
             35.0,    // movement speed (VERY SLOW!)
             280,     // damage (MASSIVE!)
             0.4,     // attack rate (slow but devastating)

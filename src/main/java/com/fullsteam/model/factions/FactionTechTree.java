@@ -57,46 +57,6 @@ public class FactionTechTree {
     }
     
     /**
-     * Get which buildings can produce a specific unit for this faction
-     */
-    public List<BuildingType> getProducersFor(UnitType unitType) {
-        return buildingProducers.entrySet().stream()
-                .filter(entry -> entry.getValue().contains(unitType))
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toList());
-    }
-    
-    /**
-     * Helper to create a tech tree with all units/buildings available
-     * Uses the base game's building->unit mappings
-     */
-    public static FactionTechTree createAllAvailable() {
-        Set<BuildingType> allBuildings = new HashSet<>(Arrays.asList(BuildingType.values()));
-        
-        // Build the buildingProducers map from base game data
-        Map<BuildingType, List<UnitType>> buildingProducers = new HashMap<>();
-        for (BuildingType buildingType : BuildingType.values()) {
-            if (buildingType.isCanProduceUnits()) {
-                buildingProducers.put(buildingType, 
-                    Arrays.asList(buildingType.getProducibleUnits()));
-            }
-        }
-        
-        return FactionTechTree.builder()
-                .availableBuildings(allBuildings)
-                .buildingProducers(buildingProducers)
-                .buildingTechTiers(new HashMap<>())
-                .build();
-    }
-    
-    /**
-     * Get the tech tier required for a building (faction-specific override)
-     */
-    public int getTechTierFor(BuildingType buildingType) {
-        return buildingTechTiers.getOrDefault(buildingType, buildingType.getRequiredTechTier());
-    }
-    
-    /**
      * Get which units a building can produce for this faction
      * SINGLE SOURCE OF TRUTH - direct lookup in buildingProducers
      */

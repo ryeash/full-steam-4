@@ -12,36 +12,36 @@ import java.util.List;
  * Idle combat units will scan for enemies based on their AI stance
  */
 public class IdleCommand extends UnitCommand {
-    
+
     private int scanCounter = 0; // Scan every N updates
-    
+
     public IdleCommand(Unit unit) {
         super(unit, false); // Idle is never a player order
     }
-    
+
     @Override
     public boolean update(double deltaTime) {
         // Idle combat units should scan for enemies based on AI stance
         // Use canCurrentlyAttack() to handle special cases (e.g., Crawler must be deployed)
         if (unit.canCurrentlyAttack() && unit.getAiStance().isAutoAttack() && gameEntities != null) {
             scanCounter++;
-            
+
             // Scan every 30 frames (~0.5 seconds at 60fps)
             if (scanCounter >= 30) {
                 scanCounter = 0;
                 scanForEnemies();
             }
         }
-        
+
         return true; // Always active (until replaced by another command)
     }
-    
+
     @Override
     public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
         // No movement for idle units
         unit.getBody().setLinearVelocity(0, 0);
     }
-    
+
     /**
      * Scan for enemies and auto-engage based on AI stance
      * Uses gameEntities to find nearby enemies
@@ -49,7 +49,7 @@ public class IdleCommand extends UnitCommand {
     private void scanForEnemies() {
         Vector2 currentPos = unit.getPosition();
         double visionRange = unit.getUnitType().getVisionRange(); // Vision range (varies by unit type)
-        
+
         // Check for defensive leash (don't chase too far from home)
         if (unit.getAiStance() == AIStance.DEFENSIVE && unit.getHomePosition() != null) {
             double distanceFromHome = currentPos.distance(unit.getHomePosition());
@@ -58,10 +58,10 @@ public class IdleCommand extends UnitCommand {
                 return;
             }
         }
-        
+
         // Use gameEntities to find nearest enemy unit
         Unit nearestEnemy = gameEntities.findNearestEnemyUnit(currentPos, unit.getTeamNumber(), visionRange);
-        
+
         // For defensive stance, check if enemy is within leash range of home
         if (nearestEnemy != null && unit.getAiStance() == AIStance.DEFENSIVE && unit.getHomePosition() != null) {
             double enemyDistanceFromHome = nearestEnemy.getPosition().distance(unit.getHomePosition());
@@ -69,16 +69,16 @@ public class IdleCommand extends UnitCommand {
                 nearestEnemy = null; // Ignore this enemy
             }
         }
-        
+
         // If found an enemy unit, engage it
         if (nearestEnemy != null) {
-            unit.orderAttack(nearestEnemy);
+            unit.issueCommand(new AttackUnitCommand(unit, nearestEnemy, false));
             return;
         }
-        
+
         // Use gameEntities to find nearest enemy building (lower priority than units)
         Building nearestEnemyBuilding = gameEntities.findNearestEnemyBuilding(currentPos, unit.getTeamNumber(), visionRange);
-        
+
         // For defensive stance, check if building is within leash range of home
         if (nearestEnemyBuilding != null && unit.getAiStance() == AIStance.DEFENSIVE && unit.getHomePosition() != null) {
             double buildingDistanceFromHome = nearestEnemyBuilding.getPosition().distance(unit.getHomePosition());
@@ -86,13 +86,13 @@ public class IdleCommand extends UnitCommand {
                 nearestEnemyBuilding = null; // Ignore this building
             }
         }
-        
+
         // If found an enemy building, engage it
         if (nearestEnemyBuilding != null) {
-            unit.orderAttackBuilding(nearestEnemyBuilding);
+            unit.issueCommand(new AttackBuildingCommand(unit, nearestEnemyBuilding, false));
         }
     }
-    
+
     @Override
     public String getDescription() {
         return "Idle";

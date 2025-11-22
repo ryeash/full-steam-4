@@ -771,7 +771,7 @@ class RTSEngine {
             'MEDIC': { sides: 6, size: 12, color: 0xFFFFFF },
             'ROCKET_SOLDIER': { sides: 3, size: 12, color: 0xFF8800 },
             'SNIPER': { sides: 3, size: 12, color: 0x8B4513 },
-            'ENGINEER': { sides: 6, size: 13, color: 0xFFD700 },
+            'ENGINEER': { sides: 6, size: 13, color: 0x00CED1 }, // Dark turquoise (distinct from yellow worker)
             'MINER': { sides: 8, size: 14, color: 0x8B4513 },
             'JEEP': { sides: 4, size: 20, color: 0x00FFFF },
             'TANK': { sides: 5, size: 30, color: 0x8888FF },
@@ -1127,8 +1127,8 @@ class RTSEngine {
         // Update aura visualization for monuments
         const monumentTypes = {
             'PHOTON_SPIRE': { radius: 250, color: 0x00FF00 },
-            'QUANTUM_NEXUS': { radius: 220, color: 0x9370DB },
-            'SANDSTORM_GENERATOR': { radius: 200, color: 0xDEB887 }
+            'QUANTUM_NEXUS': { radius: 280, color: 0x9370DB },
+            'SANDSTORM_GENERATOR': { radius: 300, color: 0xDEB887 }
         };
         
         if (monumentTypes[buildingData.type]) {
@@ -1145,20 +1145,77 @@ class RTSEngine {
             if (buildingData.auraActive && !buildingData.underConstruction) {
                 const monumentInfo = monumentTypes[buildingData.type];
                 
-                // Pulsing effect based on time
-                const pulseSpeed = 2.0;
-                const pulseAmount = 0.15;
-                const pulse = Math.sin(Date.now() / 1000 * pulseSpeed) * pulseAmount + 1.0;
-                
-                aura.circle(0, 0, monumentInfo.radius);
-                aura.stroke({ width: 2, color: monumentInfo.color, alpha: 0.2 * pulse });
-                aura.fill({ color: monumentInfo.color, alpha: 0.03 * pulse });
-                
-                // Add glow to the building itself
-                if (buildingContainer.shapeGraphics) {
-                    buildingContainer.shapeGraphics.filters = buildingContainer.shapeGraphics.filters || [];
-                    // Simple glow by adding a slight alpha overlay
-                    buildingContainer.alpha = 0.9 + (0.1 * pulse);
+                // Special swirling sandy effect for Sandstorm Generator
+                if (buildingData.type === 'SANDSTORM_GENERATOR') {
+                    const time = Date.now() / 1000;
+                    const radius = monumentInfo.radius;
+                    
+                    // Draw multiple rotating spiral layers for sandy swirl effect
+                    const numSpirals = 3;
+                    for (let spiral = 0; spiral < numSpirals; spiral++) {
+                        const spiralOffset = (spiral / numSpirals) * Math.PI * 2;
+                        const rotationSpeed = 0.5 + (spiral * 0.2);
+                        const rotation = time * rotationSpeed + spiralOffset;
+                        
+                        // Draw swirling arcs
+                        const numArcs = 8;
+                        for (let i = 0; i < numArcs; i++) {
+                            const angle = (i / numArcs) * Math.PI * 2 + rotation;
+                            const arcRadius = radius * (0.3 + (i / numArcs) * 0.7);
+                            const arcLength = Math.PI * 0.4;
+                            
+                            // Pulsing opacity
+                            const pulse = Math.sin(time * 2 + spiral + i) * 0.3 + 0.7;
+                            const opacity = 0.15 * pulse;
+                            
+                            // Draw curved arc for sandy particle effect
+                            aura.moveTo(
+                                Math.cos(angle) * arcRadius,
+                                Math.sin(angle) * arcRadius
+                            );
+                            aura.arc(0, 0, arcRadius, angle, angle + arcLength);
+                            aura.stroke({ width: 3 + spiral, color: monumentInfo.color, alpha: opacity });
+                        }
+                    }
+                    
+                    // Add outer ring that pulses
+                    const outerPulse = Math.sin(time * 1.5) * 0.2 + 0.8;
+                    aura.circle(0, 0, radius * outerPulse);
+                    aura.stroke({ width: 2, color: monumentInfo.color, alpha: 0.25 });
+                    
+                    // Add sandy particles (small circles scattered around)
+                    const numParticles = 20;
+                    for (let i = 0; i < numParticles; i++) {
+                        const particleAngle = (i / numParticles) * Math.PI * 2 + time * 0.8;
+                        const particleDistance = radius * (0.5 + Math.sin(time + i) * 0.3);
+                        const particleX = Math.cos(particleAngle) * particleDistance;
+                        const particleY = Math.sin(particleAngle) * particleDistance;
+                        const particleSize = 2 + Math.sin(time * 3 + i) * 1;
+                        
+                        aura.circle(particleX, particleY, particleSize);
+                        aura.fill({ color: monumentInfo.color, alpha: 0.4 });
+                    }
+                    
+                    // Add subtle fill to show danger zone
+                    aura.circle(0, 0, radius);
+                    aura.fill({ color: monumentInfo.color, alpha: 0.04 });
+                    
+                } else {
+                    // Standard pulsing effect for other monuments
+                    const pulseSpeed = 2.0;
+                    const pulseAmount = 0.15;
+                    const pulse = Math.sin(Date.now() / 1000 * pulseSpeed) * pulseAmount + 1.0;
+                    
+                    aura.circle(0, 0, monumentInfo.radius);
+                    aura.stroke({ width: 2, color: monumentInfo.color, alpha: 0.2 * pulse });
+                    aura.fill({ color: monumentInfo.color, alpha: 0.03 * pulse });
+                    
+                    // Add glow to the building itself
+                    if (buildingContainer.shapeGraphics) {
+                        buildingContainer.shapeGraphics.filters = buildingContainer.shapeGraphics.filters || [];
+                        // Simple glow by adding a slight alpha overlay
+                        buildingContainer.alpha = 0.9 + (0.1 * pulse);
+                    }
                 }
             } else {
                 // Reset alpha when inactive
@@ -3047,8 +3104,8 @@ class RTSEngine {
         // Monument aura info
         const monumentInfo = {
             'PHOTON_SPIRE': { name: 'Beam Amplifier', effect: '+35% beam damage', radius: 250 },
-            'QUANTUM_NEXUS': { name: 'Quantum Shield', effect: '+25% max health', radius: 220 },
-            'SANDSTORM_GENERATOR': { name: 'Sandstorm', effect: '15 damage/3s to enemies', radius: 200 }
+            'QUANTUM_NEXUS': { name: 'Quantum Shield', effect: '+25% max health', radius: 280 },
+            'SANDSTORM_GENERATOR': { name: 'Sandstorm', effect: '5 damage/sec to enemies', radius: 300 }
         };
         
         if (monumentInfo[buildingData.type]) {

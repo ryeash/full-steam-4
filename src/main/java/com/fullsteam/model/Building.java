@@ -69,13 +69,12 @@ public class Building extends GameEntity {
     private Body auraSensorBody = null;
     private boolean auraActive = false;
     private static final double PHOTON_SPIRE_RADIUS = 250.0; // Beam damage amplification radius
-    private static final double QUANTUM_NEXUS_RADIUS = 220.0; // Shield/armor bonus radius
-    private static final double SANDSTORM_RADIUS = 200.0; // Sandstorm damage radius
+    private static final double QUANTUM_NEXUS_RADIUS = 280.0; // Shield/armor bonus radius - increased from 220
+    private static final double SANDSTORM_RADIUS = 300.0; // Sandstorm damage radius - increased from 200
     private static final double PHOTON_SPIRE_DAMAGE_MULTIPLIER = 1.35; // +35% beam damage
     private static final double QUANTUM_NEXUS_HEALTH_MULTIPLIER = 1.25; // +25% max health
     private double sandstormTimer = 0; // Time accumulator for sandstorm pulses
-    private static final double SANDSTORM_INTERVAL = 3.0; // Damage every 3 seconds
-    private static final double SANDSTORM_DAMAGE = 15.0; // Damage per pulse
+    private static final double SANDSTORM_DPS = 15.0; // Damage per second (continuous)
     
     public Building(int id, BuildingType buildingType, double x, double y, int ownerId, int teamNumber) {
         this(id, buildingType, x, y, ownerId, teamNumber, buildingType.getMaxHealth());
@@ -389,7 +388,7 @@ public class Building extends GameEntity {
         Set<BulletEffect> effects = new HashSet<>();
         
         return new Projectile(
-                id,
+                com.fullsteam.util.IdGenerator.nextEntityId(), // Use proper unique ID
                 turretPos.x,
                 turretPos.y,
                 velocity.x,
@@ -607,27 +606,10 @@ public class Building extends GameEntity {
     }
     
     /**
-     * Check if sandstorm is ready to pulse and reset timer
-     * @return true if sandstorm should pulse
+     * Get sandstorm damage per second (for continuous damage)
      */
-    public boolean checkAndResetSandstorm() {
-        if (buildingType != BuildingType.SANDSTORM_GENERATOR || !auraActive) {
-            return false;
-        }
-        
-        if (sandstormTimer >= SANDSTORM_INTERVAL) {
-            sandstormTimer = 0;
-            return true;
-        }
-        
-        return false;
-    }
-    
-    /**
-     * Get sandstorm damage amount
-     */
-    public double getSandstormDamage() {
-        return SANDSTORM_DAMAGE;
+    public double getSandstormDPS() {
+        return SANDSTORM_DPS;
     }
     
     /**

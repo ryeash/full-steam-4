@@ -2,7 +2,6 @@ package com.fullsteam.model.command;
 
 import com.fullsteam.model.AbstractOrdinance;
 import com.fullsteam.model.Building;
-import com.fullsteam.model.Projectile;
 import com.fullsteam.model.Unit;
 import lombok.Getter;
 import lombok.Setter;
@@ -19,16 +18,16 @@ public class AttackMoveCommand extends UnitCommand {
     private final Vector2 destination;
     private List<Vector2> path = new ArrayList<>();
     private int currentPathIndex = 0;
-    
+
     // Auto-acquired target (unit will engage while moving)
     @Setter
     private Unit autoTarget = null;
-    
+
     public AttackMoveCommand(Unit unit, Vector2 destination, boolean isPlayerOrder) {
         super(unit, isPlayerOrder);
         this.destination = destination.copy();
     }
-    
+
     /**
      * Set the pathfinding path for this attack-move command
      */
@@ -36,7 +35,7 @@ public class AttackMoveCommand extends UnitCommand {
         this.path = new ArrayList<>(path);
         this.currentPathIndex = 0;
     }
-    
+
     @Override
     public boolean update(double deltaTime) {
         // Check if we've reached the destination
@@ -45,25 +44,25 @@ public class AttackMoveCommand extends UnitCommand {
             unit.getBody().setLinearVelocity(0, 0);
             return false; // Command complete
         }
-        
+
         // Clear invalid auto-target
         if (autoTarget != null && !autoTarget.isActive()) {
             autoTarget = null;
         }
-        
+
         return true; // Still moving
     }
-    
+
     @Override
     public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
         Vector2 currentPos = unit.getPosition();
-        
+
         // If we have an auto-target, move towards it (but don't stop at destination)
         if (autoTarget != null && autoTarget.isActive()) {
             Vector2 targetPos = autoTarget.getPosition();
             double distance = currentPos.distance(targetPos);
             double attackRange = unit.getUnitType().getAttackRange();
-            
+
             // Move into range if too far
             if (distance > attackRange * 0.9) {
                 unit.applySteeringForces(targetPos, nearbyUnits, deltaTime);
@@ -74,45 +73,44 @@ public class AttackMoveCommand extends UnitCommand {
                 return;
             }
         }
-        
+
         // No target, continue moving to destination
         if (!path.isEmpty() && currentPathIndex < path.size()) {
             Vector2 nextWaypoint = path.get(currentPathIndex);
             double distanceToWaypoint = currentPos.distance(nextWaypoint);
-            
+
             // Move to next waypoint if close enough
             if (distanceToWaypoint < 20.0 && currentPathIndex < path.size() - 1) {
                 currentPathIndex++;
             }
-            
+
             // Apply steering forces towards current waypoint
             unit.applySteeringForces(nextWaypoint, nearbyUnits, deltaTime);
         } else if (destination != null) {
             // No path, move directly to destination
             double distance = currentPos.distance(destination);
-            
+
             if (distance < 10.0) {
                 // Reached destination, stop
                 unit.getBody().setLinearVelocity(0, 0);
                 return;
             }
-            
+
             // Apply steering forces towards destination
             unit.applySteeringForces(destination, nearbyUnits, deltaTime);
         }
     }
-    
+
     @Override
     public AbstractOrdinance updateCombat(double deltaTime) {
         // If we have an auto-target, engage it
         if (autoTarget != null && autoTarget.isActive()) {
             // Call engage method with target parameter and gameEntities
-            return unit.engageTarget(autoTarget, deltaTime, gameEntities);
+            return new AttackUnitCommand(unit, autoTarget, false).updateCombat(deltaTime);
         }
-        
         return null;
     }
-    
+
     /**
      * Scan for enemies and auto-acquire target
      * Called by RTSGameManager during enemy scanning
@@ -121,14 +119,14 @@ public class AttackMoveCommand extends UnitCommand {
         if (!unit.getUnitType().canAttack()) {
             return false;
         }
-        
+
         Vector2 currentPos = unit.getPosition();
         double visionRange = unit.getUnitType().getAttackRange() * 1.5;
-        
+
         // Find nearest enemy unit in vision range
         Unit nearestEnemy = null;
         double nearestDistance = Double.MAX_VALUE;
-        
+
         for (Unit other : allUnits) {
             if (other.getTeamNumber() != unit.getTeamNumber() && other.isActive()) {
                 double distance = currentPos.distance(other.getPosition());
@@ -138,15 +136,15 @@ public class AttackMoveCommand extends UnitCommand {
                 }
             }
         }
-        
+
         if (nearestEnemy != null) {
             autoTarget = nearestEnemy;
             return true;
         }
-        
+
         return false;
     }
-    
+
     @Override
     public Vector2 getTargetPosition() {
         // If engaging, target position is the enemy
@@ -156,16 +154,16 @@ public class AttackMoveCommand extends UnitCommand {
         // Otherwise, target is the destination
         return destination;
     }
-    
+
     @Override
     public boolean isMoving() {
         return true;
     }
-    
+
     @Override
     public String getDescription() {
         if (autoTarget != null && autoTarget.isActive()) {
-            return String.format("Attack-move to (%.1f, %.1f) - engaging unit %d", 
+            return String.format("Attack-move to (%.1f, %.1f) - engaging unit %d",
                     destination.x, destination.y, autoTarget.getId());
         }
         return String.format("Attack-move to (%.1f, %.1f)", destination.x, destination.y);

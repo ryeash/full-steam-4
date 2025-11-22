@@ -2,7 +2,13 @@ package com.fullsteam.model;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fullsteam.model.command.AttackBuildingCommand;
+import com.fullsteam.model.command.AttackGroundCommand;
 import com.fullsteam.model.command.AttackMoveCommand;
+import com.fullsteam.model.command.AttackUnitCommand;
+import com.fullsteam.model.command.AttackWallSegmentCommand;
+import com.fullsteam.model.command.ConstructCommand;
+import com.fullsteam.model.command.GarrisonBunkerCommand;
 import com.fullsteam.model.command.HarvestCommand;
 import com.fullsteam.model.command.MineCommand;
 import com.fullsteam.model.command.MoveCommand;
@@ -480,8 +486,8 @@ public class RTSGameManager {
 
                 // Multi-turret AI for deployed units (e.g., Crawler)
                 if (!unit.getTurrets().isEmpty()) {
-                    for (UnitTurret turret : unit.getTurrets()) {
-                        Projectile projectile = turret.update(unit, gameEntities, deltaTime, frameCount);
+                    for (Turret turret : unit.getTurrets()) {
+                        Projectile projectile = turret.update(unit, gameEntities, frameCount);
                         if (projectile != null) {
                             projectiles.put(projectile.getId(), projectile);
                             world.addBody(projectile.getBody());
@@ -651,21 +657,25 @@ public class RTSGameManager {
                     }
                 }
 
-                // Process sandstorm damage (periodic area damage)
+                // Process sandstorm damage (continuous DPS applied every tick)
                 if (building.getBuildingType() == BuildingType.SANDSTORM_GENERATOR &&
-                        !building.isUnderConstruction() && building.checkAndResetSandstorm()) {
-                    // Deal damage to all enemy units in range
+                        !building.isUnderConstruction() && building.isAuraActive()) {
+                    // Deal damage to all enemy units in range every tick
                     Vector2 sandstormPos = building.getPosition();
                     double sandstormRadius = building.getAuraRadius();
-                    double damage = building.getSandstormDamage();
+                    double dps = building.getSandstormDPS();
+                    double damageThisTick = dps * deltaTime; // Convert DPS to damage per tick
 
                     units.values().stream()
                             .filter(u -> u.isActive() && u.getTeamNumber() != building.getTeamNumber())
                             .forEach(u -> {
                                 double distance = sandstormPos.distance(u.getPosition());
                                 if (distance <= sandstormRadius) {
-                                    u.takeDamage(damage);
-                                    log.debug("Sandstorm damaged unit {} for {}", u.getId(), damage);
+                                    u.takeDamage(damageThisTick);
+                                    // Less verbose logging since this happens every tick
+                                    if (Math.random() < 0.01) { // Log 1% of the time
+                                        log.debug("Sandstorm damaging unit {} for {} DPS", u.getId(), dps);
+                                    }
                                 }
                             });
                 }
@@ -765,7 +775,7 @@ public class RTSGameManager {
                         );
 
                         // Use command pattern
-                        u.orderMove(destination);
+                        u.issueCommand(new MoveCommand(u, destination, true));
 
                         // Set the pathfinding path on the command
                         if (u.getCurrentCommand() instanceof MoveCommand) {
@@ -790,11 +800,9 @@ public class RTSGameManager {
                                 gameConfig.getWorldWidth(),
                                 gameConfig.getWorldHeight()
                         );
-
-                        // Combat units get attack-move, non-combat units get regular move
-                        u.setPath(path, true);
-                        // Non-combat units just move normally
-                        u.setAttackMoving(u.getUnitType().canAttack());
+                        AttackMoveCommand cmd = new AttackMoveCommand(u, destination, true);
+                        cmd.setPath(path);
+                        u.issueCommand(cmd);
                     });
         }
 
@@ -804,7 +812,7 @@ public class RTSGameManager {
             if (target != null) {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected())
-                        .forEach(u -> u.orderAttack(target));
+                        .forEach(u -> u.issueCommand(new AttackUnitCommand(u, target, true)));
             }
         }
 
@@ -813,7 +821,7 @@ public class RTSGameManager {
             if (target != null) {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected())
-                        .forEach(u -> u.orderAttackBuilding(target));
+                        .forEach(u -> u.issueCommand(new AttackBuildingCommand(u, target, true)));
             }
         }
 
@@ -822,7 +830,7 @@ public class RTSGameManager {
             if (target != null) {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected())
-                        .forEach(u -> u.orderAttackWallSegment(target));
+                        .forEach(u -> u.issueCommand(new AttackWallSegmentCommand(u, target, true)));
             }
         }
 
@@ -833,7 +841,7 @@ public class RTSGameManager {
                     .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().canAttack())
                     .forEach(u -> {
                         // Issue force attack order first (sets all the flags correctly)
-                        u.orderForceAttack(targetPosition);
+                        u.issueCommand(new AttackGroundCommand(u, targetPosition, true));
 
                         // Then calculate and set the path
                         List<Vector2> path = Pathfinding.findPath(
@@ -855,12 +863,9 @@ public class RTSGameManager {
         if (input.getHarvestOrder() != null) {
             ResourceDeposit deposit = resourceDeposits.get(input.getHarvestOrder());
             if (deposit != null) {
-                long workerCount = units.values().stream()
-                        .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().canHarvest())
-                        .count();
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().canHarvest())
-                        .forEach(u -> u.orderHarvest(deposit));
+                        .forEach(u -> u.issueCommand(new HarvestCommand(u, deposit, true)));
             }
         }
 
@@ -870,7 +875,7 @@ public class RTSGameManager {
             if (obstacle != null && obstacle.isDestructible()) {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().canMine())
-                        .forEach(u -> u.orderMine(obstacle));
+                        .forEach(u -> u.issueCommand(new MineCommand(u, obstacle, true)));
                 log.info("Player {} ordered miners to destroy obstacle {}", playerId, obstacle.getId());
             }
         }
@@ -881,7 +886,7 @@ public class RTSGameManager {
             if (building != null && building.isUnderConstruction() && building.belongsTo(playerId)) {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().canBuild())
-                        .forEach(u -> u.orderConstruct(building));
+                        .forEach(u -> u.issueCommand(new ConstructCommand(u, building, true)));
             }
         }
 
@@ -971,8 +976,7 @@ public class RTSGameManager {
                     bunker.belongsTo(playerId) && !bunker.isUnderConstruction()) {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().isInfantry())
-                        .forEach(u -> u.orderGarrison(bunker));
-                log.info("Player {} ordered units to garrison in bunker {}", playerId, bunker.getId());
+                        .forEach(u -> u.issueCommand(new GarrisonBunkerCommand(u, bunker, true)));
             }
         }
 
@@ -1024,9 +1028,35 @@ public class RTSGameManager {
                 return; // Reject the build order
             }
 
-            if (location != null
-                    && canAffordBuilding(faction, buildingType)
-                    && isValidBuildLocation(location, buildingType, playerId)) {
+            if (location != null) {
+                // Check affordability first and provide feedback
+                if (!canAffordBuilding(faction, buildingType)) {
+                    int cost = faction.getBuildingCost(buildingType);
+                    int currentCredits = faction.getResources().get(ResourceType.CREDITS);
+                    log.warn("Player {} tried to build {} but cannot afford it (cost: {}, has: {})",
+                            playerId, buildingType, cost, currentCredits);
+                    sendGameEvent(GameEvent.createPlayerEvent(
+                            String.format("💰 Insufficient funds! %s costs %d credits (you have %d)",
+                                    buildingType.getDisplayName(), cost, currentCredits),
+                            playerId,
+                            GameEvent.EventCategory.WARNING
+                    ));
+                    return;
+                }
+                
+                // Check valid build location
+                if (!isValidBuildLocation(location, buildingType, playerId)) {
+                    log.warn("Player {} tried to build {} at invalid location ({}, {})",
+                            playerId, buildingType, location.x, location.y);
+                    sendGameEvent(GameEvent.createPlayerEvent(
+                            "⚠️ Cannot place building here - location is blocked or too close to other structures",
+                            playerId,
+                            GameEvent.EventCategory.WARNING
+                    ));
+                    return;
+                }
+                
+                // All checks passed - proceed with building
                 // Deduct resources (use faction-modified cost)
                 int cost = faction.getBuildingCost(buildingType);
                 faction.removeResources(ResourceType.CREDITS, cost);
@@ -1049,7 +1079,7 @@ public class RTSGameManager {
                 // Order selected workers to construct it
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().canBuild())
-                        .forEach(u -> u.orderConstruct(building));
+                        .forEach(u -> u.issueCommand(new ConstructCommand(u, building, true)));
 
                 log.debug("Player {} placed {} at ({}, {})", playerId, buildingType, location.x, location.y);
             }
@@ -1103,7 +1133,16 @@ public class RTSGameManager {
 
                     // Check if player can afford the unit
                     if (!canAffordUnit(faction, unitType)) {
-                        log.warn("Player {} tried to produce {} but cannot afford it", playerId, unitType);
+                        int cost = faction.getUnitCost(unitType);
+                        int currentCredits = faction.getResources().get(ResourceType.CREDITS);
+                        log.warn("Player {} tried to produce {} but cannot afford it (cost: {}, has: {})", 
+                                playerId, unitType, cost, currentCredits);
+                        sendGameEvent(GameEvent.createPlayerEvent(
+                                String.format("💰 Insufficient funds! %s costs %d credits (you have %d)",
+                                        unitType.getDisplayName(), cost, currentCredits),
+                                playerId,
+                                GameEvent.EventCategory.WARNING
+                        ));
                         return;
                     }
 
@@ -1164,7 +1203,7 @@ public class RTSGameManager {
 
         // Order unit to rally point
         if (building.getRallyPoint() != null) {
-            unit.orderMove(building.getRallyPoint());
+            unit.issueCommand(new MoveCommand(unit, building.getRallyPoint(), false));
         }
 
         log.info("Spawned {} for player {} from building {}", unitType, building.getOwnerId(), building.getId());
@@ -1177,21 +1216,21 @@ public class RTSGameManager {
         Vector2 buildingPos = building.getPosition();
         double buildingSize = building.getBuildingType().getSize();
         double unitSize = 15.0; // Approximate unit size for collision checking
-        
+
         // Try positions at increasing distances from the building
-        for (int ring = 0; ring < 3; ring++) {
-            double offset = buildingSize + 30 + (ring * 25); // Increase distance each ring
-            
-            // Try 8 positions around the building at this distance
-            for (int i = 0; i < 8; i++) {
-                double angle = (Math.PI * 2 * i) / 8;
+        for (int ring = 0; ring < 5; ring++) { // Increased from 3 to 5 rings
+            double offset = buildingSize + 25 + (ring * 20); // Start closer, smaller increments
+
+            // Try 12 positions around the building at this distance (increased from 8)
+            for (int i = 0; i < 12; i++) {
+                double angle = (Math.PI * 2 * i) / 12;
                 double x = buildingPos.x + Math.cos(angle) * offset;
                 double y = buildingPos.y + Math.sin(angle) * offset;
                 Vector2 candidatePos = new Vector2(x, y);
-                
+
                 // Use collision processor for validation (centralized spatial logic)
                 if (collisionProcessor.isValidSpawnPosition(
-                        candidatePos, 
+                        candidatePos,
                         unitSize,
                         resourceDeposits,
                         gameConfig.getWorldWidth(),
@@ -1201,11 +1240,19 @@ public class RTSGameManager {
                 }
             }
         }
+
+        // If no valid position found after rings, try a simpler approach
+        // Just place it at a fixed distance in a random direction
+        double angle = Math.random() * Math.PI * 2;
+        double distance = buildingSize + 40; // Guaranteed outside building
+        Vector2 fallbackPos = new Vector2(
+            buildingPos.x + Math.cos(angle) * distance,
+            buildingPos.y + Math.sin(angle) * distance
+        );
         
-        // If no valid position found after 3 rings, spawn at building position (fallback)
-        log.warn("Could not find valid spawn position near building {}, spawning at building location", 
+        log.warn("Could not find optimal spawn position near building {}, using fallback position outside building",
                 building.getId());
-        return buildingPos.copy();
+        return fallbackPos;
     }
 
     /**
@@ -1785,6 +1832,24 @@ public class RTSGameManager {
                 if (building.getBuildingType() == BuildingType.WALL) {
                     removeWallSegmentsForPost(building);
                 }
+                
+                // Ungarrison all units from bunkers when destroyed
+                if (building.getBuildingType() == BuildingType.BUNKER && building.getGarrisonCount() > 0) {
+                    List<Unit> ungarrisonedUnits = building.ungarrisonAllUnits();
+                    log.info("Bunker {} destroyed - ungarrisoned {} units", building.getId(), ungarrisonedUnits.size());
+                    
+                    // Re-enable units in physics world
+                    for (Unit unit : ungarrisonedUnits) {
+                        if (!units.containsKey(unit.getId())) {
+                            // Add unit back to the units map if it was removed
+                            units.put(unit.getId(), unit);
+                        }
+                        // Ensure body is added to world (it should already be enabled by ungarrisonUnit)
+                        if (!world.containsBody(unit.getBody())) {
+                            world.addBody(unit.getBody());
+                        }
+                    }
+                }
 
                 // Remove shield sensor body for Shield Generator
                 if (building.getBuildingType() == BuildingType.SHIELD_GENERATOR &&
@@ -1880,7 +1945,7 @@ public class RTSGameManager {
         // Define tech requirements (must match FactionInfoService)
         return switch (buildingType) {
             // T1 - Always available
-            case POWER_PLANT, BARRACKS, REFINERY, WALL -> true;
+            case POWER_PLANT, BARRACKS, REFINERY, BUNKER, WALL -> true;
 
             // T2 - Requires Power Plant
             case RESEARCH_LAB, FACTORY, WEAPONS_DEPOT, TURRET, SHIELD_GENERATOR ->
@@ -1891,7 +1956,7 @@ public class RTSGameManager {
                     playerBuildings.contains(BuildingType.RESEARCH_LAB);
 
             // Monument Buildings - Requires Power Plant + Research Lab (T3)
-            case BUNKER, SANDSTORM_GENERATOR, QUANTUM_NEXUS, PHOTON_SPIRE ->
+            case SANDSTORM_GENERATOR, QUANTUM_NEXUS, PHOTON_SPIRE ->
                     playerBuildings.contains(BuildingType.POWER_PLANT) &&
                             playerBuildings.contains(BuildingType.RESEARCH_LAB);
 
@@ -2079,12 +2144,12 @@ public class RTSGameManager {
                 int segments = 16;
                 double radius = circle.getRadius();
                 Vector2 center = circle.getCenter();
-                
+
                 for (int j = 0; j < segments; j++) {
                     double angle = (2.0 * Math.PI * j) / segments;
                     double x = center.x + radius * Math.cos(angle);
                     double y = center.y + radius * Math.sin(angle);
-                    
+
                     List<Double> point = new ArrayList<>();
                     point.add(x);
                     point.add(y);
@@ -2129,7 +2194,7 @@ public class RTSGameManager {
         // Serialize turrets if unit has them (e.g., deployed Crawler)
         if (!unit.getTurrets().isEmpty()) {
             List<Map<String, Object>> turretsData = new ArrayList<>();
-            for (UnitTurret turret : unit.getTurrets()) {
+            for (Turret turret : unit.getTurrets()) {
                 Map<String, Object> turretData = new HashMap<>();
                 turretData.put("index", turret.getIndex());
                 turretData.put("offsetX", turret.getOffset().x);
@@ -2339,8 +2404,10 @@ public class RTSGameManager {
         data.put("id", projectile.getId());
         data.put("x", projectile.getPosition().x);
         data.put("y", projectile.getPosition().y);
-        data.put("vx", projectile.getVelocity().x);
-        data.put("vy", projectile.getVelocity().y);
+        // Get velocity from physics body (single source of truth)
+        Vector2 velocity = projectile.getBody().getLinearVelocity();
+        data.put("vx", velocity.x);
+        data.put("vy", velocity.y);
         data.put("rotation", projectile.getRotation());
         data.put("ownerId", projectile.getOwnerId());
         data.put("team", projectile.getOwnerTeam());

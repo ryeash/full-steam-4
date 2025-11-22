@@ -31,13 +31,13 @@ public enum AIStance {
     private final String displayName;
     private final String description;
     private final boolean autoAttack;
-    private final boolean pursuEnemies;
+    private final boolean pursueEnemies;
     
-    AIStance(String displayName, String description, boolean autoAttack, boolean pursuEnemies) {
+    AIStance(String displayName, String description, boolean autoAttack, boolean pursueEnemies) {
         this.displayName = displayName;
         this.description = description;
         this.autoAttack = autoAttack;
-        this.pursuEnemies = pursuEnemies;
+        this.pursueEnemies = pursueEnemies;
     }
 }
 

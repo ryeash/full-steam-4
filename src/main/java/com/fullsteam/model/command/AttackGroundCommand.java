@@ -1,7 +1,6 @@
 package com.fullsteam.model.command;
 
 import com.fullsteam.model.AbstractOrdinance;
-import com.fullsteam.model.Projectile;
 import com.fullsteam.model.Unit;
 import lombok.Getter;
 import org.dyn4j.geometry.Vector2;
@@ -15,24 +14,24 @@ import java.util.List;
 @Getter
 public class AttackGroundCommand extends UnitCommand {
     private final Vector2 groundTarget;
-    
+
     public AttackGroundCommand(Unit unit, Vector2 groundTarget, boolean isPlayerOrder) {
         super(unit, isPlayerOrder);
         this.groundTarget = groundTarget.copy();
     }
-    
+
     @Override
     public boolean update(double deltaTime) {
         // Command stays active until cancelled
         return true;
     }
-    
+
     @Override
     public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
         Vector2 currentPos = unit.getPosition();
         double distance = currentPos.distance(groundTarget);
         double attackRange = unit.getUnitType().getAttackRange();
-        
+
         // Move into range if too far
         if (distance > attackRange * 0.9) {
             unit.applySteeringForces(groundTarget, nearbyUnits, deltaTime);
@@ -41,33 +40,49 @@ public class AttackGroundCommand extends UnitCommand {
             unit.getBody().setLinearVelocity(0, 0);
         }
     }
-    
+
     @Override
     public AbstractOrdinance updateCombat(double deltaTime) {
+        if (groundTarget == null) {
+            return null;
+        }
+
         Vector2 currentPos = unit.getPosition();
         double distance = currentPos.distance(groundTarget);
-        double attackRange = unit.getUnitType().getAttackRange();
-        
-        // Only fire if in range
-        if (distance <= attackRange * 0.9) {
-            return unit.engageGroundTarget(groundTarget, deltaTime, gameEntities);
+
+        // Check if in range
+        if (distance <= unit.getAttackRange() * 0.9) {
+            // Stop moving when in range
+            unit.getBody().setLinearVelocity(0, 0);
+
+            // Face target
+            Vector2 direction = groundTarget.copy().subtract(currentPos);
+            unit.setRotation(Math.atan2(direction.y, direction.x));
+
+            // Attack if cooldown is ready
+            long now = System.currentTimeMillis();
+            double attackInterval = 1000.0 / unit.getAttackRate();
+            if (now - unit.getLastAttackTime() >= attackInterval) {
+                unit.setLastAttackTime(now);
+                // Fire projectile or beam at ground location (world from gameEntities)
+                return unit.fireAt(groundTarget, gameEntities != null ? gameEntities.getWorld() : null);
+            }
         }
-        
         return null;
     }
-    
+
     @Override
     public Vector2 getTargetPosition() {
         return groundTarget;
     }
-    
+
     @Override
     public boolean isMoving() {
         double distance = unit.getPosition().distance(groundTarget);
         double attackRange = unit.getUnitType().getAttackRange();
         return distance > attackRange * 0.9;
     }
-    
+
     @Override
     public String getDescription() {
         return String.format("Attack ground at (%.1f, %.1f)", groundTarget.x, groundTarget.y);
