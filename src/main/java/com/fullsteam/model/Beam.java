@@ -70,7 +70,7 @@ public class Beam extends AbstractOrdinance {
                 Body ignoredBody) {
         // Create body with raycast results BEFORE calling super
         super(id, 
-              createBeamBodyWithRaycast(world, start, targetDirection, maxRange, width, ignoredBody),
+              createBeamBodyWithRaycast(world, start, targetDirection, maxRange, width, ignoredBody, ownerTeam),
               ownerId, ownerTeam, start, damage, bulletEffects, ordinanceType, width);
         
         // Now extract the data from the body's user data (we stored it there temporarily)
@@ -115,7 +115,7 @@ public class Beam extends AbstractOrdinance {
      * Create beam body with raycast - static helper for constructor
      */
     private static Body createBeamBodyWithRaycast(World<Body> world, Vector2 start, Vector2 targetDirection,
-                                                   double maxRange, double width, Body ignoredBody) {
+                                                   double maxRange, double width, Body ignoredBody, int ownerTeam) {
         // Normalize direction
         Vector2 direction = targetDirection.copy();
         double magnitude = direction.getMagnitude();
@@ -124,7 +124,7 @@ public class Beam extends AbstractOrdinance {
         }
         
         // Perform raycast
-        RaycastResult result = performRaycast(world, start, direction, maxRange, ignoredBody);
+        RaycastResult result = performRaycast(world, start, direction, maxRange, ignoredBody, ownerTeam);
         
         // Calculate angle and midpoint
         double angle = Math.atan2(direction.y, direction.x);
@@ -163,15 +163,44 @@ public class Beam extends AbstractOrdinance {
      * This is much more efficient and accurate than custom ray tracing
      */
     private static RaycastResult performRaycast(World<Body> world, Vector2 start, Vector2 direction, 
-                                                double maxRange, Body ignoredBody) {
+                                                double maxRange, Body ignoredBody, int ownerTeam) {
         // Create a ray for the raycast
         Ray ray = new Ray(start, direction);
         
-        // Create a filter that accepts all bodies except the ignored one
+        // Create a filter that excludes the firing body and friendly units/buildings
         DetectFilter<Body, BodyFixture> filter = new DetectFilter<>(true, true, null) {
             @Override
             public boolean isAllowed(Body body, BodyFixture fixture) {
-                return body != ignoredBody;
+                // Ignore the firing body itself
+                if (body == ignoredBody) {
+                    return false;
+                }
+                
+                // Check if this body belongs to a friendly entity
+                Object userData = body.getUserData();
+                
+                // Skip friendly fire - beams pass through friendly units
+                if (userData instanceof Unit unit) {
+                    if (unit.getTeamNumber() == ownerTeam) {
+                        return false;
+                    }
+                }
+                
+                // Skip friendly fire - beams pass through friendly buildings
+                if (userData instanceof Building building) {
+                    if (building.getTeamNumber() == ownerTeam) {
+                        return false;
+                    }
+                }
+                
+                // Skip friendly fire - beams pass through friendly wall segments
+                if (userData instanceof WallSegment segment) {
+                    if (segment.getTeamNumber() == ownerTeam) {
+                        return false;
+                    }
+                }
+                
+                return true;
             }
         };
         

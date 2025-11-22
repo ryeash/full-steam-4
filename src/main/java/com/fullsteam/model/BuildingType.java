@@ -295,59 +295,10 @@ public enum BuildingType {
     }
 
     /**
-     * Check if this building can produce a specific unit type
-     */
-    public boolean canProduce(UnitType unitType) {
-        if (!canProduceUnits) {
-            return false;
-        }
-        for (UnitType producible : getProducibleUnits()) {
-            if (producible == unitType) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
      * Check if this building is defensive (turret)
      */
     public boolean isDefensive() {
         return this == TURRET;
-    }
-
-    /**
-     * Check if this building is a resource collector
-     */
-    public boolean isResourceCollector() {
-        return this == REFINERY;
-    }
-
-    /**
-     * Check if this building provides power
-     */
-    public boolean providesPower() {
-        return this == POWER_PLANT;
-    }
-
-    /**
-     * Check if this building is a tech building (unlocks tiers)
-     */
-    public boolean isTechBuilding() {
-        return this == RESEARCH_LAB || this == TECH_CENTER;
-    }
-
-    /**
-     * Get the tech tier this building unlocks (0 if not a tech building)
-     */
-    public int getTechTierUnlocked() {
-        if (this == RESEARCH_LAB) {
-            return 2;
-        }
-        if (this == TECH_CENTER) {
-            return 3;
-        }
-        return 0;
     }
 
     /**

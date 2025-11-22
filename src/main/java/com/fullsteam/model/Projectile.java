@@ -40,6 +40,7 @@ public class Projectile extends AbstractOrdinance {
         Body body = new Body();
         body.addFixture(Geometry.createCircle(size));
         body.setMass(MassType.NORMAL);
+        body.setBullet(true);
         return body;
     }
 

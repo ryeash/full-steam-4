@@ -2759,6 +2759,10 @@ public class RTSGameManager {
         // Check units
         for (Unit unit : units.values()) {
             if (unit.getBody() == hitBody) {
+                // Skip friendly fire - beams don't damage friendly units
+                if (unit.getTeamNumber() == beam.getOwnerTeam()) {
+                    return;
+                }
                 unit.takeDamage(beam.getDamage());
                 return;
             }
@@ -2767,6 +2771,10 @@ public class RTSGameManager {
         // Check buildings
         for (Building building : buildings.values()) {
             if (building.getBody() == hitBody) {
+                // Skip friendly fire - beams don't damage friendly buildings
+                if (building.getTeamNumber() == beam.getOwnerTeam()) {
+                    return;
+                }
                 building.takeDamage(beam.getDamage());
                 return;
             }
@@ -2783,6 +2791,10 @@ public class RTSGameManager {
         // Check wall segments
         for (WallSegment segment : wallSegments.values()) {
             if (segment.getBody() == hitBody) {
+                // Skip friendly fire - beams don't damage friendly wall segments
+                if (segment.getTeamNumber() == beam.getOwnerTeam()) {
+                    return;
+                }
                 segment.takeDamage(beam.getDamage());
                 return;
             }
