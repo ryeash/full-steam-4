@@ -142,13 +142,11 @@ public class RTSGameManager {
         this.gameEntities.setWorld(this.world);
 
         // Initialize collision processor
-        this.collisionProcessor = new RTSCollisionProcessor(
-                units,
-                buildings,
-                obstacles,
-                wallSegments,
-                this::createExplosion
-        );
+        this.collisionProcessor = new RTSCollisionProcessor(gameEntities, this::createExplosion);
+
+        // Register collision listener to prevent friendly fire physics collisions
+        this.world.addCollisionListener(this.collisionProcessor);
+
         this.world.setBounds(new AxisAlignedBounds(gameConfig.getWorldWidth(), gameConfig.getWorldHeight()));
 
         // Initialize world entities
@@ -707,11 +705,8 @@ public class RTSGameManager {
                 return !beam.isActive();
             });
 
-            // Update physics world (handles collisions)
+            // Update physics world (handles collisions via CollisionListener)
             world.updatev(deltaTime);
-
-            // Process projectile collisions
-            processProjectileCollisions();
 
             // Process field effects (explosions, etc.)
             processFieldEffects(deltaTime);
@@ -1043,7 +1038,7 @@ public class RTSGameManager {
                     ));
                     return;
                 }
-                
+
                 // Check valid build location
                 if (!isValidBuildLocation(location, buildingType, playerId)) {
                     log.warn("Player {} tried to build {} at invalid location ({}, {})",
@@ -1055,7 +1050,7 @@ public class RTSGameManager {
                     ));
                     return;
                 }
-                
+
                 // All checks passed - proceed with building
                 // Deduct resources (use faction-modified cost)
                 int cost = faction.getBuildingCost(buildingType);
@@ -1135,7 +1130,7 @@ public class RTSGameManager {
                     if (!canAffordUnit(faction, unitType)) {
                         int cost = faction.getUnitCost(unitType);
                         int currentCredits = faction.getResources().get(ResourceType.CREDITS);
-                        log.warn("Player {} tried to produce {} but cannot afford it (cost: {}, has: {})", 
+                        log.warn("Player {} tried to produce {} but cannot afford it (cost: {}, has: {})",
                                 playerId, unitType, cost, currentCredits);
                         sendGameEvent(GameEvent.createPlayerEvent(
                                 String.format("💰 Insufficient funds! %s costs %d credits (you have %d)",
@@ -1246,10 +1241,10 @@ public class RTSGameManager {
         double angle = Math.random() * Math.PI * 2;
         double distance = buildingSize + 40; // Guaranteed outside building
         Vector2 fallbackPos = new Vector2(
-            buildingPos.x + Math.cos(angle) * distance,
-            buildingPos.y + Math.sin(angle) * distance
+                buildingPos.x + Math.cos(angle) * distance,
+                buildingPos.y + Math.sin(angle) * distance
         );
-        
+
         log.warn("Could not find optimal spawn position near building {}, using fallback position outside building",
                 building.getId());
         return fallbackPos;
@@ -1476,13 +1471,6 @@ public class RTSGameManager {
         return multiplier;
     }
 
-
-    /**
-     * Process projectile collisions with units and buildings
-     */
-    private void processProjectileCollisions() {
-        collisionProcessor.processProjectileCollisions(projectiles);
-    }
 
     /**
      * Create an explosion field effect (used by collision processor)
@@ -1832,12 +1820,12 @@ public class RTSGameManager {
                 if (building.getBuildingType() == BuildingType.WALL) {
                     removeWallSegmentsForPost(building);
                 }
-                
+
                 // Ungarrison all units from bunkers when destroyed
                 if (building.getBuildingType() == BuildingType.BUNKER && building.getGarrisonCount() > 0) {
                     List<Unit> ungarrisonedUnits = building.ungarrisonAllUnits();
                     log.info("Bunker {} destroyed - ungarrisoned {} units", building.getId(), ungarrisonedUnits.size());
-                    
+
                     // Re-enable units in physics world
                     for (Unit unit : ungarrisonedUnits) {
                         if (!units.containsKey(unit.getId())) {
