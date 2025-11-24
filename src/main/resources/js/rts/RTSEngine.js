@@ -381,6 +381,9 @@ class RTSEngine {
     }
     
     updateGameState(state) {
+        // Store the full game state for research system and other features
+        this.lastGameState = state;
+        
         // Update units
         if (state.units) {
             const currentUnitIds = new Set(state.units.map(u => u.id));
@@ -2036,6 +2039,9 @@ class RTSEngine {
     
     updateResourceDisplay() {
         if (this.myFaction) {
+            // Store credits for easy access
+            this.myMoney = this.myFaction.credits || 0;
+            
             document.getElementById('player-info').textContent = 
                 `ID: ${this.myPlayerId} | Team: ${this.myTeam}`;
             document.getElementById('credits-value').textContent = this.myFaction.credits;
@@ -2369,7 +2375,22 @@ class RTSEngine {
         // Hotkeys
         if (e.key === 'b' || e.key === 'B') {
             this.toggleBuildMenu();
+        } else if (e.key === 'r' || e.key === 'R') {
+            // Research tree hotkey
+            const modal = document.getElementById('research-tree-modal');
+            if (modal && modal.style.display === 'flex') {
+                this.closeResearchTreeModal();
+            } else {
+                this.openResearchTreeModal();
+            }
         } else if (e.key === 'Escape') {
+            // Close research modal if open
+            const modal = document.getElementById('research-tree-modal');
+            if (modal && modal.style.display === 'flex') {
+                this.closeResearchTreeModal();
+                return;
+            }
+            
             if (this.specialAbilityTargetingMode) {
                 this.exitSpecialAbilityTargetingMode();
             } else if (this.attackMoveMode) {
@@ -3367,12 +3388,432 @@ class RTSEngine {
     }
     
     /**
-     * Open research tree modal (placeholder for Phase 2)
+     * Open research tree modal
      */
     openResearchTreeModal() {
-        console.log('Research tree modal - to be implemented in Phase 2');
-        // TODO: Implement full research tree modal
-        alert('Full research tree coming soon! For now, use the building panel to research.');
+        const modal = document.getElementById('research-tree-modal');
+        if (!modal) return;
+        
+        modal.style.display = 'flex';
+        
+        // Initialize tabs
+        this.initializeResearchTabs();
+        
+        // Show default category (Combat)
+        this.showResearchCategory('COMBAT');
+    }
+    
+    /**
+     * Close research tree modal
+     */
+    closeResearchTreeModal() {
+        const modal = document.getElementById('research-tree-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+    
+    /**
+     * Initialize research category tabs
+     */
+    initializeResearchTabs() {
+        const tabs = document.querySelectorAll('.research-tab');
+        tabs.forEach(tab => {
+            tab.onclick = () => {
+                // Remove active class from all tabs
+                tabs.forEach(t => t.classList.remove('active'));
+                // Add active class to clicked tab
+                tab.classList.add('active');
+                // Show category
+                const category = tab.getAttribute('data-category');
+                this.showResearchCategory(category);
+            };
+        });
+    }
+    
+    /**
+     * Show research for a specific category
+     */
+    showResearchCategory(category) {
+        if (!this.myFactionData || !this.myFactionData.availableResearch) {
+            console.warn('Cannot show research category: faction data not loaded');
+            return;
+        }
+        
+        // Filter research by category
+        const categoryResearch = this.myFactionData.availableResearch.filter(
+            r => r.category === category
+        );
+        
+        // Clear existing nodes
+        const container = document.getElementById('research-nodes-container');
+        if (!container) return;
+        container.innerHTML = '';
+        
+        // Group research by tiers (based on prerequisites)
+        const researchByTier = this.groupResearchByTier(categoryResearch);
+        
+        // Layout research nodes
+        let yOffset = 50;
+        
+        Object.keys(researchByTier).sort().forEach(tier => {
+            const tierResearch = researchByTier[tier];
+            const xSpacing = 250;
+            const startX = (container.offsetWidth - (tierResearch.length * xSpacing)) / 2;
+            
+            tierResearch.forEach((research, index) => {
+                const x = startX + (index * xSpacing);
+                const y = yOffset;
+                
+                // Create node
+                this.createResearchNode(research, x, y, container);
+            });
+            
+            yOffset += 180;
+        });
+    }
+    
+    /**
+     * Group research by tier (based on prerequisite depth)
+     */
+    groupResearchByTier(research) {
+        const tiers = {};
+        
+        research.forEach(r => {
+            const tier = this.calculateResearchTier(r, research);
+            if (!tiers[tier]) {
+                tiers[tier] = [];
+            }
+            tiers[tier].push(r);
+        });
+        
+        return tiers;
+    }
+    
+    /**
+     * Calculate research tier based on prerequisite depth
+     */
+    calculateResearchTier(research, allResearch) {
+        if (!research.prerequisites || research.prerequisites.length === 0) {
+            return 0;
+        }
+        
+        let maxTier = 0;
+        research.prerequisites.forEach(prereqId => {
+            const prereq = allResearch.find(r => r.researchId === prereqId);
+            if (prereq) {
+                const prereqTier = this.calculateResearchTier(prereq, allResearch);
+                maxTier = Math.max(maxTier, prereqTier + 1);
+            }
+        });
+        
+        return maxTier;
+    }
+    
+    /**
+     * Create a research node element
+     */
+    createResearchNode(research, x, y, container) {
+        const node = document.createElement('div');
+        node.className = 'research-node';
+        node.style.left = x + 'px';
+        node.style.top = y + 'px';
+        
+        // Determine node state
+        const state = this.getResearchState(research);
+        node.classList.add(state);
+        
+        // Node header
+        const header = document.createElement('div');
+        header.className = 'research-node-header';
+        
+        const icon = document.createElement('div');
+        icon.className = 'research-node-icon';
+        icon.textContent = research.icon;
+        
+        const title = document.createElement('div');
+        title.className = 'research-node-title';
+        title.textContent = research.displayName;
+        
+        header.appendChild(icon);
+        header.appendChild(title);
+        node.appendChild(header);
+        
+        // Effect description
+        const effect = document.createElement('div');
+        effect.className = 'research-node-effect';
+        effect.textContent = research.effectSummary;
+        node.appendChild(effect);
+        
+        // Cost
+        const cost = document.createElement('div');
+        cost.className = 'research-node-cost';
+        cost.innerHTML = `<span>💰 ${research.creditCost}</span><span>⏱️ ${research.researchTimeSeconds}s</span>`;
+        node.appendChild(cost);
+        
+        // Status badge
+        const status = document.createElement('div');
+        status.className = 'research-node-status ' + state;
+        status.textContent = this.getResearchStatusText(state, research);
+        node.appendChild(status);
+        
+        // Progress bar (if researching)
+        if (state === 'researching') {
+            const activeResearch = this.getActiveResearchByType(research.researchId);
+            if (activeResearch) {
+                const progressBar = document.createElement('div');
+                progressBar.className = 'research-node-progress';
+                const progressFill = document.createElement('div');
+                progressFill.className = 'research-node-progress-fill';
+                progressFill.style.width = activeResearch.progress + '%';
+                progressBar.appendChild(progressFill);
+                node.appendChild(progressBar);
+            }
+        }
+        
+        // Click handler
+        if (state === 'available') {
+            node.onclick = () => this.onResearchNodeClick(research);
+        }
+        
+        // Hover tooltip
+        node.onmouseenter = () => this.showResearchTooltip(research);
+        node.onmouseleave = () => this.hideResearchTooltip();
+        
+        container.appendChild(node);
+    }
+    
+    /**
+     * Get research state (completed, available, locked, researching)
+     */
+    getResearchState(research) {
+        if (!this.lastGameState || !this.lastGameState.factions || !this.lastGameState.factions[this.myPlayerId]) {
+            return 'locked';
+        }
+        
+        const myFaction = this.lastGameState.factions[this.myPlayerId];
+        const completedResearch = myFaction.completedResearch || [];
+        
+        // Check if completed
+        if (completedResearch.includes(research.researchId)) {
+            return 'completed';
+        }
+        
+        // Check if currently researching
+        if (myFaction.activeResearch) {
+            const isResearching = Object.values(myFaction.activeResearch).some(
+                active => active.researchType === research.researchId
+            );
+            if (isResearching) {
+                return 'researching';
+            }
+        }
+        
+        // Check if player has the required building (completed, not under construction)
+        const hasRequiredBuilding = this.playerHasBuilding(research.requiredBuilding);
+        if (!hasRequiredBuilding) {
+            return 'locked';
+        }
+        
+        // Check if available (prerequisites met)
+        if (research.prerequisites && research.prerequisites.length > 0) {
+            const prereqsMet = research.prerequisites.every(prereq => 
+                completedResearch.includes(prereq)
+            );
+            if (!prereqsMet) {
+                return 'locked';
+            }
+        }
+        
+        return 'available';
+    }
+    
+    /**
+     * Check if player has a specific building type (completed, not under construction)
+     */
+    playerHasBuilding(buildingType) {
+        if (!this.lastGameState || !this.lastGameState.buildings) {
+            console.log('playerHasBuilding: No game state or buildings');
+            return false;
+        }
+        
+        // Convert buildings array to object if needed
+        let buildingsObj = this.lastGameState.buildings;
+        if (Array.isArray(buildingsObj)) {
+            console.log('playerHasBuilding: Buildings is an array, converting to object');
+            const temp = {};
+            buildingsObj.forEach(b => temp[b.id] = b);
+            buildingsObj = temp;
+        }
+        
+        for (const buildingId in buildingsObj) {
+            const building = buildingsObj[buildingId];
+            
+            console.log(`Checking building ${buildingId}: type=${building.type}, owner=${building.ownerId}, myId=${this.myPlayerId}, active=${building.active}, underConstruction=${building.underConstruction}`);
+            
+            if (building.type === buildingType &&
+                building.ownerId === this.myPlayerId &&
+                building.active &&
+                !building.underConstruction) {
+                console.log(`playerHasBuilding: Found ${buildingType}!`);
+                return true;
+            }
+        }
+        
+        console.log(`playerHasBuilding: No ${buildingType} found for player ${this.myPlayerId}`);
+        return false;
+    }
+    
+    /**
+     * Get status text for research node
+     */
+    getResearchStatusText(state, research) {
+        switch (state) {
+            case 'completed': return '✓ Completed';
+            case 'researching': return '⏳ Researching...';
+            case 'available': return '📖 Click to Research';
+            case 'locked': return '🔒 Locked';
+            default: return '';
+        }
+    }
+    
+    /**
+     * Get active research by research type
+     */
+    getActiveResearchByType(researchType) {
+        if (!this.lastGameState || !this.lastGameState.factions || !this.lastGameState.factions[this.myPlayerId]) {
+            return null;
+        }
+        
+        const myFaction = this.lastGameState.factions[this.myPlayerId];
+        if (!myFaction.activeResearch) {
+            return null;
+        }
+        
+        for (const buildingId in myFaction.activeResearch) {
+            const research = myFaction.activeResearch[buildingId];
+            if (research.researchType === researchType) {
+                return research;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Handle research node click
+     */
+    onResearchNodeClick(research) {
+        // Find a suitable building to research at
+        const building = this.findResearchBuilding(research.requiredBuilding);
+        
+        if (!building) {
+            alert(`You need a ${research.requiredBuilding} to research this!`);
+            return;
+        }
+        
+        // Check if can afford
+        if (this.myMoney < research.creditCost) {
+            alert(`Insufficient credits! Need ${research.creditCost}, have ${this.myMoney}`);
+            return;
+        }
+        
+        // Start research
+        this.startResearch(building.id, research.researchId);
+        
+        // Close modal
+        this.closeResearchTreeModal();
+    }
+    
+    /**
+     * Find a suitable research building
+     */
+    findResearchBuilding(requiredBuildingType) {
+        if (!this.lastGameState || !this.lastGameState.buildings) {
+            return null;
+        }
+        
+        // Find a building of the required type that:
+        // 1. Belongs to the player
+        // 2. Is not under construction
+        // 3. Is not already researching
+        for (const buildingId in this.lastGameState.buildings) {
+            const building = this.lastGameState.buildings[buildingId];
+            
+            if (building.type === requiredBuildingType &&
+                building.ownerId === this.myPlayerId &&
+                !building.underConstruction &&
+                !this.getActiveResearchAtBuilding(building.id)) {
+                return building;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Show research tooltip
+     */
+    showResearchTooltip(research) {
+        const tooltip = document.getElementById('research-tooltip');
+        if (!tooltip) return;
+        
+        const state = this.getResearchState(research);
+        const prereqText = research.prerequisites && research.prerequisites.length > 0
+            ? research.prerequisites.map(p => {
+                const prereq = this.myFactionData.availableResearch.find(r => r.researchId === p);
+                return prereq ? prereq.displayName : p;
+            }).join(', ')
+            : 'None';
+        
+        // Check if player has required building
+        const hasBuilding = this.playerHasBuilding(research.requiredBuilding);
+        const buildingStatus = hasBuilding 
+            ? `<span style="color: #4CAF50;">✓ Available</span>`
+            : `<span style="color: #FF4444;">✗ Not Built</span>`;
+        
+        // Check prerequisites status
+        let prereqStatus = '';
+        if (research.prerequisites && research.prerequisites.length > 0) {
+            const completedResearch = this.lastGameState?.factions?.[this.myPlayerId]?.completedResearch || [];
+            const allMet = research.prerequisites.every(p => completedResearch.includes(p));
+            prereqStatus = allMet
+                ? `<span style="color: #4CAF50;">✓ Met</span>`
+                : `<span style="color: #FF4444;">✗ Not Met</span>`;
+        } else {
+            prereqStatus = `<span style="color: #4CAF50;">✓ None Required</span>`;
+        }
+        
+        tooltip.innerHTML = `
+            <div style="font-weight: bold; font-size: 16px; margin-bottom: 10px;">
+                ${research.icon} ${research.displayName}
+            </div>
+            <div style="color: #AAA; margin-bottom: 10px;">
+                ${research.description}
+            </div>
+            <div style="display: flex; gap: 20px; margin-bottom: 10px;">
+                <span>💰 Cost: ${research.creditCost}</span>
+                <span>⏱️ Time: ${research.researchTimeSeconds}s</span>
+            </div>
+            <div style="margin-bottom: 5px;">
+                🏗️ Required Building: ${research.requiredBuilding} ${buildingStatus}
+            </div>
+            <div>
+                📋 Prerequisites: ${prereqText} ${prereqStatus}
+            </div>
+        `;
+        
+        tooltip.style.display = 'block';
+    }
+    
+    /**
+     * Hide research tooltip
+     */
+    hideResearchTooltip() {
+        const tooltip = document.getElementById('research-tooltip');
+        if (tooltip) {
+            tooltip.style.display = 'none';
+        }
     }
     
     /**
@@ -3487,7 +3928,8 @@ class RTSEngine {
             'BUNKER': '🏰',
             'SANDSTORM_GENERATOR': '🌪️',
             'QUANTUM_NEXUS': '⚛️',
-            'PHOTON_SPIRE': '💎'
+            'PHOTON_SPIRE': '💎',
+            'ANDROID_FACTORY': '🤖'
         };
         return icons[buildingType] || '🏢';
     }
@@ -3513,7 +3955,8 @@ class RTSEngine {
             'BUNKER': 'Bunker',
             'SANDSTORM_GENERATOR': 'Sandstorm Generator',
             'QUANTUM_NEXUS': 'Quantum Nexus',
-            'PHOTON_SPIRE': 'Photon Spire'
+            'PHOTON_SPIRE': 'Photon Spire',
+            'ANDROID_FACTORY': 'Android Factory'
         };
         return names[buildingType] || buildingType.replace(/_/g, ' ');
     }

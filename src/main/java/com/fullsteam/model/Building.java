@@ -305,11 +305,20 @@ public class Building extends GameEntity {
      * Get production progress as a percentage
      */
     public double getProductionPercent() {
+        // Check ProductionComponent first
         com.fullsteam.model.component.ProductionComponent prodComp = 
             getComponent(com.fullsteam.model.component.ProductionComponent.class);
         if (prodComp != null) {
             return prodComp.getProductionPercent();
         }
+        
+        // Check AndroidFactoryComponent
+        com.fullsteam.model.component.AndroidFactoryComponent androidComp = 
+            getComponent(com.fullsteam.model.component.AndroidFactoryComponent.class);
+        if (androidComp != null) {
+            return androidComp.getProductionProgressPercent();
+        }
+        
         return 0.0; // No production component
     }
     

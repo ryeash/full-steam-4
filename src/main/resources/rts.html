@@ -266,6 +266,258 @@
             font-size: 12px;
         }
         
+        /* Research Tree Modal */
+        #research-tree-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 9000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: all;
+        }
+        
+        .research-modal-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 3px solid #00CED1;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1200px;
+            height: 85%;
+            max-height: 800px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 40px rgba(0, 206, 209, 0.5);
+            pointer-events: all;
+        }
+        
+        .research-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            border-bottom: 2px solid #00CED1;
+            background: rgba(0, 206, 209, 0.1);
+        }
+        
+        .research-modal-header h2 {
+            margin: 0;
+            color: #00CED1;
+            font-size: 28px;
+            text-shadow: 0 0 10px rgba(0, 206, 209, 0.8);
+        }
+        
+        .research-modal-close {
+            background: #FF4444;
+            border: 2px solid #FF6666;
+            color: white;
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        
+        .research-modal-close:hover {
+            background: #FF6666;
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(255, 68, 68, 0.8);
+        }
+        
+        .research-category-tabs {
+            display: flex;
+            gap: 10px;
+            padding: 15px 30px;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 2px solid #333;
+        }
+        
+        .research-tab {
+            flex: 1;
+            padding: 12px 20px;
+            background: #2a2a3e;
+            border: 2px solid #444;
+            border-radius: 8px;
+            color: #AAA;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .research-tab:hover {
+            background: #3a3a4e;
+            border-color: #666;
+            color: #FFF;
+            transform: translateY(-2px);
+        }
+        
+        .research-tab.active {
+            background: linear-gradient(135deg, #00CED1 0%, #1E90FF 100%);
+            border-color: #00CED1;
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 206, 209, 0.4);
+        }
+        
+        .research-tree-container {
+            flex: 1;
+            position: relative;
+            overflow: auto;
+            padding: 30px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+        
+        #research-nodes-container {
+            position: relative;
+            min-height: 600px;
+        }
+        
+        .research-node {
+            position: absolute;
+            width: 200px;
+            padding: 15px;
+            background: #2a2a3e;
+            border: 3px solid #444;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        .research-node:hover {
+            transform: scale(1.05);
+            z-index: 100;
+        }
+        
+        .research-node.completed {
+            background: linear-gradient(135deg, #1a4d1a 0%, #2d7a2d 100%);
+            border-color: #4CAF50;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.6);
+        }
+        
+        .research-node.available {
+            background: linear-gradient(135deg, #1a3a4d 0%, #2d5a7a 100%);
+            border-color: #00CED1;
+            box-shadow: 0 0 20px rgba(0, 206, 209, 0.4);
+        }
+        
+        .research-node.researching {
+            background: linear-gradient(135deg, #4d4d1a 0%, #7a7a2d 100%);
+            border-color: #FFD700;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+            animation: pulse 2s infinite;
+        }
+        
+        .research-node.locked {
+            background: #1a1a1a;
+            border-color: #333;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.6); }
+            50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.9); }
+        }
+        
+        .research-node-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .research-node-icon {
+            font-size: 24px;
+        }
+        
+        .research-node-title {
+            font-weight: bold;
+            font-size: 14px;
+            color: white;
+            flex: 1;
+        }
+        
+        .research-node-effect {
+            font-size: 12px;
+            color: #AAA;
+            margin-bottom: 8px;
+        }
+        
+        .research-node-cost {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #FFD700;
+        }
+        
+        .research-node-status {
+            margin-top: 8px;
+            padding: 5px;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .research-node-status.completed {
+            background: rgba(76, 175, 80, 0.3);
+            color: #4CAF50;
+        }
+        
+        .research-node-status.available {
+            background: rgba(0, 206, 209, 0.3);
+            color: #00CED1;
+        }
+        
+        .research-node-status.researching {
+            background: rgba(255, 215, 0, 0.3);
+            color: #FFD700;
+        }
+        
+        .research-node-status.locked {
+            background: rgba(255, 68, 68, 0.3);
+            color: #FF4444;
+        }
+        
+        .research-node-progress {
+            margin-top: 8px;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .research-node-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #FFD700, #FFA500);
+            transition: width 0.3s;
+        }
+        
+        .research-modal-footer {
+            padding: 15px 30px;
+            border-top: 2px solid #333;
+            background: rgba(0, 0, 0, 0.3);
+            min-height: 60px;
+        }
+        
+        #research-tooltip {
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #00CED1;
+            border-radius: 8px;
+            padding: 15px;
+            color: white;
+        }
+        
         /* Loading Screen */
         #loading-screen {
             position: absolute;
@@ -305,7 +557,7 @@
     <script type="text/javascript">
         window.addEventListener('load', () => {
             try {
-                new RTSEngine();
+                window.rtsEngine = new RTSEngine();
             } catch (error) {
                 console.error('Failed to initialize RTS game:', error);
                 document.getElementById('loading-status').textContent = 'Failed to load game: ' + error.message;
@@ -401,7 +653,6 @@
                 </div>
                 
                 <div class="research-tree-container">
-                    <canvas id="research-tree-canvas"></canvas>
                     <div id="research-nodes-container"></div>
                 </div>
                 

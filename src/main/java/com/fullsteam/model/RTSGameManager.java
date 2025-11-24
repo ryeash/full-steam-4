@@ -617,8 +617,20 @@ public class RTSGameManager {
                     if (androidComp != null && androidComp.hasCompletedAndroid()) {
                         Unit android = androidComp.getCompletedAndroid();
                         if (android != null) {
+                            // Apply research modifiers (reuse faction variable from above)
+                            if (faction != null && faction.getResearchManager() != null) {
+                                android.applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
+                            }
+                            
                             units.put(android.getId(), android);
                             world.addBody(android.getBody());
+                            
+                            // Order android to rally point
+                            if (building.getRallyPoint() != null) {
+                                android.issueCommand(new com.fullsteam.model.command.MoveCommand(
+                                    android, building.getRallyPoint(), false));
+                            }
+                            
                             log.info("Added Android {} to world for player {} from Android Factory {}", 
                                     android.getId(), building.getOwnerId(), building.getId());
                         }

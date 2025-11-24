@@ -40,7 +40,7 @@ public class AttackMoveCommand extends UnitCommand {
     public boolean update(double deltaTime) {
         // Check if we've reached the destination
         double distance = unit.getPosition().distance(destination);
-        if (distance < 10.0) {
+        if (distance < unit.getBody().getRotationDiscRadius() * 0.75D) {
             unit.getBody().setLinearVelocity(0, 0);
             return false; // Command complete
         }
