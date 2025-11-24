@@ -49,6 +49,9 @@ public class Unit extends GameEntity {
     // Special ability system
     private boolean specialAbilityActive = false; // For toggle abilities (deploy, stealth, etc.)
     private long lastSpecialAbilityTime = 0; // For cooldown tracking
+    
+    // Android Factory tracking (for androids only)
+    private Integer androidFactoryId = null; // ID of the Android Factory that produced this unit (null if not an android)
 
     // Multi-turret system (for Crawler when deployed)
     private List<Turret> turrets = new ArrayList<>();

@@ -424,6 +424,24 @@ public enum UnitType {
             0x00FF00, // bright green (pure energy)
             BuildingType.ADVANCED_FACTORY,
             65       // upkeep cost (VERY HIGH!)
+    ),
+
+    // ANDROID - Autonomous combat unit produced by Android Factory
+    // Free to produce, zero upkeep, controlled by Android Factory
+    ANDROID(
+            "Android",
+            0,       // resource cost (FREE!)
+            15,      // build time (seconds)
+            100,     // max health (moderate)
+            110.0,   // movement speed (moderate)
+            22,      // damage (decent)
+            1.5,     // attack rate (good)
+            180,     // attack range (good)
+            13.0,    // size (radius)
+            4,       // sides (square/diamond)
+            0x00CED1, // dark turquoise (Synthesis faction color)
+            BuildingType.ANDROID_FACTORY,
+            0        // upkeep cost (ZERO!)
     );
 
     private final String displayName;
@@ -494,6 +512,9 @@ public enum UnitType {
 
             // Worker/Support units - circular for easy navigation
             case WORKER, MINER, MEDIC, ENGINEER -> List.of(Geometry.createCircle(size));
+
+            // Android - diamond/square shape (synthetic unit)
+            case ANDROID -> List.of(Geometry.createPolygonalCircle(4, size));
 
             // Light vehicles - elongated rectangle (fast, nimble)
             case JEEP, PHOTON_SCOUT -> List.of(Geometry.createRectangle(size * 1.6, size));
@@ -771,7 +792,8 @@ public enum UnitType {
                 this == SNIPER ||
                 this == ION_RANGER ||
                 this == MEDIC ||
-                this == ENGINEER;
+                this == ENGINEER ||
+                this == ANDROID;
     }
 
     /**

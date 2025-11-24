@@ -38,45 +38,8 @@ public class Building extends GameEntity {
     private boolean underConstruction = true;
     private double constructionProgress = 0; // 0 to maxHealth
     
-    // Legacy production fields (deprecated - use ProductionComponent instead)
-    // Kept temporarily for backward compatibility during migration
-    @Deprecated
-    private final Queue<ProductionOrder> productionQueue = new LinkedList<>();
-    @Deprecated
-    private ProductionOrder currentProduction = null;
-    @Deprecated
-    private double productionProgress = 0; // seconds
-    
-    // Legacy turret fields (deprecated - use DefenseComponent instead)
-    @Deprecated
-    private Unit targetUnit = null;
-    @Deprecated
-    private long lastAttackTime = 0;
-    @Deprecated
-    private static final double TURRET_DAMAGE = 25;
-    @Deprecated
-    private static final double TURRET_ATTACK_RATE = 2.0; // attacks per second
-    @Deprecated
-    private static final double TURRET_RANGE = 300;
-    
     // Rally point for produced units
     private Vector2 rallyPoint = null;
-    
-    // Legacy shield fields (deprecated - use ShieldComponent instead)
-    @Deprecated
-    private Body shieldSensorBody = null;
-    @Deprecated
-    private boolean shieldActive = false;
-    @Deprecated
-    private static final double SHIELD_RADIUS = 200.0; // Shield projection radius
-    
-    // Legacy bank fields (deprecated - use BankComponent instead)
-    @Deprecated
-    private double bankInterestTimer = 0; // Time accumulator for interest payments
-    @Deprecated
-    private static final double BANK_INTEREST_INTERVAL = 30.0; // Pay interest every 30 seconds
-    @Deprecated
-    private static final double BANK_INTEREST_RATE = 0.02; // 2% interest per interval
     
     // Garrison fields (for Bunker)
     private final List<Unit> garrisonedUnits = new ArrayList<>();
@@ -90,10 +53,8 @@ public class Building extends GameEntity {
     private Body auraSensorBody = null;
     private boolean auraActive = false;
     private static final double PHOTON_SPIRE_RADIUS = 250.0; // Beam damage amplification radius
-    private static final double QUANTUM_NEXUS_RADIUS = 280.0; // Shield/armor bonus radius - increased from 220
     private static final double SANDSTORM_RADIUS = 300.0; // Sandstorm damage radius - increased from 200
     private static final double PHOTON_SPIRE_DAMAGE_MULTIPLIER = 1.35; // +35% beam damage
-    private static final double QUANTUM_NEXUS_HEALTH_MULTIPLIER = 1.25; // +25% max health
     private double sandstormTimer = 0; // Time accumulator for sandstorm pulses
     private static final double SANDSTORM_DPS = 15.0; // Damage per second (continuous)
     
@@ -119,7 +80,10 @@ public class Building extends GameEntity {
             constructionProgress = maxHealth;
             health = maxHealth;
         } else {
-            health = 1; // Buildings start with minimal health during construction
+            // Buildings start with minimal health and construction progress during construction
+            // Must be > 0 to stay active and be targetable
+            health = 1;
+            constructionProgress = 1;
         }
         
         // Set rally point to building position by default
@@ -134,8 +98,8 @@ public class Building extends GameEntity {
      * This method adds the appropriate components to buildings that need them.
      */
     private void initializeComponents(Vector2 position) {
-        // Add ProductionComponent to buildings that can produce units
-        if (buildingType.isCanProduceUnits()) {
+        // Add ProductionComponent to buildings that can produce units (except Android Factory)
+        if (buildingType.isCanProduceUnits() && buildingType != BuildingType.ANDROID_FACTORY) {
             addComponent(new com.fullsteam.model.component.ProductionComponent(position));
             log.debug("Building {} ({}) initialized with ProductionComponent", id, buildingType.getDisplayName());
         }
@@ -156,6 +120,12 @@ public class Building extends GameEntity {
         if (buildingType == BuildingType.SHIELD_GENERATOR) {
             addComponent(new com.fullsteam.model.component.ShieldComponent());
             log.debug("Building {} ({}) initialized with ShieldComponent", id, buildingType.getDisplayName());
+        }
+        
+        // Add AndroidFactoryComponent to Android Factory
+        if (buildingType == BuildingType.ANDROID_FACTORY) {
+            addComponent(new com.fullsteam.model.component.AndroidFactoryComponent());
+            log.debug("Building {} ({}) initialized with AndroidFactoryComponent", id, buildingType.getDisplayName());
         }
         
         // More components will be added here as we extract them:
@@ -203,7 +173,8 @@ public class Building extends GameEntity {
         if (underConstruction) {
             // Construction is handled by worker units
             // Health increases as construction progresses
-            health = constructionProgress;
+            // Ensure health is at least 1 so building stays active and targetable
+            health = Math.max(1, constructionProgress);
             
             if (constructionProgress >= maxHealth) {
                 completeConstruction();
@@ -248,18 +219,7 @@ public class Building extends GameEntity {
         if (bankComp != null) {
             return bankComp.checkAndResetInterest();
         }
-        
-        // Fallback to old logic for buildings without component
-        if (buildingType != BuildingType.BANK || underConstruction) {
-            return 0.0;
-        }
-        
-        if (bankInterestTimer >= BANK_INTEREST_INTERVAL) {
-            bankInterestTimer = 0;
-            return BANK_INTEREST_RATE;
-        }
-        
-        return 0.0;
+        return 0.0; // No bank component
     }
     
     /**
@@ -308,16 +268,6 @@ public class Building extends GameEntity {
         return constructionProgress / maxHealth;
     }
     
-    /**
-     * @deprecated Old production update method - now handled by ProductionComponent
-     * Kept for temporary backward compatibility
-     */
-    @Deprecated
-    private void updateProduction(double deltaTime, boolean hasLowPower) {
-        // This method is deprecated and no longer used
-        // Production is now handled by ProductionComponent
-        // Can be removed once all references are migrated
-    }
     
     /**
      * Queue a unit for production
@@ -330,9 +280,7 @@ public class Building extends GameEntity {
         if (prodComp != null) {
             return prodComp.queueUnitProduction(unitType);
         }
-        // Fallback to old logic for buildings without component
-        productionQueue.add(new ProductionOrder(unitType));
-        return true;
+        return false; // Building doesn't have production capability
     }
     
     /**
@@ -344,14 +292,7 @@ public class Building extends GameEntity {
         if (prodComp != null) {
             return prodComp.cancelCurrentProduction();
         }
-        // Fallback to old logic
-        if (currentProduction != null) {
-            UnitType cancelled = currentProduction.unitType;
-            currentProduction = null;
-            productionProgress = 0;
-            return cancelled;
-        }
-        return null;
+        return null; // No production component
     }
     
     /**
@@ -363,11 +304,7 @@ public class Building extends GameEntity {
         if (prodComp != null) {
             return prodComp.getProductionPercent();
         }
-        // Fallback to old logic
-        if (currentProduction == null) {
-            return 0;
-        }
-        return productionProgress / currentProduction.unitType.getBuildTimeSeconds();
+        return 0.0; // No production component
     }
     
     /**
@@ -379,8 +316,7 @@ public class Building extends GameEntity {
         if (prodComp != null) {
             return prodComp.getProductionQueueSize();
         }
-        // Fallback to old logic
-        return productionQueue.size();
+        return 0; // No production component
     }
     
     /**
@@ -392,8 +328,7 @@ public class Building extends GameEntity {
         if (prodComp != null) {
             return prodComp.hasCompletedUnit();
         }
-        // Fallback to old logic
-        return currentProduction != null && productionProgress >= currentProduction.unitType.getBuildTimeSeconds();
+        return false; // No production component
     }
     
     /**
@@ -405,14 +340,7 @@ public class Building extends GameEntity {
         if (prodComp != null) {
             return prodComp.getCompletedUnitType();
         }
-        // Fallback to old logic
-        if (hasCompletedUnit()) {
-            UnitType completed = currentProduction.unitType;
-            currentProduction = null;
-            productionProgress = 0;
-            return completed;
-        }
-        return null;
+        return null; // No production component
     }
     
     /**
@@ -425,33 +353,7 @@ public class Building extends GameEntity {
         if (defComp != null) {
             return defComp.updateTurretBehavior(this);
         }
-        
-        // Fallback to old logic for buildings without component
-        // Target acquisition is handled by RTSGameManager
-        if (targetUnit != null && targetUnit.isActive()) {
-            Vector2 turretPos = getPosition();
-            Vector2 targetPos = targetUnit.getPosition();
-            double distance = turretPos.distance(targetPos);
-            
-            // Check if target is in range
-            if (distance <= TURRET_RANGE) {
-                // Face target
-                Vector2 direction = targetPos.copy().subtract(turretPos);
-                setRotation(Math.atan2(direction.y, direction.x));
-                
-                // Attack if cooldown is ready
-                long now = System.currentTimeMillis();
-                double attackInterval = 1000.0 / TURRET_ATTACK_RATE;
-                if (now - lastAttackTime >= attackInterval) {
-                    lastAttackTime = now;
-                    return attackTarget();
-                }
-            } else {
-                // Target out of range
-                targetUnit = null;
-            }
-        }
-        return null;
+        return null; // No defense component
     }
     
     /**
@@ -466,8 +368,7 @@ public class Building extends GameEntity {
         if (defComp != null) {
             return defComp.getTargetUnit();
         }
-        // Fallback to old field
-        return targetUnit;
+        return null; // No defense component
     }
     
     /**
@@ -481,47 +382,10 @@ public class Building extends GameEntity {
             getComponent(com.fullsteam.model.component.DefenseComponent.class);
         if (defComp != null) {
             defComp.setTargetUnit(target);
-        } else {
-            // Fallback to old field
-            this.targetUnit = target;
         }
+        // No-op if no defense component
     }
     
-    /**
-     * Attack current target - fires a projectile
-     * @return Projectile to be added to world, or null if can't attack
-     */
-    private Projectile attackTarget() {
-        if (targetUnit == null || !targetUnit.isActive()) {
-            return null;
-        }
-        
-        Vector2 turretPos = getPosition();
-        Vector2 targetPos = targetUnit.getPosition();
-        Vector2 direction = targetPos.copy().subtract(turretPos);
-        direction.normalize();
-        
-        // Turrets fire bullets
-        double projectileSpeed = 600;
-        Vector2 velocity = direction.multiply(projectileSpeed);
-        
-        Set<BulletEffect> effects = new HashSet<>();
-        
-        return new Projectile(
-                com.fullsteam.util.IdGenerator.nextEntityId(), // Use proper unique ID
-                turretPos.x,
-                turretPos.y,
-                velocity.x,
-                velocity.y,
-                TURRET_DAMAGE,
-                TURRET_RANGE,
-                teamNumber,
-                0.2, // linear damping
-                effects,
-                Ordinance.BULLET,
-                3.5 // Building turrets fire medium-sized projectiles
-        );
-    }
     
     /**
      * Set rally point for produced units
@@ -562,29 +426,9 @@ public class Building extends GameEntity {
             shieldComp.setSensorBody(sensor);
             return sensor;
         }
-        
-        // Fallback to old logic
-        if (buildingType != BuildingType.SHIELD_GENERATOR) {
-            return null;
-        }
-        
-        Body sensor = new Body();
-        sensor.addFixture(Geometry.createCircle(SHIELD_RADIUS), 0.0, 0.0, 0.0);
-        sensor.getFixture(0).setSensor(true); // Make it a sensor (no collision response)
-        sensor.setMass(MassType.INFINITE);
-        sensor.getTransform().setTranslation(getPosition().x, getPosition().y);
-        sensor.setUserData(new ShieldSensor(this)); // Wrap building in ShieldSensor
-        
-        return sensor;
+        return null; // No shield component
     }
     
-    /**
-     * @deprecated Old shield update method - now handled by ShieldComponent
-     */
-    @Deprecated
-    private void updateShield(boolean hasLowPower) {
-        // This method is deprecated - shield updates are now handled by ShieldComponent
-    }
     
     /**
      * Activate the shield
@@ -594,16 +438,8 @@ public class Building extends GameEntity {
             getComponent(com.fullsteam.model.component.ShieldComponent.class);
         if (shieldComp != null) {
             shieldComp.activate(this);
-            return;
         }
-        
-        // Fallback to old logic
-        if (buildingType != BuildingType.SHIELD_GENERATOR || shieldActive) {
-            return;
-        }
-        
-        shieldActive = true;
-        log.debug("Shield activated for building {}", id);
+        // No-op if no shield component
     }
     
     /**
@@ -614,16 +450,8 @@ public class Building extends GameEntity {
             getComponent(com.fullsteam.model.component.ShieldComponent.class);
         if (shieldComp != null) {
             shieldComp.deactivate(this);
-            return;
         }
-        
-        // Fallback to old logic
-        if (!shieldActive) {
-            return;
-        }
-        
-        shieldActive = false;
-        log.debug("Shield deactivated for building {}", id);
+        // No-op if no shield component
     }
     
     /**
@@ -635,14 +463,43 @@ public class Building extends GameEntity {
         if (shieldComp != null) {
             return shieldComp.isPositionInside(position, this);
         }
-        
-        // Fallback to old logic
-        if (!shieldActive || buildingType != BuildingType.SHIELD_GENERATOR) {
-            return false;
+        return false; // No shield component
+    }
+    
+    /**
+     * Check if the shield is active
+     */
+    public boolean isShieldActive() {
+        com.fullsteam.model.component.ShieldComponent shieldComp = 
+            getComponent(com.fullsteam.model.component.ShieldComponent.class);
+        if (shieldComp != null) {
+            return shieldComp.isActive();
         }
-        
-        double distance = getPosition().distance(position);
-        return distance <= SHIELD_RADIUS;
+        return false; // No shield component
+    }
+    
+    /**
+     * Get the shield sensor body
+     */
+    public Body getShieldSensorBody() {
+        com.fullsteam.model.component.ShieldComponent shieldComp = 
+            getComponent(com.fullsteam.model.component.ShieldComponent.class);
+        if (shieldComp != null) {
+            return shieldComp.getSensorBody();
+        }
+        return null; // No shield component
+    }
+    
+    /**
+     * Set the shield sensor body
+     */
+    public void setShieldSensorBody(Body sensorBody) {
+        com.fullsteam.model.component.ShieldComponent shieldComp = 
+            getComponent(com.fullsteam.model.component.ShieldComponent.class);
+        if (shieldComp != null) {
+            shieldComp.setSensorBody(sensorBody);
+        }
+        // No-op if no shield component
     }
     
     /**
@@ -654,9 +511,7 @@ public class Building extends GameEntity {
         if (shieldComp != null) {
             return shieldComp.getRadius();
         }
-        
-        // Fallback to old constant
-        return SHIELD_RADIUS;
+        return 0.0; // No shield component
     }
     
     /**
@@ -664,7 +519,7 @@ public class Building extends GameEntity {
      */
     public boolean isMonument() {
         return buildingType == BuildingType.PHOTON_SPIRE ||
-               buildingType == BuildingType.QUANTUM_NEXUS ||
+               buildingType == BuildingType.ANDROID_FACTORY ||
                buildingType == BuildingType.SANDSTORM_GENERATOR;
     }
     
@@ -678,7 +533,7 @@ public class Building extends GameEntity {
         
         double radius = switch (buildingType) {
             case PHOTON_SPIRE -> PHOTON_SPIRE_RADIUS;
-            case QUANTUM_NEXUS -> QUANTUM_NEXUS_RADIUS;
+            case ANDROID_FACTORY -> 0.0; // Android Factory has no aura
             case SANDSTORM_GENERATOR -> SANDSTORM_RADIUS;
             default -> 0.0;
         };
@@ -740,7 +595,7 @@ public class Building extends GameEntity {
     public double getAuraRadius() {
         return switch (buildingType) {
             case PHOTON_SPIRE -> PHOTON_SPIRE_RADIUS;
-            case QUANTUM_NEXUS -> QUANTUM_NEXUS_RADIUS;
+            case ANDROID_FACTORY -> 0.0; // Android Factory has no aura
             case SANDSTORM_GENERATOR -> SANDSTORM_RADIUS;
             default -> 0.0;
         };
@@ -752,16 +607,6 @@ public class Building extends GameEntity {
     public double getBeamDamageMultiplier() {
         if (buildingType == BuildingType.PHOTON_SPIRE && auraActive) {
             return PHOTON_SPIRE_DAMAGE_MULTIPLIER;
-        }
-        return 1.0;
-    }
-    
-    /**
-     * Get the health multiplier from Quantum Nexus
-     */
-    public double getHealthMultiplier() {
-        if (buildingType == BuildingType.QUANTUM_NEXUS && auraActive) {
-            return QUANTUM_NEXUS_HEALTH_MULTIPLIER;
         }
         return 1.0;
     }

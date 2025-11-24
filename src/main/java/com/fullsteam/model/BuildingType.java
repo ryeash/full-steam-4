@@ -197,16 +197,16 @@ public enum BuildingType {
             false    // cannot produce units
     ),
     
-    // Monument - Synthesis faction - provides shield/armor bonus to nearby units
-    QUANTUM_NEXUS(
-            "Quantum Nexus",
+    // Monument - Synthesis faction - autonomous android production facility
+    ANDROID_FACTORY(
+            "Android Factory",
             700,     // resource cost
             40,      // build time (seconds)
-            945,     // max health (+5%)
-            40.0,    // size (radius) - reduced from 50
+            900,     // max health
+            42.0,    // size (radius)
             8,       // sides (octagon)
-            0x9370DB, // medium purple (quantum energy)
-            false    // cannot produce units
+            0x00CED1, // dark turquoise (Synthesis faction color)
+            true     // can produce units (Androids!)
     ),
     
     // Monument - Tech Alliance faction - amplifies beam weapon damage
@@ -308,7 +308,7 @@ public enum BuildingType {
         return switch (this) {
             case HEADQUARTERS, REFINERY, BARRACKS, POWER_PLANT, BUNKER, WALL -> 1;
             case FACTORY, RESEARCH_LAB, WEAPONS_DEPOT, TURRET, SHIELD_GENERATOR -> 2;
-            case TECH_CENTER, ADVANCED_FACTORY, BANK, SANDSTORM_GENERATOR, QUANTUM_NEXUS, PHOTON_SPIRE -> 3;
+            case TECH_CENTER, ADVANCED_FACTORY, BANK, SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE -> 3;
         };
     }
 
@@ -342,7 +342,7 @@ public enum BuildingType {
             
             // Monument buildings (high power consumption for special effects)
             case SANDSTORM_GENERATOR -> -40; // Weather control systems
-            case QUANTUM_NEXUS -> -70; // Quantum field generators (VERY high power!)
+            case ANDROID_FACTORY -> -60; // Android production systems
             case PHOTON_SPIRE -> -45; // Beam amplification systems
         };
     }
@@ -418,8 +418,8 @@ public enum BuildingType {
             // Sandstorm Generator - hexagonal weather control station
             case SANDSTORM_GENERATOR -> List.of(Geometry.createPolygonalCircle(6, size));
             
-            // Quantum Nexus - large octagon (quantum energy)
-            case QUANTUM_NEXUS -> List.of(Geometry.createPolygonalCircle(8, size));
+            // Android Factory - octagon (advanced manufacturing)
+            case ANDROID_FACTORY -> List.of(Geometry.createPolygonalCircle(8, size));
             
             // Photon Spire - hexagonal beam amplifier
             case PHOTON_SPIRE -> List.of(Geometry.createPolygonalCircle(6, size));

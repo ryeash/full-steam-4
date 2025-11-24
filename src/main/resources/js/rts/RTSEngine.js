@@ -2208,10 +2208,10 @@ class RTSEngine {
     update() {
         // Update camera with WASD (fixed inverted controls)
         const cameraSpeed = 10 / this.camera.zoom;
-        if (this.keys['w'] || this.keys['ArrowUp']) this.camera.y += cameraSpeed;
-        if (this.keys['s'] || this.keys['ArrowDown']) this.camera.y -= cameraSpeed;
-        if (this.keys['a'] || this.keys['ArrowLeft']) this.camera.x -= cameraSpeed;
-        if (this.keys['d'] || this.keys['ArrowRight']) this.camera.x += cameraSpeed;
+        if (this.keys['w'] || this.keys['W'] || this.keys['ArrowUp']) this.camera.y += cameraSpeed;
+        if (this.keys['s'] || this.keys['S'] || this.keys['ArrowDown']) this.camera.y -= cameraSpeed;
+        if (this.keys['a'] || this.keys['A'] || this.keys['ArrowLeft']) this.camera.x -= cameraSpeed;
+        if (this.keys['d'] || this.keys['D'] || this.keys['ArrowRight']) this.camera.x += cameraSpeed;
         
         // Clamp camera to world bounds (with some padding based on zoom)
         const padding = 500 / this.camera.zoom; // More padding when zoomed in
@@ -2367,7 +2367,7 @@ class RTSEngine {
         this.keys[e.key] = true;
         
         // Hotkeys
-        if (e.key === 'b') {
+        if (e.key === 'b' || e.key === 'B') {
             this.toggleBuildMenu();
         } else if (e.key === 'Escape') {
             if (this.specialAbilityTargetingMode) {

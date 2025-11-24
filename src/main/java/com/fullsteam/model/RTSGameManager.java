@@ -606,6 +606,21 @@ public class RTSGameManager {
                 if (building.hasCompletedUnit() && !hasLowPower) {
                     spawnUnitFromBuilding(building);
                 }
+                
+                // Spawn completed androids from Android Factory (only if not low power)
+                if (building.getBuildingType() == BuildingType.ANDROID_FACTORY && !hasLowPower) {
+                    com.fullsteam.model.component.AndroidFactoryComponent androidComp = 
+                        building.getComponent(com.fullsteam.model.component.AndroidFactoryComponent.class);
+                    if (androidComp != null && androidComp.hasCompletedAndroid()) {
+                        Unit android = androidComp.getCompletedAndroid();
+                        if (android != null) {
+                            units.put(android.getId(), android);
+                            world.addBody(android.getBody());
+                            log.info("Added Android {} to world for player {} from Android Factory {}", 
+                                    android.getId(), building.getOwnerId(), building.getId());
+                        }
+                    }
+                }
 
                 // Update turret targeting and firing (only if construction is complete)
                 if (building.getBuildingType().isDefensive() && !building.isUnderConstruction()) {
@@ -1452,25 +1467,9 @@ public class RTSGameManager {
      * Get max health multiplier for a unit based on nearby Quantum Nexus
      */
     private double getUnitHealthMultiplier(Unit unit) {
-        Vector2 unitPos = unit.getPosition();
-        double multiplier = 1.0;
-
-        for (Building building : buildings.values()) {
-            if (building.getBuildingType() == BuildingType.QUANTUM_NEXUS &&
-                    building.isAuraActive() &&
-                    building.getTeamNumber() == unit.getTeamNumber()) {
-
-                double distance = unitPos.distance(building.getPosition());
-                if (distance <= building.getAuraRadius()) {
-                    multiplier *= building.getHealthMultiplier();
-                    break; // Only one nexus affects a unit (no stacking)
-                }
-            }
-        }
-
-        return multiplier;
+        // Android Factory has no aura effect
+        return 1.0;
     }
-
 
     /**
      * Create an explosion field effect (used by collision processor)
@@ -1729,6 +1728,18 @@ public class RTSGameManager {
         units.entrySet().removeIf(entry -> {
             Unit unit = entry.getValue();
             if (!unit.isActive()) {
+                // Unregister android from its factory (if it's an android)
+                if (unit.getAndroidFactoryId() != null) {
+                    Building factory = buildings.get(unit.getAndroidFactoryId());
+                    if (factory != null && factory.isActive()) {
+                        com.fullsteam.model.component.AndroidFactoryComponent androidComp = 
+                            factory.getComponent(com.fullsteam.model.component.AndroidFactoryComponent.class);
+                        if (androidComp != null) {
+                            androidComp.unregisterAndroid(unit.getId());
+                        }
+                    }
+                }
+                
                 // Send unit death notification (throttled to avoid spam)
                 int ownerId = unit.getOwnerId();
                 long currentTime = System.currentTimeMillis();
@@ -1797,7 +1808,7 @@ public class RTSGameManager {
                         case TURRET -> true;  // Defense
                         case BUNKER -> true;  // Defense
                         // Monuments
-                        case PHOTON_SPIRE, QUANTUM_NEXUS, SANDSTORM_GENERATOR -> true;
+                        case PHOTON_SPIRE, ANDROID_FACTORY, SANDSTORM_GENERATOR -> true;
                         default -> false;  // Don't notify for walls, etc.
                     };
 
@@ -1836,6 +1847,25 @@ public class RTSGameManager {
                         if (!world.containsBody(unit.getBody())) {
                             world.addBody(unit.getBody());
                         }
+                    }
+                }
+                
+                // Destroy all androids when Android Factory is destroyed
+                if (building.getBuildingType() == BuildingType.ANDROID_FACTORY) {
+                    com.fullsteam.model.component.AndroidFactoryComponent androidComp = 
+                        building.getComponent(com.fullsteam.model.component.AndroidFactoryComponent.class);
+                    if (androidComp != null) {
+                        Set<Integer> androidIds = androidComp.getControlledAndroidIds();
+                        for (Integer androidId : androidIds) {
+                            Unit android = units.get(androidId);
+                            if (android != null && android.isActive()) {
+                                android.setActive(false);
+                                log.info("Android {} destroyed due to Android Factory {} destruction", 
+                                        androidId, building.getId());
+                            }
+                        }
+                        log.info("Android Factory {} destroyed - {} androids destroyed", 
+                                building.getId(), androidIds.size());
                     }
                 }
 
@@ -1944,7 +1974,7 @@ public class RTSGameManager {
                     playerBuildings.contains(BuildingType.RESEARCH_LAB);
 
             // Monument Buildings - Requires Power Plant + Research Lab (T3)
-            case SANDSTORM_GENERATOR, QUANTUM_NEXUS, PHOTON_SPIRE ->
+            case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE ->
                     playerBuildings.contains(BuildingType.POWER_PLANT) &&
                             playerBuildings.contains(BuildingType.RESEARCH_LAB);
 
@@ -2584,17 +2614,6 @@ public class RTSGameManager {
             units.put(worker.getId(), worker);
             world.addBody(worker.getBody());
         }
-
-        // Create a test infantry unit for debugging
-        Unit infantry = new Unit(
-                IdGenerator.nextEntityId(),
-                UnitType.INFANTRY,
-                position.x + 150, position.y,
-                playerId,
-                teamNumber
-        );
-        units.put(infantry.getId(), infantry);
-        world.addBody(infantry.getBody());
 
         log.info("Created starting base for player {} at ({}, {})", playerId, position.x, position.y);
     }

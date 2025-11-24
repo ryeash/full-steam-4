@@ -173,7 +173,7 @@ public class FactionRegistry {
                 BuildingType.TECH_CENTER,
                 BuildingType.ADVANCED_FACTORY,
                 BuildingType.BANK,
-                BuildingType.QUANTUM_NEXUS  // Synthesis monument
+                BuildingType.ANDROID_FACTORY  // Synthesis monument
         );
 
         // Synthesis focuses on advanced, heavy units - no basic infantry
@@ -189,6 +189,7 @@ public class FactionRegistry {
                 UnitType.MAMMOTH_TANK, 
                 UnitType.COLOSSUS  // Synthesis hero
         ));
+        buildingProducers.put(BuildingType.ANDROID_FACTORY, List.of(UnitType.ANDROID));  // Monument produces androids
 
         FactionTechTree techTree = FactionTechTree.builder()
                 .availableBuildings(synthesisBuildings)
@@ -200,7 +201,7 @@ public class FactionRegistry {
                 .faction(Faction.SYNTHESIS)
                 .techTree(techTree)
                 .heroUnit(UnitType.COLOSSUS)
-                .monumentBuilding(BuildingType.QUANTUM_NEXUS)
+                .monumentBuilding(BuildingType.ANDROID_FACTORY)
                 .powerEfficiencyMultiplier(0.7)  // -30% power consumption
                 .unitCostMultiplier(1.3)  // +30% unit costs
                 .buildingHealthMultiplier(1.15)  // +15% building health
