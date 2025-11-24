@@ -54,6 +54,11 @@ public class RTSPlayerInput {
     private boolean activateSpecialAbility; // Activate special ability for selected units
     private Integer specialAbilityTargetUnit; // Target unit ID for heal/repair
     
+    // Research commands
+    private com.fullsteam.model.research.ResearchType startResearchOrder; // Research type to start
+    private Integer researchBuildingId; // Building ID to research at (RESEARCH_LAB or TECH_CENTER)
+    private Integer cancelResearchBuildingId; // Building ID to cancel research at
+    
     // Garrison/Ungarrison
     private Integer garrisonOrder; // Building ID to garrison into (bunker)
     private Integer ungarrisonBuildingId; // Building ID to ungarrison from

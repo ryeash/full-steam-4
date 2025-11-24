@@ -128,6 +128,12 @@ public class Building extends GameEntity {
             log.debug("Building {} ({}) initialized with AndroidFactoryComponent", id, buildingType.getDisplayName());
         }
         
+        // Add ResearchComponent to research buildings
+        if (buildingType == BuildingType.RESEARCH_LAB || buildingType == BuildingType.TECH_CENTER) {
+            addComponent(new com.fullsteam.model.component.ResearchComponent(this));
+            log.debug("Building {} ({}) initialized with ResearchComponent", id, buildingType.getDisplayName());
+        }
+        
         // More components will be added here as we extract them:
         // - GarrisonComponent for BUNKER
         // - AuraComponent for monuments
@@ -513,6 +519,58 @@ public class Building extends GameEntity {
         }
         return 0.0; // No shield component
     }
+    
+    // ==================== RESEARCH COMPONENT BRIDGE METHODS ====================
+    
+    /**
+     * Check if this building is currently researching
+     */
+    public boolean isResearching() {
+        com.fullsteam.model.component.ResearchComponent researchComp = 
+            getComponent(com.fullsteam.model.component.ResearchComponent.class);
+        if (researchComp != null) {
+            return researchComp.isResearching();
+        }
+        return false; // No research component
+    }
+    
+    /**
+     * Get current research progress (0-100%)
+     */
+    public int getResearchProgress() {
+        com.fullsteam.model.component.ResearchComponent researchComp = 
+            getComponent(com.fullsteam.model.component.ResearchComponent.class);
+        if (researchComp != null) {
+            return researchComp.getResearchProgress();
+        }
+        return 0; // No research component
+    }
+    
+    /**
+     * Get current research type (null if not researching)
+     */
+    public com.fullsteam.model.research.ResearchType getCurrentResearchType() {
+        com.fullsteam.model.component.ResearchComponent researchComp = 
+            getComponent(com.fullsteam.model.component.ResearchComponent.class);
+        if (researchComp != null) {
+            return researchComp.getCurrentResearchType();
+        }
+        return null; // No research component
+    }
+    
+    /**
+     * Cancel current research
+     */
+    public boolean cancelResearch() {
+        com.fullsteam.model.component.ResearchComponent researchComp = 
+            getComponent(com.fullsteam.model.component.ResearchComponent.class);
+        if (researchComp != null) {
+            return researchComp.cancelResearch();
+        }
+        return false; // No research component
+    }
+    
+    // ==================== MONUMENT METHODS ====================
     
     /**
      * Check if this is a monument building

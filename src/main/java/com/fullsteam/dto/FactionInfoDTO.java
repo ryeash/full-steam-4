@@ -24,6 +24,7 @@ public class FactionInfoDTO {
     // Tech Tree
     private List<UnitInfo> availableUnits;
     private List<BuildingInfo> availableBuildings;
+    private List<ResearchInfoDTO> availableResearch; // All research available to this faction
     
     // Global Modifiers
     private double powerEfficiencyModifier; // e.g., 0.7 = 30% less power consumption

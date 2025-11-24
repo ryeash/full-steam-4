@@ -3,6 +3,7 @@ package com.fullsteam.model;
 import com.fullsteam.model.factions.Faction;
 import com.fullsteam.model.factions.FactionDefinition;
 import com.fullsteam.model.factions.FactionRegistry;
+import com.fullsteam.model.research.ResearchManager;
 import lombok.Data;
 
 import java.util.HashMap;
@@ -21,6 +22,9 @@ public class PlayerFaction {
     // Faction system
     private Faction faction = Faction.TERRAN; // Default faction
     private FactionDefinition factionDefinition;
+    
+    // Research system
+    private final ResearchManager researchManager;
     
     // Resources
     private final Map<ResourceType, Integer> resources = new HashMap<>();
@@ -44,6 +48,9 @@ public class PlayerFaction {
         this.teamNumber = teamNumber;
         this.playerName = playerName;
         
+        // Initialize research manager
+        this.researchManager = new ResearchManager(playerId);
+        
         // Initialize faction (default to TERRAN for backward compatibility)
         setFaction(Faction.TERRAN);
         
@@ -58,6 +65,9 @@ public class PlayerFaction {
         this.playerId = playerId;
         this.teamNumber = teamNumber;
         this.playerName = playerName;
+        
+        // Initialize research manager
+        this.researchManager = new ResearchManager(playerId);
         
         // Initialize faction
         setFaction(faction);

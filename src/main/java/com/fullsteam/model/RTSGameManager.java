@@ -345,6 +345,9 @@ public class RTSGameManager {
                 recalculateUpkeep();
                 recalculatePower();
             }
+            
+            // Update research progress for all players
+            updateResearch(deltaTime);
 
             // Process player inputs
             playerInputs.forEach(this::processPlayerInput);
@@ -1180,6 +1183,117 @@ public class RTSGameManager {
                         playerId, buildingId, rallyPoint.x, rallyPoint.y);
             }
         }
+        
+        // Handle research orders
+        if (input.getStartResearchOrder() != null) {
+            com.fullsteam.model.research.ResearchType researchType = input.getStartResearchOrder();
+            Integer buildingId = input.getResearchBuildingId();
+            
+            log.info("Player {} requesting to start research {} at building {}", playerId, researchType, buildingId);
+            
+            if (buildingId != null) {
+                Building building = buildings.get(buildingId);
+                
+                if (building != null && building.belongsTo(playerId)) {
+                    // Validate building type (must be RESEARCH_LAB or TECH_CENTER)
+                    if (building.getBuildingType() != BuildingType.RESEARCH_LAB && 
+                        building.getBuildingType() != BuildingType.TECH_CENTER) {
+                        log.warn("Player {} tried to research at invalid building type {}", 
+                                playerId, building.getBuildingType());
+                        return;
+                    }
+                    
+                    // Check if building is under construction
+                    if (building.isUnderConstruction()) {
+                        log.warn("Player {} tried to research at building {} that is under construction", 
+                                playerId, buildingId);
+                        sendGameEvent(GameEvent.createPlayerEvent(
+                                "⚠️ Cannot research: Building is still under construction!",
+                                playerId,
+                                GameEvent.EventCategory.WARNING
+                        ));
+                        return;
+                    }
+                    
+                    // Get player's buildings for tech requirement checks
+                    java.util.Set<BuildingType> playerBuildings = buildings.values().stream()
+                            .filter(b -> b.getOwnerId() == playerId && 
+                                        b.isActive() && 
+                                        !b.isUnderConstruction())
+                            .map(Building::getBuildingType)
+                            .collect(java.util.stream.Collectors.toSet());
+                    
+                    // Validate research can be started (via ResearchManager)
+                    if (!faction.getResearchManager().canStartResearch(researchType, playerBuildings)) {
+                        log.warn("Player {} cannot start research {} - requirements not met", 
+                                playerId, researchType);
+                        sendGameEvent(GameEvent.createPlayerEvent(
+                                "⚠️ Cannot research: Requirements not met!",
+                                playerId,
+                                GameEvent.EventCategory.WARNING
+                        ));
+                        return;
+                    }
+                    
+                    // Check if player can afford the research
+                    int cost = researchType.getCreditCost();
+                    if (!faction.hasResources(ResourceType.CREDITS, cost)) {
+                        int currentCredits = faction.getResourceAmount(ResourceType.CREDITS);
+                        log.warn("Player {} cannot afford research {} (cost: {}, has: {})",
+                                playerId, researchType, cost, currentCredits);
+                        sendGameEvent(GameEvent.createPlayerEvent(
+                                String.format("💰 Insufficient funds! %s costs %d credits (you have %d)",
+                                        researchType.getDisplayName(), cost, currentCredits),
+                                playerId,
+                                GameEvent.EventCategory.WARNING
+                        ));
+                        return;
+                    }
+                    
+                    // Deduct resources
+                    faction.removeResources(ResourceType.CREDITS, cost);
+                    
+                    // Start research
+                    boolean started = faction.getResearchManager().startResearch(researchType, buildingId, playerBuildings);
+                    
+                    if (started) {
+                        log.info("Player {} started research {} at building {} (cost: {})",
+                                playerId, researchType, buildingId, cost);
+                        sendGameEvent(GameEvent.createPlayerEvent(
+                                "🔬 Research started: " + researchType.getDisplayName(),
+                                playerId,
+                                GameEvent.EventCategory.INFO
+                        ));
+                    } else {
+                        // Refund if research couldn't start
+                        faction.addResources(ResourceType.CREDITS, cost);
+                        log.warn("Player {} failed to start research {} at building {}", 
+                                playerId, researchType, buildingId);
+                    }
+                }
+            }
+        }
+        
+        // Handle cancel research orders
+        if (input.getCancelResearchBuildingId() != null) {
+            Integer buildingId = input.getCancelResearchBuildingId();
+            Building building = buildings.get(buildingId);
+            
+            if (building != null && building.belongsTo(playerId)) {
+                // Cancel research via ResearchManager
+                boolean cancelled = faction.getResearchManager().cancelResearch(buildingId);
+                
+                if (cancelled) {
+                    log.info("Player {} cancelled research at building {}", playerId, buildingId);
+                    sendGameEvent(GameEvent.createPlayerEvent(
+                            "❌ Research cancelled",
+                            playerId,
+                            GameEvent.EventCategory.INFO
+                    ));
+                    // Note: No refund for cancelled research (design decision)
+                }
+            }
+        }
 
         // Clear input after processing
         playerInputs.remove(playerId);
@@ -1205,6 +1319,12 @@ public class RTSGameManager {
                 building.getOwnerId(),
                 building.getTeamNumber()
         );
+        
+        // Apply research modifiers from player's research
+        PlayerFaction faction = playerFactions.get(building.getOwnerId());
+        if (faction != null && faction.getResearchManager() != null) {
+            unit.applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
+        }
 
         units.put(unit.getId(), unit);
         world.addBody(unit.getBody());
@@ -1720,6 +1840,42 @@ public class RTSGameManager {
             }
         });
     }
+    
+    /**
+     * Update research progress for all players
+     */
+    private void updateResearch(double deltaTime) {
+        playerFactions.forEach((playerId, faction) -> {
+            if (faction.getResearchManager() == null) {
+                return;
+            }
+            
+            // Update research progress and get completed research
+            java.util.List<com.fullsteam.model.research.ResearchType> completedResearch = 
+                faction.getResearchManager().updateResearch(deltaTime);
+            
+            // Notify player of completed research and apply modifiers to existing units
+            for (com.fullsteam.model.research.ResearchType research : completedResearch) {
+                log.info("Player {} completed research: {}", playerId, research.getDisplayName());
+                
+                // Send notification to player
+                sendGameEvent(GameEvent.createPlayerEvent(
+                    "🔬 Research Complete: " + research.getDisplayName(),
+                    playerId,
+                    GameEvent.EventCategory.INFO
+                ));
+                
+                // Apply research modifiers to all existing units owned by this player
+                com.fullsteam.model.research.ResearchModifier modifier = research.getModifier();
+                units.values().stream()
+                    .filter(unit -> unit.getOwnerId() == playerId)
+                    .forEach(unit -> unit.applyResearchModifiers(modifier));
+                
+                // Note: Buildings don't need retroactive modifier application
+                // Research affects new buildings via faction modifiers at creation time
+            }
+        });
+    }
 
     /**
      * Remove inactive entities
@@ -2128,10 +2284,6 @@ public class RTSGameManager {
     }
 
     /**
-     * Extract vertices from a physics body for client-side rendering
-     * Returns a list of [x, y] coordinate pairs in local space
-     */
-    /**
      * Extract vertices from all fixtures in a physics body
      * Returns a list of fixtures, where each fixture is a list of vertices (x,y pairs)
      * This supports multi-fixture bodies for compound shapes
@@ -2322,6 +2474,28 @@ public class RTSGameManager {
         data.put("factionType", faction.getFaction().name());
         data.put("factionName", faction.getFaction().getDisplayName());
         data.put("factionColor", faction.getFaction().getThemeColor());
+        
+        // Research information
+        if (faction.getResearchManager() != null) {
+            List<String> completedResearch = new ArrayList<>();
+            for (com.fullsteam.model.research.ResearchType research : 
+                    faction.getResearchManager().getCompletedResearch()) {
+                completedResearch.add(research.name());
+            }
+            data.put("completedResearch", completedResearch);
+            
+            // Active research (building ID -> research info)
+            Map<Integer, Map<String, Object>> activeResearch = new HashMap<>();
+            faction.getResearchManager().getActiveResearch().forEach((buildingId, progress) -> {
+                Map<String, Object> researchInfo = new HashMap<>();
+                researchInfo.put("researchType", progress.getResearchType().name());
+                researchInfo.put("displayName", progress.getResearchType().getDisplayName());
+                researchInfo.put("progress", progress.getProgressPercent());
+                researchInfo.put("timeRemaining", progress.getTimeRemaining());
+                activeResearch.put(buildingId, researchInfo);
+            });
+            data.put("activeResearch", activeResearch);
+        }
 
         // Available units and buildings for this faction
         List<String> availableUnits = new ArrayList<>();
@@ -2611,6 +2785,12 @@ public class RTSGameManager {
                     playerId,
                     teamNumber
             );
+            
+            // Apply research modifiers (though starting units won't have research yet)
+            if (faction != null && faction.getResearchManager() != null) {
+                worker.applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
+            }
+            
             units.put(worker.getId(), worker);
             world.addBody(worker.getBody());
         }

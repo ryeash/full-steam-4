@@ -1,11 +1,13 @@
 package com.fullsteam.service;
 
 import com.fullsteam.dto.FactionInfoDTO;
+import com.fullsteam.dto.ResearchInfoDTO;
 import com.fullsteam.model.BuildingType;
 import com.fullsteam.model.UnitType;
 import com.fullsteam.model.factions.Faction;
 import com.fullsteam.model.factions.FactionDefinition;
 import com.fullsteam.model.factions.FactionRegistry;
+import com.fullsteam.model.research.ResearchType;
 import jakarta.inject.Singleton;
 
 import java.util.ArrayList;
@@ -59,6 +61,12 @@ public class FactionInfoService {
             }
         }
 
+        // Build research info list (all research available - client filters based on requirements)
+        List<ResearchInfoDTO> research = new ArrayList<>();
+        for (ResearchType researchType : ResearchType.values()) {
+            research.add(ResearchInfoDTO.fromResearchType(researchType));
+        }
+
         // Build bonuses/penalties list
         List<String> bonuses = new ArrayList<>();
         List<String> penalties = new ArrayList<>();
@@ -72,6 +80,7 @@ public class FactionInfoService {
                 .icon(getFactionIcon(faction))
                 .availableUnits(units)
                 .availableBuildings(buildings)
+                .availableResearch(research)
                 .powerEfficiencyModifier(definition.getPowerEfficiencyMultiplier())
                 .upkeepLimitModifier(definition.getUpkeepMultiplier())
                 .bonuses(bonuses)
@@ -258,18 +267,12 @@ public class FactionInfoService {
      * Get faction icon emoji
      */
     private String getFactionIcon(Faction faction) {
-        switch (faction) {
-            case TERRAN:
-                return "🛡️";
-            case NOMADS:
-                return "🏎️";
-            case SYNTHESIS:
-                return "⚡";
-            case TECH_ALLIANCE:
-                return "🔬";
-            default:
-                return "❓";
-        }
+        return switch (faction) {
+            case TERRAN -> "🛡️";
+            case NOMADS -> "🏎️";
+            case SYNTHESIS -> "⚡";
+            case TECH_ALLIANCE -> "🔬";
+        };
     }
 }
 

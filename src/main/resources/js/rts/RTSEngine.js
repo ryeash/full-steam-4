@@ -3136,6 +3136,11 @@ class RTSEngine {
             panel.appendChild(statusInfo);
         }
         
+        // Research UI (for RESEARCH_LAB and TECH_CENTER)
+        if ((buildingData.type === 'RESEARCH_LAB' || buildingData.type === 'TECH_CENTER') && !buildingData.underConstruction) {
+            this.showResearchUI(panel, buildingData);
+        }
+        
         // Production buttons
         if (buildingData.canProduceUnits && !buildingData.underConstruction) {
             const productionTitle = document.createElement('div');
@@ -3167,6 +3172,207 @@ class RTSEngine {
     
     hideProductionUI() {
         document.getElementById('unit-info-panel').style.display = 'none';
+    }
+    
+    /**
+     * Show research UI for research buildings
+     */
+    showResearchUI(panel, buildingData) {
+        // Check if there's active research at this building
+        const activeResearch = this.getActiveResearchAtBuilding(buildingData.id);
+        
+        if (activeResearch) {
+            // Show active research progress
+            const researchTitle = document.createElement('div');
+            researchTitle.style.marginTop = '15px';
+            researchTitle.style.fontWeight = 'bold';
+            researchTitle.style.color = '#00CED1';
+            researchTitle.textContent = '🔬 Researching:';
+            panel.appendChild(researchTitle);
+            
+            const researchName = document.createElement('div');
+            researchName.className = 'unit-stat';
+            researchName.style.color = '#FFD700';
+            researchName.textContent = activeResearch.displayName;
+            panel.appendChild(researchName);
+            
+            // Progress bar
+            const progressBarContainer = document.createElement('div');
+            progressBarContainer.className = 'health-bar';
+            progressBarContainer.style.marginTop = '5px';
+            const progressFill = document.createElement('div');
+            progressFill.className = 'health-fill';
+            progressFill.style.width = activeResearch.progress + '%';
+            progressFill.style.background = 'linear-gradient(90deg, #00CED1, #1E90FF)';
+            progressBarContainer.appendChild(progressFill);
+            panel.appendChild(progressBarContainer);
+            
+            // Progress text
+            const progressText = document.createElement('div');
+            progressText.className = 'unit-stat';
+            progressText.innerHTML = `<span>Progress:</span><span>${activeResearch.progress}% (${activeResearch.timeRemaining}s)</span>`;
+            panel.appendChild(progressText);
+            
+            // Cancel button
+            const cancelButton = document.createElement('button');
+            cancelButton.className = 'build-button';
+            cancelButton.textContent = '❌ Cancel Research';
+            cancelButton.style.marginTop = '10px';
+            cancelButton.onclick = () => this.cancelResearch(buildingData.id);
+            panel.appendChild(cancelButton);
+        } else {
+            // Show available research
+            const researchTitle = document.createElement('div');
+            researchTitle.style.marginTop = '15px';
+            researchTitle.style.fontWeight = 'bold';
+            researchTitle.style.color = '#00CED1';
+            researchTitle.textContent = '🔬 Available Research:';
+            panel.appendChild(researchTitle);
+            
+            // Get available research for this building
+            const availableResearch = this.getAvailableResearch(buildingData.type);
+            
+            if (availableResearch.length === 0) {
+                const noResearch = document.createElement('div');
+                noResearch.className = 'unit-stat';
+                noResearch.style.color = '#888';
+                noResearch.textContent = 'No research available';
+                panel.appendChild(noResearch);
+            } else {
+                // Show up to 4 research options
+                availableResearch.slice(0, 4).forEach(research => {
+                    const button = document.createElement('button');
+                    button.className = 'build-button';
+                    button.innerHTML = `
+                        ${research.icon} ${research.displayName}
+                        <br><span style="font-size: 11px; color: #AAA;">${research.effectSummary}</span>
+                        <span class="build-cost">(💰${research.creditCost} ⏱️${research.researchTimeSeconds}s)</span>
+                    `;
+                    button.onclick = () => this.startResearch(buildingData.id, research.researchId);
+                    
+                    // Disable if can't afford
+                    if (this.myMoney < research.creditCost) {
+                        button.disabled = true;
+                        button.style.opacity = '0.5';
+                    }
+                    
+                    panel.appendChild(button);
+                });
+                
+                // "View All" button if there are more than 4
+                if (availableResearch.length > 4) {
+                    const viewAllButton = document.createElement('button');
+                    viewAllButton.className = 'build-button';
+                    viewAllButton.textContent = `📖 View All Research (${availableResearch.length} available)`;
+                    viewAllButton.style.marginTop = '5px';
+                    viewAllButton.onclick = () => this.openResearchTreeModal();
+                    panel.appendChild(viewAllButton);
+                }
+            }
+        }
+    }
+    
+    /**
+     * Get active research at a specific building
+     */
+    getActiveResearchAtBuilding(buildingId) {
+        if (!this.lastGameState || !this.lastGameState.factions || !this.lastGameState.factions[this.myPlayerId]) {
+            return null;
+        }
+        
+        const myFaction = this.lastGameState.factions[this.myPlayerId];
+        if (!myFaction.activeResearch) {
+            return null;
+        }
+        
+        return myFaction.activeResearch[buildingId] || null;
+    }
+    
+    /**
+     * Get available research for a building type
+     */
+    getAvailableResearch(buildingType) {
+        if (!this.myFactionData || !this.myFactionData.availableResearch) {
+            return [];
+        }
+        
+        if (!this.lastGameState || !this.lastGameState.factions || !this.lastGameState.factions[this.myPlayerId]) {
+            return [];
+        }
+        
+        const myFaction = this.lastGameState.factions[this.myPlayerId];
+        const completedResearch = myFaction.completedResearch || [];
+        
+        // Filter research based on:
+        // 1. Required building matches
+        // 2. Prerequisites are met
+        // 3. Not already completed
+        // 4. Not currently being researched
+        return this.myFactionData.availableResearch.filter(research => {
+            // Check required building
+            if (research.requiredBuilding !== buildingType) {
+                return false;
+            }
+            
+            // Check not already completed
+            if (completedResearch.includes(research.researchId)) {
+                return false;
+            }
+            
+            // Check not currently being researched anywhere
+            if (myFaction.activeResearch) {
+                const isResearching = Object.values(myFaction.activeResearch).some(
+                    active => active.researchType === research.researchId
+                );
+                if (isResearching) {
+                    return false;
+                }
+            }
+            
+            // Check prerequisites
+            if (research.prerequisites && research.prerequisites.length > 0) {
+                const prereqsMet = research.prerequisites.every(prereq => 
+                    completedResearch.includes(prereq)
+                );
+                if (!prereqsMet) {
+                    return false;
+                }
+            }
+            
+            return true;
+        });
+    }
+    
+    /**
+     * Start research at a building
+     */
+    startResearch(buildingId, researchType) {
+        console.log(`Starting research ${researchType} at building ${buildingId}`);
+        
+        this.sendInput({
+            startResearchOrder: researchType,
+            researchBuildingId: buildingId
+        });
+    }
+    
+    /**
+     * Cancel research at a building
+     */
+    cancelResearch(buildingId) {
+        console.log(`Cancelling research at building ${buildingId}`);
+        
+        this.sendInput({
+            cancelResearchBuildingId: buildingId
+        });
+    }
+    
+    /**
+     * Open research tree modal (placeholder for Phase 2)
+     */
+    openResearchTreeModal() {
+        console.log('Research tree modal - to be implemented in Phase 2');
+        // TODO: Implement full research tree modal
+        alert('Full research tree coming soon! For now, use the building panel to research.');
     }
     
     /**

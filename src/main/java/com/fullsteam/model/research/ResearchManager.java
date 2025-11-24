@@ -1,0 +1,222 @@
+package com.fullsteam.model.research;
+
+import com.fullsteam.model.BuildingType;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * Manages research state for a player faction.
+ * Tracks completed research, active research, and applies cumulative modifiers.
+ */
+@Slf4j
+@Getter
+public class ResearchManager {
+    
+    private final int playerId;
+    
+    // Completed research
+    private final Set<ResearchType> completedResearch = new HashSet<>();
+    
+    // Active research (building ID -> research progress)
+    private final Map<Integer, ResearchProgress> activeResearch = new HashMap<>();
+    
+    // Cached combined modifier (recalculated when research completes)
+    private ResearchModifier cumulativeModifier = new ResearchModifier();
+    
+    public ResearchManager(int playerId) {
+        this.playerId = playerId;
+    }
+    
+    /**
+     * Check if a research type can be started
+     */
+    public boolean canStartResearch(ResearchType researchType, Set<BuildingType> playerBuildings) {
+        // Already completed
+        if (completedResearch.contains(researchType)) {
+            log.debug("Research {} already completed for player {}", researchType, playerId);
+            return false;
+        }
+        
+        // Already being researched
+        if (isResearching(researchType)) {
+            log.debug("Research {} already in progress for player {}", researchType, playerId);
+            return false;
+        }
+        
+        // Check prerequisites
+        if (!hasPrerequisites(researchType)) {
+            log.debug("Research {} prerequisites not met for player {}", researchType, playerId);
+            return false;
+        }
+        
+        // Check required building
+        if (!playerBuildings.contains(researchType.getRequiredBuilding())) {
+            log.debug("Research {} requires building {} for player {}", 
+                    researchType, researchType.getRequiredBuilding(), playerId);
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Check if prerequisites are met for a research type
+     */
+    public boolean hasPrerequisites(ResearchType researchType) {
+        return completedResearch.containsAll(researchType.getPrerequisites());
+    }
+    
+    /**
+     * Check if a research type is currently being researched
+     */
+    public boolean isResearching(ResearchType researchType) {
+        return activeResearch.values().stream()
+                .anyMatch(progress -> progress.getResearchType() == researchType);
+    }
+    
+    /**
+     * Check if a building is currently researching
+     */
+    public boolean isBuildingResearching(int buildingId) {
+        return activeResearch.containsKey(buildingId);
+    }
+    
+    /**
+     * Start research at a specific building
+     */
+    public boolean startResearch(ResearchType researchType, int buildingId, Set<BuildingType> playerBuildings) {
+        if (!canStartResearch(researchType, playerBuildings)) {
+            return false;
+        }
+        
+        // Check if building is already researching
+        if (isBuildingResearching(buildingId)) {
+            log.warn("Building {} is already researching for player {}", buildingId, playerId);
+            return false;
+        }
+        
+        ResearchProgress progress = new ResearchProgress(researchType, buildingId);
+        activeResearch.put(buildingId, progress);
+        
+        log.info("Player {} started research {} at building {}", playerId, researchType, buildingId);
+        return true;
+    }
+    
+    /**
+     * Cancel active research at a building
+     */
+    public boolean cancelResearch(int buildingId) {
+        ResearchProgress removed = activeResearch.remove(buildingId);
+        if (removed != null) {
+            log.info("Player {} cancelled research {} at building {}", 
+                    playerId, removed.getResearchType(), buildingId);
+            return true;
+        }
+        return false;
+    }
+    
+    /**
+     * Update all active research progress
+     * @param deltaTime Time elapsed in seconds
+     * @return List of completed research types
+     */
+    public List<ResearchType> updateResearch(double deltaTime) {
+        List<ResearchType> completed = new ArrayList<>();
+        List<Integer> toRemove = new ArrayList<>();
+        
+        for (Map.Entry<Integer, ResearchProgress> entry : activeResearch.entrySet()) {
+            ResearchProgress progress = entry.getValue();
+            progress.update(deltaTime);
+            
+            if (progress.isComplete()) {
+                ResearchType researchType = progress.getResearchType();
+                completeResearch(researchType);
+                completed.add(researchType);
+                toRemove.add(entry.getKey());
+                
+                log.info("Player {} completed research {}", playerId, researchType);
+            }
+        }
+        
+        // Remove completed research from active list
+        toRemove.forEach(activeResearch::remove);
+        
+        return completed;
+    }
+    
+    /**
+     * Mark research as completed and recalculate modifiers
+     */
+    private void completeResearch(ResearchType researchType) {
+        completedResearch.add(researchType);
+        recalculateModifiers();
+    }
+    
+    /**
+     * Recalculate cumulative modifiers from all completed research
+     */
+    private void recalculateModifiers() {
+        cumulativeModifier = new ResearchModifier();
+        
+        for (ResearchType research : completedResearch) {
+            cumulativeModifier = cumulativeModifier.combine(research.getModifier());
+        }
+        
+        log.debug("Player {} recalculated research modifiers: projectileDamage={}, unitHealth={}, workerCapacity=+{}", 
+                playerId, 
+                cumulativeModifier.getProjectileDamageMultiplier(),
+                cumulativeModifier.getUnitHealthMultiplier(),
+                cumulativeModifier.getWorkerCapacityBonus());
+    }
+    
+    /**
+     * Get active research progress for a building
+     */
+    public ResearchProgress getActiveResearch(int buildingId) {
+        return activeResearch.get(buildingId);
+    }
+    
+    /**
+     * Get all available research for the player
+     */
+    public List<ResearchType> getAvailableResearch(Set<BuildingType> playerBuildings) {
+        return Arrays.stream(ResearchType.values())
+                .filter(research -> canStartResearch(research, playerBuildings))
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Get research by category
+     */
+    public List<ResearchType> getResearchByCategory(ResearchCategory category, Set<BuildingType> playerBuildings) {
+        return Arrays.stream(ResearchType.values())
+                .filter(research -> research.getCategory() == category)
+                .filter(research -> canStartResearch(research, playerBuildings) || completedResearch.contains(research))
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Check if a specific research is completed
+     */
+    public boolean hasResearch(ResearchType researchType) {
+        return completedResearch.contains(researchType);
+    }
+    
+    /**
+     * Get the number of completed research
+     */
+    public int getCompletedResearchCount() {
+        return completedResearch.size();
+    }
+    
+    /**
+     * Get the number of active research projects
+     */
+    public int getActiveResearchCount() {
+        return activeResearch.size();
+    }
+}
+

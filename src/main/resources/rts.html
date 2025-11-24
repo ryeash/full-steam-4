@@ -384,6 +384,33 @@
             <!-- Buildings will be populated dynamically when faction data loads -->
         </div>
         
+        <!-- Research Tree Modal -->
+        <div id="research-tree-modal" style="display: none;">
+            <div class="research-modal-content">
+                <div class="research-modal-header">
+                    <h2>🔬 Research Tree</h2>
+                    <button class="research-modal-close" onclick="window.rtsEngine.closeResearchTreeModal()">✕</button>
+                </div>
+                
+                <div class="research-category-tabs">
+                    <button class="research-tab active" data-category="COMBAT">🗡️ Combat</button>
+                    <button class="research-tab" data-category="DEFENSE">🛡️ Defense</button>
+                    <button class="research-tab" data-category="MOBILITY">⚡ Mobility</button>
+                    <button class="research-tab" data-category="ECONOMY">💰 Economy</button>
+                    <button class="research-tab" data-category="SPECIAL">✨ Special</button>
+                </div>
+                
+                <div class="research-tree-container">
+                    <canvas id="research-tree-canvas"></canvas>
+                    <div id="research-nodes-container"></div>
+                </div>
+                
+                <div class="research-modal-footer">
+                    <div id="research-tooltip" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+        
         <!-- Game Over Screen -->
         <div id="game-over-screen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 10000; justify-content: center; align-items: center; pointer-events: all;">
             <div style="text-align: center; color: white; pointer-events: all;">

@@ -49,7 +49,7 @@ public class Unit extends GameEntity {
     // Special ability system
     private boolean specialAbilityActive = false; // For toggle abilities (deploy, stealth, etc.)
     private long lastSpecialAbilityTime = 0; // For cooldown tracking
-    
+
     // Android Factory tracking (for androids only)
     private Integer androidFactoryId = null; // ID of the Android Factory that produced this unit (null if not an android)
 
@@ -64,7 +64,8 @@ public class Unit extends GameEntity {
 
     // Resource harvesting (for workers)
     private double carriedResources = 0;
-    private static final double MAX_CARRIED_RESOURCES = 100.0;
+    private static final double BASE_MAX_CARRIED_RESOURCES = 100.0;
+    private double maxCarriedResources = BASE_MAX_CARRIED_RESOURCES; // Can be modified by research
     private boolean isHarvesting = false;
     private boolean isReturningResources = false;
     private Building targetRefinery = null;
@@ -644,13 +645,13 @@ public class Unit extends GameEntity {
             body.setLinearVelocity(0, 0);
 
             // Harvest at rate of 10 resources per second
-            if (carriedResources < MAX_CARRIED_RESOURCES) {
+            if (carriedResources < maxCarriedResources) {
                 double harvestAmount = 10.0 * deltaTime;
                 double actualHarvested = deposit.harvest(harvestAmount);
                 carriedResources += actualHarvested;
 
                 // If full or deposit depleted, signal to return to refinery
-                return carriedResources >= MAX_CARRIED_RESOURCES || actualHarvested == 0; // Switch to returning resources
+                return carriedResources >= maxCarriedResources || actualHarvested == 0; // Switch to returning resources
             }
         }
 
@@ -1148,8 +1149,7 @@ public class Unit extends GameEntity {
                     turrets.add(new Turret(2, new Vector2(-turretOffset, -turretOffset))); // Bottom-left
                     turrets.add(new Turret(3, new Vector2(turretOffset, -turretOffset)));  // Bottom-right
 
-                    log.info("Crawler {} deployed - range: {}, damage: {}, turrets: {}",
-                            id, attackRange, damage, turrets.size());
+                    log.info("Crawler {} deployed - range: {}, damage: {}, turrets: {}", id, attackRange, damage, turrets.size());
                 } else {
                     // Reset to normal stats and clear turrets
                     attackRange = unitType.getAttackRange();
@@ -1184,6 +1184,67 @@ public class Unit extends GameEntity {
         }
         long now = System.currentTimeMillis();
         return (now - lastSpecialAbilityTime) >= ability.getCooldownMs();
+    }
+
+    /**
+     * Apply research modifiers to this unit's stats
+     * Called when unit is created or when research completes
+     */
+    public void applyResearchModifiers(com.fullsteam.model.research.ResearchModifier modifier) {
+        // Apply health modifier (increase max health and current health proportionally)
+        double healthMultiplier = modifier.getUnitHealthMultiplier();
+        if (healthMultiplier != 1.0) {
+            double healthPercent = health / maxHealth;
+            maxHealth *= healthMultiplier;
+            health = maxHealth * healthPercent;
+        }
+
+        // Apply damage modifiers (projectile or beam based on unit type)
+        if (unitType.firesBeams()) {
+            damage *= modifier.getBeamDamageMultiplier();
+        } else {
+            damage *= modifier.getProjectileDamageMultiplier();
+        }
+
+        // Apply attack range modifier
+        attackRange *= modifier.getAttackRangeMultiplier();
+
+        // Apply attack rate modifier
+        attackRate *= modifier.getAttackRateMultiplier();
+
+        // Apply speed modifiers (infantry or vehicle)
+        if (isInfantry()) {
+            movementSpeed *= modifier.getInfantrySpeedMultiplier();
+        } else if (isVehicle()) {
+            movementSpeed *= modifier.getVehicleSpeedMultiplier();
+        }
+
+        // Apply worker capacity bonus
+        if (unitType.canHarvest()) {
+            maxCarriedResources = BASE_MAX_CARRIED_RESOURCES + modifier.getWorkerCapacityBonus();
+        }
+
+        // Vision range modifier is handled in fog of war calculations
+    }
+
+    /**
+     * Check if this unit is infantry
+     */
+    public boolean isInfantry() {
+        return switch (unitType) {
+            case INFANTRY, LASER_INFANTRY, ROCKET_SOLDIER, SNIPER, MEDIC, ENGINEER, PLASMA_TROOPER, ION_RANGER -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * Check if this unit is a vehicle
+     */
+    public boolean isVehicle() {
+        return switch (unitType) {
+            case JEEP, TANK, CRAWLER, STEALTH_TANK, PHOTON_SCOUT, BEAM_TANK -> true;
+            default -> false;
+        };
     }
 }
 
