@@ -739,6 +739,13 @@
 
             const result = await response.json();
             currentGameId = result.gameId;
+            const sessionToken = result.sessionToken;
+            
+            // Store session token in sessionStorage for WebSocket connection
+            if (sessionToken) {
+                sessionStorage.setItem('rts_session_token', sessionToken);
+                console.log('Stored session token:', sessionToken);
+            }
             
             // Show matchmaking status
             matchmakingSection.style.display = 'none';
@@ -776,11 +783,15 @@
             // Update player list
             updatePlayerList(status);
             
-            // If game is ready, redirect
+            // If game is ready, redirect with session token
             if (status.ready) {
                 clearInterval(queueTimerInterval);
                 clearInterval(pollInterval);
-                window.location.href = `/rts.html?gameId=${currentGameId}`;
+                const sessionToken = sessionStorage.getItem('rts_session_token');
+                const url = sessionToken 
+                    ? `/rts.html?gameId=${currentGameId}&sessionToken=${sessionToken}`
+                    : `/rts.html?gameId=${currentGameId}`;
+                window.location.href = url;
             }
         } catch (error) {
             console.error('Error checking game status:', error);
@@ -815,9 +826,15 @@
         if (!currentGameId) return;
         
         try {
+            const sessionToken = sessionStorage.getItem('rts_session_token');
             await fetch(`/api/rts/matchmaking/leave/${currentGameId}`, {
-                method: 'POST'
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionToken: sessionToken })
             });
+            
+            // Clear session token
+            sessionStorage.removeItem('rts_session_token');
         } catch (error) {
             console.error('Error leaving matchmaking:', error);
         }

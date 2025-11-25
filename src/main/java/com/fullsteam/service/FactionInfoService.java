@@ -220,7 +220,7 @@ public class FactionInfoService {
             case TECH_CENTER, ADVANCED_FACTORY, BANK -> List.of("POWER_PLANT", "RESEARCH_LAB");
 
             // Monument Buildings - Requires Power Plant + Research Lab (T3)
-            case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE -> List.of("POWER_PLANT", "RESEARCH_LAB");
+            case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL -> List.of("POWER_PLANT", "RESEARCH_LAB");
         };
     }
 

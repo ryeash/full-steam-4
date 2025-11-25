@@ -341,6 +341,25 @@ public enum ResearchType {
             BuildingType.TECH_CENTER,
             new ResearchModifier().setVisionRangeMultiplier(1.25),
             VISION_RANGE_1
+    ),
+    
+    // Parallel Research (2 tiers) - Increases simultaneous research capacity
+    PARALLEL_RESEARCH_1(
+            "Parallel Research I",
+            "Allows 2 simultaneous research projects (+1)",
+            ResearchCategory.SPECIAL,
+            400, 50,
+            BuildingType.RESEARCH_LAB,
+            new ResearchModifier() // No stat modifiers, just unlocks capacity
+    ),
+    PARALLEL_RESEARCH_2(
+            "Parallel Research II",
+            "Allows 3 simultaneous research projects (+1 more)",
+            ResearchCategory.SPECIAL,
+            800, 80,
+            BuildingType.TECH_CENTER,
+            new ResearchModifier(), // No stat modifiers, just unlocks capacity
+            PARALLEL_RESEARCH_1
     );
 
     // ==================== ENUM FIELDS ====================

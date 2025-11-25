@@ -1,6 +1,14 @@
 package com.fullsteam.model;
 
+import com.fullsteam.games.IdGenerator;
+import com.fullsteam.model.component.AndroidFactoryComponent;
+import com.fullsteam.model.component.BankComponent;
+import com.fullsteam.model.component.DefenseComponent;
 import com.fullsteam.model.component.IBuildingComponent;
+import com.fullsteam.model.component.ProductionComponent;
+import com.fullsteam.model.component.ResearchComponent;
+import com.fullsteam.model.component.ShieldComponent;
+import com.fullsteam.model.research.ResearchType;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -10,14 +18,12 @@ import org.dyn4j.geometry.Convex;
 import org.dyn4j.geometry.Geometry;
 import org.dyn4j.geometry.MassType;
 import org.dyn4j.geometry.Vector2;
+import org.dyn4j.world.World;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 
 /**
@@ -30,38 +36,45 @@ public class Building extends GameEntity {
     private final BuildingType buildingType;
     private final int ownerId; // Player who owns this building
     private final int teamNumber;
-    
+
     // Component system for modular building behavior
     private final Map<Class<? extends IBuildingComponent>, IBuildingComponent> components = new HashMap<>();
-    
+
     // Construction state
     private boolean underConstruction = true;
     private double constructionProgress = 0; // 0 to maxHealth
-    
+
     // Rally point for produced units
     private Vector2 rallyPoint = null;
-    
+
     // Garrison fields (for Bunker)
     private final List<Unit> garrisonedUnits = new ArrayList<>();
     /**
      * -- SETTER --
-     *  Set the maximum garrison capacity
+     * Set the maximum garrison capacity
      */
     private int maxGarrisonCapacity = 0; // Set by building type
-    
+
     // Monument aura fields
     private Body auraSensorBody = null;
     private boolean auraActive = false;
-    private static final double PHOTON_SPIRE_RADIUS = 250.0; // Beam damage amplification radius
     private static final double SANDSTORM_RADIUS = 300.0; // Sandstorm damage radius - increased from 200
-    private static final double PHOTON_SPIRE_DAMAGE_MULTIPLIER = 1.35; // +35% beam damage
+    private static final double COMMAND_CITADEL_VISION_RADIUS = 800.0; // Huge vision range
+    private static final int COMMAND_CITADEL_UPKEEP_BONUS = 50; // +50 max upkeep
     private double sandstormTimer = 0; // Time accumulator for sandstorm pulses
     private static final double SANDSTORM_DPS = 15.0; // Damage per second (continuous)
-    
+
+    // Photon Spire combat stats (Obelisk of Light style)
+    private static final double PHOTON_SPIRE_DAMAGE = 250.0; // Massive damage per shot
+    private static final double PHOTON_SPIRE_ATTACK_RATE = 3.5; // Very slow fire rate (one shot every 3.5 seconds)
+    private static final double PHOTON_SPIRE_RANGE = 400.0; // Very long range
+    private Unit photonSpireTarget = null; // Current target for Photon Spire
+    private double photonSpireAttackCooldown = 0.0; // Time until next shot
+
     public Building(int id, BuildingType buildingType, double x, double y, int ownerId, int teamNumber) {
         this(id, buildingType, x, y, ownerId, teamNumber, buildingType.getMaxHealth());
     }
-    
+
     /**
      * Constructor with custom max health (for faction modifiers)
      */
@@ -70,10 +83,10 @@ public class Building extends GameEntity {
         this.buildingType = buildingType;
         this.ownerId = ownerId;
         this.teamNumber = teamNumber;
-        
+
         // Set garrison capacity from building type
         this.maxGarrisonCapacity = buildingType.getGarrisonCapacity();
-        
+
         // Headquarters starts fully constructed
         if (buildingType == BuildingType.HEADQUARTERS) {
             underConstruction = false;
@@ -85,14 +98,14 @@ public class Building extends GameEntity {
             health = 1;
             constructionProgress = 1;
         }
-        
+
         // Set rally point to building position by default
         this.rallyPoint = new Vector2(x, y);
-        
+
         // Initialize components based on building type
         initializeComponents(new Vector2(x, y));
     }
-    
+
     /**
      * Initialize components based on building type.
      * This method adds the appropriate components to buildings that need them.
@@ -100,136 +113,137 @@ public class Building extends GameEntity {
     private void initializeComponents(Vector2 position) {
         // Add ProductionComponent to buildings that can produce units (except Android Factory)
         if (buildingType.isCanProduceUnits() && buildingType != BuildingType.ANDROID_FACTORY) {
-            addComponent(new com.fullsteam.model.component.ProductionComponent(position));
+            addComponent(new ProductionComponent(position));
             log.debug("Building {} ({}) initialized with ProductionComponent", id, buildingType.getDisplayName());
         }
-        
+
         // Add BankComponent to bank buildings
         if (buildingType == BuildingType.BANK) {
-            addComponent(new com.fullsteam.model.component.BankComponent());
+            addComponent(new BankComponent());
             log.debug("Building {} ({}) initialized with BankComponent", id, buildingType.getDisplayName());
         }
-        
+
         // Add DefenseComponent to defensive buildings
         if (buildingType.isDefensive()) {
-            addComponent(new com.fullsteam.model.component.DefenseComponent());
+            addComponent(new DefenseComponent());
             log.debug("Building {} ({}) initialized with DefenseComponent", id, buildingType.getDisplayName());
         }
-        
+
         // Add ShieldComponent to shield generator buildings
         if (buildingType == BuildingType.SHIELD_GENERATOR) {
-            addComponent(new com.fullsteam.model.component.ShieldComponent());
+            addComponent(new ShieldComponent());
             log.debug("Building {} ({}) initialized with ShieldComponent", id, buildingType.getDisplayName());
         }
-        
+
         // Add AndroidFactoryComponent to Android Factory
         if (buildingType == BuildingType.ANDROID_FACTORY) {
-            addComponent(new com.fullsteam.model.component.AndroidFactoryComponent());
+            addComponent(new AndroidFactoryComponent());
             log.debug("Building {} ({}) initialized with AndroidFactoryComponent", id, buildingType.getDisplayName());
         }
-        
+
         // Add ResearchComponent to research buildings
         if (buildingType == BuildingType.RESEARCH_LAB || buildingType == BuildingType.TECH_CENTER) {
-            addComponent(new com.fullsteam.model.component.ResearchComponent(this));
+            addComponent(new ResearchComponent(this));
             log.debug("Building {} ({}) initialized with ResearchComponent", id, buildingType.getDisplayName());
         }
-        
+
         // More components will be added here as we extract them:
         // - GarrisonComponent for BUNKER
         // - AuraComponent for monuments
     }
-    
+
     private static Body createBuildingBody(double x, double y, BuildingType buildingType) {
         Body body = new Body();
-        
+
         // Use custom physics fixtures from BuildingType (supports multi-fixture compound shapes)
         List<Convex> shapes = buildingType.createPhysicsFixtures();
-        
+
         // Add all fixtures to the body
         for (Convex shape : shapes) {
             BodyFixture fixture = body.addFixture(shape);
-            
+
             // Configure fixture properties
             fixture.setFriction(0.1);      // Low friction
             fixture.setRestitution(0.0);   // No bounce
             fixture.setSensor(false);      // Solid collision (not a sensor)
         }
-        
+
         body.setMass(MassType.INFINITE); // Buildings don't move
         body.getTransform().setTranslation(x, y);
         return body;
     }
-    
+
     @Override
     public void update(double deltaTime) {
         update(deltaTime, false); // Default: no low power
     }
-    
+
     /**
      * Update building with power status
      */
     public void update(double deltaTime, boolean hasLowPower) {
         super.update(deltaTime);
-        
+
         if (!active) {
             return;
         }
-        
+
         // Update construction progress
         if (underConstruction) {
             // Construction is handled by worker units
             // Health increases as construction progresses
             // Ensure health is at least 1 so building stays active and targetable
             health = Math.max(1, constructionProgress);
-            
+
             if (constructionProgress >= maxHealth) {
                 completeConstruction();
             }
             return; // Don't do anything else while under construction
         }
-        
+
         // Update all components
         for (IBuildingComponent component : components.values()) {
             component.update(deltaTime, this, hasLowPower);
         }
-        
+
         // Update turret behavior (projectile firing handled by RTSGameManager)
         // This just updates targeting and rotation
         if (buildingType.isDefensive()) {
             updateTurretBehavior(deltaTime);
         }
-        
+
         // Update bunker behavior (garrisoned units fire)
         if (buildingType == BuildingType.BUNKER) {
             updateBunkerBehavior(deltaTime);
         }
-        
+
         // Update monument auras (deactivate if low power)
         if (isMonument()) {
             updateMonumentAura(hasLowPower);
         }
-        
+
         // Update sandstorm timer
         if (buildingType == BuildingType.SANDSTORM_GENERATOR && !hasLowPower && !underConstruction) {
             sandstormTimer += deltaTime;
         }
     }
-    
+
     /**
      * Check if bank is ready to pay interest and reset timer
      * Returns the interest rate to apply (0.0 if not ready)
      */
     public double checkAndResetBankInterest() {
-        com.fullsteam.model.component.BankComponent bankComp = 
-            getComponent(com.fullsteam.model.component.BankComponent.class);
+        BankComponent bankComp =
+                getComponent(BankComponent.class);
         if (bankComp != null) {
             return bankComp.checkAndResetInterest();
         }
         return 0.0; // No bank component
     }
-    
+
     /**
      * Complete construction of this building
+     *
      * @return true if construction was just completed (for triggering post-construction logic)
      */
     public boolean completeConstruction() {
@@ -237,17 +251,17 @@ public class Building extends GameEntity {
             underConstruction = false;
             health = maxHealth;
             constructionProgress = maxHealth;
-            
+
             // Notify all components that construction is complete
             for (IBuildingComponent component : components.values()) {
                 component.onConstructionComplete(this);
             }
-            
+
             return true; // Construction just completed
         }
         return false; // Already completed
     }
-    
+
     /**
      * Add construction progress (called by worker units)
      */
@@ -259,183 +273,155 @@ public class Building extends GameEntity {
         // Update health to match construction progress
         health = constructionProgress;
     }
-    
+
     /**
      * Check if construction is complete
      */
     public boolean isConstructionComplete() {
         return !underConstruction || constructionProgress >= maxHealth;
     }
-    
+
     /**
      * Get construction progress as a percentage
      */
     public double getConstructionPercent() {
         return constructionProgress / maxHealth;
     }
-    
-    
+
+
     /**
      * Queue a unit for production
      * Note: Validation should be done by the caller (RTSGameManager) using faction tech tree
+     *
      * @return true if successfully queued
      */
     public boolean queueUnitProduction(UnitType unitType) {
-        com.fullsteam.model.component.ProductionComponent prodComp = 
-            getComponent(com.fullsteam.model.component.ProductionComponent.class);
+        ProductionComponent prodComp =
+                getComponent(ProductionComponent.class);
         if (prodComp != null) {
             return prodComp.queueUnitProduction(unitType);
         }
         return false; // Building doesn't have production capability
     }
-    
+
     /**
      * Cancel current production and refund resources
      */
     public UnitType cancelCurrentProduction() {
-        com.fullsteam.model.component.ProductionComponent prodComp = 
-            getComponent(com.fullsteam.model.component.ProductionComponent.class);
+        ProductionComponent prodComp =
+                getComponent(ProductionComponent.class);
         if (prodComp != null) {
             return prodComp.cancelCurrentProduction();
         }
         return null; // No production component
     }
-    
+
     /**
      * Get production progress as a percentage
      */
     public double getProductionPercent() {
         // Check ProductionComponent first
-        com.fullsteam.model.component.ProductionComponent prodComp = 
-            getComponent(com.fullsteam.model.component.ProductionComponent.class);
+        ProductionComponent prodComp =
+                getComponent(ProductionComponent.class);
         if (prodComp != null) {
             return prodComp.getProductionPercent();
         }
-        
+
         // Check AndroidFactoryComponent
-        com.fullsteam.model.component.AndroidFactoryComponent androidComp = 
-            getComponent(com.fullsteam.model.component.AndroidFactoryComponent.class);
+        AndroidFactoryComponent androidComp =
+                getComponent(AndroidFactoryComponent.class);
         if (androidComp != null) {
             return androidComp.getProductionProgressPercent();
         }
-        
+
         return 0.0; // No production component
     }
-    
+
     /**
      * Get the number of units in the production queue (excluding current production)
      */
     public int getProductionQueueSize() {
-        com.fullsteam.model.component.ProductionComponent prodComp = 
-            getComponent(com.fullsteam.model.component.ProductionComponent.class);
+        ProductionComponent prodComp =
+                getComponent(ProductionComponent.class);
         if (prodComp != null) {
             return prodComp.getProductionQueueSize();
         }
         return 0; // No production component
     }
-    
+
     /**
      * Check if a unit is ready to be spawned
      */
     public boolean hasCompletedUnit() {
-        com.fullsteam.model.component.ProductionComponent prodComp = 
-            getComponent(com.fullsteam.model.component.ProductionComponent.class);
+        ProductionComponent prodComp =
+                getComponent(ProductionComponent.class);
         if (prodComp != null) {
             return prodComp.hasCompletedUnit();
         }
         return false; // No production component
     }
-    
+
     /**
      * Get the completed unit type and clear production
      */
     public UnitType getCompletedUnitType() {
-        com.fullsteam.model.component.ProductionComponent prodComp = 
-            getComponent(com.fullsteam.model.component.ProductionComponent.class);
+        ProductionComponent prodComp =
+                getComponent(ProductionComponent.class);
         if (prodComp != null) {
             return prodComp.getCompletedUnitType();
         }
         return null; // No production component
     }
-    
+
     /**
      * Update turret targeting and attack behavior
+     *
      * @return Projectile if fired, null otherwise
      */
     public Projectile updateTurretBehavior(double deltaTime) {
-        com.fullsteam.model.component.DefenseComponent defComp = 
-            getComponent(com.fullsteam.model.component.DefenseComponent.class);
+        DefenseComponent defComp =
+                getComponent(DefenseComponent.class);
         if (defComp != null) {
             return defComp.updateTurretBehavior(this);
         }
         return null; // No defense component
     }
-    
-    /**
-     * Get the current target unit for defensive buildings.
-     * Delegates to DefenseComponent if present.
-     * 
-     * @return The current target, or null
-     */
-    public Unit getTargetUnit() {
-        com.fullsteam.model.component.DefenseComponent defComp = 
-            getComponent(com.fullsteam.model.component.DefenseComponent.class);
-        if (defComp != null) {
-            return defComp.getTargetUnit();
-        }
-        return null; // No defense component
-    }
-    
-    /**
-     * Set the target unit for defensive buildings.
-     * Delegates to DefenseComponent if present.
-     * 
-     * @param target The unit to target
-     */
-    public void setTargetUnit(Unit target) {
-        com.fullsteam.model.component.DefenseComponent defComp = 
-            getComponent(com.fullsteam.model.component.DefenseComponent.class);
-        if (defComp != null) {
-            defComp.setTargetUnit(target);
-        }
-        // No-op if no defense component
-    }
-    
-    
+
+
     /**
      * Set rally point for produced units
      */
     public void setRallyPoint(Vector2 point) {
         this.rallyPoint = point != null ? point.copy() : null;
-        
+
         // Also update the ProductionComponent if present
-        com.fullsteam.model.component.ProductionComponent prodComp = 
-            getComponent(com.fullsteam.model.component.ProductionComponent.class);
+        ProductionComponent prodComp =
+                getComponent(ProductionComponent.class);
         if (prodComp != null) {
             prodComp.setRallyPoint(point);
         }
     }
-    
+
     /**
      * Check if this building belongs to a specific player
      */
     public boolean belongsTo(int playerId) {
         return this.ownerId == playerId;
     }
-    
+
     /**
      * Check if this building is on a specific team
      */
     public boolean isOnTeam(int team) {
         return this.teamNumber == team;
     }
-    
+
     /**
      * Create shield sensor body for Shield Generator
      */
     public Body createShieldSensorBody() {
-        com.fullsteam.model.component.ShieldComponent shieldComp = 
-            getComponent(com.fullsteam.model.component.ShieldComponent.class);
+        ShieldComponent shieldComp =
+                getComponent(ShieldComponent.class);
         if (shieldComp != null) {
             Body sensor = shieldComp.createSensorBody(this);
             shieldComp.setSensorBody(sensor);
@@ -443,153 +429,147 @@ public class Building extends GameEntity {
         }
         return null; // No shield component
     }
-    
-    
+
+
     /**
      * Activate the shield
      */
     public void activateShield() {
-        com.fullsteam.model.component.ShieldComponent shieldComp = 
-            getComponent(com.fullsteam.model.component.ShieldComponent.class);
+        ShieldComponent shieldComp =
+                getComponent(ShieldComponent.class);
         if (shieldComp != null) {
             shieldComp.activate(this);
         }
         // No-op if no shield component
     }
-    
+
     /**
      * Deactivate the shield
      */
     public void deactivateShield() {
-        com.fullsteam.model.component.ShieldComponent shieldComp = 
-            getComponent(com.fullsteam.model.component.ShieldComponent.class);
+        ShieldComponent shieldComp =
+                getComponent(ShieldComponent.class);
         if (shieldComp != null) {
             shieldComp.deactivate(this);
         }
         // No-op if no shield component
     }
-    
+
     /**
      * Check if a position is inside this building's shield
      */
     public boolean isPositionInsideShield(Vector2 position) {
-        com.fullsteam.model.component.ShieldComponent shieldComp = 
-            getComponent(com.fullsteam.model.component.ShieldComponent.class);
+        ShieldComponent shieldComp =
+                getComponent(ShieldComponent.class);
         if (shieldComp != null) {
             return shieldComp.isPositionInside(position, this);
         }
         return false; // No shield component
     }
-    
+
     /**
      * Check if the shield is active
      */
     public boolean isShieldActive() {
-        com.fullsteam.model.component.ShieldComponent shieldComp = 
-            getComponent(com.fullsteam.model.component.ShieldComponent.class);
+        ShieldComponent shieldComp =
+                getComponent(ShieldComponent.class);
         if (shieldComp != null) {
             return shieldComp.isActive();
         }
         return false; // No shield component
     }
-    
+
     /**
      * Get the shield sensor body
      */
     public Body getShieldSensorBody() {
-        com.fullsteam.model.component.ShieldComponent shieldComp = 
-            getComponent(com.fullsteam.model.component.ShieldComponent.class);
+        ShieldComponent shieldComp = getComponent(ShieldComponent.class);
         if (shieldComp != null) {
             return shieldComp.getSensorBody();
         }
         return null; // No shield component
     }
-    
+
     /**
      * Set the shield sensor body
      */
     public void setShieldSensorBody(Body sensorBody) {
-        com.fullsteam.model.component.ShieldComponent shieldComp = 
-            getComponent(com.fullsteam.model.component.ShieldComponent.class);
+        ShieldComponent shieldComp = getComponent(ShieldComponent.class);
         if (shieldComp != null) {
             shieldComp.setSensorBody(sensorBody);
         }
         // No-op if no shield component
     }
-    
+
     /**
      * Get the shield radius
      */
     public double getShieldRadius() {
-        com.fullsteam.model.component.ShieldComponent shieldComp = 
-            getComponent(com.fullsteam.model.component.ShieldComponent.class);
+        ShieldComponent shieldComp = getComponent(ShieldComponent.class);
         if (shieldComp != null) {
             return shieldComp.getRadius();
         }
         return 0.0; // No shield component
     }
-    
+
     // ==================== RESEARCH COMPONENT BRIDGE METHODS ====================
-    
+
     /**
      * Check if this building is currently researching
      */
     public boolean isResearching() {
-        com.fullsteam.model.component.ResearchComponent researchComp = 
-            getComponent(com.fullsteam.model.component.ResearchComponent.class);
+        ResearchComponent researchComp = getComponent(ResearchComponent.class);
         if (researchComp != null) {
             return researchComp.isResearching();
         }
         return false; // No research component
     }
-    
+
     /**
      * Get current research progress (0-100%)
      */
     public int getResearchProgress() {
-        com.fullsteam.model.component.ResearchComponent researchComp = 
-            getComponent(com.fullsteam.model.component.ResearchComponent.class);
+        ResearchComponent researchComp = getComponent(ResearchComponent.class);
         if (researchComp != null) {
             return researchComp.getResearchProgress();
         }
         return 0; // No research component
     }
-    
+
     /**
      * Get current research type (null if not researching)
      */
-    public com.fullsteam.model.research.ResearchType getCurrentResearchType() {
-        com.fullsteam.model.component.ResearchComponent researchComp = 
-            getComponent(com.fullsteam.model.component.ResearchComponent.class);
+    public ResearchType getCurrentResearchType() {
+        ResearchComponent researchComp = getComponent(ResearchComponent.class);
         if (researchComp != null) {
             return researchComp.getCurrentResearchType();
         }
         return null; // No research component
     }
-    
+
     /**
      * Cancel current research
      */
     public boolean cancelResearch() {
-        com.fullsteam.model.component.ResearchComponent researchComp = 
-            getComponent(com.fullsteam.model.component.ResearchComponent.class);
+        ResearchComponent researchComp = getComponent(ResearchComponent.class);
         if (researchComp != null) {
             return researchComp.cancelResearch();
         }
         return false; // No research component
     }
-    
+
     // ==================== MONUMENT METHODS ====================
-    
+
     /**
      * Check if this is a monument building
      */
     public boolean isMonument() {
         return buildingType == BuildingType.PHOTON_SPIRE ||
-               buildingType == BuildingType.ANDROID_FACTORY ||
-               buildingType == BuildingType.SANDSTORM_GENERATOR;
+                buildingType == BuildingType.ANDROID_FACTORY ||
+                buildingType == BuildingType.SANDSTORM_GENERATOR ||
+                buildingType == BuildingType.COMMAND_CITADEL;
     }
-    
+
     /**
      * Create aura sensor body for monument buildings
      */
@@ -597,41 +577,34 @@ public class Building extends GameEntity {
         if (!isMonument()) {
             return null;
         }
-        
-        double radius = switch (buildingType) {
-            case PHOTON_SPIRE -> PHOTON_SPIRE_RADIUS;
-            case ANDROID_FACTORY -> 0.0; // Android Factory has no aura
-            case SANDSTORM_GENERATOR -> SANDSTORM_RADIUS;
-            default -> 0.0;
-        };
-        
+
+        double radius = getAuraRadius();
         if (radius == 0.0) {
             return null;
         }
-        
+
         Body sensor = new Body();
         sensor.addFixture(Geometry.createCircle(radius), 0.0, 0.0, 0.0);
         sensor.getFixture(0).setSensor(true); // Make it a sensor (no collision response)
         sensor.setMass(MassType.INFINITE);
         sensor.getTransform().setTranslation(getPosition().x, getPosition().y);
         sensor.setUserData(this); // Link back to building
-        
+
         return sensor;
     }
-    
+
     /**
      * Update monument aura state (activate/deactivate based on power)
      */
     private void updateMonumentAura(boolean hasLowPower) {
         boolean shouldBeActive = !hasLowPower && !underConstruction;
-        
         if (shouldBeActive && !auraActive) {
             activateAura();
         } else if (!shouldBeActive && auraActive) {
             deactivateAura();
         }
     }
-    
+
     /**
      * Activate the monument aura
      */
@@ -639,11 +612,10 @@ public class Building extends GameEntity {
         if (!isMonument() || auraActive) {
             return;
         }
-        
         auraActive = true;
         log.debug("Monument aura activated for building {} ({})", id, buildingType);
     }
-    
+
     /**
      * Deactivate the monument aura
      */
@@ -651,74 +623,172 @@ public class Building extends GameEntity {
         if (!auraActive) {
             return;
         }
-        
+
         auraActive = false;
         log.debug("Monument aura deactivated for building {}", id);
     }
-    
+
     /**
      * Get the aura radius for this monument
      */
     public double getAuraRadius() {
         return switch (buildingType) {
-            case PHOTON_SPIRE -> PHOTON_SPIRE_RADIUS;
-            case ANDROID_FACTORY -> 0.0; // Android Factory has no aura
             case SANDSTORM_GENERATOR -> SANDSTORM_RADIUS;
             default -> 0.0;
         };
     }
-    
+
     /**
-     * Get the beam damage multiplier from Photon Spire
+     * Get the upkeep bonus from Command Citadel
      */
-    public double getBeamDamageMultiplier() {
-        if (buildingType == BuildingType.PHOTON_SPIRE && auraActive) {
-            return PHOTON_SPIRE_DAMAGE_MULTIPLIER;
+    public int getUpkeepBonus() {
+        if (buildingType == BuildingType.COMMAND_CITADEL && auraActive) {
+            return COMMAND_CITADEL_UPKEEP_BONUS;
         }
-        return 1.0;
+        return 0;
     }
-    
+
+    /**
+     * Get attack range for Photon Spire
+     */
+    public double getPhotonSpireRange() {
+        return PHOTON_SPIRE_RANGE;
+    }
+
+    /**
+     * Get target for Photon Spire or turrets
+     */
+    public Unit getTargetUnit() {
+        // Check if this is a Photon Spire
+        if (buildingType == BuildingType.PHOTON_SPIRE) {
+            return photonSpireTarget;
+        }
+
+        // Otherwise delegate to DefenseComponent
+        DefenseComponent defComp =
+                getComponent(DefenseComponent.class);
+        if (defComp != null) {
+            return defComp.getTargetUnit();
+        }
+        return null;
+    }
+
+    /**
+     * Set target for Photon Spire or turrets
+     */
+    public void setTargetUnit(Unit target) {
+        // Check if this is a Photon Spire
+        if (buildingType == BuildingType.PHOTON_SPIRE) {
+            this.photonSpireTarget = target;
+            return;
+        }
+
+        // Otherwise delegate to DefenseComponent
+        DefenseComponent defComp =
+                getComponent(DefenseComponent.class);
+        if (defComp != null) {
+            defComp.setTargetUnit(target);
+        }
+    }
+
+    /**
+     * Update Photon Spire attack behavior - fires powerful beam at high-health targets
+     *
+     * @param world The physics world for raycasting
+     * @return Beam if fired, null otherwise
+     */
+    public Beam updatePhotonSpireBehavior(double deltaTime, World<Body> world) {
+        if (buildingType != BuildingType.PHOTON_SPIRE || underConstruction) {
+            return null;
+        }
+
+        // Update attack cooldown
+        if (photonSpireAttackCooldown > 0) {
+            photonSpireAttackCooldown -= deltaTime;
+        }
+
+        // Check if we have a valid target and can fire
+        if (photonSpireTarget != null && photonSpireTarget.isActive() && photonSpireAttackCooldown <= 0) {
+            // Check if target is in range
+            double distance = getPosition().distance(photonSpireTarget.getPosition());
+            if (distance <= PHOTON_SPIRE_RANGE) {
+                // Calculate direction to target
+                Vector2 direction = photonSpireTarget.getPosition().copy().subtract(getPosition());
+
+                // Fire beam!
+                Beam beam = new Beam(
+                        IdGenerator.nextEntityId(),
+                        world,
+                        getPosition().copy(),
+                        direction,
+                        PHOTON_SPIRE_RANGE,
+                        getOwnerId(),
+                        getTeamNumber(),
+                        PHOTON_SPIRE_DAMAGE,
+                        Set.of(), // No special effects
+                        Ordinance.LASER,
+                        Beam.BeamType.LASER,
+                        3.0, // Beam width (thick, powerful beam)
+                        0.3, // Duration (visible for 0.3 seconds)
+                        getBody() // Ignore self
+                );
+
+                // Reset cooldown
+                photonSpireAttackCooldown = PHOTON_SPIRE_ATTACK_RATE;
+
+                log.debug("Photon Spire {} fired beam at unit {} for {} damage",
+                        getId(), photonSpireTarget.getId(), PHOTON_SPIRE_DAMAGE);
+
+                return beam;
+            }
+        }
+
+        return null;
+    }
+
     /**
      * Get sandstorm damage per second (for continuous damage)
      */
     public double getSandstormDPS() {
         return SANDSTORM_DPS;
     }
-    
+
     /**
      * Garrison a unit inside this building (for Bunker)
+     *
      * @return true if successfully garrisoned, false if full or not allowed
      */
     public boolean garrisonUnit(Unit unit) {
         if (maxGarrisonCapacity == 0) {
             return false; // Building doesn't support garrison
         }
-        
+
         if (garrisonedUnits.size() >= maxGarrisonCapacity) {
             return false; // Garrison is full
         }
-        
+
         if (unit.getTeamNumber() != teamNumber) {
             return false; // Can only garrison friendly units
         }
-        
+
         // Only infantry units can be garrisoned
         if (!unit.getUnitType().isInfantry()) {
             return false;
         }
-        
+
         garrisonedUnits.add(unit);
         unit.setGarrisoned(true);
         // Don't set active=false! That would cause the unit to be deleted by removeInactiveEntities()
         // Instead, we'll filter garrisoned units from serialization
         unit.getBody().setEnabled(false); // Disable physics
-        
+
         log.info("Unit {} garrisoned in building {}", unit.getId(), id);
         return true;
     }
-    
+
     /**
      * Ungarrison a unit from this building
+     *
      * @param unit The unit to ungarrison (null = ungarrison first unit)
      * @return The ungarrisoned unit, or null if none available
      */
@@ -726,7 +796,7 @@ public class Building extends GameEntity {
         if (garrisonedUnits.isEmpty()) {
             return null;
         }
-        
+
         Unit toUngarrison;
         if (unit != null && garrisonedUnits.contains(unit)) {
             toUngarrison = unit;
@@ -735,20 +805,21 @@ public class Building extends GameEntity {
             // Ungarrison first unit in list
             toUngarrison = garrisonedUnits.remove(0);
         }
-        
+
         // Place unit near building exit
         Vector2 exitPos = calculateExitPosition();
         toUngarrison.getBody().getTransform().setTranslation(exitPos.x, exitPos.y);
         toUngarrison.setGarrisoned(false);
         // Unit is already active, just re-enable physics
         toUngarrison.getBody().setEnabled(true);
-        
+
         log.info("Unit {} ungarrisoned from building {}", toUngarrison.getId(), id);
         return toUngarrison;
     }
-    
+
     /**
      * Ungarrison all units from this building
+     *
      * @return List of ungarrisoned units
      */
     public List<Unit> ungarrisonAllUnits() {
@@ -761,38 +832,38 @@ public class Building extends GameEntity {
         }
         return ungarrisoned;
     }
-    
+
     /**
      * Calculate exit position for ungarrisoning units
      */
     private Vector2 calculateExitPosition() {
         Vector2 pos = getPosition();
         double size = buildingType.getSize();
-        
+
         // Place units at a random angle around the building
         double angle = Math.random() * Math.PI * 2;
         double distance = size + 30.0; // Place outside building radius
-        
+
         return new Vector2(
-            pos.x + Math.cos(angle) * distance,
-            pos.y + Math.sin(angle) * distance
+                pos.x + Math.cos(angle) * distance,
+                pos.y + Math.sin(angle) * distance
         );
     }
-    
+
     /**
      * Get number of garrisoned units
      */
     public int getGarrisonCount() {
         return garrisonedUnits.size();
     }
-    
+
     /**
      * Check if garrison is full
      */
     public boolean isGarrisonFull() {
         return garrisonedUnits.size() >= maxGarrisonCapacity;
     }
-    
+
     /**
      * Check if this building can garrison units
      */
@@ -806,7 +877,7 @@ public class Building extends GameEntity {
     public List<Unit> getGarrisonedUnits() {
         return new ArrayList<>(garrisonedUnits);
     }
-    
+
     /**
      * Update bunker behavior - garrisoned units independently acquire targets and fire
      */
@@ -814,60 +885,60 @@ public class Building extends GameEntity {
         // Each garrisoned unit operates independently
         // Target acquisition and firing is handled in fireBunkerWeapons()
     }
-    
+
     /**
      * Fire weapons from garrisoned units (called by RTSGameManager)
      * Each unit independently acquires targets and fires based on its own stats
      */
     public List<AbstractOrdinance> fireBunkerWeapons(GameEntities gameEntities) {
         List<AbstractOrdinance> ordinances = new ArrayList<>();
-        
+
         if (buildingType != BuildingType.BUNKER || garrisonedUnits.isEmpty() || gameEntities == null) {
             return ordinances;
         }
-        
+
         Vector2 bunkerPos = getPosition();
-        
+
         // Each garrisoned unit operates independently
         for (Unit garrisonedUnit : garrisonedUnits) {
             // Skip if unit can't attack
             if (!garrisonedUnit.getUnitType().canAttack()) {
                 continue;
             }
-            
+
             // Clear invalid target
             if (garrisonedUnit.getTargetUnit() != null && !garrisonedUnit.getTargetUnit().isActive()) {
                 garrisonedUnit.setTargetUnit(null);
             }
-            
+
             // Acquire target if needed (each unit finds its own target)
             if (garrisonedUnit.getTargetUnit() == null) {
                 Unit target = findBunkerTargetForUnit(garrisonedUnit, gameEntities);
                 garrisonedUnit.setTargetUnit(target);
             }
-            
+
             Unit target = garrisonedUnit.getTargetUnit();
             if (target == null || !target.isActive()) {
                 continue;
             }
-            
+
             // Check if target is in range (use garrisoned unit's range)
             Vector2 targetPos = target.getPosition();
             double distance = bunkerPos.distance(targetPos);
             double attackRange = garrisonedUnit.getUnitType().getAttackRange();
-            
+
             if (distance > attackRange) {
                 garrisonedUnit.setTargetUnit(null); // Target out of range
                 continue;
             }
-            
+
             // Check attack cooldown (each unit has its own)
             long now = System.currentTimeMillis();
             double attackInterval = 1000.0 / garrisonedUnit.getUnitType().getAttackRate();
             if (now - garrisonedUnit.getLastAttackTime() < attackInterval) {
                 continue; // Still on cooldown
             }
-            
+
             // Fire weapon from bunker position
             AbstractOrdinance ordinance = garrisonedUnit.fireAt(targetPos, gameEntities.getWorld());
             if (ordinance != null) {
@@ -881,15 +952,15 @@ public class Building extends GameEntity {
                     // This is handled correctly by the beam's raycasting
                 }
                 ordinances.add(ordinance);
-                
+
                 // Update unit's last attack time
                 garrisonedUnit.setLastAttackTime(now);
             }
         }
-        
+
         return ordinances;
     }
-    
+
     /**
      * Find a target for a specific garrisoned unit
      * Each unit independently scans for enemies in its range
@@ -897,36 +968,36 @@ public class Building extends GameEntity {
     private Unit findBunkerTargetForUnit(Unit garrisonedUnit, GameEntities gameEntities) {
         Vector2 bunkerPos = getPosition();
         double attackRange = garrisonedUnit.getUnitType().getAttackRange();
-        
+
         Unit closestEnemy = null;
         double closestDistance = Double.MAX_VALUE;
-        
+
         // Scan for enemies in range
         for (Unit enemy : gameEntities.getUnits().values()) {
             if (!enemy.isActive() || enemy.getTeamNumber() == teamNumber || enemy.isGarrisoned()) {
                 continue;
             }
-            
+
             double distance = bunkerPos.distance(enemy.getPosition());
             if (distance <= attackRange && distance < closestDistance) {
                 closestEnemy = enemy;
                 closestDistance = distance;
             }
         }
-        
+
         return closestEnemy;
     }
-    
+
     // ========================================
     // Component Management
     // ========================================
-    
+
     /**
      * Add a component to this building.
      * Components provide modular functionality (production, defense, etc.)
-     * 
+     *
      * @param component The component to add
-     * @param <T> The component type
+     * @param <T>       The component type
      */
     public <T extends IBuildingComponent> void addComponent(T component) {
         if (component != null) {
@@ -934,33 +1005,33 @@ public class Building extends GameEntity {
             log.debug("Added component {} to building {}", component.getClass().getSimpleName(), id);
         }
     }
-    
+
     /**
      * Get a component by its class type.
-     * 
+     *
      * @param componentClass The class of the component to retrieve
-     * @param <T> The component type
+     * @param <T>            The component type
      * @return The component, or null if not present
      */
     public <T extends IBuildingComponent> T getComponent(Class<T> componentClass) {
         return componentClass.cast(components.get(componentClass));
     }
-    
+
     /**
      * Check if this building has a specific component.
-     * 
+     *
      * @param componentClass The class of the component to check
      * @return true if the component is present
      */
     public boolean hasComponent(Class<? extends IBuildingComponent> componentClass) {
         return components.containsKey(componentClass);
     }
-    
+
     /**
      * Remove a component from this building.
-     * 
+     *
      * @param componentClass The class of the component to remove
-     * @param <T> The component type
+     * @param <T>            The component type
      * @return The removed component, or null if not present
      */
     public <T extends IBuildingComponent> T removeComponent(Class<T> componentClass) {
@@ -970,16 +1041,16 @@ public class Building extends GameEntity {
         }
         return componentClass.cast(removed);
     }
-    
+
     /**
      * Get all components attached to this building.
-     * 
+     *
      * @return Collection of all components
      */
     public Iterable<IBuildingComponent> getAllComponents() {
         return components.values();
     }
-    
+
     /**
      * Represents a unit production order
      */
@@ -987,7 +1058,7 @@ public class Building extends GameEntity {
     public static class ProductionOrder {
         private final UnitType unitType;
         private final long queueTime;
-        
+
         public ProductionOrder(UnitType unitType) {
             this.unitType = unitType;
             this.queueTime = System.currentTimeMillis();

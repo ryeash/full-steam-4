@@ -4,7 +4,7 @@ import com.fullsteam.dto.FactionInfoDTO;
 import com.fullsteam.model.factions.Faction;
 import com.fullsteam.model.RTSGameManager;
 import com.fullsteam.model.GameConfig;
-import com.fullsteam.service.FactionInfoService;
+import com.fullsteam.games.FactionInfoService;
 import io.micronaut.core.io.ResourceResolver;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -113,11 +113,9 @@ public class GameController {
             String obstacleDensity = config != null ? config.get("obstacleDensity") : null;
             String faction = config != null ? config.get("faction") : null;
             
-            String gameId = rtsLobby.joinMatchmaking(biome, obstacleDensity, faction);
-            return Map.of(
-                    "gameId", gameId,
-                    "status", "joined"
-            );
+            Map<String, String> result = rtsLobby.joinMatchmaking(biome, obstacleDensity, faction);
+            result.put("status", "joined");
+            return result;
         } catch (Exception e) {
             log.error("Error joining matchmaking", e);
             throw new HttpStatusException(io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR,
@@ -127,9 +125,10 @@ public class GameController {
 
     @Post("/api/rts/matchmaking/leave/{gameId}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Map<String, String> leaveMatchmaking(String gameId) {
+    public Map<String, String> leaveMatchmaking(@PathVariable String gameId, @Body Map<String, String> body) {
         try {
-            rtsLobby.leaveMatchmaking(gameId);
+            String sessionToken = body != null ? body.get("sessionToken") : null;
+            rtsLobby.leaveMatchmaking(gameId, sessionToken);
             return Map.of("status", "left");
         } catch (Exception e) {
             log.error("Error leaving matchmaking", e);

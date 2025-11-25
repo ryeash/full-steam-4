@@ -3,7 +3,7 @@ package com.fullsteam.model.component;
 import com.fullsteam.model.Building;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.UnitType;
-import com.fullsteam.util.IdGenerator;
+import com.fullsteam.games.IdGenerator;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.dyn4j.geometry.Vector2;

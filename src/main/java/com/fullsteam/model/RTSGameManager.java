@@ -2,6 +2,8 @@ package com.fullsteam.model;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fullsteam.games.GameConstants;
+import com.fullsteam.games.IdGenerator;
 import com.fullsteam.model.command.AttackBuildingCommand;
 import com.fullsteam.model.command.AttackGroundCommand;
 import com.fullsteam.model.command.AttackMoveCommand;
@@ -13,7 +15,6 @@ import com.fullsteam.model.command.HarvestCommand;
 import com.fullsteam.model.command.MineCommand;
 import com.fullsteam.model.command.MoveCommand;
 import com.fullsteam.model.factions.Faction;
-import com.fullsteam.util.IdGenerator;
 import io.micronaut.websocket.WebSocketSession;
 import io.micronaut.websocket.exceptions.WebSocketSessionException;
 import lombok.Getter;
@@ -38,7 +39,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -113,6 +113,12 @@ public class RTSGameManager {
     protected int winningTeam = -1;
     private final ScheduledFuture<?> updateTask;
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
+    
+    // Track if game has started with full roster (prevent late joins)
+    private boolean gameStartedWithFullRoster = false;
+    
+    // Track disconnected players (for victory condition)
+    private final Set<Integer> disconnectedPlayers = ConcurrentHashMap.newKeySet();
 
     public RTSGameManager(String gameId, GameConfig gameConfig, ObjectMapper objectMapper) {
         this.gameId = gameId;
@@ -311,8 +317,7 @@ public class RTSGameManager {
      * Schedule the update task
      */
     private ScheduledFuture<?> scheduleUpdateTask() {
-        return Executors.newScheduledThreadPool(1)
-                .scheduleAtFixedRate(this::update, 0, 16, TimeUnit.MILLISECONDS);
+        return GameConstants.EXECUTOR.scheduleAtFixedRate(this::update, 0, 16, TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -345,7 +350,7 @@ public class RTSGameManager {
                 recalculateUpkeep();
                 recalculatePower();
             }
-            
+
             // Update research progress for all players
             updateResearch(deltaTime);
 
@@ -609,11 +614,11 @@ public class RTSGameManager {
                 if (building.hasCompletedUnit() && !hasLowPower) {
                     spawnUnitFromBuilding(building);
                 }
-                
+
                 // Spawn completed androids from Android Factory (only if not low power)
                 if (building.getBuildingType() == BuildingType.ANDROID_FACTORY && !hasLowPower) {
-                    com.fullsteam.model.component.AndroidFactoryComponent androidComp = 
-                        building.getComponent(com.fullsteam.model.component.AndroidFactoryComponent.class);
+                    com.fullsteam.model.component.AndroidFactoryComponent androidComp =
+                            building.getComponent(com.fullsteam.model.component.AndroidFactoryComponent.class);
                     if (androidComp != null && androidComp.hasCompletedAndroid()) {
                         Unit android = androidComp.getCompletedAndroid();
                         if (android != null) {
@@ -621,17 +626,17 @@ public class RTSGameManager {
                             if (faction != null && faction.getResearchManager() != null) {
                                 android.applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
                             }
-                            
+
                             units.put(android.getId(), android);
                             world.addBody(android.getBody());
-                            
+
                             // Order android to rally point
                             if (building.getRallyPoint() != null) {
                                 android.issueCommand(new com.fullsteam.model.command.MoveCommand(
-                                    android, building.getRallyPoint(), false));
+                                        android, building.getRallyPoint(), false));
                             }
-                            
-                            log.info("Added Android {} to world for player {} from Android Factory {}", 
+
+                            log.info("Added Android {} to world for player {} from Android Factory {}",
                                     android.getId(), building.getOwnerId(), building.getId());
                         }
                     }
@@ -664,6 +669,38 @@ public class RTSGameManager {
                     if (projectile != null) {
                         projectiles.put(projectile.getId(), projectile);
                         world.addBody(projectile.getBody());
+                    }
+                }
+
+                // Update Photon Spire targeting and firing (monument with attack capability)
+                if (building.getBuildingType() == BuildingType.PHOTON_SPIRE && !building.isUnderConstruction() && !hasLowPower) {
+                    // Clear invalid targets (dead or too far away)
+                    if (building.getTargetUnit() != null) {
+                        Unit target = building.getTargetUnit();
+                        if (!target.isActive()) {
+                            building.setTargetUnit(null);
+                        } else {
+                            // Check if target escaped (beyond 2x range)
+                            double distance = building.getPosition().distance(target.getPosition());
+                            double spireRange = building.getPhotonSpireRange();
+                            if (distance > spireRange * 2.0) {
+                                building.setTargetUnit(null); // Target escaped
+                            }
+                        }
+                    }
+
+                    // Acquire new target if needed (every 30 frames)
+                    if (building.getTargetUnit() == null && frameCount % 30 == 0) {
+                        acquirePhotonSpireTarget(building);
+                    }
+
+                    // Check if Photon Spire fired a beam
+                    Beam beam = building.updatePhotonSpireBehavior(deltaTime, world);
+                    if (beam != null) {
+                        beams.put(beam.getId(), beam);
+                        if (beam.getHitBody() != null) {
+                            applyBeamDamage(beam);
+                        }
                     }
                 }
 
@@ -744,6 +781,9 @@ public class RTSGameManager {
             // Remove inactive entities
             removeInactiveEntities();
 
+            // Check for disconnected players
+            checkDisconnectedPlayers();
+            
             // Check win conditions
             if (!gameOver) {
                 checkWinConditions();
@@ -1098,6 +1138,9 @@ public class RTSGameManager {
                 );
                 buildings.put(building.getId(), building);
                 world.addBody(building.getBody());
+                if (building.getShieldSensorBody() != null) {
+                    world.addBody(building.getShieldSensorBody());
+                }
 
                 // Note: Wall segments are created when construction completes, not at placement
 
@@ -1195,29 +1238,29 @@ public class RTSGameManager {
                         playerId, buildingId, rallyPoint.x, rallyPoint.y);
             }
         }
-        
+
         // Handle research orders
         if (input.getStartResearchOrder() != null) {
             com.fullsteam.model.research.ResearchType researchType = input.getStartResearchOrder();
             Integer buildingId = input.getResearchBuildingId();
-            
+
             log.info("Player {} requesting to start research {} at building {}", playerId, researchType, buildingId);
-            
+
             if (buildingId != null) {
                 Building building = buildings.get(buildingId);
-                
+
                 if (building != null && building.belongsTo(playerId)) {
                     // Validate building type (must be RESEARCH_LAB or TECH_CENTER)
-                    if (building.getBuildingType() != BuildingType.RESEARCH_LAB && 
-                        building.getBuildingType() != BuildingType.TECH_CENTER) {
-                        log.warn("Player {} tried to research at invalid building type {}", 
+                    if (building.getBuildingType() != BuildingType.RESEARCH_LAB &&
+                            building.getBuildingType() != BuildingType.TECH_CENTER) {
+                        log.warn("Player {} tried to research at invalid building type {}",
                                 playerId, building.getBuildingType());
                         return;
                     }
-                    
+
                     // Check if building is under construction
                     if (building.isUnderConstruction()) {
-                        log.warn("Player {} tried to research at building {} that is under construction", 
+                        log.warn("Player {} tried to research at building {} that is under construction",
                                 playerId, buildingId);
                         sendGameEvent(GameEvent.createPlayerEvent(
                                 "⚠️ Cannot research: Building is still under construction!",
@@ -1226,18 +1269,18 @@ public class RTSGameManager {
                         ));
                         return;
                     }
-                    
+
                     // Get player's buildings for tech requirement checks
                     java.util.Set<BuildingType> playerBuildings = buildings.values().stream()
-                            .filter(b -> b.getOwnerId() == playerId && 
-                                        b.isActive() && 
-                                        !b.isUnderConstruction())
+                            .filter(b -> b.getOwnerId() == playerId &&
+                                    b.isActive() &&
+                                    !b.isUnderConstruction())
                             .map(Building::getBuildingType)
                             .collect(java.util.stream.Collectors.toSet());
-                    
+
                     // Validate research can be started (via ResearchManager)
                     if (!faction.getResearchManager().canStartResearch(researchType, playerBuildings)) {
-                        log.warn("Player {} cannot start research {} - requirements not met", 
+                        log.warn("Player {} cannot start research {} - requirements not met",
                                 playerId, researchType);
                         sendGameEvent(GameEvent.createPlayerEvent(
                                 "⚠️ Cannot research: Requirements not met!",
@@ -1246,7 +1289,7 @@ public class RTSGameManager {
                         ));
                         return;
                     }
-                    
+
                     // Check if player can afford the research
                     int cost = researchType.getCreditCost();
                     if (!faction.hasResources(ResourceType.CREDITS, cost)) {
@@ -1261,40 +1304,58 @@ public class RTSGameManager {
                         ));
                         return;
                     }
-                    
+
+                    // Check simultaneous research limit before deducting resources
+                    com.fullsteam.model.research.ResearchManager researchMgr = faction.getResearchManager();
+                    if (researchMgr.getActiveResearchCount() >= researchMgr.getMaxSimultaneousResearch()) {
+                        log.warn("Player {} has reached max simultaneous research limit ({}/{})",
+                                playerId, researchMgr.getActiveResearchCount(), researchMgr.getMaxSimultaneousResearch());
+                        sendGameEvent(GameEvent.createPlayerEvent(
+                                String.format("⚠️ Maximum simultaneous research limit reached (%d/%d)! Complete or cancel existing research, or research Parallel Research upgrades.",
+                                        researchMgr.getActiveResearchCount(), researchMgr.getMaxSimultaneousResearch()),
+                                playerId,
+                                GameEvent.EventCategory.WARNING
+                        ));
+                        return;
+                    }
+
                     // Deduct resources
                     faction.removeResources(ResourceType.CREDITS, cost);
-                    
+
                     // Start research
-                    boolean started = faction.getResearchManager().startResearch(researchType, buildingId, playerBuildings);
-                    
+                    boolean started = researchMgr.startResearch(researchType, buildingId, playerBuildings);
+
                     if (started) {
-                        log.info("Player {} started research {} at building {} (cost: {})",
-                                playerId, researchType, buildingId, cost);
+                        log.info("Player {} started research {} at building {} (cost: {}, {}/{} active)",
+                                playerId, researchType, buildingId, cost,
+                                researchMgr.getActiveResearchCount(), researchMgr.getMaxSimultaneousResearch());
                         sendGameEvent(GameEvent.createPlayerEvent(
-                                "🔬 Research started: " + researchType.getDisplayName(),
+                                String.format("🔬 Research started: %s (%d/%d active)",
+                                        researchType.getDisplayName(),
+                                        researchMgr.getActiveResearchCount(),
+                                        researchMgr.getMaxSimultaneousResearch()),
                                 playerId,
                                 GameEvent.EventCategory.INFO
                         ));
                     } else {
                         // Refund if research couldn't start
                         faction.addResources(ResourceType.CREDITS, cost);
-                        log.warn("Player {} failed to start research {} at building {}", 
+                        log.warn("Player {} failed to start research {} at building {}",
                                 playerId, researchType, buildingId);
                     }
                 }
             }
         }
-        
+
         // Handle cancel research orders
         if (input.getCancelResearchBuildingId() != null) {
             Integer buildingId = input.getCancelResearchBuildingId();
             Building building = buildings.get(buildingId);
-            
+
             if (building != null && building.belongsTo(playerId)) {
                 // Cancel research via ResearchManager
                 boolean cancelled = faction.getResearchManager().cancelResearch(buildingId);
-                
+
                 if (cancelled) {
                     log.info("Player {} cancelled research at building {}", playerId, buildingId);
                     sendGameEvent(GameEvent.createPlayerEvent(
@@ -1331,7 +1392,7 @@ public class RTSGameManager {
                 building.getOwnerId(),
                 building.getTeamNumber()
         );
-        
+
         // Apply research modifiers from player's research
         PlayerFaction faction = playerFactions.get(building.getOwnerId());
         if (faction != null && faction.getResearchManager() != null) {
@@ -1569,31 +1630,29 @@ public class RTSGameManager {
     }
 
     /**
-     * Get damage multiplier for a unit based on nearby Photon Spires
+     * Acquire target for Photon Spire - prioritizes highest health enemies
      */
-    private double getUnitDamageMultiplier(Unit unit) {
-        if (!unit.getUnitType().firesBeams()) {
-            return 1.0; // Only beam units get the bonus
-        }
+    private void acquirePhotonSpireTarget(Building spire) {
+        Vector2 spirePos = spire.getPosition();
+        double range = spire.getPhotonSpireRange();
 
-        Vector2 unitPos = unit.getPosition();
-        double multiplier = 1.0;
+        // Find enemy unit with highest health in range
+        Unit highestHealthEnemy = null;
+        double highestHealth = 0;
 
-        for (Building building : buildings.values()) {
-            if (building.getBuildingType() == BuildingType.PHOTON_SPIRE &&
-                    building.isAuraActive() &&
-                    building.getTeamNumber() == unit.getTeamNumber()) {
-
-                double distance = unitPos.distance(building.getPosition());
-                if (distance <= building.getAuraRadius()) {
-                    multiplier *= building.getBeamDamageMultiplier();
-                    break; // Only one spire affects a unit (no stacking)
+        for (Unit unit : units.values()) {
+            if (unit.isActive() && unit.getTeamNumber() != spire.getTeamNumber()) {
+                double distance = spirePos.distance(unit.getPosition());
+                if (distance <= range && unit.getHealth() > highestHealth) {
+                    highestHealthEnemy = unit;
+                    highestHealth = unit.getHealth();
                 }
             }
         }
 
-        return multiplier;
+        spire.setTargetUnit(highestHealthEnemy);
     }
+
 
     /**
      * Get max health multiplier for a unit based on nearby Quantum Nexus
@@ -1714,7 +1773,46 @@ public class RTSGameManager {
     }
 
     /**
-     * Check win conditions (HQ destruction)
+     * Check for disconnected players and mark them as eliminated
+     */
+    private void checkDisconnectedPlayers() {
+        // Check if any player sessions are closed/disconnected
+        playerSessions.entrySet().removeIf(entry -> {
+            int playerId = entry.getKey();
+            PlayerSession session = entry.getValue();
+            
+            // Check if session is closed
+            if (!session.getSession().isOpen()) {
+                if (!disconnectedPlayers.contains(playerId)) {
+                    disconnectedPlayers.add(playerId);
+                    
+                    PlayerFaction faction = playerFactions.get(playerId);
+                    if (faction != null) {
+                        log.info("Player {} ({}) disconnected from game {}", 
+                                playerId, faction.getPlayerName(), gameId);
+                        
+                        // Notify all players of disconnect
+                        sendGameEvent(GameEvent.builder()
+                                .message(String.format("⚠️ %s has disconnected from the game", 
+                                        faction.getPlayerName()))
+                                .category(GameEvent.EventCategory.SYSTEM)
+                                .color("#FFA500")
+                                .target(GameEvent.EventTarget.builder()
+                                        .type(GameEvent.EventTarget.TargetType.ALL)
+                                        .build())
+                                .displayDuration(5000L)
+                                .build()
+                        );
+                    }
+                }
+                return true; // Remove from active sessions
+            }
+            return false;
+        });
+    }
+    
+    /**
+     * Check win conditions (HQ destruction or last player standing)
      */
     private void checkWinConditions() {
         // Don't check win conditions for first 5 seconds (let players join)
@@ -1734,18 +1832,49 @@ public class RTSGameManager {
 
         log.debug("Win condition check: {} teams have HQs: {}", teamHasHQ.size(), teamHasHQ.keySet());
 
-        // Count how many teams actually have players (to avoid checking before game starts)
-        Set<Integer> teamsWithPlayers = new HashSet<>();
+        // Count how many teams actually have ACTIVE (non-disconnected) players
+        Set<Integer> teamsWithActivePlayers = new HashSet<>();
         for (PlayerFaction faction : playerFactions.values()) {
-            if (faction.getTeamNumber() > 0) {
-                teamsWithPlayers.add(faction.getTeamNumber());
+            if (faction.getTeamNumber() > 0 && !disconnectedPlayers.contains(faction.getPlayerId())) {
+                teamsWithActivePlayers.add(faction.getTeamNumber());
             }
         }
 
         // Don't check win conditions if game just started (need at least 2 teams with players)
-        if (teamsWithPlayers.size() < 2) {
-            log.debug("Not enough teams with players ({}), waiting for more players", teamsWithPlayers.size());
+        if (teamsWithActivePlayers.size() < 2 && !gameStartedWithFullRoster) {
+            log.debug("Not enough teams with active players ({}), waiting for more players", teamsWithActivePlayers.size());
             return; // Wait for all players to join
+        }
+
+        // Check for last player standing (all other players disconnected)
+        if (gameStartedWithFullRoster && teamsWithActivePlayers.size() == 1) {
+            winningTeam = teamsWithActivePlayers.iterator().next();
+            gameOver = true;
+
+            log.info("Game Over! Team {} wins - all opponents disconnected", winningTeam);
+
+            // Send game over message
+            Map<String, Object> gameOverMsg = new HashMap<>();
+            gameOverMsg.put("type", "gameOver");
+            gameOverMsg.put("winningTeam", winningTeam);
+            gameOverMsg.put("reason", "Victory - All opponents disconnected");
+            broadcast(gameOverMsg);
+            return;
+        }
+
+        // Check if all players disconnected
+        if (teamsWithActivePlayers.isEmpty()) {
+            gameOver = true;
+            winningTeam = -1;
+
+            log.info("Game Over! All players disconnected");
+
+            Map<String, Object> gameOverMsg = new HashMap<>();
+            gameOverMsg.put("type", "gameOver");
+            gameOverMsg.put("winningTeam", -1);
+            gameOverMsg.put("reason", "Game ended - All players disconnected");
+            broadcast(gameOverMsg);
+            return;
         }
 
         // Check if only one team has an HQ remaining
@@ -1798,6 +1927,29 @@ public class RTSGameManager {
                         faction.incrementUnitCount();
                     }
                 });
+
+        // Apply upkeep bonuses from Command Citadels
+        applyUpkeepBonuses();
+    }
+
+    /**
+     * Apply upkeep bonuses from Command Citadels
+     */
+    private void applyUpkeepBonuses() {
+        playerFactions.forEach((playerId, faction) -> {
+            // Calculate base max upkeep from faction definition
+            int baseMaxUpkeep = faction.getFactionDefinition().getUpkeepLimit(250);
+
+            // Add bonuses from active Command Citadels
+            int upkeepBonus = buildings.values().stream()
+                    .filter(b -> b.getOwnerId() == playerId)
+                    .filter(b -> b.getBuildingType() == BuildingType.COMMAND_CITADEL)
+                    .filter(b -> !b.isUnderConstruction())
+                    .mapToInt(Building::getUpkeepBonus)
+                    .sum();
+
+            faction.setMaxUpkeep(baseMaxUpkeep + upkeepBonus);
+        });
     }
 
     /**
@@ -1852,7 +2004,7 @@ public class RTSGameManager {
             }
         });
     }
-    
+
     /**
      * Update research progress for all players
      */
@@ -1861,28 +2013,28 @@ public class RTSGameManager {
             if (faction.getResearchManager() == null) {
                 return;
             }
-            
+
             // Update research progress and get completed research
-            java.util.List<com.fullsteam.model.research.ResearchType> completedResearch = 
-                faction.getResearchManager().updateResearch(deltaTime);
-            
+            java.util.List<com.fullsteam.model.research.ResearchType> completedResearch =
+                    faction.getResearchManager().updateResearch(deltaTime);
+
             // Notify player of completed research and apply modifiers to existing units
             for (com.fullsteam.model.research.ResearchType research : completedResearch) {
                 log.info("Player {} completed research: {}", playerId, research.getDisplayName());
-                
+
                 // Send notification to player
                 sendGameEvent(GameEvent.createPlayerEvent(
-                    "🔬 Research Complete: " + research.getDisplayName(),
-                    playerId,
-                    GameEvent.EventCategory.INFO
+                        "🔬 Research Complete: " + research.getDisplayName(),
+                        playerId,
+                        GameEvent.EventCategory.INFO
                 ));
-                
+
                 // Apply research modifiers to all existing units owned by this player
                 com.fullsteam.model.research.ResearchModifier modifier = research.getModifier();
                 units.values().stream()
-                    .filter(unit -> unit.getOwnerId() == playerId)
-                    .forEach(unit -> unit.applyResearchModifiers(modifier));
-                
+                        .filter(unit -> unit.getOwnerId() == playerId)
+                        .forEach(unit -> unit.applyResearchModifiers(modifier));
+
                 // Note: Buildings don't need retroactive modifier application
                 // Research affects new buildings via faction modifiers at creation time
             }
@@ -1900,14 +2052,14 @@ public class RTSGameManager {
                 if (unit.getAndroidFactoryId() != null) {
                     Building factory = buildings.get(unit.getAndroidFactoryId());
                     if (factory != null && factory.isActive()) {
-                        com.fullsteam.model.component.AndroidFactoryComponent androidComp = 
-                            factory.getComponent(com.fullsteam.model.component.AndroidFactoryComponent.class);
+                        com.fullsteam.model.component.AndroidFactoryComponent androidComp =
+                                factory.getComponent(com.fullsteam.model.component.AndroidFactoryComponent.class);
                         if (androidComp != null) {
                             androidComp.unregisterAndroid(unit.getId());
                         }
                     }
                 }
-                
+
                 // Send unit death notification (throttled to avoid spam)
                 int ownerId = unit.getOwnerId();
                 long currentTime = System.currentTimeMillis();
@@ -1976,7 +2128,7 @@ public class RTSGameManager {
                         case TURRET -> true;  // Defense
                         case BUNKER -> true;  // Defense
                         // Monuments
-                        case PHOTON_SPIRE, ANDROID_FACTORY, SANDSTORM_GENERATOR -> true;
+                        case PHOTON_SPIRE, ANDROID_FACTORY, SANDSTORM_GENERATOR, COMMAND_CITADEL -> true;
                         default -> false;  // Don't notify for walls, etc.
                     };
 
@@ -2017,22 +2169,22 @@ public class RTSGameManager {
                         }
                     }
                 }
-                
+
                 // Destroy all androids when Android Factory is destroyed
                 if (building.getBuildingType() == BuildingType.ANDROID_FACTORY) {
-                    com.fullsteam.model.component.AndroidFactoryComponent androidComp = 
-                        building.getComponent(com.fullsteam.model.component.AndroidFactoryComponent.class);
+                    com.fullsteam.model.component.AndroidFactoryComponent androidComp =
+                            building.getComponent(com.fullsteam.model.component.AndroidFactoryComponent.class);
                     if (androidComp != null) {
                         Set<Integer> androidIds = androidComp.getControlledAndroidIds();
                         for (Integer androidId : androidIds) {
                             Unit android = units.get(androidId);
                             if (android != null && android.isActive()) {
                                 android.setActive(false);
-                                log.info("Android {} destroyed due to Android Factory {} destruction", 
+                                log.info("Android {} destroyed due to Android Factory {} destruction",
                                         androidId, building.getId());
                             }
                         }
-                        log.info("Android Factory {} destroyed - {} androids destroyed", 
+                        log.info("Android Factory {} destroyed - {} androids destroyed",
                                 building.getId(), androidIds.size());
                     }
                 }
@@ -2142,7 +2294,7 @@ public class RTSGameManager {
                     playerBuildings.contains(BuildingType.RESEARCH_LAB);
 
             // Monument Buildings - Requires Power Plant + Research Lab (T3)
-            case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE ->
+            case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL ->
                     playerBuildings.contains(BuildingType.POWER_PLANT) &&
                             playerBuildings.contains(BuildingType.RESEARCH_LAB);
 
@@ -2278,9 +2430,6 @@ public class RTSGameManager {
         });
         state.put("factions", factionsMap);
 
-        // Add vision range info for client-side fog rendering
-        state.put("visionRange", FogOfWar.getVisionRange());
-
         // Add biome info for client-side rendering
         Map<String, Object> biomeInfo = new HashMap<>();
         biomeInfo.put("name", rtsWorld.getBiome().name());
@@ -2363,6 +2512,7 @@ public class RTSGameManager {
         data.put("ownerId", unit.getOwnerId());
         data.put("team", unit.getTeamNumber());
         data.put("size", unit.getUnitType().getSize());
+        data.put("visionRange", unit.getVisionRange()); // Use modified vision range
         data.put("selected", unit.isSelected());
         data.put("isMoving", unit.isMoving());
         data.put("aiStance", unit.getAiStance().name());
@@ -2410,6 +2560,7 @@ public class RTSGameManager {
         data.put("ownerId", building.getOwnerId());
         data.put("team", building.getTeamNumber());
         data.put("size", building.getBuildingType().getSize());
+        data.put("visionRange", building.getBuildingType().getVisionRange());
         data.put("active", building.isActive());
         data.put("underConstruction", building.isUnderConstruction());
         data.put("constructionPercent", building.getConstructionPercent());
@@ -2486,16 +2637,16 @@ public class RTSGameManager {
         data.put("factionType", faction.getFaction().name());
         data.put("factionName", faction.getFaction().getDisplayName());
         data.put("factionColor", faction.getFaction().getThemeColor());
-        
+
         // Research information
         if (faction.getResearchManager() != null) {
             List<String> completedResearch = new ArrayList<>();
-            for (com.fullsteam.model.research.ResearchType research : 
+            for (com.fullsteam.model.research.ResearchType research :
                     faction.getResearchManager().getCompletedResearch()) {
                 completedResearch.add(research.name());
             }
             data.put("completedResearch", completedResearch);
-            
+
             // Active research (building ID -> research info)
             Map<Integer, Map<String, Object>> activeResearch = new HashMap<>();
             faction.getResearchManager().getActiveResearch().forEach((buildingId, progress) -> {
@@ -2671,11 +2822,37 @@ public class RTSGameManager {
      * Add a player to the game
      */
     public synchronized boolean addPlayer(PlayerSession playerSession, String factionName) {
+        // Prevent late joins if game has started with full roster
+        if (gameStartedWithFullRoster) {
+            log.warn("Player {} attempted to join game {} after it started with full roster", 
+                    playerSession.getPlayerId(), gameId);
+            return false;
+        }
+        
         if (playerSessions.size() >= gameConfig.getMaxPlayers()) {
             return false;
         }
 
         playerSessions.put(playerSession.getPlayerId(), playerSession);
+        
+        // Check if game is now at full capacity
+        if (playerSessions.size() == gameConfig.getMaxPlayers()) {
+            gameStartedWithFullRoster = true;
+            log.info("Game {} has reached full capacity ({} players) - late joins now prevented", 
+                    gameId, gameConfig.getMaxPlayers());
+            
+            // Notify all players that game is starting with full roster
+            sendGameEvent(GameEvent.builder()
+                    .message("🎮 Game starting with full roster! Late joins disabled.")
+                    .category(GameEvent.EventCategory.SYSTEM)
+                    .color("#00FF00")
+                    .target(GameEvent.EventTarget.builder()
+                            .type(GameEvent.EventTarget.TargetType.ALL)
+                            .build())
+                    .displayDuration(5000L)
+                    .build()
+            );
+        }
 
         log.info("Adding player {} to game {}, current factions: {}, selected faction: {}",
                 playerSession.getPlayerId(), gameId, playerFactions.keySet(), factionName);
@@ -2797,12 +2974,12 @@ public class RTSGameManager {
                     playerId,
                     teamNumber
             );
-            
+
             // Apply research modifiers (though starting units won't have research yet)
             if (faction != null && faction.getResearchManager() != null) {
                 worker.applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
             }
-            
+
             units.put(worker.getId(), worker);
             world.addBody(worker.getBody());
         }

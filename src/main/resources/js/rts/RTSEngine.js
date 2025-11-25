@@ -233,9 +233,20 @@ class RTSEngine {
             throw new Error('Failed to get game ID');
         }
         
-        // Connect via WebSocket
+        // Get session token from URL or sessionStorage
+        const urlParams = new URLSearchParams(window.location.search);
+        let sessionToken = urlParams.get('sessionToken');
+        if (!sessionToken) {
+            sessionToken = sessionStorage.getItem('rts_session_token');
+        }
+        
+        // Connect via WebSocket with session token
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/rts/${gameId}`;
+        let wsUrl = `${protocol}//${window.location.host}/rts/${gameId}`;
+        if (sessionToken) {
+            wsUrl += `?sessionToken=${sessionToken}`;
+            console.log('Connecting with session token:', sessionToken);
+        }
         
         this.websocket = new WebSocket(wsUrl);
         this.websocket.binaryType = 'arraybuffer';
@@ -1334,7 +1345,9 @@ class RTSEngine {
             'BUNKER': '⚔',
             'PHOTON_SPIRE': '⚡',
             'QUANTUM_NEXUS': '◈',
-            'SANDSTORM_GENERATOR': '☁'
+            'SANDSTORM_GENERATOR': '☁',
+            'ANDROID_FACTORY': 'A',
+            'COMMAND_CITADEL': 'CC'
         };
         const label = new PIXI.Text(labelMap[buildingData.type] || '?', {
             fontFamily: 'Arial',
@@ -3704,6 +3717,15 @@ class RTSEngine {
      * Handle research node click
      */
     onResearchNodeClick(research) {
+        // Check simultaneous research limit first
+        const activeResearchCount = this.getActiveResearchCount();
+        const maxSimultaneous = this.getMaxSimultaneousResearch();
+        
+        if (activeResearchCount >= maxSimultaneous) {
+            alert(`Maximum simultaneous research limit reached (${activeResearchCount}/${maxSimultaneous})!\n\nComplete or cancel existing research, or research Parallel Research upgrades to increase capacity.`);
+            return;
+        }
+        
         // Find a suitable building to research at
         const building = this.findResearchBuilding(research.requiredBuilding);
         
@@ -3723,6 +3745,46 @@ class RTSEngine {
         
         // Close modal
         this.closeResearchTreeModal();
+    }
+    
+    /**
+     * Get the number of active research projects
+     */
+    getActiveResearchCount() {
+        if (!this.lastGameState || !this.lastGameState.factions || !this.lastGameState.factions[this.myPlayerId]) {
+            return 0;
+        }
+        
+        const myFaction = this.lastGameState.factions[this.myPlayerId];
+        if (!myFaction.activeResearch) {
+            return 0;
+        }
+        
+        return Object.keys(myFaction.activeResearch).length;
+    }
+    
+    /**
+     * Get the maximum simultaneous research allowed
+     */
+    getMaxSimultaneousResearch() {
+        if (!this.lastGameState || !this.lastGameState.factions || !this.lastGameState.factions[this.myPlayerId]) {
+            return 1; // Base limit
+        }
+        
+        const myFaction = this.lastGameState.factions[this.myPlayerId];
+        const completedResearch = myFaction.completedResearch || [];
+        
+        let max = 1; // Base limit
+        
+        // Check for Parallel Research upgrades
+        if (completedResearch.includes('PARALLEL_RESEARCH_1')) {
+            max += 1;
+        }
+        if (completedResearch.includes('PARALLEL_RESEARCH_2')) {
+            max += 1;
+        }
+        
+        return max;
     }
     
     /**
@@ -3929,7 +3991,8 @@ class RTSEngine {
             'SANDSTORM_GENERATOR': '🌪️',
             'QUANTUM_NEXUS': '⚛️',
             'PHOTON_SPIRE': '💎',
-            'ANDROID_FACTORY': '🤖'
+            'ANDROID_FACTORY': '🤖',
+            'COMMAND_CITADEL': '🏰'
         };
         return icons[buildingType] || '🏢';
     }
@@ -3956,7 +4019,8 @@ class RTSEngine {
             'SANDSTORM_GENERATOR': 'Sandstorm Generator',
             'QUANTUM_NEXUS': 'Quantum Nexus',
             'PHOTON_SPIRE': 'Photon Spire',
-            'ANDROID_FACTORY': 'Android Factory'
+            'ANDROID_FACTORY': 'Android Factory',
+            'COMMAND_CITADEL': 'Command Citadel'
         };
         return names[buildingType] || buildingType.replace(/_/g, ' ');
     }

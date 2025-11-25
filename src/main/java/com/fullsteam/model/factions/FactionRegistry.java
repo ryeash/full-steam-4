@@ -51,8 +51,8 @@ public class FactionRegistry {
                 BuildingType.SHIELD_GENERATOR,
                 BuildingType.TECH_CENTER,
                 BuildingType.ADVANCED_FACTORY,
-                BuildingType.BANK
-                // TODO: Add Terran-specific monument building later
+                BuildingType.BANK,
+                BuildingType.COMMAND_CITADEL  // Terran monument
         );
         
         // Terran has access to all standard units (explicit list)
@@ -80,7 +80,7 @@ public class FactionRegistry {
                 .faction(Faction.TERRAN)
                 .techTree(techTree)
                 .heroUnit(UnitType.PALADIN)
-                .monumentBuilding(null)  // TODO: Design new Terran monument
+                .monumentBuilding(BuildingType.COMMAND_CITADEL)  // Terran monument - command center
                 .buildingHealthMultiplier(1.1)  // +10% building health
                 .build();
     }

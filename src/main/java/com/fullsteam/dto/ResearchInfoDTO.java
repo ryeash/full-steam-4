@@ -55,6 +55,14 @@ public class ResearchInfoDTO {
      * Build a human-readable effect summary
      */
     private static String buildEffectSummary(ResearchType researchType) {
+        // Special cases for non-modifier research
+        if (researchType == ResearchType.PARALLEL_RESEARCH_1) {
+            return "+1 Simultaneous Research";
+        }
+        if (researchType == ResearchType.PARALLEL_RESEARCH_2) {
+            return "+1 Simultaneous Research";
+        }
+        
         var modifier = researchType.getModifier();
         
         // Check each modifier and build summary

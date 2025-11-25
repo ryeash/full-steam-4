@@ -22,7 +22,9 @@ public enum BuildingType {
             80.0,    // size (radius)
             8,       // sides (octagon)
             0xFFD700, // gold
-            true     // can produce units
+            true,    // can produce units
+            50,      // power generation
+            500.0    // vision range (excellent, main base)
     ),
 
     // Resource collection point
@@ -34,7 +36,9 @@ public enum BuildingType {
             50.0,    // size (radius)
             6,       // sides (hexagon)
             0x808080, // gray
-            false    // cannot produce units
+            false,   // cannot produce units
+            -10,     // power consumption
+            350.0    // vision range (moderate, economic building)
     ),
 
     // Infantry production
@@ -46,7 +50,9 @@ public enum BuildingType {
             45.0,    // size (radius)
             4,       // sides (rectangle)
             0x8B4513, // brown
-            true     // can produce units
+            true,    // can produce units
+            -25,     // power consumption
+            380.0    // vision range (good, production building)
     ),
 
     // Power generation - required for advanced buildings
@@ -58,7 +64,9 @@ public enum BuildingType {
             40.0,    // size (radius)
             6,       // sides (hexagon)
             0xFFFF00, // yellow
-            false    // cannot produce units
+            false,   // cannot produce units
+            100,     // power generation
+            360.0    // vision range (moderate, utility building)
     ),
 
     // Vehicle production
@@ -70,7 +78,9 @@ public enum BuildingType {
             55.0,    // size (radius)
             4,       // sides (rectangle)
             0x696969, // dark gray
-            true     // can produce units
+            true,    // can produce units
+            -30,     // power consumption
+            390.0    // vision range (good, production building)
     ),
 
     // Research and tech unlocking - unlocks T2
@@ -82,7 +92,9 @@ public enum BuildingType {
             50.0,    // size (radius)
             6,       // sides (hexagon)
             0x00CED1, // dark turquoise
-            false    // cannot produce units
+            false,   // cannot produce units
+            -35,     // power consumption
+            400.0    // vision range (good, tech building)
     ),
 
     // Advanced infantry production - requires Research Lab
@@ -94,7 +106,9 @@ public enum BuildingType {
             48.0,    // size (radius)
             5,       // sides (pentagon)
             0x8B0000, // dark red
-            true     // can produce units
+            true,    // can produce units
+            -25,     // power consumption
+            390.0    // vision range (good, production building)
     ),
 
     // Elite tech unlocking - unlocks T3
@@ -106,7 +120,9 @@ public enum BuildingType {
             60.0,    // size (radius)
             8,       // sides (octagon)
             0x4169E1, // royal blue
-            false    // cannot produce units
+            false,   // cannot produce units
+            -50,     // power consumption
+            420.0    // vision range (excellent, advanced tech)
     ),
 
     // Heavy vehicle production - requires Tech Center
@@ -118,7 +134,9 @@ public enum BuildingType {
             65.0,    // size (radius)
             6,       // sides (hexagon)
             0x2F4F4F, // dark slate gray
-            true     // can produce units
+            true,    // can produce units
+            -45,     // power consumption
+            400.0    // vision range (good, advanced production)
     ),
 
     // Defensive structure - blocks movement
@@ -130,7 +148,9 @@ public enum BuildingType {
             15.0,    // size (radius) - small for tight placement
             4,       // sides (square)
             0x708090, // slate gray
-            false    // cannot produce units
+            false,   // cannot produce units
+            0,       // no power needed
+            250.0    // vision range (limited, small defensive structure)
     ),
 
     // Defensive structure - attacks enemies
@@ -142,9 +162,11 @@ public enum BuildingType {
             25.0,    // size (radius)
             5,       // sides (pentagon)
             0xFF4500, // orange red
-            false    // cannot produce units
+            false,   // cannot produce units
+            -20,     // power consumption
+            450.0    // vision range (excellent, needs to spot threats)
     ),
-    
+
     // Defensive structure - infantry can garrison inside and fire out
     BUNKER(
             "Bunker",
@@ -155,7 +177,9 @@ public enum BuildingType {
             4,       // sides (rectangle)
             0x556B2F, // dark olive green
             false,   // cannot produce units
-            6        // can garrison 6 infantry units
+            6,       // can garrison 6 infantry units
+            -15,     // power consumption
+            420.0    // vision range (excellent, defensive structure)
     ),
 
     // Defensive structure - projects shield that destroys incoming projectiles
@@ -167,9 +191,11 @@ public enum BuildingType {
             30.0,    // size (radius)
             6,       // sides (hexagon)
             0x00BFFF, // deep sky blue
-            false    // cannot produce units
+            false,   // cannot produce units
+            -40,     // power consumption
+            380.0    // vision range (good, defensive utility)
     ),
-    
+
     // Economic building - generates passive income based on current credits (compound interest)
     BANK(
             "Bank",
@@ -180,11 +206,13 @@ public enum BuildingType {
             8,       // sides (octagon)
             0xFFD700, // gold
             false,   // cannot produce units
-            0        // no garrison capacity
+            0,       // no garrison capacity
+            -30,     // power consumption
+            350.0    // vision range (moderate, economic building)
     ),
-    
+
     // ===== HERO/MONUMENT BUILDINGS =====
-    
+
     // Monument - Nomads faction - creates periodic sandstorms for area denial
     SANDSTORM_GENERATOR(
             "Sandstorm Generator",
@@ -194,9 +222,11 @@ public enum BuildingType {
             35.0,    // size (radius) - reduced from 45
             6,       // sides (hexagon)
             0xDEB887, // burlywood (sandy color)
-            false    // cannot produce units
+            false,   // cannot produce units
+            -40,     // power consumption
+            430.0    // vision range (good, monument)
     ),
-    
+
     // Monument - Synthesis faction - autonomous android production facility
     ANDROID_FACTORY(
             "Android Factory",
@@ -206,19 +236,37 @@ public enum BuildingType {
             42.0,    // size (radius)
             8,       // sides (octagon)
             0x00CED1, // dark turquoise (Synthesis faction color)
-            true     // can produce units (Androids!)
+            true,    // can produce units (Androids!)
+            -60,     // power consumption
+            420.0    // vision range (excellent, monument production)
     ),
-    
-    // Monument - Tech Alliance faction - amplifies beam weapon damage
+
+    // Monument - Tech Alliance faction - powerful defensive laser tower (Obelisk of Light style)
     PHOTON_SPIRE(
             "Photon Spire",
             650,     // resource cost
             38,      // build time (seconds)
-            788,     // max health (+5%)
+            1200,    // max health (very durable for a defensive structure)
             48.0,    // size (radius)
             6,       // sides (hexagon)
             0x00FF00, // bright green (photon energy)
-            false    // cannot produce units
+            false,   // cannot produce units
+            -45,     // power consumption
+            480.0    // vision range (excellent, defensive monument)
+    ),
+
+    // Monument - Terran faction - ultimate command center
+    COMMAND_CITADEL(
+            "Command Citadel",
+            700,     // resource cost (expensive monument)
+            40,      // build time (seconds)
+            1050,    // max health (+5%)
+            55.0,    // size (radius) - large and imposing
+            8,       // sides (octagon)
+            0x4169E1, // royal blue (command authority)
+            false,   // cannot produce units
+            -50,     // power consumption
+            800.0    // vision range (HUGE, command center bonus)
     );
 
     private final String displayName;
@@ -230,14 +278,16 @@ public enum BuildingType {
     private final int color; // hex color for rendering
     private final boolean canProduceUnits;
     private final int garrisonCapacity; // Number of units that can garrison (0 = no garrison)
+    private final int powerValue; // Power generation (positive) or consumption (negative)
+    private final double visionRange; // vision radius for fog of war
 
     BuildingType(String displayName, int resourceCost, int buildTimeSeconds, double maxHealth,
-                 double size, int sides, int color, boolean canProduceUnits) {
-        this(displayName, resourceCost, buildTimeSeconds, maxHealth, size, sides, color, canProduceUnits, 0);
+                 double size, int sides, int color, boolean canProduceUnits, int powerValue, double visionRange) {
+        this(displayName, resourceCost, buildTimeSeconds, maxHealth, size, sides, color, canProduceUnits, 0, powerValue, visionRange);
     }
-    
+
     BuildingType(String displayName, int resourceCost, int buildTimeSeconds, double maxHealth,
-                 double size, int sides, int color, boolean canProduceUnits, int garrisonCapacity) {
+                 double size, int sides, int color, boolean canProduceUnits, int garrisonCapacity, int powerValue, double visionRange) {
         this.displayName = displayName;
         this.resourceCost = resourceCost;
         this.buildTimeSeconds = buildTimeSeconds;
@@ -247,51 +297,8 @@ public enum BuildingType {
         this.color = color;
         this.canProduceUnits = canProduceUnits;
         this.garrisonCapacity = garrisonCapacity;
-    }
-
-    /**
-     * Get the units that this building can produce
-     * NOTE: This method is called after enum initialization, so UnitType values are safe to reference
-     */
-    public UnitType[] getProducibleUnits() {
-        if (!canProduceUnits) {
-            return new UnitType[]{};
-        }
-
-        // Use a switch to avoid circular dependency during enum initialization
-        // This returns ALL possible units a building can produce (used for "all available" factions)
-        return switch (this) {
-            case HEADQUARTERS -> new UnitType[]{UnitType.WORKER, UnitType.MINER};
-            case BARRACKS -> new UnitType[]{
-                    UnitType.INFANTRY, 
-                    UnitType.LASER_INFANTRY, 
-                    UnitType.PLASMA_TROOPER,  // Tech Alliance
-                    UnitType.MEDIC
-            };
-            case FACTORY -> new UnitType[]{
-                    UnitType.JEEP, 
-                    UnitType.TANK,
-                    UnitType.PHOTON_SCOUT,  // Tech Alliance
-                    UnitType.BEAM_TANK      // Tech Alliance
-            };
-            case WEAPONS_DEPOT -> new UnitType[]{
-                    UnitType.ROCKET_SOLDIER, 
-                    UnitType.SNIPER, 
-                    UnitType.ION_RANGER,  // Tech Alliance
-                    UnitType.ENGINEER
-            };
-            case ADVANCED_FACTORY -> new UnitType[]{
-                    UnitType.ARTILLERY, 
-                    UnitType.GIGANTONAUT, 
-                    UnitType.CRAWLER,
-                    UnitType.STEALTH_TANK, 
-                    UnitType.MAMMOTH_TANK,
-                    UnitType.PULSE_ARTILLERY  // Tech Alliance
-                    // Note: Hero units (PALADIN, RAIDER, COLOSSUS, PHOTON_TITAN) are faction-specific
-                    // and defined in FactionRegistry, not in this base list
-            };
-            default -> new UnitType[]{};
-        };
+        this.powerValue = powerValue;
+        this.visionRange = visionRange;
     }
 
     /**
@@ -308,50 +315,12 @@ public enum BuildingType {
         return switch (this) {
             case HEADQUARTERS, REFINERY, BARRACKS, POWER_PLANT, BUNKER, WALL -> 1;
             case FACTORY, RESEARCH_LAB, WEAPONS_DEPOT, TURRET, SHIELD_GENERATOR -> 2;
-            case TECH_CENTER, ADVANCED_FACTORY, BANK, SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE -> 3;
+            case TECH_CENTER, ADVANCED_FACTORY, BANK, SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE,
+                 COMMAND_CITADEL -> 3;
         };
     }
 
-    /**
-     * Get power consumption (negative) or generation (positive)
-     * HQ provides base power, Power Plants provide additional power
-     */
-    public int getPowerValue() {
-        return switch (this) {
-            // Power generators
-            case HEADQUARTERS -> 50;      // Base power (enough for Barracks + Refinery)
-            case POWER_PLANT -> 100;      // Main power generation
 
-            // T1 consumers (low power)
-            case BARRACKS -> -25;
-            case REFINERY -> -10;
-            case WALL -> 0;               // No power needed
-
-            // T2 consumers (medium power)
-            case FACTORY -> -30;
-            case WEAPONS_DEPOT -> -25;
-            case RESEARCH_LAB -> -35;
-            case TURRET -> -20;
-            case SHIELD_GENERATOR -> -40; // High power consumption for active shield
-
-            // T3 consumers (high power)
-            case TECH_CENTER -> -50;
-            case ADVANCED_FACTORY -> -45;
-            case BANK -> -30; // Moderate power for financial systems
-            case BUNKER -> -15; // Low power for life support systems
-            
-            // Monument buildings (high power consumption for special effects)
-            case SANDSTORM_GENERATOR -> -40; // Weather control systems
-            case ANDROID_FACTORY -> -60; // Android production systems
-            case PHOTON_SPIRE -> -45; // Beam amplification systems
-        };
-    }
-
-    /**
-     * Create a physics fixture for this building type
-     * This allows each building to have a custom shape (not just regular polygons)
-     * Returns a Convex shape that will be added to the building's physics body
-     */
     /**
      * Create physics fixtures for this building type
      * This allows each building to have custom shapes (including multi-fixture compound shapes)
@@ -363,43 +332,43 @@ public enum BuildingType {
         return switch (this) {
             // Headquarters - large octagon (main base)
             case HEADQUARTERS -> List.of(Geometry.createPolygonalCircle(8, size));
-            
+
             // Refinery - hexagonal storage tanks
             case REFINERY -> List.of(Geometry.createPolygonalCircle(6, size));
-            
+
             // Barracks - rectangular barracks building
             case BARRACKS -> List.of(Geometry.createRectangle(size * 1.8, size * 1.2));
-            
+
             // Power Plant - hexagonal reactor
             case POWER_PLANT -> List.of(Geometry.createPolygonalCircle(6, size));
-            
+
             // Factory - large rectangular factory floor
             case FACTORY -> List.of(Geometry.createRectangle(size * 2.0, size * 1.4));
-            
+
             // Research Lab - hexagonal research facility
             case RESEARCH_LAB -> List.of(Geometry.createPolygonalCircle(6, size));
-            
+
             // Weapons Depot - pentagonal armory
             case WEAPONS_DEPOT -> List.of(Geometry.createPolygonalCircle(5, size));
-            
+
             // Tech Center - large octagon (advanced tech)
             case TECH_CENTER -> List.of(Geometry.createPolygonalCircle(8, size));
-            
+
             // Advanced Factory - massive rectangular production facility
             case ADVANCED_FACTORY -> List.of(Geometry.createRectangle(size * 2.2, size * 1.5));
-            
+
             // Wall - small square segment
             case WALL -> List.of(Geometry.createSquare(size * 2.0));
-            
+
             // Turret - pentagonal defensive structure
             case TURRET -> List.of(Geometry.createPolygonalCircle(5, size));
-            
+
             // Shield Generator - hexagonal energy projector
             case SHIELD_GENERATOR -> List.of(Geometry.createPolygonalCircle(6, size));
-            
+
             // Bank - octagonal vault
             case BANK -> List.of(Geometry.createPolygonalCircle(8, size));
-            
+
             // Bunker - rotated hexagonal fortified structure (distinct from barracks)
             case BUNKER -> {
                 // Create a hexagon rotated 30 degrees (not aligned to any axis)
@@ -407,22 +376,43 @@ public enum BuildingType {
                 Vector2[] vertices = new Vector2[6];
                 for (int i = 0; i < 6; i++) {
                     double theta = (Math.PI * 2 * i / 6) + angle;
-                    vertices[i] = new Vector2(
-                        Math.cos(theta) * size,
-                        Math.sin(theta) * size
-                    );
+                    vertices[i] = new Vector2(Math.cos(theta) * size, Math.sin(theta) * size);
                 }
                 yield List.of(Geometry.createPolygon(vertices));
             }
-            
+
             // Sandstorm Generator - hexagonal weather control station
             case SANDSTORM_GENERATOR -> List.of(Geometry.createPolygonalCircle(6, size));
-            
+
             // Android Factory - octagon (advanced manufacturing)
             case ANDROID_FACTORY -> List.of(Geometry.createPolygonalCircle(8, size));
-            
-            // Photon Spire - hexagonal beam amplifier
-            case PHOTON_SPIRE -> List.of(Geometry.createPolygonalCircle(6, size));
+
+            // Photon Spire - triangle-square-triangle design (|>0<|)
+            case PHOTON_SPIRE -> {
+                // Central square body
+                Convex centralSquare = Geometry.createSquare(size * 0.6);
+
+                // Left triangle (pointing left) - counter-clockwise winding
+                Vector2[] leftTriangle = new Vector2[]{
+                        new Vector2(-size * 0.8, 0),                    // Point (left tip)
+                        new Vector2(-size * 0.3, -size * 0.4),          // Bottom right (counter-clockwise)
+                        new Vector2(-size * 0.3, size * 0.4)            // Top right
+                };
+                Convex leftWing = Geometry.createPolygon(leftTriangle);
+
+                // Right triangle (pointing right) - counter-clockwise winding
+                Vector2[] rightTriangle = new Vector2[]{
+                        new Vector2(size * 0.8, 0),                     // Point (right tip)
+                        new Vector2(size * 0.3, size * 0.4),            // Top left (counter-clockwise)
+                        new Vector2(size * 0.3, -size * 0.4)            // Bottom left
+                };
+                Convex rightWing = Geometry.createPolygon(rightTriangle);
+
+                yield List.of(leftWing, centralSquare, rightWing);
+            }
+
+            // Command Citadel - octagonal fortress tower
+            case COMMAND_CITADEL -> List.of(Geometry.createPolygonalCircle(8, size));
         };
     }
 }

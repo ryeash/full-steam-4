@@ -1,6 +1,6 @@
 package com.fullsteam.model;
 
-import com.fullsteam.util.IdGenerator;
+import com.fullsteam.games.IdGenerator;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.geometry.Vector2;

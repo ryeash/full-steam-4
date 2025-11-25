@@ -111,26 +111,7 @@ public class FieldEffect extends GameEntity {
     }
 
     public boolean canAffect(GameEntity entity) {
-        if (!active
-                || entity == null
-                || type == FieldEffectType.WARNING_ZONE
-                || !isInRange(entity.getPosition())
-                // For instantaneous effects, check if already affected
-                || (type.isInstantaneous() && affectedEntities.contains(entity.getId()))) {
-            return false;
-        }
-
         if (entity instanceof Unit player) {
-            // for own-team/self targeting
-            if (type == FieldEffectType.HEAL_ZONE || type == FieldEffectType.SPEED_BOOST) {
-                // In FFA mode (team 0), can only help self
-                if (ownerTeam == 0 || player.getTeamNumber() == 0) {
-                    return ownerId == player.getId();
-                }
-                // In team mode, can help teammates AND the owner
-                return ownerTeam == player.getTeamNumber();
-            }
-
             // Team-based damage rules (same as projectiles)
             // Can't damage self (though this should be rare for field effects)
             if (player.getId() == ownerId) {
@@ -145,7 +126,6 @@ public class FieldEffect extends GameEntity {
             // In team mode, can only damage players on different teams
             return ownerTeam != player.getTeamNumber();
         }
-
         return true;
     }
 
@@ -165,7 +145,6 @@ public class FieldEffect extends GameEntity {
                 yield Math.max(0.0, intensity);
             }
             // Earthquakes have uniform intensity
-            case EARTHQUAKE -> 1.0;
             default -> 1.0;
         };
     }

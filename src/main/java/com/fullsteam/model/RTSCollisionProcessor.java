@@ -399,7 +399,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         if (body1IsProjectile || body2IsProjectile) {
             Projectile projectile = body1IsProjectile ? (Projectile) obj1 : (Projectile) obj2;
             Object other = body1IsProjectile ? obj2 : obj1;
-            
+
             if (!projectile.isActive()) {
                 return false; // Ignore inactive projectiles
             }
@@ -413,35 +413,35 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
             if (other instanceof ShieldSensor shieldSensor) {
                 Building shieldBuilding = shieldSensor.getBuilding();
                 
-                // Don't block friendly projectiles
-                if (shieldBuilding.getTeamNumber() == projectile.getOwnerTeam()) {
-                    return false; // Allow friendly projectiles through
-                }
-                
                 // Only block if shield is active
                 if (!shieldBuilding.isShieldActive()) {
                     return false; // Shield is down, allow projectile through
                 }
-                
+
                 // Check if projectile originated inside this shield
                 Vector2 projectileOrigin = projectile.getOrigin();
                 boolean originatedInShield = shieldBuilding.isPositionInsideShield(projectileOrigin);
-                
+
                 if (originatedInShield) {
                     return false; // Allow projectiles fired from inside the shield to exit
                 }
-                
+
                 // Shield blocks the projectile
-                log.debug("Projectile {} blocked by shield from building {}", 
-                         projectile.getId(), shieldBuilding.getId());
-                
+                log.debug("Projectile {} blocked by shield from building {}",
+                        projectile.getId(), shieldBuilding.getId());
+                if (shieldBuilding.getTeamNumber() == projectile.getOwnerTeam()) {
+                    // the projectile is still terminated by the shield
+                    projectile.setActive(false);
+                    return false;
+                }
+
                 // Apply reduced damage to the shield generator (10% of projectile damage)
                 double reducedDamage = projectile.getDamage() * 0.10;
                 shieldBuilding.takeDamage(reducedDamage);
-                
+
                 // Deactivate projectile
                 projectile.setActive(false);
-                
+
                 return false; // Sensor collision, no physics response
             }
 
@@ -453,84 +453,84 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 if (unit.getTeamNumber() == projectile.getOwnerTeam()) {
                     return false; // Pass through friendly units (no physics or damage)
                 }
-                
+
                 if (!unit.isActive()) {
                     return false;
                 }
-                
+
                 // Check if already hit this unit (for piercing projectiles)
                 if (projectile.getAffectedPlayers().contains(unit.getId())) {
                     return false;
                 }
-                
+
                 // Apply damage
                 handleProjectileUnitHit(projectile, unit, hitPosition);
-                
+
                 // Deactivate if not piercing
                 if (!shouldProjectilePierce(projectile)) {
                     projectile.setActive(false);
                 }
-                
+
                 return false; // No physics collision (handled manually)
             }
-            
+
             // Check if projectile hits a building
             if (other instanceof Building building) {
                 if (building.getTeamNumber() == projectile.getOwnerTeam()) {
                     return false; // Pass through friendly buildings (no physics or damage)
                 }
-                
+
                 if (!building.isActive()) {
                     return false;
                 }
-                
+
                 // Check if already hit this building
                 if (projectile.getAffectedPlayers().contains(building.getId())) {
                     return false;
                 }
-                
+
                 // Apply damage
                 handleProjectileBuildingHit(projectile, building, hitPosition);
-                
+
                 // Buildings always stop projectiles
                 projectile.setActive(false);
                 return false; // No physics collision
             }
-            
+
             // Check if projectile hits a wall segment
             if (other instanceof WallSegment segment) {
                 if (segment.getTeamNumber() == projectile.getOwnerTeam()) {
                     return false; // Pass through friendly walls (no physics or damage)
                 }
-                
+
                 if (!segment.isActive()) {
                     return false;
                 }
-                
+
                 // Check if already hit this segment
                 if (projectile.getAffectedPlayers().contains(segment.getId())) {
                     return false;
                 }
-                
+
                 // Apply damage
                 handleProjectileWallSegmentHit(projectile, segment, hitPosition);
-                
+
                 // Walls always stop projectiles
                 projectile.setActive(false);
                 return false; // No physics collision
             }
-            
+
             // Check if projectile hits an obstacle
             if (other instanceof Obstacle) {
                 // Obstacles destroy projectiles
                 log.debug("Projectile {} hit obstacle at ({}, {})",
                         projectile.getId(), hitPosition.x, hitPosition.y);
-                
+
                 // Create explosion if it's an explosive projectile
                 if (isExplosiveProjectile(projectile)) {
                     createExplosionEffect(hitPosition, projectile);
                 }
-                
+
                 projectile.setActive(false);
                 return true; // Allow physics collision with obstacles
             }

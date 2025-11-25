@@ -20,6 +20,7 @@ import static com.fullsteam.controller.RTSPlayerConnectionService.SESSION_KEY;
 
 /**
  * WebSocket endpoint for RTS game connections.
+ * URL format: /rts/{gameId}?sessionToken={token}
  */
 @ServerWebSocket("/rts/{gameId}")
 public class RTSWebSocketEndpoint {
@@ -38,11 +39,15 @@ public class RTSWebSocketEndpoint {
     public void onOpen(WebSocketSession session, String gameId) {
         log.info("RTS WebSocket connection opened for gameId: {}", gameId);
         
-        if (!connectionService.connectPlayer(session, gameId)) {
+        // Extract session token from query parameters
+        String sessionToken = session.getUriVariables().get("sessionToken", String.class, null);
+        log.info("Session token from URI: {}", sessionToken);
+        
+        if (!connectionService.connectPlayer(session, gameId, sessionToken)) {
             log.warn("Failed to connect player to RTS game {}, closing session", gameId);
             session.close();
         } else {
-            log.info("Player successfully connected to RTS game {}", gameId);
+            log.info("Player successfully connected to RTS game {} with session token {}", gameId, sessionToken);
         }
     }
     

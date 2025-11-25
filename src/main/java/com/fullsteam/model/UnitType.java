@@ -28,7 +28,8 @@ public enum UnitType {
             16,      // sides (16-sided polygon approximates circle)
             0xFFFF00, // yellow
             BuildingType.HEADQUARTERS,
-            5        // upkeep cost
+            5,       // upkeep cost
+            300.0    // vision range (moderate)
     ),
 
     // Infantry - basic combat unit
@@ -45,7 +46,8 @@ public enum UnitType {
             3,       // sides (triangle)
             0x00FF00, // green
             BuildingType.BARRACKS,
-            10       // upkeep cost
+            10,      // upkeep cost
+            350.0    // vision range (standard infantry)
     ),
 
     // Laser Infantry - advanced infantry with beam weapons
@@ -62,7 +64,8 @@ public enum UnitType {
             3,       // sides (triangle)
             0x00FFFF, // cyan (to distinguish from regular infantry)
             BuildingType.BARRACKS,
-            12       // upkeep cost (higher than infantry)
+            12,      // upkeep cost (higher than infantry)
+            360.0    // vision range (slightly better than infantry)
     ),
 
     // Medic - support unit that heals nearby friendlies
@@ -79,7 +82,8 @@ public enum UnitType {
             6,       // sides (hexagon)
             0xFFFFFF, // white
             BuildingType.BARRACKS,
-            8        // upkeep cost
+            8,       // upkeep cost
+            340.0    // vision range (support unit, moderate)
     ),
 
     // Rocket Soldier - anti-vehicle infantry
@@ -96,7 +100,8 @@ public enum UnitType {
             3,       // sides (triangle)
             0xFF8800, // orange
             BuildingType.WEAPONS_DEPOT,
-            15       // upkeep cost
+            15,      // upkeep cost
+            370.0    // vision range (good, needs to spot vehicles)
     ),
 
     // Sniper - long-range precision unit
@@ -113,7 +118,8 @@ public enum UnitType {
             3,       // sides (triangle)
             0x8B4513, // brown
             BuildingType.WEAPONS_DEPOT,
-            12       // upkeep cost
+            12,      // upkeep cost
+            500.0    // vision range (excellent, sniper needs vision)
     ),
 
     // Engineer - repairs buildings and vehicles
@@ -130,7 +136,8 @@ public enum UnitType {
             6,       // sides (hexagon)
             0x00CED1, // dark turquoise (distinct from yellow worker)
             BuildingType.WEAPONS_DEPOT,
-            10       // upkeep cost
+            10,      // upkeep cost
+            330.0    // vision range (support unit)
     ),
 
     // Miner - destroys obstacles to clear paths
@@ -147,7 +154,8 @@ public enum UnitType {
             8,       // sides (octagon)
             0x8B4513, // brown (like dirt/stone)
             BuildingType.HEADQUARTERS,
-            8        // upkeep cost
+            8,       // upkeep cost
+            320.0    // vision range (utility unit)
     ),
 
     // Jeep - fast light vehicle
@@ -164,7 +172,8 @@ public enum UnitType {
             4,       // sides (rectangle)
             0x00FFFF, // cyan
             BuildingType.FACTORY,
-            20       // upkeep cost
+            20,      // upkeep cost
+            450.0    // vision range (scout vehicle, excellent vision)
     ),
 
     // Tank - heavy armored vehicle
@@ -181,7 +190,8 @@ public enum UnitType {
             5,       // sides (pentagon)
             0x8888FF, // light blue
             BuildingType.FACTORY,
-            30       // upkeep cost
+            30,      // upkeep cost
+            400.0    // vision range (good, main battle tank)
     ),
 
     // Artillery - long range siege unit
@@ -198,7 +208,8 @@ public enum UnitType {
             6,       // sides (hexagon)
             0xFF00FF, // magenta
             BuildingType.ADVANCED_FACTORY,
-            40       // upkeep cost
+            40,      // upkeep cost
+            420.0    // vision range (good, needs to spot targets)
     ),
 
     // GIGANTONAUT - Super heavy artillery
@@ -215,7 +226,8 @@ public enum UnitType {
             8,       // sides (octagon)
             0x8B0000, // dark red
             BuildingType.ADVANCED_FACTORY,
-            60       // upkeep cost (VERY HIGH!)
+            60,      // upkeep cost (VERY HIGH!)
+            200.0    // poor vision, needs a spotter to hit distant targets
     ),
 
     // CRAWLER - Mobile fortress with 4 turrets (THE STAR UNIT!)
@@ -225,14 +237,15 @@ public enum UnitType {
             45,      // build time (seconds) (LONG!)
             2300,    // max health (+15%)
             40.0,    // movement speed (VERY SLOW!)
-            60,      // damage (per turret)
-            1.0,     // attack rate
+            35,      // damage (per turret) - reduced from 60
+            1.5,     // attack rate - reduced from 1.0 (slower fire rate)
             250,     // attack range
             50.0,    // size (radius) (HUGE!)
             8,       // sides (octagon)
             0x4A4A4A, // dark gray
             BuildingType.ADVANCED_FACTORY,
-            80       // upkeep cost (HIGHEST!)
+            80,      // upkeep cost (HIGHEST!)
+            480.0    // vision range (excellent, mobile fortress)
     ),
 
     // Stealth Tank - invisible until attacking
@@ -249,7 +262,8 @@ public enum UnitType {
             5,       // sides (pentagon)
             0x2F4F4F, // dark slate gray
             BuildingType.ADVANCED_FACTORY,
-            45       // upkeep cost
+            45,      // upkeep cost
+            380.0    // vision range (moderate, stealth unit)
     ),
 
     // Mammoth Tank - dual-cannon heavy assault
@@ -266,7 +280,8 @@ public enum UnitType {
             6,       // sides (hexagon)
             0x556B2F, // dark olive green
             BuildingType.ADVANCED_FACTORY,
-            60       // upkeep cost
+            60,      // upkeep cost
+            430.0    // vision range (good, heavy assault)
     ),
 
     // ===== HERO UNITS =====
@@ -285,7 +300,8 @@ public enum UnitType {
             8,       // sides (octagon - balanced)
             0xC0C0C0, // silver (Terran hero)
             BuildingType.ADVANCED_FACTORY,
-            55       // upkeep cost
+            55,      // upkeep cost
+            500.0    // vision range (hero unit, excellent vision)
     ),
 
     // RAIDER - Nomads hero unit, fast hit-and-run cavalry
@@ -302,7 +318,8 @@ public enum UnitType {
             3,       // sides (triangle - agile)
             0xDC143C, // crimson (raider red)
             BuildingType.ADVANCED_FACTORY,
-            45       // upkeep cost
+            45,      // upkeep cost
+            520.0    // vision range (hero scout, exceptional vision)
     ),
 
     // COLOSSUS - Synthesis hero unit, massive walker
@@ -319,7 +336,8 @@ public enum UnitType {
             6,       // sides (hexagon)
             0x4B0082, // indigo (synthesis purple)
             BuildingType.ADVANCED_FACTORY,
-            75       // upkeep cost (VERY HIGH!)
+            75,      // upkeep cost (VERY HIGH!)
+            490.0    // vision range (hero unit, excellent vision)
     ),
 
     // ===== TECH ALLIANCE BEAM WEAPON UNITS =====
@@ -338,7 +356,8 @@ public enum UnitType {
             3,       // sides (triangle)
             0x00FF7F, // spring green (plasma color)
             BuildingType.BARRACKS,
-            11       // upkeep cost
+            11,      // upkeep cost
+            355.0    // vision range (standard beam infantry)
     ),
 
     // ION_RANGER - Long-range beam sniper
@@ -355,7 +374,8 @@ public enum UnitType {
             3,       // sides (triangle)
             0x9370DB, // medium purple (ion beam)
             BuildingType.WEAPONS_DEPOT,
-            14       // upkeep cost
+            14,      // upkeep cost
+            510.0    // vision range (excellent, beam sniper)
     ),
 
     // PHOTON_SCOUT - Fast beam vehicle
@@ -372,7 +392,8 @@ public enum UnitType {
             4,       // sides (rectangle)
             0x7FFF00, // chartreuse (bright energy)
             BuildingType.FACTORY,
-            22       // upkeep cost
+            22,      // upkeep cost
+            460.0    // vision range (excellent, scout vehicle)
     ),
 
     // BEAM_TANK - Heavy beam vehicle
@@ -389,7 +410,8 @@ public enum UnitType {
             6,       // sides (hexagon)
             0x00FA9A, // medium spring green
             BuildingType.FACTORY,
-            32       // upkeep cost
+            32,      // upkeep cost
+            410.0    // vision range (good, beam tank)
     ),
 
     // PULSE_ARTILLERY - Long-range beam artillery
@@ -406,7 +428,8 @@ public enum UnitType {
             6,       // sides (hexagon)
             0xFFD700, // gold (energy pulse)
             BuildingType.ADVANCED_FACTORY,
-            42       // upkeep cost
+            42,      // upkeep cost
+            430.0    // vision range (good, beam artillery)
     ),
 
     // PHOTON_TITAN - Hero unit, massive beam platform
@@ -423,7 +446,8 @@ public enum UnitType {
             8,       // sides (octagon)
             0x00FF00, // bright green (pure energy)
             BuildingType.ADVANCED_FACTORY,
-            65       // upkeep cost (VERY HIGH!)
+            65,      // upkeep cost (VERY HIGH!)
+            480.0    // vision range (hero unit, excellent vision)
     ),
 
     // ANDROID - Autonomous combat unit produced by Android Factory
@@ -441,7 +465,8 @@ public enum UnitType {
             4,       // sides (square/diamond)
             0x00CED1, // dark turquoise (Synthesis faction color)
             BuildingType.ANDROID_FACTORY,
-            0        // upkeep cost (ZERO!)
+            0,       // upkeep cost (ZERO!)
+            340.0    // vision range (moderate, autonomous unit)
     );
 
     private final String displayName;
@@ -457,6 +482,13 @@ public enum UnitType {
     private final int color; // hex color for rendering
     private final BuildingType producedBy; // which building produces this unit
     private final int upkeepCost; // supply/upkeep cost
+    /**
+     * -- GETTER --
+     *  Get vision range for this unit type
+     *  Most units: 1.5x attack range
+     *  Gigantonaut: terrible vision (0.5x attack range)
+     */
+    private final double visionRange; // vision radius for fog of war
 
     /**
      * Create physics fixtures for this unit type
@@ -676,7 +708,7 @@ public enum UnitType {
 
     UnitType(String displayName, int resourceCost, int buildTimeSeconds, double maxHealth,
              double movementSpeed, double damage, double attackRate, double attackRange,
-             double size, int sides, int color, BuildingType producedBy, int upkeepCost) {
+             double size, int sides, int color, BuildingType producedBy, int upkeepCost, double visionRange) {
         this.displayName = displayName;
         this.resourceCost = resourceCost;
         this.buildTimeSeconds = buildTimeSeconds;
@@ -690,6 +722,7 @@ public enum UnitType {
         this.color = color;
         this.producedBy = producedBy;
         this.upkeepCost = upkeepCost;
+        this.visionRange = visionRange;
     }
 
     /**
@@ -794,18 +827,6 @@ public enum UnitType {
                 this == MEDIC ||
                 this == ENGINEER ||
                 this == ANDROID;
-    }
-
-    /**
-     * Get vision range for this unit type
-     * Most units: 1.5x attack range
-     * Gigantonaut: terrible vision (0.5x attack range)
-     */
-    public double getVisionRange() {
-        if (this == GIGANTONAUT) {
-            return attackRange * 0.5; // Terrible vision!
-        }
-        return attackRange * 1.5; // Normal vision
     }
 }
 

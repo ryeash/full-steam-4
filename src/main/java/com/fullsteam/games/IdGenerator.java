@@ -1,4 +1,4 @@
-package com.fullsteam.util;
+package com.fullsteam.games;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -13,7 +13,6 @@ public final class IdGenerator {
     private static final AtomicInteger PLAYER_ID = new AtomicInteger(1);
 
     private IdGenerator() {
-        // Prevent instantiation
     }
 
     /**

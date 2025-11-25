@@ -61,6 +61,9 @@ public class Unit extends GameEntity {
     private double attackRange;
     private double damage;
     private double attackRate;
+    
+    // Vision
+    private double visionRange; // Modified by research
 
     // Resource harvesting (for workers)
     private double carriedResources = 0;
@@ -96,6 +99,7 @@ public class Unit extends GameEntity {
         this.attackRange = unitType.getAttackRange();
         this.damage = unitType.getDamage();
         this.attackRate = unitType.getAttackRate();
+        this.visionRange = unitType.getVisionRange(); // Initialize from base type
     }
 
     private static Body createUnitBody(double x, double y, UnitType unitType) {
@@ -1224,7 +1228,8 @@ public class Unit extends GameEntity {
             maxCarriedResources = BASE_MAX_CARRIED_RESOURCES + modifier.getWorkerCapacityBonus();
         }
 
-        // Vision range modifier is handled in fog of war calculations
+        // Apply vision range modifier
+        visionRange *= modifier.getVisionRangeMultiplier();
     }
 
     /**

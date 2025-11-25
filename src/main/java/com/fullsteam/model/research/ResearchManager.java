@@ -26,8 +26,28 @@ public class ResearchManager {
     // Cached combined modifier (recalculated when research completes)
     private ResearchModifier cumulativeModifier = new ResearchModifier();
     
+    // Maximum simultaneous research projects (base 1, can be upgraded)
+    private static final int BASE_MAX_SIMULTANEOUS_RESEARCH = 1;
+    
     public ResearchManager(int playerId) {
         this.playerId = playerId;
+    }
+    
+    /**
+     * Get the maximum number of simultaneous research projects allowed
+     */
+    public int getMaxSimultaneousResearch() {
+        int max = BASE_MAX_SIMULTANEOUS_RESEARCH;
+        
+        // Add bonuses from research upgrades
+        if (completedResearch.contains(ResearchType.PARALLEL_RESEARCH_1)) {
+            max += 1; // +1 simultaneous research
+        }
+        if (completedResearch.contains(ResearchType.PARALLEL_RESEARCH_2)) {
+            max += 1; // +1 more (total +2)
+        }
+        
+        return max;
     }
     
     /**
@@ -98,10 +118,18 @@ public class ResearchManager {
             return false;
         }
         
+        // Check simultaneous research limit
+        if (activeResearch.size() >= getMaxSimultaneousResearch()) {
+            log.warn("Player {} has reached max simultaneous research limit ({}/{})", 
+                    playerId, activeResearch.size(), getMaxSimultaneousResearch());
+            return false;
+        }
+        
         ResearchProgress progress = new ResearchProgress(researchType, buildingId);
         activeResearch.put(buildingId, progress);
         
-        log.info("Player {} started research {} at building {}", playerId, researchType, buildingId);
+        log.info("Player {} started research {} at building {} ({}/{} active)", 
+                playerId, researchType, buildingId, activeResearch.size(), getMaxSimultaneousResearch());
         return true;
     }
     

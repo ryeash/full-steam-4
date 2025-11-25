@@ -165,6 +165,13 @@ public class PlayerFaction {
         currentUpkeep = Math.max(0, currentUpkeep - upkeepCost);
     }
     
+    /**
+     * Set max upkeep (base + bonuses from monuments)
+     */
+    public void setMaxUpkeep(int maxUpkeep) {
+        this.maxUpkeep = maxUpkeep;
+    }
+    
     // ===== Faction-specific methods =====
     
     /**

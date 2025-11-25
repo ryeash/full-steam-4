@@ -1,5 +1,6 @@
 package com.fullsteam.model.component;
 
+import com.fullsteam.games.IdGenerator;
 import com.fullsteam.model.Building;
 import com.fullsteam.model.BulletEffect;
 import com.fullsteam.model.Ordinance;
@@ -133,7 +134,7 @@ public class DefenseComponent implements IBuildingComponent {
         Set<BulletEffect> effects = new HashSet<>();
         
         return new Projectile(
-                com.fullsteam.util.IdGenerator.nextEntityId(), // Use proper unique ID
+                IdGenerator.nextEntityId(), // Use proper unique ID
                 turretPos.x,
                 turretPos.y,
                 velocity.x,
