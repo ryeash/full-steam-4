@@ -113,11 +113,11 @@ public class RTSLobby {
             String sessionToken = availableGame.reserveSlot(faction);
             if (sessionToken != null) {
                 log.info("Player joined existing matchmaking game: {}, players: {}/{}, faction: {}, session: {}",
-                        availableGame.getGameId(), availableGame.getCurrentPlayers(), 
+                        availableGame.getGameId(), availableGame.getCurrentPlayers(),
                         availableGame.getMaxPlayers(), faction, sessionToken);
                 return Map.of(
-                    "gameId", availableGame.getGameId(),
-                    "sessionToken", sessionToken
+                        "gameId", availableGame.getGameId(),
+                        "sessionToken", sessionToken
                 );
             }
         }
@@ -159,8 +159,8 @@ public class RTSLobby {
         log.info("Created new matchmaking game: {} with biome {}, density {}, faction {}, session: {}",
                 game.getGameId(), selectedBiome, selectedDensity, faction, sessionToken);
         return Map.of(
-            "gameId", game.getGameId(),
-            "sessionToken", sessionToken
+                "gameId", game.getGameId(),
+                "sessionToken", sessionToken
         );
     }
 
@@ -227,7 +227,7 @@ public class RTSLobby {
         private int currentPlayers;
         @Getter
         private final long createdTime;
-        
+
         // Map session tokens to faction selections (ensures correct faction assignment)
         private final Map<String, String> sessionTokenToFaction = new ConcurrentSkipListMap<>();
         private final Map<String, Integer> sessionTokenToSlot = new ConcurrentSkipListMap<>();
@@ -241,6 +241,7 @@ public class RTSLobby {
 
         /**
          * Reserve a slot for a player and return a unique session token
+         *
          * @param faction The faction the player selected
          * @return A unique session token for this player
          */
@@ -248,15 +249,15 @@ public class RTSLobby {
             if (currentPlayers >= maxPlayers) {
                 return null; // Game is full
             }
-            
+
             // Generate unique session token
             String sessionToken = IdGenerator.nextGameId(); // Reuse game ID generator for uniqueness
             int slot = currentPlayers;
-            
+
             sessionTokenToFaction.put(sessionToken, faction != null ? faction : "TERRAN");
             sessionTokenToSlot.put(sessionToken, slot);
             currentPlayers++;
-            
+
             log.info("Reserved slot {} for session {} with faction {}", slot, sessionToken, faction);
             return sessionToken;
         }
@@ -306,7 +307,7 @@ public class RTSLobby {
         public boolean isReady() {
             return currentPlayers >= maxPlayers;
         }
-        
+
         /**
          * Legacy method for backward compatibility (used by debug games)
          */
@@ -314,20 +315,6 @@ public class RTSLobby {
         public synchronized int incrementPlayers(String faction) {
             String token = reserveSlot(faction);
             return token != null ? sessionTokenToSlot.get(token) : -1;
-        }
-        
-        /**
-         * Legacy method for backward compatibility
-         */
-        @Deprecated
-        public synchronized String getFactionForSlot(int slot) {
-            // Find session token for this slot
-            for (Map.Entry<String, Integer> entry : sessionTokenToSlot.entrySet()) {
-                if (entry.getValue() == slot) {
-                    return sessionTokenToFaction.get(entry.getKey());
-                }
-            }
-            return "TERRAN";
         }
     }
 
@@ -347,7 +334,7 @@ public class RTSLobby {
                 if (game.isGameOver()) {
                     toRemove.add(entry.getKey());
                     log.info("Removing finished game: {}", entry.getKey());
-                } else if (game.getPlayerFactions().isEmpty() &&
+                } else if (game.getGameEntities().getPlayerFactions().isEmpty() &&
                         System.currentTimeMillis() - game.getGameStartTime() > 300000) { // 5 minutes
                     toRemove.add(entry.getKey());
                     log.info("Removing abandoned game: {}", entry.getKey());

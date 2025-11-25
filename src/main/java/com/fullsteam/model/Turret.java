@@ -1,6 +1,5 @@
 package com.fullsteam.model;
 
-import com.fullsteam.games.IdGenerator;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.geometry.Vector2;
@@ -33,7 +32,7 @@ public class Turret {
         this.index = index;
         this.offset = offset;
     }
-    
+
     /**
      * Get the world position of this turret based on parent unit position
      */
@@ -236,13 +235,13 @@ public class Turret {
         bulletEffects.add(BulletEffect.EXPLOSIVE);
 
         return new Projectile(
-                IdGenerator.nextEntityId(), // Generate proper entity ID
                 turretPos.x,
                 turretPos.y,
                 vx,
                 vy,
                 parentUnit.getDamage(),
                 parentUnit.getAttackRange(), // Max range
+                parentUnit.getId(),
                 parentUnit.getTeamNumber(),
                 0.2, // Linear damping
                 bulletEffects,

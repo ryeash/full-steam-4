@@ -1,5 +1,6 @@
 package com.fullsteam.model;
 
+import com.fullsteam.games.IdGenerator;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.dynamics.Body;
@@ -18,19 +19,15 @@ import java.util.Set;
 @Setter
 public class Projectile extends AbstractOrdinance {
     private double maxRange;
-    private double distanceTraveled = 0.0;
-    private Vector2 previousPosition; // For tracking distance traveled
 
-    public Projectile(int id, double x, double y, double vx, double vy,
-                      double damage, double maxRange, int ownerTeam,
+    public Projectile(double x, double y, double vx, double vy,
+                      double damage, double maxRange, int ownerId, int ownerTeam,
                       double linearDamping, Set<BulletEffect> bulletEffects,
                       Ordinance ordinance, double size) {
-        super(id, createProjectileBody(size), id, ownerTeam, 
-              new Vector2(x, y), damage, bulletEffects, ordinance, size);
-        
+        super(IdGenerator.nextEntityId(), createProjectileBody(size), ownerId, ownerTeam,
+                new Vector2(x, y), damage, bulletEffects, ordinance, size);
+
         this.maxRange = maxRange;
-        this.previousPosition = new Vector2(x, y);
-        
         body.translate(x, y);
         body.setLinearDamping(linearDamping);
         body.setLinearVelocity(vx, vy); // Set physics body velocity
@@ -48,22 +45,16 @@ public class Projectile extends AbstractOrdinance {
      * Update projectile state and check if it should be deactivated
      */
     @Override
-    public void update(double deltaTime) {
+    public void update(GameEntities gameEntities) {
         if (!active) {
             return;
         }
-
-        // Track distance traveled using physics body position (single source of truth)
-        Vector2 currentPosition = body.getWorldCenter();
-        distanceTraveled += currentPosition.distance(previousPosition);
-        previousPosition = currentPosition.copy();
-
         // Deactivate if traveled too far
-        if (distanceTraveled >= maxRange) {
+        if (origin.distance(getPosition()) >= maxRange) {
             active = false;
         }
     }
-    
+
     /**
      * Get the rotation angle for rendering (based on physics body velocity)
      */
@@ -71,14 +62,14 @@ public class Projectile extends AbstractOrdinance {
         Vector2 velocity = body.getLinearVelocity();
         return Math.atan2(velocity.y, velocity.x);
     }
-    
+
     /**
      * Compatibility method - delegates to parent's getOrdinanceType()
      */
     public Ordinance getOrdinance() {
         return getOrdinanceType();
     }
-    
+
     /**
      * Compatibility method - delegates to parent's getAffectedEntities()
      */

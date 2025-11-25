@@ -1,14 +1,13 @@
 package com.fullsteam.model;
 
-import com.fullsteam.games.IdGenerator;
 import com.fullsteam.model.component.AndroidFactoryComponent;
 import com.fullsteam.model.component.BankComponent;
 import com.fullsteam.model.component.DefenseComponent;
 import com.fullsteam.model.component.IBuildingComponent;
 import com.fullsteam.model.component.ProductionComponent;
 import com.fullsteam.model.component.ResearchComponent;
+import com.fullsteam.model.component.SandstormComponent;
 import com.fullsteam.model.component.ShieldComponent;
-import com.fullsteam.model.research.ResearchType;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -58,11 +57,7 @@ public class Building extends GameEntity {
     // Monument aura fields
     private Body auraSensorBody = null;
     private boolean auraActive = false;
-    private static final double SANDSTORM_RADIUS = 300.0; // Sandstorm damage radius - increased from 200
-    private static final double COMMAND_CITADEL_VISION_RADIUS = 800.0; // Huge vision range
     private static final int COMMAND_CITADEL_UPKEEP_BONUS = 50; // +50 max upkeep
-    private double sandstormTimer = 0; // Time accumulator for sandstorm pulses
-    private static final double SANDSTORM_DPS = 15.0; // Damage per second (continuous)
 
     // Photon Spire combat stats (Obelisk of Light style)
     private static final double PHOTON_SPIRE_DAMAGE = 250.0; // Massive damage per shot
@@ -147,6 +142,12 @@ public class Building extends GameEntity {
             log.debug("Building {} ({}) initialized with ResearchComponent", id, buildingType.getDisplayName());
         }
 
+        // Add SandstormComponent to Sandstorm Generator
+        if (buildingType == BuildingType.SANDSTORM_GENERATOR) {
+            addComponent(new SandstormComponent());
+            log.debug("Building {} ({}) initialized with SandstormComponent", id, buildingType.getDisplayName());
+        }
+
         // More components will be added here as we extract them:
         // - GarrisonComponent for BUNKER
         // - AuraComponent for monuments
@@ -174,16 +175,14 @@ public class Building extends GameEntity {
     }
 
     @Override
-    public void update(double deltaTime) {
-        update(deltaTime, false); // Default: no low power
+    public void update(GameEntities gameEntities) {
+        update(gameEntities, gameEntities.getWorld().getTimeStep().getDeltaTime(), false); // Default: no low power
     }
 
     /**
      * Update building with power status
      */
-    public void update(double deltaTime, boolean hasLowPower) {
-        super.update(deltaTime);
-
+    public void update(GameEntities gameEntities, double deltaTime, boolean hasLowPower) {
         if (!active) {
             return;
         }
@@ -203,13 +202,7 @@ public class Building extends GameEntity {
 
         // Update all components
         for (IBuildingComponent component : components.values()) {
-            component.update(deltaTime, this, hasLowPower);
-        }
-
-        // Update turret behavior (projectile firing handled by RTSGameManager)
-        // This just updates targeting and rotation
-        if (buildingType.isDefensive()) {
-            updateTurretBehavior(deltaTime);
+            component.update(gameEntities, this, hasLowPower);
         }
 
         // Update bunker behavior (garrisoned units fire)
@@ -220,11 +213,6 @@ public class Building extends GameEntity {
         // Update monument auras (deactivate if low power)
         if (isMonument()) {
             updateMonumentAura(hasLowPower);
-        }
-
-        // Update sandstorm timer
-        if (buildingType == BuildingType.SANDSTORM_GENERATOR && !hasLowPower && !underConstruction) {
-            sandstormTimer += deltaTime;
         }
     }
 
@@ -374,21 +362,6 @@ public class Building extends GameEntity {
     }
 
     /**
-     * Update turret targeting and attack behavior
-     *
-     * @return Projectile if fired, null otherwise
-     */
-    public Projectile updateTurretBehavior(double deltaTime) {
-        DefenseComponent defComp =
-                getComponent(DefenseComponent.class);
-        if (defComp != null) {
-            return defComp.updateTurretBehavior(this);
-        }
-        return null; // No defense component
-    }
-
-
-    /**
      * Set rally point for produced units
      */
     public void setRallyPoint(Vector2 point) {
@@ -416,147 +389,6 @@ public class Building extends GameEntity {
         return this.teamNumber == team;
     }
 
-    /**
-     * Create shield sensor body for Shield Generator
-     */
-    public Body createShieldSensorBody() {
-        ShieldComponent shieldComp =
-                getComponent(ShieldComponent.class);
-        if (shieldComp != null) {
-            Body sensor = shieldComp.createSensorBody(this);
-            shieldComp.setSensorBody(sensor);
-            return sensor;
-        }
-        return null; // No shield component
-    }
-
-
-    /**
-     * Activate the shield
-     */
-    public void activateShield() {
-        ShieldComponent shieldComp =
-                getComponent(ShieldComponent.class);
-        if (shieldComp != null) {
-            shieldComp.activate(this);
-        }
-        // No-op if no shield component
-    }
-
-    /**
-     * Deactivate the shield
-     */
-    public void deactivateShield() {
-        ShieldComponent shieldComp =
-                getComponent(ShieldComponent.class);
-        if (shieldComp != null) {
-            shieldComp.deactivate(this);
-        }
-        // No-op if no shield component
-    }
-
-    /**
-     * Check if a position is inside this building's shield
-     */
-    public boolean isPositionInsideShield(Vector2 position) {
-        ShieldComponent shieldComp =
-                getComponent(ShieldComponent.class);
-        if (shieldComp != null) {
-            return shieldComp.isPositionInside(position, this);
-        }
-        return false; // No shield component
-    }
-
-    /**
-     * Check if the shield is active
-     */
-    public boolean isShieldActive() {
-        ShieldComponent shieldComp =
-                getComponent(ShieldComponent.class);
-        if (shieldComp != null) {
-            return shieldComp.isActive();
-        }
-        return false; // No shield component
-    }
-
-    /**
-     * Get the shield sensor body
-     */
-    public Body getShieldSensorBody() {
-        ShieldComponent shieldComp = getComponent(ShieldComponent.class);
-        if (shieldComp != null) {
-            return shieldComp.getSensorBody();
-        }
-        return null; // No shield component
-    }
-
-    /**
-     * Set the shield sensor body
-     */
-    public void setShieldSensorBody(Body sensorBody) {
-        ShieldComponent shieldComp = getComponent(ShieldComponent.class);
-        if (shieldComp != null) {
-            shieldComp.setSensorBody(sensorBody);
-        }
-        // No-op if no shield component
-    }
-
-    /**
-     * Get the shield radius
-     */
-    public double getShieldRadius() {
-        ShieldComponent shieldComp = getComponent(ShieldComponent.class);
-        if (shieldComp != null) {
-            return shieldComp.getRadius();
-        }
-        return 0.0; // No shield component
-    }
-
-    // ==================== RESEARCH COMPONENT BRIDGE METHODS ====================
-
-    /**
-     * Check if this building is currently researching
-     */
-    public boolean isResearching() {
-        ResearchComponent researchComp = getComponent(ResearchComponent.class);
-        if (researchComp != null) {
-            return researchComp.isResearching();
-        }
-        return false; // No research component
-    }
-
-    /**
-     * Get current research progress (0-100%)
-     */
-    public int getResearchProgress() {
-        ResearchComponent researchComp = getComponent(ResearchComponent.class);
-        if (researchComp != null) {
-            return researchComp.getResearchProgress();
-        }
-        return 0; // No research component
-    }
-
-    /**
-     * Get current research type (null if not researching)
-     */
-    public ResearchType getCurrentResearchType() {
-        ResearchComponent researchComp = getComponent(ResearchComponent.class);
-        if (researchComp != null) {
-            return researchComp.getCurrentResearchType();
-        }
-        return null; // No research component
-    }
-
-    /**
-     * Cancel current research
-     */
-    public boolean cancelResearch() {
-        ResearchComponent researchComp = getComponent(ResearchComponent.class);
-        if (researchComp != null) {
-            return researchComp.cancelResearch();
-        }
-        return false; // No research component
-    }
 
     // ==================== MONUMENT METHODS ====================
 
@@ -633,7 +465,10 @@ public class Building extends GameEntity {
      */
     public double getAuraRadius() {
         return switch (buildingType) {
-            case SANDSTORM_GENERATOR -> SANDSTORM_RADIUS;
+            case SANDSTORM_GENERATOR -> {
+                SandstormComponent comp = getComponent(SandstormComponent.class);
+                yield comp != null ? 300.0 : 0.0; // Sandstorm radius
+            }
             default -> 0.0;
         };
     }
@@ -717,7 +552,6 @@ public class Building extends GameEntity {
 
                 // Fire beam!
                 Beam beam = new Beam(
-                        IdGenerator.nextEntityId(),
                         world,
                         getPosition().copy(),
                         direction,
@@ -748,9 +582,12 @@ public class Building extends GameEntity {
 
     /**
      * Get sandstorm damage per second (for continuous damage)
+     *
+     * @deprecated Sandstorm damage is now handled by SandstormComponent
      */
+    @Deprecated
     public double getSandstormDPS() {
-        return SANDSTORM_DPS;
+        return 15.0; // Legacy constant for backwards compatibility
     }
 
     /**

@@ -8,9 +8,8 @@ public enum FieldEffectType {
     EXPLOSION(0.5, true),      // Short duration, instant damage
     FIRE(3.0, false),          // Long duration, damage over time
     ELECTRIC(1.0, false),      // Medium duration, chain damage
-    FREEZE(2.0, false),        // Medium duration, slowing effect
     FRAGMENTATION(0.3, true),  // Very short, creates multiple projectiles
-    POISON(4.0, false);        // Long duration, damage over time
+    SANDSTORM(Double.MAX_VALUE, false); // Persistent until building destroyed, damage over time
 
     private final double defaultDuration;
     private final boolean instantaneous;

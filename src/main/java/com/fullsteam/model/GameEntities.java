@@ -18,6 +18,8 @@ import java.util.stream.Collectors;
  */
 @Getter
 public class GameEntities {
+    private final GameConfig gameConfig;
+    private final Map<Integer, PlayerFaction> playerFactions;
     private final Map<Integer, Unit> units;
     private final Map<Integer, Building> buildings;
     private final Map<Integer, ResourceDeposit> resourceDeposits;
@@ -25,11 +27,13 @@ public class GameEntities {
     private final Map<Integer, Projectile> projectiles;
     private final Map<Integer, FieldEffect> fieldEffects;
     private final Map<Integer, WallSegment> wallSegments;
-    
+
     @Setter
     private World<Body> world; // The physics world (for raycasting, etc.)
 
-    public GameEntities() {
+    public GameEntities(GameConfig gameConfig) {
+        this.gameConfig = gameConfig;
+        this.playerFactions = new ConcurrentSkipListMap<>();
         this.units = new ConcurrentSkipListMap<>();
         this.buildings = new ConcurrentSkipListMap<>();
         this.resourceDeposits = new ConcurrentSkipListMap<>();

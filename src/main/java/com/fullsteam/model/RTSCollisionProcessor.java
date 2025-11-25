@@ -1,5 +1,6 @@
 package com.fullsteam.model;
 
+import com.fullsteam.model.component.ShieldComponent;
 import lombok.extern.slf4j.Slf4j;
 import org.dyn4j.dynamics.Body;
 import org.dyn4j.dynamics.BodyFixture;
@@ -418,24 +419,18 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
             if (other instanceof ShieldSensor shieldSensor) {
                 Building shieldBuilding = shieldSensor.getBuilding();
 
-                // Only block if shield is active
-                if (!shieldBuilding.isShieldActive()) {
-                    return false; // Shield is down, allow projectile through
-                }
-
                 // Check if projectile originated inside this shield
                 Vector2 projectileOrigin = projectile.getOrigin();
-                boolean originatedInShield = shieldBuilding.isPositionInsideShield(projectileOrigin);
+                boolean originatedInShield = shieldBuilding.getComponent(ShieldComponent.class)
+                        .isPositionInside(projectileOrigin, shieldBuilding);
 
                 if (originatedInShield) {
                     return false; // Allow projectiles fired from inside the shield to exit
                 }
 
                 // Shield blocks the projectile
-                log.debug("Projectile {} blocked by shield from building {}",
-                        projectile.getId(), shieldBuilding.getId());
                 if (shieldBuilding.getTeamNumber() == projectile.getOwnerTeam()) {
-                    // the projectile is still terminated by the shield
+                    // the projectile is still terminated by the shield, just no damage
                     projectile.setActive(false);
                     return false;
                 }

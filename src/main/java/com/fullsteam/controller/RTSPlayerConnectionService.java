@@ -2,9 +2,9 @@ package com.fullsteam.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.RTSLobby;
+import com.fullsteam.games.IdGenerator;
 import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.RTSGameManager;
-import com.fullsteam.games.IdGenerator;
 import io.micronaut.websocket.WebSocketSession;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -30,8 +30,9 @@ public class RTSPlayerConnectionService {
 
     /**
      * Connect a player to an RTS game
-     * @param session The WebSocket session
-     * @param gameId The game ID
+     *
+     * @param session      The WebSocket session
+     * @param gameId       The game ID
      * @param sessionToken The session token from matchmaking (optional, for tracking faction)
      */
     public boolean connectPlayer(WebSocketSession session, String gameId, String sessionToken) {
@@ -45,17 +46,12 @@ public class RTSPlayerConnectionService {
         // Get faction selection from matchmaking game using session token
         RTSLobby.MatchmakingGame matchmakingGame = rtsLobby.getMatchmakingGame(gameId);
         String factionName = "TERRAN"; // Default
-        
+
         if (matchmakingGame != null && sessionToken != null) {
             // Use session token to get the correct faction
             factionName = matchmakingGame.getFactionForSession(sessionToken);
             matchmakingGame.markSessionConnected(sessionToken);
             log.info("Retrieved faction {} for session token {}", factionName, sessionToken);
-        } else if (matchmakingGame != null) {
-            // Fallback to old behavior for backward compatibility
-            int slot = game.getPlayerCount();
-            factionName = matchmakingGame.getFactionForSlot(slot);
-            log.warn("No session token provided, using slot-based faction lookup (slot {}): {}", slot, factionName);
         } else {
             log.warn("No matchmaking game found for gameId {}, defaulting to TERRAN", gameId);
         }
@@ -71,7 +67,7 @@ public class RTSPlayerConnectionService {
         // Add player to game with faction
         if (!game.addPlayer(playerSession, factionName)) {
             log.warn("Failed to add player {} to RTS game {} (game may be full or started)", playerId, gameId);
-            
+
             // Send error message to player
             try {
                 session.sendSync(objectMapper.writeValueAsString(java.util.Map.of(
@@ -81,7 +77,7 @@ public class RTSPlayerConnectionService {
             } catch (Exception e) {
                 log.error("Error sending join failure message", e);
             }
-            
+
             return false;
         }
 

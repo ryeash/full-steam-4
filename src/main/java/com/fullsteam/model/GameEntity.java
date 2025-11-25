@@ -25,13 +25,13 @@ public abstract class GameEntity {
         this.body = body;
         this.health = maxHealth;
         this.maxHealth = maxHealth;
-        
+
         // Configure body if provided
         if (body != null) {
             body.setAtRest(false);
             body.setAtRestDetectionEnabled(false);
             body.setEnabled(true);
-            
+
             // Only set userData if it's not already set (Beam uses it to pass data)
             if (body.getUserData() == null) {
                 body.setUserData(this);
@@ -59,7 +59,7 @@ public abstract class GameEntity {
         }
     }
 
-    public void update(double deltaTime) {
+    public void update(GameEntities gameEntities) {
         // default no-op
     }
 

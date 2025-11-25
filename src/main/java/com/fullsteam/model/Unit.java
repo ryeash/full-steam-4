@@ -147,16 +147,14 @@ public class Unit extends GameEntity {
     }
 
     @Override
-    public void update(double deltaTime) {
-        super.update(deltaTime);
-
+    public void update(GameEntities gameEntities) {
         if (!active) {
             return;
         }
 
         // Update command (checks if command is complete and does work)
         if (currentCommand != null) {
-            boolean stillActive = currentCommand.update(deltaTime);
+            boolean stillActive = currentCommand.update(gameEntities.getWorld().getTimeStep().getDeltaTime());
             if (!stillActive) {
                 // Command completed, switch to idle
                 currentCommand = new IdleCommand(this);
@@ -436,7 +434,6 @@ public class Unit extends GameEntity {
             }
 
             return new Beam(
-                    id,
                     world,
                     currentPos,
                     direction,
@@ -457,13 +454,13 @@ public class Unit extends GameEntity {
             Vector2 velocity = direction.multiply(props.speed);
 
             return new Projectile(
-                    id,
                     currentPos.x,
                     currentPos.y,
                     velocity.x,
                     velocity.y,
                     damage,
                     attackRange,
+                    getId(),
                     teamNumber,
                     props.linearDamping,
                     props.bulletEffects,

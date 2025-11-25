@@ -1176,18 +1176,18 @@ class RTSEngine {
             
             // Only show shield if active and not under construction
             if (buildingData.shieldActive && !buildingData.underConstruction) {
-                const shieldRadius = 200; // Match server-side SHIELD_RADIUS
-                shield.circle(0, 0, shieldRadius);
+                shield.circle(0, 0, buildingData.shieldRadius);
                 shield.stroke({ width: 3, color: this.getTeamColor(buildingData.team), alpha: 0.4 });
                 shield.fill({ color: this.getTeamColor(buildingData.team), alpha: 0.1 });
             }
         }
         
         // Update aura visualization for monuments
+        // Monument aura rendering (non-damage effects only)
+        // Note: Sandstorm Generator damage is now rendered as a field effect, not an aura
         const monumentTypes = {
             'PHOTON_SPIRE': { radius: 250, color: 0x00FF00 },
-            'QUANTUM_NEXUS': { radius: 280, color: 0x9370DB },
-            'SANDSTORM_GENERATOR': { radius: 300, color: 0xDEB887 }
+            'QUANTUM_NEXUS': { radius: 280, color: 0x9370DB }
         };
         
         if (monumentTypes[buildingData.type]) {
@@ -1204,77 +1204,20 @@ class RTSEngine {
             if (buildingData.auraActive && !buildingData.underConstruction) {
                 const monumentInfo = monumentTypes[buildingData.type];
                 
-                // Special swirling sandy effect for Sandstorm Generator
-                if (buildingData.type === 'SANDSTORM_GENERATOR') {
-                    const time = Date.now() / 1000;
-                    const radius = monumentInfo.radius;
-                    
-                    // Draw multiple rotating spiral layers for sandy swirl effect
-                    const numSpirals = 3;
-                    for (let spiral = 0; spiral < numSpirals; spiral++) {
-                        const spiralOffset = (spiral / numSpirals) * Math.PI * 2;
-                        const rotationSpeed = 0.5 + (spiral * 0.2);
-                        const rotation = time * rotationSpeed + spiralOffset;
-                        
-                        // Draw swirling arcs
-                        const numArcs = 8;
-                        for (let i = 0; i < numArcs; i++) {
-                            const angle = (i / numArcs) * Math.PI * 2 + rotation;
-                            const arcRadius = radius * (0.3 + (i / numArcs) * 0.7);
-                            const arcLength = Math.PI * 0.4;
-                            
-                            // Pulsing opacity
-                            const pulse = Math.sin(time * 2 + spiral + i) * 0.3 + 0.7;
-                            const opacity = 0.15 * pulse;
-                            
-                            // Draw curved arc for sandy particle effect
-                            aura.moveTo(
-                                Math.cos(angle) * arcRadius,
-                                Math.sin(angle) * arcRadius
-                            );
-                            aura.arc(0, 0, arcRadius, angle, angle + arcLength);
-                            aura.stroke({ width: 3 + spiral, color: monumentInfo.color, alpha: opacity });
-                        }
-                    }
-                    
-                    // Add outer ring that pulses
-                    const outerPulse = Math.sin(time * 1.5) * 0.2 + 0.8;
-                    aura.circle(0, 0, radius * outerPulse);
-                    aura.stroke({ width: 2, color: monumentInfo.color, alpha: 0.25 });
-                    
-                    // Add sandy particles (small circles scattered around)
-                    const numParticles = 20;
-                    for (let i = 0; i < numParticles; i++) {
-                        const particleAngle = (i / numParticles) * Math.PI * 2 + time * 0.8;
-                        const particleDistance = radius * (0.5 + Math.sin(time + i) * 0.3);
-                        const particleX = Math.cos(particleAngle) * particleDistance;
-                        const particleY = Math.sin(particleAngle) * particleDistance;
-                        const particleSize = 2 + Math.sin(time * 3 + i) * 1;
-                        
-                        aura.circle(particleX, particleY, particleSize);
-                        aura.fill({ color: monumentInfo.color, alpha: 0.4 });
-                    }
-                    
-                    // Add subtle fill to show danger zone
-                    aura.circle(0, 0, radius);
-                    aura.fill({ color: monumentInfo.color, alpha: 0.04 });
-                    
-                } else {
-                    // Standard pulsing effect for other monuments
-                    const pulseSpeed = 2.0;
-                    const pulseAmount = 0.15;
-                    const pulse = Math.sin(Date.now() / 1000 * pulseSpeed) * pulseAmount + 1.0;
-                    
-                    aura.circle(0, 0, monumentInfo.radius);
-                    aura.stroke({ width: 2, color: monumentInfo.color, alpha: 0.2 * pulse });
-                    aura.fill({ color: monumentInfo.color, alpha: 0.03 * pulse });
-                    
-                    // Add glow to the building itself
-                    if (buildingContainer.shapeGraphics) {
-                        buildingContainer.shapeGraphics.filters = buildingContainer.shapeGraphics.filters || [];
-                        // Simple glow by adding a slight alpha overlay
-                        buildingContainer.alpha = 0.9 + (0.1 * pulse);
-                    }
+                // Standard pulsing effect for monuments
+                const pulseSpeed = 2.0;
+                const pulseAmount = 0.15;
+                const pulse = Math.sin(Date.now() / 1000 * pulseSpeed) * pulseAmount + 1.0;
+                
+                aura.circle(0, 0, monumentInfo.radius);
+                aura.stroke({ width: 2, color: monumentInfo.color, alpha: 0.2 * pulse });
+                aura.fill({ color: monumentInfo.color, alpha: 0.03 * pulse });
+                
+                // Add glow to the building itself
+                if (buildingContainer.shapeGraphics) {
+                    buildingContainer.shapeGraphics.filters = buildingContainer.shapeGraphics.filters || [];
+                    // Simple glow by adding a slight alpha overlay
+                    buildingContainer.alpha = 0.9 + (0.1 * pulse);
                 }
             } else {
                 // Reset alpha when inactive
@@ -3183,7 +3126,7 @@ class RTSEngine {
         const monumentInfo = {
             'PHOTON_SPIRE': { name: 'Beam Amplifier', effect: '+35% beam damage', radius: 250 },
             'QUANTUM_NEXUS': { name: 'Quantum Shield', effect: '+25% max health', radius: 280 },
-            'SANDSTORM_GENERATOR': { name: 'Sandstorm', effect: '5 damage/sec to enemies', radius: 300 }
+            'SANDSTORM_GENERATOR': { name: 'Sandstorm', effect: '15 damage/sec to enemies', radius: 300 }
         };
         
         if (monumentInfo[buildingData.type]) {
@@ -4283,6 +4226,76 @@ class RTSEngine {
                 graphics.circle(0, 0, 3);
                 graphics.fill({ color: 0xFFFFFF, alpha: baseAlpha * (pulse - 0.7) * 3 });
             }
+        } else if (effectData.type === 'SANDSTORM') {
+            // Sandstorm - swirling sandy/brown particles with rotating vortex
+            const time = Date.now() / 1000; // Current time in seconds
+            const swirl1 = time * 0.3; // Slow rotation
+            const swirl2 = time * 0.5; // Medium rotation
+            const swirl3 = time * 0.7; // Fast rotation
+            
+            // Sandstorm is persistent, so alpha stays constant
+            const baseAlpha = 0.4;
+            
+            // Base sandy cloud (tan/brown)
+            graphics.circle(0, 0, effectData.radius);
+            graphics.fill({ color: 0xDEB887, alpha: baseAlpha * 0.15 });
+            
+            // Middle layer (darker brown)
+            graphics.circle(0, 0, effectData.radius * 0.75);
+            graphics.fill({ color: 0xD2691E, alpha: baseAlpha * 0.2 });
+            
+            // Inner vortex (light sandy)
+            graphics.circle(0, 0, effectData.radius * 0.4);
+            graphics.fill({ color: 0xF4A460, alpha: baseAlpha * 0.25 });
+            
+            // Draw swirling particle streams (3 layers at different speeds)
+            const drawSwirlLayer = (numStreams, rotationOffset, radiusMultiplier, color, alpha) => {
+                for (let i = 0; i < numStreams; i++) {
+                    const baseAngle = (i / numStreams) * Math.PI * 2 + rotationOffset;
+                    
+                    // Draw spiral from center to edge
+                    const numPoints = 8;
+                    for (let j = 0; j < numPoints - 1; j++) {
+                        const t1 = j / numPoints;
+                        const t2 = (j + 1) / numPoints;
+                        
+                        // Spiral outward with clockwise rotation (negative angle for inward vortex look)
+                        const r1 = effectData.radius * t1 * radiusMultiplier;
+                        const r2 = effectData.radius * t2 * radiusMultiplier;
+                        const a1 = baseAngle - t1 * Math.PI * 1.5; // Negative for clockwise spiral
+                        const a2 = baseAngle - t2 * Math.PI * 1.5;
+                        
+                        const x1 = Math.cos(a1) * r1;
+                        const y1 = Math.sin(a1) * r1;
+                        const x2 = Math.cos(a2) * r2;
+                        const y2 = Math.sin(a2) * r2;
+                        
+                        // Fade out towards edge
+                        const fadeAlpha = alpha * (1.0 - t1 * 0.5);
+                        
+                        graphics.moveTo(x1, y1);
+                        graphics.lineTo(x2, y2);
+                        graphics.stroke({ width: 2, color: color, alpha: fadeAlpha });
+                    }
+                }
+            };
+            
+            // Three layers of swirls at different speeds and colors
+            drawSwirlLayer(8, swirl1, 0.9, 0xF4A460, baseAlpha * 0.4); // Sandy outer
+            drawSwirlLayer(6, swirl2, 0.7, 0xD2691E, baseAlpha * 0.5); // Brown middle
+            drawSwirlLayer(4, swirl3, 0.5, 0xDEB887, baseAlpha * 0.6); // Tan inner
+            
+            // Pulsing danger ring (subtle red tint to indicate damage)
+            const dangerPulse = Math.sin(time * 1.5) * 0.5 + 0.5;
+            graphics.circle(0, 0, effectData.radius);
+            graphics.stroke({ width: 2, color: 0xFF6347, alpha: baseAlpha * 0.3 * (0.3 + dangerPulse * 0.2) });
+            
+            // Center eye of the storm (darker, calmer)
+            const eyeRadius = effectData.radius * 0.15;
+            graphics.circle(0, 0, eyeRadius);
+            graphics.fill({ color: 0x8B4513, alpha: baseAlpha * 0.4 });
+            graphics.circle(0, 0, eyeRadius);
+            graphics.stroke({ width: 1, color: 0xD2691E, alpha: baseAlpha * 0.6 });
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.fullsteam.model.component;
 
 import com.fullsteam.model.Building;
+import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.ShieldSensor;
 import lombok.Getter;
 import lombok.Setter;
@@ -27,6 +28,7 @@ public class ShieldComponent implements IBuildingComponent {
     private Body sensorBody = null;
     private boolean active = false;
     private final double radius;
+    private GameEntities gameEntities;
 
     /**
      * Create a shield component with default radius.
@@ -45,48 +47,25 @@ public class ShieldComponent implements IBuildingComponent {
     }
 
     @Override
-    public void update(double deltaTime, Building building, boolean hasLowPower) {
+    public void update(GameEntities gameEntities, Building building, boolean hasLowPower) {
+        this.gameEntities = gameEntities;
         // Update shield state (activate/deactivate based on power and construction)
         boolean shouldBeActive = !hasLowPower && !building.isUnderConstruction();
-
         if (shouldBeActive && !active) {
             activate(building);
         } else if (!shouldBeActive && active) {
-            deactivate(building);
+            deactivate();
         }
     }
 
     @Override
     public void onConstructionComplete(Building building) {
-        // Shield activates when construction completes (if there's power)
-        if (!active) {
-            activate(building);
-        }
+        activate(building);
     }
 
     @Override
     public void onDestroy(Building building) {
-        // Shield deactivates when building is destroyed
-        if (active) {
-            deactivate(building);
-        }
-    }
-
-    /**
-     * Create the shield sensor body for collision detection.
-     * This body is used to detect projectiles entering the shield radius.
-     *
-     * @param building The building this shield is attached to
-     * @return Shield sensor body
-     */
-    public Body createSensorBody(Building building) {
-        Body sensor = new Body();
-        BodyFixture bodyFixture = sensor.addFixture(Geometry.createCircle(radius), 0.0, 0.0, 0.0);
-        bodyFixture.setSensor(true); // Make it a sensor (no collision response)
-        sensor.setMass(MassType.INFINITE);
-        sensor.getTransform().setTranslation(building.getPosition().x, building.getPosition().y);
-        sensor.setUserData(new ShieldSensor(building)); // Wrap building in ShieldSensor
-        return sensor;
+        deactivate();
     }
 
     /**
@@ -95,26 +74,29 @@ public class ShieldComponent implements IBuildingComponent {
      * @param building The building this shield is attached to
      */
     public void activate(Building building) {
-        if (active) {
+        if (sensorBody != null) {
             return;
         }
-
+        Body sensor = new Body();
+        BodyFixture bodyFixture = sensor.addFixture(Geometry.createCircle(radius), 0.0, 0.0, 0.0);
+        bodyFixture.setSensor(true); // Make it a sensor (no collision response)
+        sensor.setMass(MassType.INFINITE);
+        sensor.getTransform().setTranslation(building.getPosition().x, building.getPosition().y);
+        sensor.setUserData(new ShieldSensor(building)); // Wrap building in ShieldSensor
+        gameEntities.getWorld().addBody(sensor);
         active = true;
-        log.debug("Shield activated for building {}", building.getId());
+        sensorBody = sensor;
     }
 
     /**
      * Deactivate the shield.
-     *
-     * @param building The building this shield is attached to
      */
-    public void deactivate(Building building) {
-        if (!active) {
+    public void deactivate() {
+        if (sensorBody == null) {
             return;
         }
-
-        active = false;
-        log.debug("Shield deactivated for building {}", building.getId());
+        gameEntities.getWorld().removeBody(sensorBody);
+        sensorBody = null;
     }
 
     /**
@@ -128,28 +110,15 @@ public class ShieldComponent implements IBuildingComponent {
         if (!active) {
             return false;
         }
-
         double distance = building.getPosition().distance(position);
         return distance <= radius;
     }
 
     /**
-     * Check if the shield is currently active.
-     *
-     * @return true if shield is active
+     * Check if the shield is active
      */
-    public boolean isActive() {
-        return active;
-    }
-
-    /**
-     * Get the shield coverage as a percentage (always 100% for binary shields).
-     * This could be extended in the future for shields with energy/strength.
-     *
-     * @return 1.0 if active, 0.0 if inactive
-     */
-    public double getCoveragePercent() {
-        return active ? 1.0 : 0.0;
+    public boolean isShieldActive() {
+        return sensorBody != null; // No shield component
     }
 }
 

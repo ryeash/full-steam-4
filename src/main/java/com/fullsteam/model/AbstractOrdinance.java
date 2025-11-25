@@ -43,9 +43,7 @@ public abstract class AbstractOrdinance extends GameEntity {
 
     /**
      * Update the ordinance state
-     *
-     * @param deltaTime Time since last update
      */
-    public abstract void update(double deltaTime);
+    public abstract void update(GameEntities gameEntities);
 }
 
