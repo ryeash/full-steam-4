@@ -39,9 +39,9 @@ public enum SpecialAbility {
             500    // 0.5 second cooldown
     ),
     
-    // Stealth Tank's cloak
-    STEALTH(
-            "Stealth",
+    // Cloak Tank's cloaking device
+    CLOAK(
+            "Cloak",
             true,  // toggle ability
             false, // doesn't require target
             3000   // 3 second cooldown

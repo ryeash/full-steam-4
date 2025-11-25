@@ -2,6 +2,7 @@ package com.fullsteam.model;
 
 import com.fullsteam.model.command.IdleCommand;
 import com.fullsteam.model.command.UnitCommand;
+import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +12,7 @@ import org.dyn4j.geometry.Convex;
 import org.dyn4j.geometry.MassType;
 import org.dyn4j.geometry.Polygon;
 import org.dyn4j.geometry.Vector2;
+import org.dyn4j.world.World;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -44,11 +46,17 @@ public class Unit extends GameEntity {
 
     // AI stance
     private AIStance aiStance = AIStance.DEFENSIVE; // Default stance
+    private AIStance preCloakAIStance = null; // Saved AI stance before cloaking
     private Vector2 homePosition = null; // For defensive stance
 
     // Special ability system
-    private boolean specialAbilityActive = false; // For toggle abilities (deploy, stealth, etc.)
+    private boolean specialAbilityActive = false; // For toggle abilities (deploy, cloak, etc.)
     private long lastSpecialAbilityTime = 0; // For cooldown tracking
+
+    // Cloak system (for Cloak Tank)
+    private static final double CLOAK_DETECTION_RANGE = 150.0; // Range at which cloaked units are detected
+    private static final long CLOAK_DELAY_AFTER_FIRE = 3000; // 3 seconds before cloak reactivates after firing (ms)
+    private long lastFireTime = 0; // Track when unit last fired (for cloak delay)
 
     // Android Factory tracking (for androids only)
     private Integer androidFactoryId = null; // ID of the Android Factory that produced this unit (null if not an android)
@@ -61,7 +69,7 @@ public class Unit extends GameEntity {
     private double attackRange;
     private double damage;
     private double attackRate;
-    
+
     // Vision
     private double visionRange; // Modified by research
 
@@ -334,44 +342,6 @@ public class Unit extends GameEntity {
     }
 
     /**
-     * Attack a target unit - fires a projectile or beam with predictive aiming
-     *
-     * @return Projectile to be added to world, or null if can't attack
-     */
-    public Projectile attack(Unit target) {
-        if (target == null || !target.isActive()) {
-            return null;
-        }
-
-        // Crawler cannot attack with main cannon (only turrets when deployed)
-        if (unitType == UnitType.CRAWLER) {
-            return null;
-        }
-
-        // Use predictive aiming for moving targets
-        Vector2 targetPos = calculateInterceptPoint(target);
-        return fireAt(targetPos);
-    }
-
-    /**
-     * Attack a target building - fires a projectile or beam
-     *
-     * @return Projectile to be added to world, or null if can't attack
-     */
-    public Projectile attackBuilding(Building target) {
-        if (target == null || !target.isActive()) {
-            return null;
-        }
-
-        // Crawler cannot attack with main cannon (only turrets when deployed)
-        if (unitType == UnitType.CRAWLER) {
-            return null;
-        }
-
-        return fireAt(target.getPosition());
-    }
-
-    /**
      * Calculate intercept point for predictive aiming
      * Uses linear prediction to lead moving targets
      *
@@ -439,10 +409,16 @@ public class Unit extends GameEntity {
      * @param world     The game world (needed for beam raycasting, can be null for projectiles)
      * @return Projectile or Beam, or null if world is required but not provided
      */
-    public AbstractOrdinance fireAt(Vector2 targetPos, org.dyn4j.world.World<org.dyn4j.dynamics.Body> world) {
+    public AbstractOrdinance fireAt(Vector2 targetPos, World<Body> world) {
         Vector2 currentPos = getPosition();
         Vector2 direction = targetPos.copy().subtract(currentPos);
         direction.normalize();
+
+        // Decloak a cloaked unit
+        if (isCloaked()) {
+            specialAbilityActive = false;
+            aiStance = preCloakAIStance != null ? preCloakAIStance : AIStance.AGGRESSIVE;
+        }
 
         // Check if this unit fires beams
         if (unitType.firesBeams()) {
@@ -451,7 +427,14 @@ public class Unit extends GameEntity {
                 return null;
             }
 
-            // Create a beam
+            // Create a beam with appropriate bullet effects
+            Set<BulletEffect> beamEffects = new HashSet<>();
+
+            // Add ELECTRIC effect for PULSE_ARTILLERY (area denial)
+            if (unitType == UnitType.PULSE_ARTILLERY) {
+                beamEffects.add(BulletEffect.ELECTRIC);
+            }
+
             return new Beam(
                     id,
                     world,
@@ -461,7 +444,7 @@ public class Unit extends GameEntity {
                     ownerId,
                     teamNumber,
                     damage,
-                    new java.util.HashSet<>(), // No special bullet effects for beams yet
+                    beamEffects,
                     Ordinance.LASER,
                     Beam.BeamType.LASER,
                     2.0,  // width
@@ -488,15 +471,6 @@ public class Unit extends GameEntity {
                     props.size
             );
         }
-    }
-
-    /**
-     * Fire at a target position (without world - projectiles only)
-     * For backward compatibility
-     */
-    private Projectile fireAt(Vector2 targetPos) {
-        AbstractOrdinance ordinance = fireAt(targetPos, null);
-        return ordinance instanceof Projectile ? (Projectile) ordinance : null;
     }
 
     /**
@@ -556,8 +530,8 @@ public class Unit extends GameEntity {
                 props.bulletEffects.add(BulletEffect.EXPLOSIVE);
                 break;
 
-            case STEALTH_TANK:
-                // Stealth tank shells
+            case CLOAK_TANK:
+                // Cloak tank shells
                 props.speed = 500;
                 props.ordinance = Ordinance.GRENADE;
                 props.linearDamping = 0.05;
@@ -575,12 +549,13 @@ public class Unit extends GameEntity {
                 break;
 
             case ARTILLERY:
-                // Artillery shells - high arc, explosive
+                // Artillery shells - high arc, explosive with electric area denial
                 props.speed = 350;
                 props.ordinance = Ordinance.GRENADE; // Use grenade for artillery
                 props.linearDamping = 0.02;
                 props.size = 5.0; // Large artillery shells
                 props.bulletEffects.add(BulletEffect.EXPLOSIVE);
+                props.bulletEffects.add(BulletEffect.ELECTRIC); // Creates electric field for area denial
                 props.bulletEffects.add(BulletEffect.BOUNCING); // Bouncy for scatter effect
                 break;
 
@@ -1164,12 +1139,26 @@ public class Unit extends GameEntity {
                 }
                 break;
 
-            case STEALTH:
-                // Stealth mode: invisible (implementation TBD)
+            case CLOAK:
+                // Cloak mode: invisible to enemies unless detected
                 if (specialAbilityActive) {
-                    log.info("Unit {} entered stealth mode", id);
+                    log.info("Unit {} activated cloak", id);
+                    // Reset last fire time to start cloak immediately
+                    lastFireTime = 0;
+                    // Save current AI stance and switch to PASSIVE to avoid accidental reveals
+                    if (aiStance != AIStance.PASSIVE) {
+                        preCloakAIStance = aiStance;
+                        aiStance = AIStance.PASSIVE;
+                        log.info("Unit {} switched to PASSIVE stance while cloaked (saved: {})", id, preCloakAIStance);
+                    }
                 } else {
-                    log.info("Unit {} exited stealth mode", id);
+                    log.info("Unit {} deactivated cloak", id);
+                    // Restore previous AI stance when cloak is manually deactivated
+                    if (preCloakAIStance != null) {
+                        aiStance = preCloakAIStance;
+                        log.info("Unit {} restored AI stance to {}", id, aiStance);
+                        preCloakAIStance = null;
+                    }
                 }
                 break;
 
@@ -1194,7 +1183,7 @@ public class Unit extends GameEntity {
      * Apply research modifiers to this unit's stats
      * Called when unit is created or when research completes
      */
-    public void applyResearchModifiers(com.fullsteam.model.research.ResearchModifier modifier) {
+    public void applyResearchModifiers(ResearchModifier modifier) {
         // Apply health modifier (increase max health and current health proportionally)
         double healthMultiplier = modifier.getUnitHealthMultiplier();
         if (healthMultiplier != 1.0) {
@@ -1247,9 +1236,28 @@ public class Unit extends GameEntity {
      */
     public boolean isVehicle() {
         return switch (unitType) {
-            case JEEP, TANK, CRAWLER, STEALTH_TANK, PHOTON_SCOUT, BEAM_TANK -> true;
+            case JEEP, TANK, CRAWLER, CLOAK_TANK, PHOTON_SCOUT, BEAM_TANK -> true;
             default -> false;
         };
+    }
+
+    /**
+     * Check if this unit is currently cloaked (invisible to enemies unless detected)
+     * Cloak is disabled for CLOAK_DELAY_AFTER_FIRE ms after firing
+     */
+    public boolean isCloaked() {
+        if (unitType != UnitType.CLOAK_TANK) {
+            return false;
+        }
+        return specialAbilityActive;
+    }
+
+    /**
+     * Get the detection range for cloaked units
+     * Enemies within this range can see cloaked units
+     */
+    public static double getCloakDetectionRange() {
+        return CLOAK_DETECTION_RANGE;
     }
 }
 

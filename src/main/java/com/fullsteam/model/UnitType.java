@@ -248,14 +248,14 @@ public enum UnitType {
             480.0    // vision range (excellent, mobile fortress)
     ),
 
-    // Stealth Tank - invisible until attacking
-    STEALTH_TANK(
-            "Stealth Tank",
+    // Cloak Tank - invisible until attacking or detected
+    CLOAK_TANK(
+            "Cloak Tank",
             800,     // resource cost
             25,      // build time (seconds)
             260,     // max health (+30%)
             100.0,   // movement speed
-            50,      // damage
+            28,      // damage
             1.5,     // attack rate
             200,     // attack range
             28.0,    // size (radius)
@@ -263,7 +263,7 @@ public enum UnitType {
             0x2F4F4F, // dark slate gray
             BuildingType.ADVANCED_FACTORY,
             45,      // upkeep cost
-            380.0    // vision range (moderate, stealth unit)
+            380.0    // vision range (moderate, cloak unit)
     ),
 
     // Mammoth Tank - dual-cannon heavy assault
@@ -568,8 +568,8 @@ public enum UnitType {
                 yield List.of(Geometry.createPolygon(vertices));
             }
 
-            // Stealth Tank - sleek diamond (low profile, streamlined)
-            case STEALTH_TANK -> {
+            // Cloak Tank - sleek diamond (low profile, streamlined)
+            case CLOAK_TANK -> {
                 // Pointing right (positive X direction)
                 Vector2[] vertices = new Vector2[]{
                         new Vector2(-size * 1.0, 0),          // Back point
@@ -733,7 +733,7 @@ public enum UnitType {
             case CRAWLER -> SpecialAbility.DEPLOY;
             case MEDIC -> SpecialAbility.HEAL;
             case ENGINEER -> SpecialAbility.REPAIR;
-            case STEALTH_TANK -> SpecialAbility.STEALTH;
+            case CLOAK_TANK -> SpecialAbility.CLOAK;
             default -> SpecialAbility.NONE;
         };
     }

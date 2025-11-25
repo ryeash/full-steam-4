@@ -234,7 +234,6 @@ class RTSEngine {
         }
         
         // Get session token from URL or sessionStorage
-        const urlParams = new URLSearchParams(window.location.search);
         let sessionToken = urlParams.get('sessionToken');
         if (!sessionToken) {
             sessionToken = sessionStorage.getItem('rts_session_token');
@@ -712,6 +711,52 @@ class RTSEngine {
             unitContainer.deployIndicator.visible = true;
         } else if (unitContainer.deployIndicator) {
             unitContainer.deployIndicator.visible = false;
+        }
+        
+        // Update cloak visual effect (for Cloak Tank)
+        if (unitData.specialAbilityActive && unitData.specialAbility === 'CLOAK') {
+            // Apply transparency and shimmer effect when cloaked
+            if (unitData.cloaked) {
+                // Fully cloaked - very transparent with shimmer
+                unitContainer.alpha = 0.15;
+                
+                // Add shimmer indicator if not already present
+                if (!unitContainer.cloakShimmer) {
+                    const shimmer = new PIXI.Graphics();
+                    shimmer.circle(0, 0, typeInfo.size + 8);
+                    shimmer.stroke({ width: 2, color: 0x00FFFF, alpha: 0.3 });
+                    unitContainer.addChild(shimmer);
+                    unitContainer.cloakShimmer = shimmer;
+                    
+                    // Animate shimmer (pulsing effect)
+                    shimmer.pulseDirection = 1;
+                    shimmer.pulseAlpha = 0.3;
+                }
+                unitContainer.cloakShimmer.visible = true;
+                
+                // Pulse the shimmer
+                if (unitContainer.cloakShimmer.pulseAlpha !== undefined) {
+                    unitContainer.cloakShimmer.pulseAlpha += 0.01 * unitContainer.cloakShimmer.pulseDirection;
+                    if (unitContainer.cloakShimmer.pulseAlpha >= 0.5) {
+                        unitContainer.cloakShimmer.pulseDirection = -1;
+                    } else if (unitContainer.cloakShimmer.pulseAlpha <= 0.1) {
+                        unitContainer.cloakShimmer.pulseDirection = 1;
+                    }
+                    unitContainer.cloakShimmer.alpha = unitContainer.cloakShimmer.pulseAlpha;
+                }
+            } else {
+                // Cloak active but recently fired - partial transparency
+                unitContainer.alpha = 0.5;
+                if (unitContainer.cloakShimmer) {
+                    unitContainer.cloakShimmer.visible = false;
+                }
+            }
+        } else {
+            // Not cloaked - full visibility
+            unitContainer.alpha = 1.0;
+            if (unitContainer.cloakShimmer) {
+                unitContainer.cloakShimmer.visible = false;
+            }
         }
         
         // Update turrets (for deployed Crawler)
@@ -2055,8 +2100,7 @@ class RTSEngine {
             // Store credits for easy access
             this.myMoney = this.myFaction.credits || 0;
             
-            document.getElementById('player-info').textContent = 
-                `ID: ${this.myPlayerId} | Team: ${this.myTeam}`;
+            document.getElementById('player-info').textContent = `Team: ${this.myTeam}`;
             document.getElementById('credits-value').textContent = this.myFaction.credits;
             document.getElementById('upkeep-value').textContent = 
                 `${this.myFaction.currentUpkeep}/${this.myFaction.maxUpkeep}`;
@@ -4173,6 +4217,71 @@ class RTSEngine {
             if (effectData.progress < 0.2) {
                 graphics.circle(0, 0, effectData.radius * 1.2);
                 graphics.fill({ color: 0xFFFFFF, alpha: (1.0 - effectData.progress / 0.2) * 0.5 });
+            }
+        } else if (effectData.type === 'ELECTRIC') {
+            // Electric field - pulsing blue/cyan area with arcs
+            const time = Date.now() / 1000; // Current time in seconds
+            const pulseSpeed = 2.0; // Pulses per second
+            const pulse = Math.sin(time * pulseSpeed * Math.PI * 2) * 0.5 + 0.5; // 0 to 1
+            
+            // Base alpha fades out over lifetime
+            const baseAlpha = Math.max(0.3, 1.0 - effectData.progress * 0.7);
+            
+            // Outer glow (cyan)
+            graphics.circle(0, 0, effectData.radius);
+            graphics.fill({ color: 0x00FFFF, alpha: baseAlpha * 0.2 * (0.5 + pulse * 0.5) });
+            
+            // Inner core (bright blue)
+            graphics.circle(0, 0, effectData.radius * 0.7);
+            graphics.fill({ color: 0x0088FF, alpha: baseAlpha * 0.3 * (0.5 + pulse * 0.5) });
+            
+            // Pulsing ring
+            const ringRadius = effectData.radius * (0.6 + pulse * 0.3);
+            graphics.circle(0, 0, ringRadius);
+            graphics.stroke({ width: 2, color: 0x00FFFF, alpha: baseAlpha * (0.6 + pulse * 0.4) });
+            
+            // Electric arcs (draw some lightning-like lines)
+            const numArcs = 6;
+            const arcAlpha = baseAlpha * (0.4 + pulse * 0.6);
+            
+            for (let i = 0; i < numArcs; i++) {
+                const angle = (time * 0.5 + i / numArcs) * Math.PI * 2;
+                const arcLength = effectData.radius * (0.7 + Math.sin(time * 3 + i) * 0.2);
+                
+                // Start point (near center)
+                const startX = Math.cos(angle) * effectData.radius * 0.2;
+                const startY = Math.sin(angle) * effectData.radius * 0.2;
+                
+                // End point (at edge)
+                const endX = Math.cos(angle) * arcLength;
+                const endY = Math.sin(angle) * arcLength;
+                
+                // Draw jagged line (lightning effect)
+                graphics.moveTo(startX, startY);
+                
+                // Add some zigzag points
+                const segments = 3;
+                for (let j = 1; j <= segments; j++) {
+                    const t = j / segments;
+                    const midX = startX + (endX - startX) * t;
+                    const midY = startY + (endY - startY) * t;
+                    
+                    // Add random offset perpendicular to the line
+                    const perpAngle = angle + Math.PI / 2;
+                    const offset = (Math.sin(time * 5 + i * 3 + j) * 0.5) * effectData.radius * 0.15;
+                    const offsetX = midX + Math.cos(perpAngle) * offset;
+                    const offsetY = midY + Math.sin(perpAngle) * offset;
+                    
+                    graphics.lineTo(offsetX, offsetY);
+                }
+                
+                graphics.stroke({ width: 1.5, color: 0xFFFFFF, alpha: arcAlpha });
+            }
+            
+            // Center spark
+            if (pulse > 0.7) {
+                graphics.circle(0, 0, 3);
+                graphics.fill({ color: 0xFFFFFF, alpha: baseAlpha * (pulse - 0.7) * 3 });
             }
         }
     }

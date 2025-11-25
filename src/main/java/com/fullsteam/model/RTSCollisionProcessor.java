@@ -27,9 +27,13 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
     private final BiConsumer<Vector2, ExplosionParams> explosionCreator;
 
     /**
-     * Parameters for creating explosions
+     * Parameters for creating field effects (explosions, electric fields, etc.)
      */
-    public record ExplosionParams(double damage, double radius, int ownerTeam) {
+    public record ExplosionParams(double damage, double radius, int ownerTeam, FieldEffectType effectType) {
+        // Convenience constructor for explosions (default type)
+        public ExplosionParams(double damage, double radius, int ownerTeam) {
+            this(damage, radius, ownerTeam, FieldEffectType.EXPLOSION);
+        }
     }
 
     public RTSCollisionProcessor(GameEntities gameEntities,
@@ -58,6 +62,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         if (isExplosiveProjectile(projectile)) {
             createExplosionEffect(hitPosition, projectile);
         }
+        
+        // Create electric field for electric projectiles (area denial)
+        if (hasElectricEffect(projectile)) {
+            createElectricFieldEffect(hitPosition, projectile);
+        }
     }
 
     /**
@@ -77,6 +86,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         if (isExplosiveProjectile(projectile)) {
             createExplosionEffect(hitPosition, projectile);
         }
+        
+        // Create electric field for electric projectiles (area denial)
+        if (hasElectricEffect(projectile)) {
+            createElectricFieldEffect(hitPosition, projectile);
+        }
     }
 
     /**
@@ -95,6 +109,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         // Create explosion for explosive projectiles
         if (isExplosiveProjectile(projectile)) {
             createExplosionEffect(hitPosition, projectile);
+        }
+        
+        // Create electric field for electric projectiles (area denial)
+        if (hasElectricEffect(projectile)) {
+            createElectricFieldEffect(hitPosition, projectile);
         }
     }
 
@@ -129,6 +148,35 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         );
 
         explosionCreator.accept(position, params);
+    }
+    
+    /**
+     * Check if projectile has electric effect
+     */
+    private boolean hasElectricEffect(AbstractOrdinance ordinance) {
+        return ordinance.getBulletEffects().contains(BulletEffect.ELECTRIC);
+    }
+    
+    /**
+     * Create electric field effect at hit position (area denial)
+     */
+    private void createElectricFieldEffect(Vector2 position, AbstractOrdinance ordinance) {
+        // Electric field does damage over time in an area
+        double electricDamage = ordinance.getDamage() * 0.3; // 30% of weapon damage per second
+        double electricRadius = ordinance.getOrdinanceType().getSize() * 12; // Slightly smaller than explosion
+        
+        // Create electric field effect using the explosion creator with ELECTRIC type
+        ExplosionParams params = new ExplosionParams(
+                electricDamage,
+                electricRadius,
+                ordinance.getOwnerTeam(),
+                FieldEffectType.ELECTRIC // Specify electric field type
+        );
+        
+        explosionCreator.accept(position, params);
+        
+        log.debug("Created electric field at ({}, {}) with radius {} and {} DPS",
+                position.x, position.y, electricRadius, electricDamage);
     }
 
     /**
@@ -529,6 +577,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 // Create explosion if it's an explosive projectile
                 if (isExplosiveProjectile(projectile)) {
                     createExplosionEffect(hitPosition, projectile);
+                }
+                
+                // Create electric field for electric projectiles (area denial)
+                if (hasElectricEffect(projectile)) {
+                    createElectricFieldEffect(hitPosition, projectile);
                 }
 
                 projectile.setActive(false);

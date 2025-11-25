@@ -78,9 +78,18 @@ public class FogOfWar {
                 continue;
             }
 
-            // Check if enemy unit is within vision range of any vision source
-            if (isPositionVisible(unit.getPosition(), visionSources, getVisionRadius(unit))) {
-                visibleUnits.add(unit);
+            // Check if enemy unit is cloaked
+            if (unit.isCloaked()) {
+                // Cloaked units require close detection range
+                if (isPositionVisible(unit.getPosition(), visionSources, getVisionRadius(unit), Unit.getCloakDetectionRange())) {
+                    visibleUnits.add(unit);
+                }
+                // Otherwise, cloaked unit remains invisible
+            } else {
+                // Normal visibility check for non-cloaked units
+                if (isPositionVisible(unit.getPosition(), visionSources, getVisionRadius(unit))) {
+                    visibleUnits.add(unit);
+                }
             }
         }
 
@@ -163,6 +172,34 @@ public class FogOfWar {
             double distance = source.position.distance(position);
             // Account for target size - if any part is visible, show it
             if (distance <= source.visionRange + targetRadius) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+    
+    /**
+     * Check if a position is visible from any vision source (with custom detection range for cloaked units).
+     *
+     * @param position        Position to check
+     * @param visionSources   List of vision sources with their ranges
+     * @param targetRadius    Radius of the target (for edge detection)
+     * @param detectionRange  Maximum range at which this target can be detected (for cloaked units)
+     * @return true if position is visible
+     */
+    private static boolean isPositionVisible(
+            Vector2 position,
+            List<VisionSource> visionSources,
+            double targetRadius,
+            double detectionRange) {
+
+        for (VisionSource source : visionSources) {
+            double distance = source.position.distance(position);
+            // For cloaked units, use the minimum of vision range and detection range
+            double effectiveRange = Math.min(source.visionRange, detectionRange);
+            // Account for target size - if any part is visible, show it
+            if (distance <= effectiveRange + targetRadius) {
                 return true;
             }
         }

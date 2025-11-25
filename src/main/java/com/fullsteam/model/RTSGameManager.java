@@ -113,10 +113,10 @@ public class RTSGameManager {
     protected int winningTeam = -1;
     private final ScheduledFuture<?> updateTask;
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
-    
+
     // Track if game has started with full roster (prevent late joins)
     private boolean gameStartedWithFullRoster = false;
-    
+
     // Track disconnected players (for victory condition)
     private final Set<Integer> disconnectedPlayers = ConcurrentHashMap.newKeySet();
 
@@ -483,9 +483,7 @@ public class RTSGameManager {
                             beams.put(beam.getId(), beam);
                             // Beams don't need to be added to world (sensor body, instant hit)
                             // Apply damage immediately to hit body
-                            if (beam.getHitBody() != null) {
-                                applyBeamDamage(beam);
-                            }
+                            applyBeamDamage(beam);
                         }
                     }
                 }
@@ -698,9 +696,7 @@ public class RTSGameManager {
                     Beam beam = building.updatePhotonSpireBehavior(deltaTime, world);
                     if (beam != null) {
                         beams.put(beam.getId(), beam);
-                        if (beam.getHitBody() != null) {
-                            applyBeamDamage(beam);
-                        }
+                        applyBeamDamage(beam);
                     }
                 }
 
@@ -715,9 +711,7 @@ public class RTSGameManager {
                             world.addBody(proj.getBody());
                         } else if (ordinance instanceof Beam beam) {
                             beams.put(beam.getId(), beam);
-                            if (beam.getHitBody() != null) {
-                                applyBeamDamage(beam);
-                            }
+                            applyBeamDamage(beam);
                         }
                     }
                 }
@@ -783,7 +777,7 @@ public class RTSGameManager {
 
             // Check for disconnected players
             checkDisconnectedPlayers();
-            
+
             // Check win conditions
             if (!gameOver) {
                 checkWinConditions();
@@ -805,6 +799,10 @@ public class RTSGameManager {
         if (faction == null) {
             return;
         }
+
+        // Remove input immediately to prevent reprocessing on subsequent frames
+        // (Important: do this BEFORE any early returns to avoid message spam)
+        playerInputs.remove(playerId);
 
         // Handle unit selection
         if (input.getSelectUnits() != null && !input.getSelectUnits().isEmpty()) {
@@ -1367,9 +1365,6 @@ public class RTSGameManager {
                 }
             }
         }
-
-        // Clear input after processing
-        playerInputs.remove(playerId);
     }
 
     /**
@@ -1663,25 +1658,27 @@ public class RTSGameManager {
     }
 
     /**
-     * Create an explosion field effect (used by collision processor)
+     * Create a field effect (explosion, electric field, etc.) - used by collision processor
      */
     private void createExplosion(Vector2 position, RTSCollisionProcessor.ExplosionParams params) {
-        int explosionId = IdGenerator.nextEntityId();
-        FieldEffect explosion = new FieldEffect(
-                explosionId,
-                -1, // No specific owner for explosions
-                FieldEffectType.EXPLOSION,
+        int effectId = IdGenerator.nextEntityId();
+        FieldEffectType effectType = params.effectType();
+
+        FieldEffect effect = new FieldEffect(
+                effectId,
+                -1, // No specific owner for field effects
+                effectType,
                 position,
                 params.radius(),
                 params.damage(),
-                FieldEffectType.EXPLOSION.getDefaultDuration(),
+                effectType.getDefaultDuration(),
                 params.ownerTeam()
         );
 
-        fieldEffects.put(explosionId, explosion);
-        world.addBody(explosion.getBody());
-        log.debug("Created explosion at ({}, {}) with radius {} and damage {}",
-                position.x, position.y, params.radius(), params.damage());
+        fieldEffects.put(effectId, effect);
+        world.addBody(effect.getBody());
+        log.debug("Created {} field effect at ({}, {}) with radius {} and damage {}",
+                effectType.name(), position.x, position.y, params.radius(), params.damage());
     }
 
     /**
@@ -1780,20 +1777,20 @@ public class RTSGameManager {
         playerSessions.entrySet().removeIf(entry -> {
             int playerId = entry.getKey();
             PlayerSession session = entry.getValue();
-            
+
             // Check if session is closed
             if (!session.getSession().isOpen()) {
                 if (!disconnectedPlayers.contains(playerId)) {
                     disconnectedPlayers.add(playerId);
-                    
+
                     PlayerFaction faction = playerFactions.get(playerId);
                     if (faction != null) {
-                        log.info("Player {} ({}) disconnected from game {}", 
+                        log.info("Player {} ({}) disconnected from game {}",
                                 playerId, faction.getPlayerName(), gameId);
-                        
+
                         // Notify all players of disconnect
                         sendGameEvent(GameEvent.builder()
-                                .message(String.format("⚠️ %s has disconnected from the game", 
+                                .message(String.format("⚠️ %s has disconnected from the game",
                                         faction.getPlayerName()))
                                 .category(GameEvent.EventCategory.SYSTEM)
                                 .color("#FFA500")
@@ -1810,7 +1807,7 @@ public class RTSGameManager {
             return false;
         });
     }
-    
+
     /**
      * Check win conditions (HQ destruction or last player standing)
      */
@@ -2520,6 +2517,9 @@ public class RTSGameManager {
         data.put("specialAbilityActive", unit.isSpecialAbilityActive());
         data.put("specialAbilityReady", unit.isSpecialAbilityReady());
 
+        // Cloak status (for Cloak Tank)
+        data.put("cloaked", unit.isCloaked());
+
         // Add physics body vertices for accurate client-side rendering
         data.put("vertices", extractBodyVertices(unit.getBody()));
 
@@ -2824,23 +2824,23 @@ public class RTSGameManager {
     public synchronized boolean addPlayer(PlayerSession playerSession, String factionName) {
         // Prevent late joins if game has started with full roster
         if (gameStartedWithFullRoster) {
-            log.warn("Player {} attempted to join game {} after it started with full roster", 
+            log.warn("Player {} attempted to join game {} after it started with full roster",
                     playerSession.getPlayerId(), gameId);
             return false;
         }
-        
+
         if (playerSessions.size() >= gameConfig.getMaxPlayers()) {
             return false;
         }
 
         playerSessions.put(playerSession.getPlayerId(), playerSession);
-        
+
         // Check if game is now at full capacity
         if (playerSessions.size() == gameConfig.getMaxPlayers()) {
             gameStartedWithFullRoster = true;
-            log.info("Game {} has reached full capacity ({} players) - late joins now prevented", 
+            log.info("Game {} has reached full capacity ({} players) - late joins now prevented",
                     gameId, gameConfig.getMaxPlayers());
-            
+
             // Notify all players that game is starting with full roster
             sendGameEvent(GameEvent.builder()
                     .message("🎮 Game starting with full roster! Late joins disabled.")
@@ -3126,9 +3126,35 @@ public class RTSGameManager {
      * Apply damage from a beam to the entity it hit
      */
     private void applyBeamDamage(Beam beam) {
+        Vector2 hitPosition = beam.getEndPosition(); // Where the beam ended (hit or max range)
+
+        // Create electric field if beam has ELECTRIC bullet effect (area denial)
+        // This happens regardless of whether the beam hit something
+        if (beam.getBulletEffects().contains(BulletEffect.ELECTRIC)) {
+            double electricDamage = beam.getDamage() * 0.3; // 30% of beam damage per second
+            double electricRadius = 40.0; // Fixed radius for beam electric fields
+
+            int effectId = IdGenerator.nextEntityId();
+            FieldEffect electricField = new FieldEffect(
+                    effectId,
+                    -1, // No specific owner
+                    FieldEffectType.ELECTRIC,
+                    hitPosition,
+                    electricRadius,
+                    electricDamage,
+                    FieldEffectType.ELECTRIC.getDefaultDuration(),
+                    beam.getOwnerTeam()
+            );
+
+            fieldEffects.put(effectId, electricField);
+            world.addBody(electricField.getBody());
+            log.debug("Created electric field from beam at ({}, {}) with radius {} and {} DPS",
+                    hitPosition.x, hitPosition.y, electricRadius, electricDamage);
+        }
+
         Body hitBody = beam.getHitBody();
         if (hitBody == null) {
-            return;
+            return; // No body hit, but electric field already created above
         }
 
         // Find the entity associated with this body
@@ -3140,7 +3166,7 @@ public class RTSGameManager {
                     return;
                 }
                 unit.takeDamage(beam.getDamage());
-                return;
+                break;
             }
         }
 
@@ -3152,15 +3178,19 @@ public class RTSGameManager {
                     return;
                 }
                 building.takeDamage(beam.getDamage());
-                return;
+                break;
             }
         }
 
         // Check obstacles
         for (Obstacle obstacle : obstacles.values()) {
             if (obstacle.getBody() == hitBody) {
-                obstacle.takeDamage(beam.getDamage());
-                return;
+                // Only non-destructible obstacles can be damaged by beams
+                // Destructible (mine-able) obstacles can only be damaged by miners
+                if (!obstacle.isDestructible()) {
+                    obstacle.takeDamage(beam.getDamage());
+                }
+                break;
             }
         }
 
@@ -3172,7 +3202,7 @@ public class RTSGameManager {
                     return;
                 }
                 segment.takeDamage(beam.getDamage());
-                return;
+                break;
             }
         }
     }

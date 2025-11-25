@@ -65,7 +65,7 @@ public class FactionRegistry {
                 UnitType.ARTILLERY, 
                 UnitType.GIGANTONAUT, 
                 UnitType.CRAWLER, 
-                UnitType.STEALTH_TANK, 
+                UnitType.CLOAK_TANK, 
                 UnitType.MAMMOTH_TANK,
                 UnitType.PALADIN  // Terran hero
         ));
@@ -116,7 +116,7 @@ public class FactionRegistry {
         buildingProducers.put(BuildingType.WEAPONS_DEPOT, List.of(UnitType.ROCKET_SOLDIER, UnitType.SNIPER, UnitType.ENGINEER));
         buildingProducers.put(BuildingType.ADVANCED_FACTORY, List.of(
                 UnitType.CRAWLER, 
-                UnitType.STEALTH_TANK, 
+                UnitType.CLOAK_TANK, 
                 UnitType.RAIDER  // Nomads hero
         ));
 
@@ -130,7 +130,7 @@ public class FactionRegistry {
         Map<UnitType, Double> costModifiers = new HashMap<>();
         costModifiers.put(UnitType.JEEP, 0.8);  // -20%
         costModifiers.put(UnitType.TANK, 0.8);  // -20%
-        costModifiers.put(UnitType.STEALTH_TANK, 0.8);  // -20%
+        costModifiers.put(UnitType.CLOAK_TANK, 0.8);  // -20%
         costModifiers.put(UnitType.CRAWLER, 0.85);  // -15%
 
         // Nomad-specific unit stat modifiers (vehicles faster)
@@ -185,7 +185,7 @@ public class FactionRegistry {
                 UnitType.ARTILLERY, 
                 UnitType.GIGANTONAUT, 
                 UnitType.CRAWLER, 
-                UnitType.STEALTH_TANK, 
+                UnitType.CLOAK_TANK, 
                 UnitType.MAMMOTH_TANK, 
                 UnitType.COLOSSUS  // Synthesis hero
         ));

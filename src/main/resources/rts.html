@@ -553,7 +553,7 @@
             transition: width 0.3s ease;
         }
     </style>
-        <script src="js/rts/RTSEngine.js?v=68"></script>
+    <script src="js/rts/RTSEngine.js?v=68"></script>
     <script type="text/javascript">
         window.addEventListener('load', () => {
             try {
@@ -576,12 +576,11 @@
             <div id="loading-status">Initializing...</div>
         </div>
     </div>
-    
+
     <div id="rts-ui" style="display: none;">
         <!-- Resource Panel -->
         <div id="resource-panel">
             <div class="resource-item">
-                <span class="resource-label">Player:</span>
                 <span class="resource-value" id="player-info">-</span>
             </div>
             <div class="resource-item">
@@ -597,10 +596,10 @@
                 <span class="resource-value" id="power-value">0/0</span>
             </div>
         </div>
-        
+
         <!-- Game Event Feed -->
         <div id="event-feed"></div>
-        
+
         <!-- Unit Info Panel -->
         <div id="unit-info-panel" style="display: none;">
             <!-- Single unit display -->
@@ -622,20 +621,20 @@
                     <span id="unit-ability-name">-</span>
                 </div>
             </div>
-            
+
             <!-- Multiple units display -->
             <div id="multi-unit-info" style="display: none;">
                 <div class="unit-name">Multiple Units Selected</div>
                 <div id="unit-count-list"></div>
             </div>
         </div>
-        
+
         <!-- Build Menu (dynamically generated based on faction) -->
         <div id="build-menu">
             <div class="build-menu-title">Build Menu</div>
             <!-- Buildings will be populated dynamically when faction data loads -->
         </div>
-        
+
         <!-- Research Tree Modal -->
         <div id="research-tree-modal" style="display: none;">
             <div class="research-modal-content">
@@ -643,7 +642,7 @@
                     <h2>🔬 Research Tree</h2>
                     <button class="research-modal-close" onclick="window.rtsEngine.closeResearchTreeModal()">✕</button>
                 </div>
-                
+
                 <div class="research-category-tabs">
                     <button class="research-tab active" data-category="COMBAT">🗡️ Combat</button>
                     <button class="research-tab" data-category="DEFENSE">🛡️ Defense</button>
@@ -651,30 +650,34 @@
                     <button class="research-tab" data-category="ECONOMY">💰 Economy</button>
                     <button class="research-tab" data-category="SPECIAL">✨ Special</button>
                 </div>
-                
+
                 <div class="research-tree-container">
                     <div id="research-nodes-container"></div>
                 </div>
-                
+
                 <div class="research-modal-footer">
                     <div id="research-tooltip" style="display: none;"></div>
                 </div>
             </div>
         </div>
-        
+
         <!-- Game Over Screen -->
-        <div id="game-over-screen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 10000; justify-content: center; align-items: center; pointer-events: all;">
+        <div id="game-over-screen"
+             style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 10000; justify-content: center; align-items: center; pointer-events: all;">
             <div style="text-align: center; color: white; pointer-events: all;">
-                <h1 id="game-over-title" style="font-size: 72px; margin-bottom: 20px; text-shadow: 0 0 20px currentColor;">VICTORY</h1>
+                <h1 id="game-over-title"
+                    style="font-size: 72px; margin-bottom: 20px; text-shadow: 0 0 20px currentColor;">VICTORY</h1>
                 <p id="game-over-winner" style="font-size: 32px; margin-bottom: 20px; font-weight: bold;"></p>
-                <p id="game-over-reason" style="font-size: 24px; margin-bottom: 40px;">You destroyed all enemy headquarters!</p>
-                <button id="play-again-btn" style="padding: 15px 40px; font-size: 20px; background: #FFD700; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; pointer-events: all;">
+                <p id="game-over-reason" style="font-size: 24px; margin-bottom: 40px;">You destroyed all enemy
+                    headquarters!</p>
+                <button id="play-again-btn"
+                        style="padding: 15px 40px; font-size: 20px; background: #FFD700; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; pointer-events: all;">
                     Play Again
                 </button>
             </div>
         </div>
     </div>
-    
+
     <div id="pixi-container"></div>
 </div>
 </body>
