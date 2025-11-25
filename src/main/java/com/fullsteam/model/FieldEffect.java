@@ -1,5 +1,6 @@
 package com.fullsteam.model;
 
+import com.fullsteam.games.IdGenerator;
 import lombok.Getter;
 import org.dyn4j.dynamics.Body;
 import org.dyn4j.dynamics.BodyFixture;
@@ -7,9 +8,7 @@ import org.dyn4j.geometry.Circle;
 import org.dyn4j.geometry.MassType;
 import org.dyn4j.geometry.Vector2;
 
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -27,10 +26,9 @@ public class FieldEffect extends GameEntity {
     private final int ownerTeam;
     private final long armingTime;
     private final Set<Integer> affectedEntities; // Track which entities have been affected
-    private final Map<Integer, Long> lastDamageTime; // Track last damage time for each player (in milliseconds)
 
-    public FieldEffect(int id, int ownerId, FieldEffectType type, Vector2 position, double radius, double damage, double duration, int ownerTeam) {
-        this(id, ownerId, type, position, radius, radius, damage, duration, 0, ownerTeam);
+    public FieldEffect(int ownerId, FieldEffectType type, Vector2 position, double radius, double damage, double duration, int ownerTeam) {
+        this(IdGenerator.nextEntityId(), ownerId, type, position, radius, radius, damage, duration, 0, ownerTeam);
     }
 
     public FieldEffect(int id, int ownerId, FieldEffectType type, Vector2 position, double radius, double maxRadius, double damage, double duration, long armingTime, int ownerTeam) {
@@ -45,7 +43,6 @@ public class FieldEffect extends GameEntity {
         this.armingTime = armingTime;
         this.ownerTeam = ownerTeam;
         this.affectedEntities = new HashSet<>();
-        this.lastDamageTime = new HashMap<>();
         this.active = true;
         getBody().setUserData(this);
     }
@@ -111,26 +108,58 @@ public class FieldEffect extends GameEntity {
     }
 
     public boolean canAffect(GameEntity entity) {
-        if (entity instanceof Unit player) {
-            // Team-based damage rules (same as projectiles)
+        if (!entity.isActive()) {
+            return false;
+        }
+
+        // Team-based damage rules for units
+        if (entity instanceof Unit unit) {
             // Can't damage self (though this should be rare for field effects)
-            if (player.getId() == ownerId) {
+            if (unit.getId() == ownerId) {
                 return false;
             }
 
-            // In FFA mode (team 0), can damage anyone
-            if (ownerTeam == 0 || player.getTeamNumber() == 0) {
-                return true;
+            // In team mode, can only damage units on different teams
+            if (ownerTeam != unit.getTeamNumber()) {
+                return canDamageEntity(entity.getId());
             }
 
-            // In team mode, can only damage players on different teams
-            return ownerTeam != player.getTeamNumber();
+            return false;
+        }
+
+        // Team-based damage rules for buildings
+        if (entity instanceof Building building) {
+            // No friendly fire
+            if (building.getTeamNumber() == ownerTeam) {
+                return false;
+            }
+
+            return canDamageEntity(entity.getId());
+        }
+
+        // Other entities (shouldn't happen, but allow damage by default)
+        return canDamageEntity(entity.getId());
+    }
+
+    /**
+     * Check if this entity can be damaged by this field effect
+     * Instantaneous effects (EXPLOSION) damage once per entity
+     * DOT effects (ELECTRIC, FIRE, POISON) damage every physics frame while entity is in range
+     */
+    private boolean canDamageEntity(int entityId) {
+        // Instantaneous effects only damage once per entity
+        if (type.isInstantaneous()) {
+            return !affectedEntities.contains(entityId);
         }
         return true;
     }
 
     public void markAsAffected(GameEntity entity) {
-        affectedEntities.add(entity.getId());
+        int entityId = entity.getId();
+        // For instantaneous effects, mark entity as affected to prevent re-damage
+        if (type.isInstantaneous()) {
+            affectedEntities.add(entityId);
+        }
     }
 
     public double getIntensityAtPosition(Vector2 targetPosition) {

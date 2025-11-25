@@ -7,10 +7,10 @@ import org.dyn4j.geometry.Vector2;
 import org.dyn4j.world.BroadphaseCollisionData;
 import org.dyn4j.world.ManifoldCollisionData;
 import org.dyn4j.world.NarrowphaseCollisionData;
+import org.dyn4j.world.World;
 import org.dyn4j.world.listener.CollisionListener;
 
 import java.util.Map;
-import java.util.function.BiConsumer;
 
 /**
  * Centralized collision detection and handling for RTS game mode.
@@ -20,29 +20,20 @@ import java.util.function.BiConsumer;
 @Slf4j
 public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixture> {
 
+    private final World<Body> world;
+    private final GameEntities gameEntities;
     private final Map<Integer, Unit> units;
     private final Map<Integer, Building> buildings;
     private final Map<Integer, Obstacle> obstacles;
     private final Map<Integer, WallSegment> wallSegments;
-    private final BiConsumer<Vector2, ExplosionParams> explosionCreator;
 
-    /**
-     * Parameters for creating field effects (explosions, electric fields, etc.)
-     */
-    public record ExplosionParams(double damage, double radius, int ownerTeam, FieldEffectType effectType) {
-        // Convenience constructor for explosions (default type)
-        public ExplosionParams(double damage, double radius, int ownerTeam) {
-            this(damage, radius, ownerTeam, FieldEffectType.EXPLOSION);
-        }
-    }
-
-    public RTSCollisionProcessor(GameEntities gameEntities,
-                                 BiConsumer<Vector2, ExplosionParams> explosionCreator) {
+    public RTSCollisionProcessor(GameEntities gameEntities) {
+        this.world = gameEntities.getWorld();
+        this.gameEntities = gameEntities;
         this.units = gameEntities.getUnits();
         this.buildings = gameEntities.getBuildings();
         this.obstacles = gameEntities.getObstacles();
         this.wallSegments = gameEntities.getWallSegments();
-        this.explosionCreator = explosionCreator;
     }
 
     /**
@@ -62,7 +53,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         if (isExplosiveProjectile(projectile)) {
             createExplosionEffect(hitPosition, projectile);
         }
-        
+
         // Create electric field for electric projectiles (area denial)
         if (hasElectricEffect(projectile)) {
             createElectricFieldEffect(hitPosition, projectile);
@@ -86,7 +77,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         if (isExplosiveProjectile(projectile)) {
             createExplosionEffect(hitPosition, projectile);
         }
-        
+
         // Create electric field for electric projectiles (area denial)
         if (hasElectricEffect(projectile)) {
             createElectricFieldEffect(hitPosition, projectile);
@@ -110,7 +101,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         if (isExplosiveProjectile(projectile)) {
             createExplosionEffect(hitPosition, projectile);
         }
-        
+
         // Create electric field for electric projectiles (area denial)
         if (hasElectricEffect(projectile)) {
             createElectricFieldEffect(hitPosition, projectile);
@@ -138,45 +129,41 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
      * Create explosion effect at hit position
      */
     private void createExplosionEffect(Vector2 position, Projectile projectile) {
-        double explosionDamage = projectile.getDamage() * 0.5; // 50% of projectile damage
-        double explosionRadius = projectile.getOrdinance().getSize() * 15; // Scale with projectile size
-
-        ExplosionParams params = new ExplosionParams(
-                explosionDamage,
-                explosionRadius,
+        FieldEffect effect = new FieldEffect(
+                projectile.getOwnerId(),
+                FieldEffectType.EXPLOSION,
+                position,
+                projectile.getOrdinance().getSize() * 15,
+                projectile.getDamage() * 0.5,
+                FieldEffectType.EXPLOSION.getDefaultDuration(),
                 projectile.getOwnerTeam()
         );
-
-        explosionCreator.accept(position, params);
+        gameEntities.getFieldEffects().put(effect.getId(), effect);
+        world.addBody(effect.getBody());
     }
-    
+
     /**
      * Check if projectile has electric effect
      */
     private boolean hasElectricEffect(AbstractOrdinance ordinance) {
         return ordinance.getBulletEffects().contains(BulletEffect.ELECTRIC);
     }
-    
+
     /**
      * Create electric field effect at hit position (area denial)
      */
     private void createElectricFieldEffect(Vector2 position, AbstractOrdinance ordinance) {
-        // Electric field does damage over time in an area
-        double electricDamage = ordinance.getDamage() * 0.3; // 30% of weapon damage per second
-        double electricRadius = ordinance.getOrdinanceType().getSize() * 12; // Slightly smaller than explosion
-        
-        // Create electric field effect using the explosion creator with ELECTRIC type
-        ExplosionParams params = new ExplosionParams(
-                electricDamage,
-                electricRadius,
-                ordinance.getOwnerTeam(),
-                FieldEffectType.ELECTRIC // Specify electric field type
+        FieldEffect effect = new FieldEffect(
+                ordinance.getOwnerId(),
+                FieldEffectType.ELECTRIC,
+                position,
+                ordinance.getOrdinanceType().getSize() * 12,
+                ordinance.getDamage() * 0.3,
+                FieldEffectType.ELECTRIC.getDefaultDuration(),
+                ordinance.getOwnerTeam()
         );
-        
-        explosionCreator.accept(position, params);
-        
-        log.debug("Created electric field at ({}, {}) with radius {} and {} DPS",
-                position.x, position.y, electricRadius, electricDamage);
+        gameEntities.getFieldEffects().put(effect.getId(), effect);
+        world.addBody(effect.getBody());
     }
 
     /**
@@ -405,10 +392,14 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         // Check if this is a projectile collision
         boolean body1IsProjectile = obj1 instanceof Projectile;
         boolean body2IsProjectile = obj2 instanceof Projectile;
-        
+
         // Check if this is a beam collision
         boolean body1IsBeam = obj1 instanceof Beam;
         boolean body2IsBeam = obj2 instanceof Beam;
+
+        // Check if this is a field effect collision
+        boolean body1IsFieldEffect = obj1 instanceof FieldEffect;
+        boolean body2IsFieldEffect = obj2 instanceof FieldEffect;
 
         if (body1IsProjectile || body2IsProjectile) {
             Projectile projectile = body1IsProjectile ? (Projectile) obj1 : (Projectile) obj2;
@@ -426,7 +417,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
             // Check for shield sensor collision FIRST
             if (other instanceof ShieldSensor shieldSensor) {
                 Building shieldBuilding = shieldSensor.getBuilding();
-                
+
                 // Only block if shield is active
                 if (!shieldBuilding.isShieldActive()) {
                     return false; // Shield is down, allow projectile through
@@ -544,7 +535,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 if (isExplosiveProjectile(projectile)) {
                     createExplosionEffect(hitPosition, projectile);
                 }
-                
+
                 // Create electric field for electric projectiles (area denial)
                 if (hasElectricEffect(projectile)) {
                     createElectricFieldEffect(hitPosition, projectile);
@@ -554,162 +545,236 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 return true; // Allow physics collision with obstacles
             }
         }
-        
+
         // Handle beam collisions (beams are sensors, so they detect but don't physically collide)
         if (body1IsBeam || body2IsBeam) {
             Beam beam = body1IsBeam ? (Beam) obj1 : (Beam) obj2;
             Object other = body1IsBeam ? obj2 : obj1;
-            
+
             if (!beam.isActive()) {
                 return false; // Ignore inactive beams
             }
-            
+
             // Beams pass through other beams and projectiles
             if (other instanceof Beam || other instanceof Projectile) {
                 return false;
             }
-            
+
             // Beams pass through field effects
             if (other instanceof FieldEffect) {
                 return false;
             }
-            
+
             // Calculate hit position (beam center)
             Vector2 hitPosition = beam.getEndPosition();
-            
+
             // Check if beam hits a unit
             if (other instanceof Unit unit) {
                 // Skip friendly fire
                 if (unit.getTeamNumber() == beam.getOwnerTeam()) {
                     return false;
                 }
-                
+
                 if (!unit.isActive()) {
                     return false;
                 }
-                
+
                 // Check if already damaged this unit
                 if (beam.getAffectedPlayers().contains(unit.getId())) {
                     return false;
                 }
-                
+
                 // Apply damage
-                handleBeamUnitHit(beam, unit, hitPosition);
+                unit.takeDamage(beam.getDamage());
+                // Mark unit as affected
+                beam.getAffectedPlayers().add(unit.getId());
                 return false; // No physics collision (sensor)
             }
-            
+
             // Check if beam hits a building
             if (other instanceof Building building) {
                 // Skip friendly fire
                 if (building.getTeamNumber() == beam.getOwnerTeam()) {
                     return false;
                 }
-                
+
                 if (!building.isActive()) {
                     return false;
                 }
-                
+
                 // Check if already damaged this building
                 if (beam.getAffectedPlayers().contains(building.getId())) {
                     return false;
                 }
-                
+
                 // Apply damage
                 handleBeamBuildingHit(beam, building, hitPosition);
                 return false; // No physics collision (sensor)
             }
-            
+
             // Check if beam hits a wall segment
             if (other instanceof WallSegment segment) {
                 // Skip friendly fire
                 if (segment.getTeamNumber() == beam.getOwnerTeam()) {
                     return false;
                 }
-                
+
                 if (!segment.isActive()) {
                     return false;
                 }
-                
+
                 // Check if already damaged this segment
                 if (beam.getAffectedPlayers().contains(segment.getId())) {
                     return false;
                 }
-                
+
                 // Apply damage
                 handleBeamWallSegmentHit(beam, segment, hitPosition);
                 return false; // No physics collision (sensor)
             }
-            
+
             // Check if beam hits an obstacle
             if (other instanceof Obstacle obstacle) {
                 if (!obstacle.isActive()) {
                     return false;
                 }
-                
+
                 // Check if already processed this obstacle
                 if (beam.getAffectedPlayers().contains(obstacle.getId())) {
                     return false;
                 }
-                
+
                 // Only non-destructible obstacles can be damaged by beams
                 if (!obstacle.isDestructible()) {
                     obstacle.takeDamage(beam.getDamage());
                 }
-                
+
                 // Mark as affected
                 beam.getAffectedPlayers().add(obstacle.getId());
-                
+
                 log.debug("Beam {} hit obstacle at ({}, {})",
                         beam.getId(), hitPosition.x, hitPosition.y);
-                
+
                 return false; // No physics collision (sensor)
+            }
+        }
+
+        // Handle field effect collisions (explosions, electric fields, etc.)
+        if (body1IsFieldEffect || body2IsFieldEffect) {
+            FieldEffect fieldEffect = body1IsFieldEffect ? (FieldEffect) obj1 : (FieldEffect) obj2;
+            Object other = body1IsFieldEffect ? obj2 : obj1;
+
+            if (!fieldEffect.isActive()) {
+                return false; // Ignore inactive field effects
+            }
+
+            // Field effects pass through other field effects, beams, and projectiles
+            if (other instanceof FieldEffect || other instanceof Projectile) {
+                return false;
+            }
+
+            // Field effects pass through obstacles and walls (they're area effects)
+            if (other instanceof Obstacle || other instanceof WallSegment) {
+                return false;
+            }
+
+            // Check if field effect hits a unit
+            if (other instanceof Unit unit) {
+                if (fieldEffect.canAffect(unit)) {
+                    handleFieldEffectUnitHit(fieldEffect, unit);
+                }
+                return false; // No physics collision (sensor)
+            }
+
+            // Check if field effect hits a building
+            if (other instanceof Building building) {
+                // Check if we can damage this building (cooldown check)
+                if (fieldEffect.canAffect(building)) {
+                    handleFieldEffectBuildingHit(fieldEffect, building);
+                }
+                // Apply damage based on distance from center
+                return false;
             }
         }
 
         // Allow collision response for all other collisions
         return true;
     }
-    
-    /**
-     * Handle a beam hitting a unit
-     */
-    private void handleBeamUnitHit(Beam beam, Unit unit, Vector2 hitPosition) {
-        // Mark unit as affected
-        beam.getAffectedPlayers().add(unit.getId());
-        
-        // Apply damage
-        unit.takeDamage(beam.getDamage());
-        
-        log.debug("Beam {} hit unit {} for {} damage",
-                beam.getId(), unit.getId(), beam.getDamage());
-    }
-    
+
     /**
      * Handle a beam hitting a building
      */
     private void handleBeamBuildingHit(Beam beam, Building building, Vector2 hitPosition) {
         // Mark building as affected
         beam.getAffectedPlayers().add(building.getId());
-        
+
         // Apply damage
         building.takeDamage(beam.getDamage());
-        
+
         log.debug("Beam {} hit building {} for {} damage",
                 beam.getId(), building.getId(), beam.getDamage());
     }
-    
+
     /**
      * Handle a beam hitting a wall segment
      */
     private void handleBeamWallSegmentHit(Beam beam, WallSegment segment, Vector2 hitPosition) {
         // Mark segment as affected
         beam.getAffectedPlayers().add(segment.getId());
-        
+
         // Apply damage
         segment.takeDamage(beam.getDamage());
-        
+
         log.debug("Beam {} hit wall segment {} for {} damage",
                 beam.getId(), segment.getId(), beam.getDamage());
+    }
+
+    /**
+     * Handle a field effect hitting a unit
+     * Field effects apply damage over time with distance-based intensity
+     */
+    private void handleFieldEffectUnitHit(FieldEffect fieldEffect, Unit unit) {
+        // Get delta time from physics world
+        double deltaTime = world.getTimeStep().getDeltaTime();
+
+        // Calculate damage based on distance from field effect center
+        // For instantaneous effects (EXPLOSION), damage is full amount
+        // For DOT effects (ELECTRIC, FIRE, POISON), damage is DPS * deltaTime
+        double baseDamage = fieldEffect.getDamageAtPosition(unit.getPosition());
+        double damage = fieldEffect.getType().isInstantaneous() ? baseDamage : baseDamage * deltaTime;
+
+        // Apply damage
+        unit.takeDamage(damage);
+
+        // Mark as affected (for instantaneous effects, prevents re-damage)
+        fieldEffect.markAsAffected(unit);
+
+        log.debug("Field effect {} ({}) damaged unit {} for {} damage (deltaTime: {})",
+                fieldEffect.getId(), fieldEffect.getType(), unit.getId(), damage, deltaTime);
+    }
+
+    /**
+     * Handle a field effect hitting a building
+     * Field effects apply damage over time with distance-based intensity
+     */
+    private void handleFieldEffectBuildingHit(FieldEffect fieldEffect, Building building) {
+        // Get delta time from physics world
+        double deltaTime = world.getTimeStep().getDeltaTime();
+
+        // Calculate damage based on distance from field effect center
+        // For instantaneous effects (EXPLOSION), damage is full amount
+        // For DOT effects (ELECTRIC, FIRE, POISON), damage is DPS * deltaTime
+        double baseDamage = fieldEffect.getDamageAtPosition(building.getPosition());
+        double damage = fieldEffect.getType().isInstantaneous() ? baseDamage : baseDamage * deltaTime;
+
+        // Apply damage
+        building.takeDamage(damage);
+
+        // Mark as affected (for instantaneous effects, prevents re-damage)
+        fieldEffect.markAsAffected(building);
+
+        log.debug("Field effect {} ({}) damaged building {} for {} damage (deltaTime: {})",
+                fieldEffect.getId(), fieldEffect.getType(), building.getId(), damage, deltaTime);
     }
 }
 

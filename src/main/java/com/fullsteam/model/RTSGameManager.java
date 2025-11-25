@@ -148,7 +148,7 @@ public class RTSGameManager {
         this.gameEntities.setWorld(this.world);
 
         // Initialize collision processor
-        this.collisionProcessor = new RTSCollisionProcessor(gameEntities, this::createExplosion);
+        this.collisionProcessor = new RTSCollisionProcessor(gameEntities);
 
         // Register collision listener to prevent friendly fire physics collisions
         this.world.addCollisionListener(this.collisionProcessor);
@@ -738,10 +738,6 @@ public class RTSGameManager {
                                 double distance = sandstormPos.distance(u.getPosition());
                                 if (distance <= sandstormRadius) {
                                     u.takeDamage(damageThisTick);
-                                    // Less verbose logging since this happens every tick
-                                    if (Math.random() < 0.01) { // Log 1% of the time
-                                        log.debug("Sandstorm damaging unit {} for {} DPS", u.getId(), dps);
-                                    }
                                 }
                             });
                 }
@@ -1655,39 +1651,6 @@ public class RTSGameManager {
         spire.setTargetUnit(highestHealthEnemy);
     }
 
-
-    /**
-     * Get max health multiplier for a unit based on nearby Quantum Nexus
-     */
-    private double getUnitHealthMultiplier(Unit unit) {
-        // Android Factory has no aura effect
-        return 1.0;
-    }
-
-    /**
-     * Create a field effect (explosion, electric field, etc.) - used by collision processor
-     */
-    private void createExplosion(Vector2 position, RTSCollisionProcessor.ExplosionParams params) {
-        int effectId = IdGenerator.nextEntityId();
-        FieldEffectType effectType = params.effectType();
-
-        FieldEffect effect = new FieldEffect(
-                effectId,
-                -1, // No specific owner for field effects
-                effectType,
-                position,
-                params.radius(),
-                params.damage(),
-                effectType.getDefaultDuration(),
-                params.ownerTeam()
-        );
-
-        fieldEffects.put(effectId, effect);
-        world.addBody(effect.getBody());
-        log.debug("Created {} field effect at ({}, {}) with radius {} and damage {}",
-                effectType.name(), position.x, position.y, params.radius(), params.damage());
-    }
-
     /**
      * Check if a projectile is explosive (creates explosions)
      */
@@ -1702,23 +1665,22 @@ public class RTSGameManager {
      * Create an explosion at a projectile's position (when it reaches max range)
      */
     private void createExplosionAtProjectile(Projectile projectile) {
-        Vector2 position = projectile.getPosition();
-        double explosionDamage = projectile.getDamage() * 0.5; // 50% of projectile damage
-        double explosionRadius = projectile.getOrdinance().getSize() * 15; // Scale with projectile size
-
-        RTSCollisionProcessor.ExplosionParams params = new RTSCollisionProcessor.ExplosionParams(
-                explosionDamage,
-                explosionRadius,
+        FieldEffect effect = new FieldEffect(
+                projectile.getOwnerId(),
+                FieldEffectType.EXPLOSION,
+                projectile.getPosition().copy(),
+                projectile.getOrdinance().getSize() * 15,
+                projectile.getDamage() * 0.5,
+                FieldEffectType.EXPLOSION.getDefaultDuration(),
                 projectile.getOwnerTeam()
         );
-
-        createExplosion(position, params);
-        log.debug("Projectile {} exploded at max range ({}, {})",
-                projectile.getId(), position.x, position.y);
+        gameEntities.getFieldEffects().put(effect.getId(), effect);
+        world.addBody(effect.getBody());
     }
 
     /**
-     * Process field effect damage (explosions, etc.)
+     * Process field effect updates and cleanup
+     * Damage is now handled by the collision processor using physics-based detection
      */
     private void processFieldEffects(double deltaTime) {
         for (FieldEffect effect : fieldEffects.values()) {
@@ -1726,50 +1688,16 @@ public class RTSGameManager {
                 continue;
             }
 
+            // Update field effect state (radius growth, expiration, etc.)
             effect.update(deltaTime);
-
-            // Apply damage to units in range
-            for (Unit unit : units.values()) {
-                if (!unit.isActive()) {
-                    continue;
-                }
-
-                // Skip friendly fire
-                if (unit.getTeamNumber() == effect.getOwnerTeam()) {
-                    continue;
-                }
-
-                if (effect.canAffect(unit)) {
-                    double damage = effect.getDamageAtPosition(unit.getPosition());
-                    unit.takeDamage(damage);
-                    effect.markAsAffected(unit);
-                }
-            }
-
-            // Apply damage to buildings in range
-            for (Building building : buildings.values()) {
-                if (!building.isActive()) {
-                    continue;
-                }
-
-                // Skip friendly fire
-                if (building.getTeamNumber() == effect.getOwnerTeam()) {
-                    continue;
-                }
-
-                if (effect.canAffect(building)) {
-                    double damage = effect.getDamageAtPosition(building.getPosition());
-                    building.takeDamage(damage);
-                    effect.markAsAffected(building);
-                }
-            }
         }
 
-        // Remove inactive field effects
+        // Remove inactive field effects and their physics bodies
         fieldEffects.entrySet().removeIf(entry -> {
             FieldEffect effect = entry.getValue();
             if (!effect.isActive()) {
                 world.removeBody(effect.getBody());
+                log.debug("Removed expired field effect {} ({})", effect.getId(), effect.getType());
                 return true;
             }
             return false;
@@ -3141,8 +3069,7 @@ public class RTSGameManager {
 
             int effectId = IdGenerator.nextEntityId();
             FieldEffect electricField = new FieldEffect(
-                    effectId,
-                    -1, // No specific owner
+                    beam.getOwnerId(),
                     FieldEffectType.ELECTRIC,
                     hitPosition,
                     electricRadius,
