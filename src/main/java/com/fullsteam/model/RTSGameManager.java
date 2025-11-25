@@ -481,9 +481,10 @@ public class RTSGameManager {
                             world.addBody(projectile.getBody());
                         } else if (ordinance instanceof Beam beam) {
                             beams.put(beam.getId(), beam);
-                            // Beams don't need to be added to world (sensor body, instant hit)
-                            // Apply damage immediately to hit body
-                            applyBeamDamage(beam);
+                            // Add beam body to world as sensor for collision detection
+                            world.addBody(beam.getBody());
+                            // Create electric field if beam has ELECTRIC bullet effect
+                            createBeamElectricField(beam);
                         }
                     }
                 }
@@ -696,7 +697,10 @@ public class RTSGameManager {
                     Beam beam = building.updatePhotonSpireBehavior(deltaTime, world);
                     if (beam != null) {
                         beams.put(beam.getId(), beam);
-                        applyBeamDamage(beam);
+                        // Add beam body to world as sensor for collision detection
+                        world.addBody(beam.getBody());
+                        // Create electric field if beam has ELECTRIC bullet effect
+                        createBeamElectricField(beam);
                     }
                 }
 
@@ -711,7 +715,10 @@ public class RTSGameManager {
                             world.addBody(proj.getBody());
                         } else if (ordinance instanceof Beam beam) {
                             beams.put(beam.getId(), beam);
-                            applyBeamDamage(beam);
+                            // Add beam body to world as sensor for collision detection
+                            world.addBody(beam.getBody());
+                            // Create electric field if beam has ELECTRIC bullet effect
+                            createBeamElectricField(beam);
                         }
                     }
                 }
@@ -3123,14 +3130,12 @@ public class RTSGameManager {
     }
 
     /**
-     * Apply damage from a beam to the entity it hit
+     * Create electric field effect at beam impact point if beam has ELECTRIC bullet effect
      */
-    private void applyBeamDamage(Beam beam) {
-        Vector2 hitPosition = beam.getEndPosition(); // Where the beam ended (hit or max range)
-
+    private void createBeamElectricField(Beam beam) {
         // Create electric field if beam has ELECTRIC bullet effect (area denial)
-        // This happens regardless of whether the beam hit something
         if (beam.getBulletEffects().contains(BulletEffect.ELECTRIC)) {
+            Vector2 hitPosition = beam.getEndPosition(); // Where the beam ended (hit or max range)
             double electricDamage = beam.getDamage() * 0.3; // 30% of beam damage per second
             double electricRadius = 40.0; // Fixed radius for beam electric fields
 
@@ -3150,60 +3155,6 @@ public class RTSGameManager {
             world.addBody(electricField.getBody());
             log.debug("Created electric field from beam at ({}, {}) with radius {} and {} DPS",
                     hitPosition.x, hitPosition.y, electricRadius, electricDamage);
-        }
-
-        Body hitBody = beam.getHitBody();
-        if (hitBody == null) {
-            return; // No body hit, but electric field already created above
-        }
-
-        // Find the entity associated with this body
-        // Check units
-        for (Unit unit : units.values()) {
-            if (unit.getBody() == hitBody) {
-                // Skip friendly fire - beams don't damage friendly units
-                if (unit.getTeamNumber() == beam.getOwnerTeam()) {
-                    return;
-                }
-                unit.takeDamage(beam.getDamage());
-                break;
-            }
-        }
-
-        // Check buildings
-        for (Building building : buildings.values()) {
-            if (building.getBody() == hitBody) {
-                // Skip friendly fire - beams don't damage friendly buildings
-                if (building.getTeamNumber() == beam.getOwnerTeam()) {
-                    return;
-                }
-                building.takeDamage(beam.getDamage());
-                break;
-            }
-        }
-
-        // Check obstacles
-        for (Obstacle obstacle : obstacles.values()) {
-            if (obstacle.getBody() == hitBody) {
-                // Only non-destructible obstacles can be damaged by beams
-                // Destructible (mine-able) obstacles can only be damaged by miners
-                if (!obstacle.isDestructible()) {
-                    obstacle.takeDamage(beam.getDamage());
-                }
-                break;
-            }
-        }
-
-        // Check wall segments
-        for (WallSegment segment : wallSegments.values()) {
-            if (segment.getBody() == hitBody) {
-                // Skip friendly fire - beams don't damage friendly wall segments
-                if (segment.getTeamNumber() == beam.getOwnerTeam()) {
-                    return;
-                }
-                segment.takeDamage(beam.getDamage());
-                break;
-            }
         }
     }
 

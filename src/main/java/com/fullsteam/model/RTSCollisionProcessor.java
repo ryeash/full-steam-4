@@ -180,44 +180,6 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
     }
 
     /**
-     * Check if a unit can reach a position (for pathfinding/movement validation)
-     */
-    public boolean isPositionBlocked(Vector2 position, double unitRadius, double worldWidth, double worldHeight) {
-        // Check world bounds
-        double halfWidth = worldWidth / 2.0;
-        double halfHeight = worldHeight / 2.0;
-        if (Math.abs(position.x) > halfWidth - unitRadius ||
-                Math.abs(position.y) > halfHeight - unitRadius) {
-            return true;
-        }
-
-        // Check obstacles
-        for (Obstacle obstacle : obstacles.values()) {
-            if (circleIntersectsObstacle(position, unitRadius, obstacle)) {
-                return true;
-            }
-        }
-
-        // Check buildings (units can't move through buildings)
-        for (Building building : buildings.values()) {
-            if (!building.isActive()) {
-                continue;
-            }
-
-            Vector2 buildingPos = building.getPosition();
-            double dx = Math.abs(position.x - buildingPos.x);
-            double dy = Math.abs(position.y - buildingPos.y);
-            double size = building.getBuildingType().getSize();
-
-            if (dx < size + unitRadius && dy < size + unitRadius) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
      * Check if a circle intersects with an obstacle
      */
     private boolean circleIntersectsObstacle(Vector2 position, double radius, Obstacle obstacle) {
@@ -443,6 +405,10 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         // Check if this is a projectile collision
         boolean body1IsProjectile = obj1 instanceof Projectile;
         boolean body2IsProjectile = obj2 instanceof Projectile;
+        
+        // Check if this is a beam collision
+        boolean body1IsBeam = obj1 instanceof Beam;
+        boolean body2IsBeam = obj2 instanceof Beam;
 
         if (body1IsProjectile || body2IsProjectile) {
             Projectile projectile = body1IsProjectile ? (Projectile) obj1 : (Projectile) obj2;
@@ -588,9 +554,162 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 return true; // Allow physics collision with obstacles
             }
         }
+        
+        // Handle beam collisions (beams are sensors, so they detect but don't physically collide)
+        if (body1IsBeam || body2IsBeam) {
+            Beam beam = body1IsBeam ? (Beam) obj1 : (Beam) obj2;
+            Object other = body1IsBeam ? obj2 : obj1;
+            
+            if (!beam.isActive()) {
+                return false; // Ignore inactive beams
+            }
+            
+            // Beams pass through other beams and projectiles
+            if (other instanceof Beam || other instanceof Projectile) {
+                return false;
+            }
+            
+            // Beams pass through field effects
+            if (other instanceof FieldEffect) {
+                return false;
+            }
+            
+            // Calculate hit position (beam center)
+            Vector2 hitPosition = beam.getEndPosition();
+            
+            // Check if beam hits a unit
+            if (other instanceof Unit unit) {
+                // Skip friendly fire
+                if (unit.getTeamNumber() == beam.getOwnerTeam()) {
+                    return false;
+                }
+                
+                if (!unit.isActive()) {
+                    return false;
+                }
+                
+                // Check if already damaged this unit
+                if (beam.getAffectedPlayers().contains(unit.getId())) {
+                    return false;
+                }
+                
+                // Apply damage
+                handleBeamUnitHit(beam, unit, hitPosition);
+                return false; // No physics collision (sensor)
+            }
+            
+            // Check if beam hits a building
+            if (other instanceof Building building) {
+                // Skip friendly fire
+                if (building.getTeamNumber() == beam.getOwnerTeam()) {
+                    return false;
+                }
+                
+                if (!building.isActive()) {
+                    return false;
+                }
+                
+                // Check if already damaged this building
+                if (beam.getAffectedPlayers().contains(building.getId())) {
+                    return false;
+                }
+                
+                // Apply damage
+                handleBeamBuildingHit(beam, building, hitPosition);
+                return false; // No physics collision (sensor)
+            }
+            
+            // Check if beam hits a wall segment
+            if (other instanceof WallSegment segment) {
+                // Skip friendly fire
+                if (segment.getTeamNumber() == beam.getOwnerTeam()) {
+                    return false;
+                }
+                
+                if (!segment.isActive()) {
+                    return false;
+                }
+                
+                // Check if already damaged this segment
+                if (beam.getAffectedPlayers().contains(segment.getId())) {
+                    return false;
+                }
+                
+                // Apply damage
+                handleBeamWallSegmentHit(beam, segment, hitPosition);
+                return false; // No physics collision (sensor)
+            }
+            
+            // Check if beam hits an obstacle
+            if (other instanceof Obstacle obstacle) {
+                if (!obstacle.isActive()) {
+                    return false;
+                }
+                
+                // Check if already processed this obstacle
+                if (beam.getAffectedPlayers().contains(obstacle.getId())) {
+                    return false;
+                }
+                
+                // Only non-destructible obstacles can be damaged by beams
+                if (!obstacle.isDestructible()) {
+                    obstacle.takeDamage(beam.getDamage());
+                }
+                
+                // Mark as affected
+                beam.getAffectedPlayers().add(obstacle.getId());
+                
+                log.debug("Beam {} hit obstacle at ({}, {})",
+                        beam.getId(), hitPosition.x, hitPosition.y);
+                
+                return false; // No physics collision (sensor)
+            }
+        }
 
         // Allow collision response for all other collisions
         return true;
+    }
+    
+    /**
+     * Handle a beam hitting a unit
+     */
+    private void handleBeamUnitHit(Beam beam, Unit unit, Vector2 hitPosition) {
+        // Mark unit as affected
+        beam.getAffectedPlayers().add(unit.getId());
+        
+        // Apply damage
+        unit.takeDamage(beam.getDamage());
+        
+        log.debug("Beam {} hit unit {} for {} damage",
+                beam.getId(), unit.getId(), beam.getDamage());
+    }
+    
+    /**
+     * Handle a beam hitting a building
+     */
+    private void handleBeamBuildingHit(Beam beam, Building building, Vector2 hitPosition) {
+        // Mark building as affected
+        beam.getAffectedPlayers().add(building.getId());
+        
+        // Apply damage
+        building.takeDamage(beam.getDamage());
+        
+        log.debug("Beam {} hit building {} for {} damage",
+                beam.getId(), building.getId(), beam.getDamage());
+    }
+    
+    /**
+     * Handle a beam hitting a wall segment
+     */
+    private void handleBeamWallSegmentHit(Beam beam, WallSegment segment, Vector2 hitPosition) {
+        // Mark segment as affected
+        beam.getAffectedPlayers().add(segment.getId());
+        
+        // Apply damage
+        segment.takeDamage(beam.getDamage());
+        
+        log.debug("Beam {} hit wall segment {} for {} damage",
+                beam.getId(), segment.getId(), beam.getDamage());
     }
 }
 

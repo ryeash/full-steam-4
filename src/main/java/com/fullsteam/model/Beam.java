@@ -320,5 +320,13 @@ public class Beam extends AbstractOrdinance {
     public double getRotation() {
         return angle;
     }
+    
+    /**
+     * Get the set of affected entity IDs (for tracking which entities have been damaged)
+     * Convenience method that delegates to getAffectedEntities()
+     */
+    public Set<Integer> getAffectedPlayers() {
+        return getAffectedEntities();
+    }
 }
 
