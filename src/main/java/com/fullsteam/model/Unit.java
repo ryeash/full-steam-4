@@ -3,6 +3,9 @@ package com.fullsteam.model;
 import com.fullsteam.model.command.IdleCommand;
 import com.fullsteam.model.command.UnitCommand;
 import com.fullsteam.model.research.ResearchModifier;
+import com.fullsteam.model.weapon.ProjectileWeapon;
+import com.fullsteam.model.weapon.Weapon;
+import com.fullsteam.model.weapon.WeaponFactory;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -12,12 +15,9 @@ import org.dyn4j.geometry.Convex;
 import org.dyn4j.geometry.MassType;
 import org.dyn4j.geometry.Polygon;
 import org.dyn4j.geometry.Vector2;
-import org.dyn4j.world.World;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Represents a unit (worker, infantry, vehicle, etc.)
@@ -64,7 +64,10 @@ public class Unit extends GameEntity {
     // Multi-turret system (for Crawler when deployed)
     private List<Turret> turrets = new ArrayList<>();
 
-    // Combat
+    // Weapon system
+    private Weapon weapon; // The weapon this unit fires (null for non-combat units)
+
+    // Combat (kept for backward compatibility and stat tracking)
     private long lastAttackTime = 0;
     private double attackRange;
     private double damage;
@@ -108,6 +111,9 @@ public class Unit extends GameEntity {
         this.damage = unitType.getDamage();
         this.attackRate = unitType.getAttackRate();
         this.visionRange = unitType.getVisionRange(); // Initialize from base type
+
+        // Initialize weapon system
+        this.weapon = WeaponFactory.getWeaponForUnitType(unitType);
     }
 
     private static Body createUnitBody(double x, double y, UnitType unitType) {
@@ -352,8 +358,9 @@ public class Unit extends GameEntity {
         Vector2 targetVelocity = target.getBody().getLinearVelocity();
 
         // Get projectile speed
-        ProjectileProperties props = getProjectileProperties();
-        double projectileSpeed = props.speed;
+        double projectileSpeed = weapon instanceof ProjectileWeapon pw
+                ? pw.getProjectileSpeed()
+                : Double.MAX_VALUE;
 
         // If target is stationary or projectile is very fast, no need to lead
         double targetSpeed = targetVelocity.getMagnitude();
@@ -401,16 +408,17 @@ public class Unit extends GameEntity {
     }
 
     /**
-     * Fire a projectile or beam at a target position
+     * Fire a projectile or beam at a target position using the weapon system
      *
-     * @param targetPos The position to fire at
-     * @param world     The game world (needed for beam raycasting, can be null for projectiles)
-     * @return Projectile or Beam, or null if world is required but not provided
+     * @param targetPos    The position to fire at
+     * @param gameEntities The game entities (provides access to world and all entities)
+     * @return Projectile or Beam, or null if unable to fire
      */
-    public AbstractOrdinance fireAt(Vector2 targetPos, World<Body> world) {
-        Vector2 currentPos = getPosition();
-        Vector2 direction = targetPos.copy().subtract(currentPos);
-        direction.normalize();
+    public AbstractOrdinance fireAt(Vector2 targetPos, GameEntities gameEntities) {
+        // Check if unit has a weapon
+        if (weapon == null) {
+            return null;
+        }
 
         // Decloak a cloaked unit
         if (isCloaked()) {
@@ -418,183 +426,8 @@ public class Unit extends GameEntity {
             aiStance = preCloakAIStance != null ? preCloakAIStance : AIStance.AGGRESSIVE;
         }
 
-        // Check if this unit fires beams
-        if (unitType.firesBeams()) {
-            // Beams require the world for raycasting
-            if (world == null) {
-                return null;
-            }
-
-            // Create a beam with appropriate bullet effects
-            Set<BulletEffect> beamEffects = new HashSet<>();
-
-            // Add ELECTRIC effect for PULSE_ARTILLERY (area denial)
-            if (unitType == UnitType.PULSE_ARTILLERY) {
-                beamEffects.add(BulletEffect.ELECTRIC);
-            }
-
-            return new Beam(
-                    world,
-                    currentPos,
-                    direction,
-                    attackRange,  // max range
-                    ownerId,
-                    teamNumber,
-                    damage,
-                    beamEffects,
-                    Ordinance.LASER,
-                    Beam.BeamType.LASER,
-                    2.0,  // width
-                    0.15, // duration (150ms)
-                    body  // ignore self
-            );
-        } else {
-            // Create a projectile
-            ProjectileProperties props = getProjectileProperties();
-            Vector2 velocity = direction.multiply(props.speed);
-
-            return new Projectile(
-                    currentPos.x,
-                    currentPos.y,
-                    velocity.x,
-                    velocity.y,
-                    damage,
-                    attackRange,
-                    getId(),
-                    teamNumber,
-                    props.linearDamping,
-                    props.bulletEffects,
-                    props.ordinance,
-                    props.size
-            );
-        }
-    }
-
-    /**
-     * Get projectile properties for this unit type
-     */
-    private ProjectileProperties getProjectileProperties() {
-        ProjectileProperties props = new ProjectileProperties();
-
-        switch (unitType) {
-            case WORKER:
-                // Workers don't really attack, but if they do, weak projectiles
-                props.speed = 300;
-                props.ordinance = Ordinance.BULLET;
-                props.linearDamping = 0.5;
-                props.size = 1.5; // Tiny
-                break;
-
-            case INFANTRY:
-                // Standard bullets (baseline)
-                props.speed = 500;
-                props.ordinance = Ordinance.BULLET;
-                props.linearDamping = 0.3;
-                props.size = 2.0; // Baseline
-                break;
-
-            case ROCKET_SOLDIER:
-                // Rockets - slower but explosive
-                props.speed = 400;
-                props.size = 3.0; // Larger rocket
-                props.ordinance = Ordinance.ROCKET;
-                props.linearDamping = 0.1;
-                props.bulletEffects.add(BulletEffect.EXPLOSIVE);
-                break;
-
-            case SNIPER:
-                // High-velocity sniper rounds
-                props.speed = 800;
-                props.ordinance = Ordinance.BULLET;
-                props.linearDamping = 0.1;
-                props.size = 2.5; // Slightly larger than infantry
-                break;
-
-            case JEEP:
-                // Fast bullets from mounted gun
-                props.speed = 600;
-                props.ordinance = Ordinance.BULLET;
-                props.linearDamping = 0.2;
-                props.size = 2.5; // Slightly larger than infantry
-                break;
-
-            case TANK:
-                // Tank shells - explosive
-                props.speed = 450;
-                props.ordinance = Ordinance.GRENADE; // Use grenade for tank shells
-                props.linearDamping = 0.05;
-                props.size = 4.0; // Noticeably larger
-                props.bulletEffects.add(BulletEffect.EXPLOSIVE);
-                break;
-
-            case CLOAK_TANK:
-                // Cloak tank shells
-                props.speed = 500;
-                props.ordinance = Ordinance.GRENADE;
-                props.linearDamping = 0.05;
-                props.size = 4.0; // Same as tank
-                props.bulletEffects.add(BulletEffect.EXPLOSIVE);
-                break;
-
-            case MAMMOTH_TANK:
-                // Massive shells from dual cannons
-                props.speed = 400;
-                props.ordinance = Ordinance.SHELL;
-                props.linearDamping = 0.03;
-                props.size = 6.0; // BIG shells!
-                props.bulletEffects.add(BulletEffect.EXPLOSIVE);
-                break;
-
-            case ARTILLERY:
-                // Artillery shells - high arc, explosive with electric area denial
-                props.speed = 350;
-                props.ordinance = Ordinance.GRENADE; // Use grenade for artillery
-                props.linearDamping = 0.02;
-                props.size = 5.0; // Large artillery shells
-                props.bulletEffects.add(BulletEffect.EXPLOSIVE);
-                props.bulletEffects.add(BulletEffect.ELECTRIC); // Creates electric field for area denial
-                props.bulletEffects.add(BulletEffect.BOUNCING); // Bouncy for scatter effect
-                break;
-
-            case GIGANTONAUT:
-                // MASSIVE shells - slow, heavy, devastating
-                props.speed = 300; // Slower than artillery
-                props.ordinance = Ordinance.SHELL; // Heavy shell
-                props.linearDamping = 0.01; // Very little damping (heavy!)
-                props.size = 8.0; // MASSIVE projectiles! (largest in game)
-                props.bulletEffects.add(BulletEffect.EXPLOSIVE);
-                props.bulletEffects.add(BulletEffect.PIERCING); // Pierces through targets
-                break;
-
-            case CRAWLER:
-                // Crawler turrets (handled separately in RTSGameManager)
-                props.speed = 450;
-                props.ordinance = Ordinance.SHELL;
-                props.linearDamping = 0.2;
-                props.size = 5.0; // Large turret shells
-                props.bulletEffects.add(BulletEffect.EXPLOSIVE);
-                break;
-
-            default:
-                props.speed = 400;
-                props.ordinance = Ordinance.BULLET;
-                props.linearDamping = 0.3;
-                props.size = 2.0; // Default to baseline
-                break;
-        }
-
-        return props;
-    }
-
-    /**
-     * Helper class for projectile properties
-     */
-    private static class ProjectileProperties {
-        double speed = 400;
-        Ordinance ordinance = Ordinance.BULLET;
-        double linearDamping = 0.3;
-        double size = 2.0; // Projectile radius (baseline: infantry)
-        Set<BulletEffect> bulletEffects = new HashSet<>();
+        // Fire the weapon
+        return weapon.fire(getPosition(), targetPos, getId(), teamNumber, body, gameEntities);
     }
 
     /**
@@ -1120,10 +953,11 @@ public class Unit extends GameEntity {
                     turrets.clear();
                     double turretOffset = unitType.getSize() * 0.6; // 60% of unit size
                     // Store as offsets from unit center, not absolute world positions
-                    turrets.add(new Turret(0, new Vector2(turretOffset, turretOffset)));   // Top-right
-                    turrets.add(new Turret(1, new Vector2(-turretOffset, turretOffset)));  // Top-left
-                    turrets.add(new Turret(2, new Vector2(-turretOffset, -turretOffset))); // Bottom-left
-                    turrets.add(new Turret(3, new Vector2(turretOffset, -turretOffset)));  // Bottom-right
+                    // Pass weapon stats to each turret
+                    turrets.add(new Turret(0, new Vector2(turretOffset, turretOffset), damage, attackRange, attackRate));   // Top-right
+                    turrets.add(new Turret(1, new Vector2(-turretOffset, turretOffset), damage, attackRange, attackRate));  // Top-left
+                    turrets.add(new Turret(2, new Vector2(-turretOffset, -turretOffset), damage, attackRange, attackRate)); // Bottom-left
+                    turrets.add(new Turret(3, new Vector2(turretOffset, -turretOffset), damage, attackRange, attackRate));  // Bottom-right
 
                     log.info("Crawler {} deployed - range: {}, damage: {}, turrets: {}", id, attackRange, damage, turrets.size());
                 } else {
@@ -1192,15 +1026,27 @@ public class Unit extends GameEntity {
         // Apply damage modifiers (projectile or beam based on unit type)
         if (unitType.firesBeams()) {
             damage *= modifier.getBeamDamageMultiplier();
+            if (weapon != null) {
+                weapon.applyDamageMultiplier(modifier.getBeamDamageMultiplier());
+            }
         } else {
             damage *= modifier.getProjectileDamageMultiplier();
+            if (weapon != null) {
+                weapon.applyDamageMultiplier(modifier.getProjectileDamageMultiplier());
+            }
         }
 
         // Apply attack range modifier
         attackRange *= modifier.getAttackRangeMultiplier();
+        if (weapon != null) {
+            weapon.applyRangeMultiplier(modifier.getAttackRangeMultiplier());
+        }
 
         // Apply attack rate modifier
         attackRate *= modifier.getAttackRateMultiplier();
+        if (weapon != null) {
+            weapon.applyAttackRateMultiplier(modifier.getAttackRateMultiplier());
+        }
 
         // Apply speed modifiers (infantry or vehicle)
         if (isInfantry()) {

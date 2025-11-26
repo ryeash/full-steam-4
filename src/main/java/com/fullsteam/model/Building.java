@@ -8,6 +8,8 @@ import com.fullsteam.model.component.ProductionComponent;
 import com.fullsteam.model.component.ResearchComponent;
 import com.fullsteam.model.component.SandstormComponent;
 import com.fullsteam.model.component.ShieldComponent;
+import com.fullsteam.model.weapon.Weapon;
+import com.fullsteam.model.weapon.WeaponFactory;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -59,12 +61,9 @@ public class Building extends GameEntity {
     private boolean auraActive = false;
     private static final int COMMAND_CITADEL_UPKEEP_BONUS = 50; // +50 max upkeep
 
-    // Photon Spire combat stats (Obelisk of Light style)
-    private static final double PHOTON_SPIRE_DAMAGE = 250.0; // Massive damage per shot
-    private static final double PHOTON_SPIRE_ATTACK_RATE = 3.5; // Very slow fire rate (one shot every 3.5 seconds)
-    private static final double PHOTON_SPIRE_RANGE = 400.0; // Very long range
+    // Photon Spire weapon system (Obelisk of Light style)
+    private Weapon photonSpireWeapon = null; // Weapon for Photon Spire
     private Unit photonSpireTarget = null; // Current target for Photon Spire
-    private double photonSpireAttackCooldown = 0.0; // Time until next shot
 
     public Building(int id, BuildingType buildingType, double x, double y, int ownerId, int teamNumber) {
         this(id, buildingType, x, y, ownerId, teamNumber, buildingType.getMaxHealth());
@@ -96,6 +95,11 @@ public class Building extends GameEntity {
 
         // Set rally point to building position by default
         this.rallyPoint = new Vector2(x, y);
+
+        // Initialize Photon Spire weapon
+        if (buildingType == BuildingType.PHOTON_SPIRE) {
+            this.photonSpireWeapon = WeaponFactory.getPhotonSpireWeapon();
+        }
 
         // Initialize components based on building type
         initializeComponents(new Vector2(x, y));
@@ -487,7 +491,7 @@ public class Building extends GameEntity {
      * Get attack range for Photon Spire
      */
     public double getPhotonSpireRange() {
-        return PHOTON_SPIRE_RANGE;
+        return photonSpireWeapon != null ? photonSpireWeapon.getRange() : 400.0;
     }
 
     /**
@@ -529,65 +533,41 @@ public class Building extends GameEntity {
     /**
      * Update Photon Spire attack behavior - fires powerful beam at high-health targets
      *
-     * @param world The physics world for raycasting
+     * @param gameEntities The game entities (provides access to world and all entities)
      * @return Beam if fired, null otherwise
      */
-    public Beam updatePhotonSpireBehavior(double deltaTime, World<Body> world) {
-        if (buildingType != BuildingType.PHOTON_SPIRE || underConstruction) {
+    public Beam updatePhotonSpireBehavior(double deltaTime, GameEntities gameEntities) {
+        if (buildingType != BuildingType.PHOTON_SPIRE || underConstruction || photonSpireWeapon == null) {
             return null;
         }
 
-        // Update attack cooldown
-        if (photonSpireAttackCooldown > 0) {
-            photonSpireAttackCooldown -= deltaTime;
-        }
-
-        // Check if we have a valid target and can fire
-        if (photonSpireTarget != null && photonSpireTarget.isActive() && photonSpireAttackCooldown <= 0) {
+        // Check if we have a valid target and can fire (weapon handles cooldown tracking)
+        if (photonSpireTarget != null && photonSpireTarget.isActive() && photonSpireWeapon.canFire()) {
             // Check if target is in range
             double distance = getPosition().distance(photonSpireTarget.getPosition());
-            if (distance <= PHOTON_SPIRE_RANGE) {
-                // Calculate direction to target
-                Vector2 direction = photonSpireTarget.getPosition().copy().subtract(getPosition());
-
-                // Fire beam!
-                Beam beam = new Beam(
-                        world,
-                        getPosition().copy(),
-                        direction,
-                        PHOTON_SPIRE_RANGE,
-                        getOwnerId(),
-                        getTeamNumber(),
-                        PHOTON_SPIRE_DAMAGE,
-                        Set.of(), // No special effects
-                        Ordinance.LASER,
-                        Beam.BeamType.LASER,
-                        3.0, // Beam width (thick, powerful beam)
-                        0.3, // Duration (visible for 0.3 seconds)
-                        getBody() // Ignore self
+            double range = photonSpireWeapon.getRange();
+            
+            if (distance <= range) {
+                // Fire weapon (weapon automatically records fire time)
+                AbstractOrdinance ordinance = photonSpireWeapon.fire(
+                    getPosition(),
+                    photonSpireTarget.getPosition(),
+                    getOwnerId(),
+                    getTeamNumber(),
+                    getBody(),
+                    gameEntities
                 );
 
-                // Reset cooldown
-                photonSpireAttackCooldown = PHOTON_SPIRE_ATTACK_RATE;
+                if (ordinance != null) {
+                    log.debug("Photon Spire {} fired beam at unit {} for {} damage",
+                            getId(), photonSpireTarget.getId(), photonSpireWeapon.getDamage());
+                }
 
-                log.debug("Photon Spire {} fired beam at unit {} for {} damage",
-                        getId(), photonSpireTarget.getId(), PHOTON_SPIRE_DAMAGE);
-
-                return beam;
+                return ordinance instanceof Beam ? (Beam) ordinance : null;
             }
         }
 
         return null;
-    }
-
-    /**
-     * Get sandstorm damage per second (for continuous damage)
-     *
-     * @deprecated Sandstorm damage is now handled by SandstormComponent
-     */
-    @Deprecated
-    public double getSandstormDPS() {
-        return 15.0; // Legacy constant for backwards compatibility
     }
 
     /**
@@ -777,7 +757,7 @@ public class Building extends GameEntity {
             }
 
             // Fire weapon from bunker position
-            AbstractOrdinance ordinance = garrisonedUnit.fireAt(targetPos, gameEntities.getWorld());
+            AbstractOrdinance ordinance = garrisonedUnit.fireAt(targetPos, gameEntities);
             if (ordinance != null) {
                 // Override ordinance position to fire from bunker
                 if (ordinance instanceof Projectile projectile) {

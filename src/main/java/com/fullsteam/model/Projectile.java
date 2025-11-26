@@ -20,17 +20,17 @@ import java.util.Set;
 public class Projectile extends AbstractOrdinance {
     private double maxRange;
 
-    public Projectile(double x, double y, double vx, double vy,
+    public Projectile(Vector2 origin, Vector2 velocity,
                       double damage, double maxRange, int ownerId, int ownerTeam,
                       double linearDamping, Set<BulletEffect> bulletEffects,
                       Ordinance ordinance, double size) {
         super(IdGenerator.nextEntityId(), createProjectileBody(size), ownerId, ownerTeam,
-                new Vector2(x, y), damage, bulletEffects, ordinance, size);
+                origin, damage, bulletEffects, ordinance, size);
 
         this.maxRange = maxRange;
-        body.translate(x, y);
+        body.translate(origin);
         body.setLinearDamping(linearDamping);
-        body.setLinearVelocity(vx, vy); // Set physics body velocity
+        body.setLinearVelocity(velocity); // Set physics body velocity
     }
 
     private static Body createProjectileBody(double size) {

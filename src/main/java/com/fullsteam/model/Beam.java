@@ -46,17 +46,25 @@ public class Beam extends AbstractOrdinance {
     }
 
     /**
-     * Create a beam with ray tracing using dyn4j's built-in raycast
+     * Create a beam with pre-calculated raycast results (called by BeamWeapon).
+     * The weapon handles raycasting, this constructor just creates the beam entity.
      *
-     * @param world           The dyn4j World to raycast against
-     * @param start           Starting position
-     * @param targetDirection Direction vector (will be normalized)
-     * @param maxRange        Maximum beam range
-     * @param ignoredBody     Body to ignore in raycast (typically the firing unit)
+     * @param start         Starting position
+     * @param end           Ending position (from raycast)
+     * @param maxRange      Maximum beam range
+     * @param ownerId       Owner entity ID
+     * @param ownerTeam     Owner team number
+     * @param damage        Damage dealt
+     * @param bulletEffects Special effects
+     * @param ordinanceType Ordinance type
+     * @param beamType      Visual beam type
+     * @param width         Beam width
+     * @param duration      Visual duration
+     * @param hitObstacle   Whether beam hit an obstacle
+     * @param hitBody       The body that was hit (if any)
      */
-    public Beam(World<Body> world,
-                Vector2 start,
-                Vector2 targetDirection,
+    public Beam(Vector2 start,
+                Vector2 end,
                 double maxRange,
                 int ownerId,
                 int ownerTeam,
@@ -66,29 +74,30 @@ public class Beam extends AbstractOrdinance {
                 BeamType beamType,
                 double width,
                 double duration,
-                Body ignoredBody) {
-        // Create body with raycast results BEFORE calling super
+                boolean hitObstacle,
+                Body hitBody) {
         super(IdGenerator.nextEntityId(),
-                createBeamBodyWithRaycast(world, start, targetDirection, maxRange, width, ignoredBody, ownerTeam),
+                createBeamBody(start, end, width),
                 ownerId, ownerTeam, start, damage, bulletEffects, ordinanceType, width);
 
-        // Now extract the data from the body's user data (we stored it there temporarily)
-        BeamData data = (BeamData) body.getUserData();
-
         this.startPosition = start.copy();
-        this.endPosition = data.endPosition;
-        this.intendedEndPosition = start.copy().add(data.direction.copy().multiply(maxRange));
+        this.endPosition = end.copy();
+        this.intendedEndPosition = end.copy(); // Same as end since weapon already did raycast
         this.maxRange = maxRange;
         this.width = width;
         this.duration = duration;
         this.beamType = beamType;
-        this.angle = data.angle;
-        this.length = start.distance(endPosition);
-        this.hitObstacle = data.hitObstacle;
-        this.hitBody = data.hitBody;
+        
+        // Calculate angle from start to end
+        Vector2 direction = end.copy().subtract(start);
+        this.angle = Math.atan2(direction.y, direction.x);
+        this.length = start.distance(end);
+        
+        this.hitObstacle = hitObstacle;
+        this.hitBody = hitBody;
         this.expires = (long) (System.currentTimeMillis() + (duration * 1000));
 
-        // Now set the correct user data (this Beam instance)
+        // Set user data
         body.setUserData(this);
     }
 
@@ -112,140 +121,24 @@ public class Beam extends AbstractOrdinance {
     }
 
     /**
-     * Create beam body with raycast - static helper for constructor
-     */
-    private static Body createBeamBodyWithRaycast(World<Body> world, Vector2 start, Vector2 targetDirection,
-                                                  double maxRange, double width, Body ignoredBody, int ownerTeam) {
-        // Normalize direction
-        Vector2 direction = targetDirection.copy();
-        double magnitude = direction.getMagnitude();
-        if (magnitude > 0) {
-            direction.multiply(1.0 / magnitude);
-        }
-
-        // Perform raycast
-        RaycastResult result = performRaycast(world, start, direction, maxRange, ignoredBody, ownerTeam);
-
-        // Calculate angle and midpoint
-        double angle = Math.atan2(direction.y, direction.x);
-        Vector2 midpoint = new Vector2(
-                (start.x + result.endPosition.x) / 2.0,
-                (start.y + result.endPosition.y) / 2.0
-        );
-
-        // Create body
-        Body body = createBeamBody(start, result.endPosition, width, midpoint, angle);
-
-        // Store beam data in body temporarily (will be replaced with Beam instance)
-        BeamData data = new BeamData(direction, result.endPosition, angle, result.hitObstacle, result.hitBody);
-        body.setUserData(data);
-
-        return body;
-    }
-
-    /**
-     * Helper class to return raycast results
-     */
-    private static class RaycastResult {
-        Vector2 endPosition;
-        boolean hitObstacle;
-        Body hitBody;
-
-        RaycastResult(Vector2 endPosition, boolean hitObstacle, Body hitBody) {
-            this.endPosition = endPosition;
-            this.hitObstacle = hitObstacle;
-            this.hitBody = hitBody;
-        }
-    }
-
-    /**
-     * Perform raycast using dyn4j's built-in raycast functionality
-     * This is much more efficient and accurate than custom ray tracing
-     */
-    private static RaycastResult performRaycast(World<Body> world, Vector2 start, Vector2 direction,
-                                                double maxRange, Body ignoredBody, int ownerTeam) {
-        // Create a ray for the raycast
-        Ray ray = new Ray(start, direction);
-
-        // Create a filter that excludes the firing body and friendly units/buildings
-        DetectFilter<Body, BodyFixture> filter = new DetectFilter<>(true, true, null) {
-            @Override
-            public boolean isAllowed(Body body, BodyFixture fixture) {
-                // Ignore the firing body itself
-                if (body == ignoredBody) {
-                    return false;
-                }
-
-                // Check if this body belongs to a friendly entity
-                Object userData = body.getUserData();
-
-                // Skip friendly fire - beams pass through friendly units
-                if (userData instanceof Unit unit) {
-                    if (unit.getTeamNumber() == ownerTeam) {
-                        return false;
-                    }
-                }
-
-                // Skip friendly fire - beams pass through friendly buildings
-                if (userData instanceof Building building) {
-                    if (building.getTeamNumber() == ownerTeam) {
-                        return false;
-                    }
-                }
-
-                // Skip friendly fire - beams pass through friendly wall segments
-                if (userData instanceof WallSegment segment) {
-                    if (segment.getTeamNumber() == ownerTeam) {
-                        return false;
-                    }
-                }
-
-                return true;
-            }
-        };
-
-        // Perform the raycast and get all results
-        List<org.dyn4j.world.result.RaycastResult<Body, BodyFixture>> results = world.raycast(ray, maxRange, filter);
-
-        // Find the closest hit
-        org.dyn4j.world.result.RaycastResult<Body, BodyFixture> closestHit = null;
-        double closestDistance = maxRange;
-
-        for (org.dyn4j.world.result.RaycastResult<Body, BodyFixture> result : results) {
-            // Get the raycast distance
-            double distance = result.getRaycast().getDistance();
-
-            // Check if this is the closest hit so far
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestHit = result;
-            }
-        }
-
-        // If we hit something, calculate the hit point
-        if (closestHit != null) {
-            // Get the hit point from the raycast result
-            Vector2 hitPoint = closestHit.getRaycast().getPoint();
-            return new RaycastResult(hitPoint.copy(), true, closestHit.getBody());
-        }
-
-        // No hit - beam travels full distance
-        Vector2 endPos = start.copy().add(direction.copy().multiply(maxRange));
-        return new RaycastResult(endPos, false, null);
-    }
-
-    /**
-     * Create a physics body for the beam (rectangular sensor for hit detection)
+     * Create a physics body for the beam (rectangular sensor for hit detection).
+     * Simplified version that calculates midpoint and angle internally.
      *
-     * @param start    Beam start position
-     * @param end      Beam end position
-     * @param width    Beam width
-     * @param midpoint Position to place the body (midpoint of beam)
-     * @param angle    Rotation angle of the beam
+     * @param start Beam start position
+     * @param end   Beam end position
+     * @param width Beam width
      */
-    private static Body createBeamBody(Vector2 start, Vector2 end, double width, Vector2 midpoint, double angle) {
+    private static Body createBeamBody(Vector2 start, Vector2 end, double width) {
         Body body = new Body();
         double length = start.distance(end);
+
+        // Calculate midpoint and angle
+        Vector2 midpoint = new Vector2(
+                (start.x + end.x) / 2.0,
+                (start.y + end.y) / 2.0
+        );
+        Vector2 direction = end.copy().subtract(start);
+        double angle = Math.atan2(direction.y, direction.x);
 
         // Create a thin rectangle for the beam
         BodyFixture fixture = body.addFixture(Geometry.createRectangle(length, width));

@@ -76,7 +76,7 @@ public class AttackUnitCommand extends UnitCommand {
                 // Use predictive aiming for moving targets
                 Vector2 interceptPos = unit.calculateInterceptPoint(target);
                 // Fire projectile or beam (world from gameEntities)
-                return unit.fireAt(interceptPos, gameEntities != null ? gameEntities.getWorld() : null);
+                return unit.fireAt(interceptPos, gameEntities);
             }
         }
 

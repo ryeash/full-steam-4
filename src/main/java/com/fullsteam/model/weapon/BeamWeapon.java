@@ -1,0 +1,197 @@
+package com.fullsteam.model.weapon;
+
+import com.fullsteam.model.AbstractOrdinance;
+import com.fullsteam.model.Beam;
+import com.fullsteam.model.Building;
+import com.fullsteam.model.BulletEffect;
+import com.fullsteam.model.GameEntities;
+import com.fullsteam.model.Ordinance;
+import com.fullsteam.model.Unit;
+import com.fullsteam.model.WallSegment;
+import lombok.Getter;
+import lombok.Setter;
+import org.dyn4j.dynamics.Body;
+import org.dyn4j.dynamics.BodyFixture;
+import org.dyn4j.geometry.Ray;
+import org.dyn4j.geometry.Vector2;
+import org.dyn4j.world.DetectFilter;
+import org.dyn4j.world.World;
+import org.dyn4j.world.result.RaycastResult;
+
+import java.util.List;
+import java.util.Set;
+
+/**
+ * Weapon that fires instant-hit beams (lasers, plasma, ion, etc.).
+ * Beams use raycasting to determine impact point and have a visual duration.
+ */
+@Getter
+@Setter
+public class BeamWeapon extends Weapon {
+    private double beamWidth; // Visual thickness
+    private double beamDuration; // How long the beam is visible (seconds)
+    private Beam.BeamType beamType; // Visual type (LASER, PLASMA, ION, PARTICLE)
+    private Ordinance ordinanceType; // For damage calculation purposes
+    private Set<BulletEffect> bulletEffects; // Special effects (ELECTRIC, etc.)
+
+    /**
+     * Create a beam weapon with full configuration.
+     */
+    public BeamWeapon(double damage,
+                      double range,
+                      double attackRate,
+                      double beamWidth,
+                      double beamDuration,
+                      Beam.BeamType beamType,
+                      Ordinance ordinanceType,
+                      Set<BulletEffect> bulletEffects) {
+        super(damage, range, attackRate);
+        this.beamWidth = beamWidth;
+        this.beamDuration = beamDuration;
+        this.beamType = beamType;
+        this.ordinanceType = ordinanceType;
+        this.bulletEffects = bulletEffects != null ? Set.copyOf(bulletEffects) : Set.of();
+    }
+
+    @Override
+    protected AbstractOrdinance createOrdinance(Vector2 position,
+                                                Vector2 targetPosition,
+                                                int ownerId,
+                                                int ownerTeam,
+                                                Body ignoredBody,
+                                                GameEntities gameEntities) {
+        // Beams require the world for raycasting
+        World<Body> world = gameEntities.getWorld();
+        if (world == null) {
+            return null;
+        }
+
+        // Calculate direction to target
+        Vector2 direction = targetPosition.copy().subtract(position);
+        direction.normalize();
+
+        // Perform raycast to find actual beam endpoint
+        RCResult rcResult = performRaycast(world, position, direction, range, ignoredBody, ownerTeam);
+
+        // Create and return beam with raycast results
+        return new Beam(
+                position.copy(),
+                rcResult.endPosition,
+                range,
+                ownerId,
+                ownerTeam,
+                damage,
+                bulletEffects,
+                ordinanceType,
+                beamType,
+                beamWidth,
+                beamDuration,
+                rcResult.hitObstacle,
+                rcResult.hitBody
+        );
+    }
+
+    /**
+     * Helper class to return raycast results
+     */
+    private static class RCResult {
+        Vector2 endPosition;
+        boolean hitObstacle;
+        Body hitBody;
+
+        RCResult(Vector2 endPosition, boolean hitObstacle, Body hitBody) {
+            this.endPosition = endPosition;
+            this.hitObstacle = hitObstacle;
+            this.hitBody = hitBody;
+        }
+    }
+
+    /**
+     * Perform raycast using dyn4j's built-in raycast functionality.
+     * This determines where the beam actually ends (may hit obstacles before max range).
+     */
+    private static RCResult performRaycast(World<Body> world, Vector2 start, Vector2 direction,
+                                           double maxRange, Body ignoredBody, int ownerTeam) {
+        // Create a ray for the raycast
+        Ray ray = new Ray(start, direction);
+
+        // Create a filter that excludes the firing body and friendly units/buildings
+        DetectFilter<Body, BodyFixture> filter = new DetectFilter<>(true, true, null) {
+            @Override
+            public boolean isAllowed(Body body, BodyFixture fixture) {
+                // Ignore the firing body itself
+                if (body == ignoredBody) {
+                    return false;
+                }
+
+                // Check if this body belongs to a friendly entity
+                Object userData = body.getUserData();
+
+                // Skip friendly fire - beams pass through friendly units
+                if (userData instanceof Unit unit) {
+                    if (unit.getTeamNumber() == ownerTeam) {
+                        return false;
+                    }
+                }
+
+                // Skip friendly fire - beams pass through friendly buildings
+                if (userData instanceof Building building) {
+                    if (building.getTeamNumber() == ownerTeam) {
+                        return false;
+                    }
+                }
+
+                // Skip friendly fire - beams pass through friendly wall segments
+                if (userData instanceof WallSegment segment) {
+                    return segment.getTeamNumber() != ownerTeam;
+                }
+
+                return true;
+            }
+        };
+
+        // Perform the raycast and get all results
+        List<RaycastResult<Body, BodyFixture>> results = world.raycast(ray, maxRange, filter);
+
+        // Find the closest hit
+        RaycastResult<Body, BodyFixture> closestHit = null;
+        double closestDistance = maxRange;
+
+        for (RaycastResult<Body, BodyFixture> result : results) {
+            // Get the raycast distance
+            double distance = result.getRaycast().getDistance();
+
+            // Check if this is the closest hit so far
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestHit = result;
+            }
+        }
+
+        // If we hit something, calculate the hit point
+        if (closestHit != null) {
+            // Get the hit point from the raycast result
+            Vector2 hitPoint = closestHit.getRaycast().getPoint();
+            return new RCResult(hitPoint.copy(), true, closestHit.getBody());
+        }
+
+        // No hit - beam travels full distance
+        Vector2 endPos = start.copy().add(direction.copy().multiply(maxRange));
+        return new RCResult(endPos, false, null);
+    }
+
+    @Override
+    public Weapon copy() {
+        return new BeamWeapon(
+                damage,
+                range,
+                attackRate,
+                beamWidth,
+                beamDuration,
+                beamType,
+                ordinanceType,
+                Set.copyOf(bulletEffects)
+        );
+    }
+}
+

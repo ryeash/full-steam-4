@@ -83,8 +83,6 @@ public class ProductionComponent implements IBuildingComponent {
                 gameEntities.getUnits().put(unit.getId(), unit);
                 gameEntities.getWorld().addBody(unit.getBody());
 
-                // Note: Upkeep and unit count are now recalculated periodically
-
                 // Order unit to rally point
                 if (building.getRallyPoint() != null) {
                     unit.issueCommand(new MoveCommand(unit, building.getRallyPoint(), false));

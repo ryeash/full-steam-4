@@ -80,7 +80,7 @@ public class AttackWallSegmentCommand extends UnitCommand {
             if (now - unit.getLastAttackTime() >= attackInterval) {
                 unit.setLastAttackTime(now);
                 // Fire projectile or beam at wall segment (world from gameEntities)
-                return unit.fireAt(targetPos, gameEntities != null ? gameEntities.getWorld() : null);
+                return unit.fireAt(targetPos, gameEntities);
             }
         }
 

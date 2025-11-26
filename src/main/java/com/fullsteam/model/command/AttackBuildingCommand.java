@@ -80,7 +80,7 @@ public class AttackBuildingCommand extends UnitCommand {
             if (now - unit.getLastAttackTime() >= attackInterval) {
                 unit.setLastAttackTime(now);
                 // Fire projectile or beam (world from gameEntities)
-                return unit.fireAt(target.getPosition(), gameEntities != null ? gameEntities.getWorld() : null);
+                return unit.fireAt(target.getPosition(), gameEntities);
             }
         }
 

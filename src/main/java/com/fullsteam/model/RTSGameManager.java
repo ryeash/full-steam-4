@@ -16,7 +16,6 @@ import com.fullsteam.model.command.MineCommand;
 import com.fullsteam.model.command.MoveCommand;
 import com.fullsteam.model.component.AndroidFactoryComponent;
 import com.fullsteam.model.component.IBuildingComponent;
-import com.fullsteam.model.component.SandstormComponent;
 import com.fullsteam.model.component.ShieldComponent;
 import com.fullsteam.model.factions.Faction;
 import com.fullsteam.model.research.ResearchManager;
@@ -95,11 +94,9 @@ public class RTSGameManager {
     private final Map<Integer, ResourceDeposit> resourceDeposits;
     private final Map<Integer, Obstacle> obstacles;
     private final Map<Integer, Projectile> projectiles;
+    private final Map<Integer, Beam> beams;
     private final Map<Integer, FieldEffect> fieldEffects;
     private final Map<Integer, WallSegment> wallSegments;
-
-    // Beams (instant-hit weapons)
-    private final Map<Integer, Beam> beams = new ConcurrentSkipListMap<>();
 
     // Collision processor
     private final RTSCollisionProcessor collisionProcessor;
@@ -139,6 +136,7 @@ public class RTSGameManager {
         this.resourceDeposits = gameEntities.getResourceDeposits();
         this.obstacles = gameEntities.getObstacles();
         this.projectiles = gameEntities.getProjectiles();
+        this.beams = gameEntities.getBeams();
         this.fieldEffects = gameEntities.getFieldEffects();
         this.wallSegments = gameEntities.getWallSegments();
 
@@ -211,8 +209,7 @@ public class RTSGameManager {
             );
             log.info("Created resource deposit {} at ({}, {}) with {} resources",
                     deposit.getId(), spawn.getPosition().x, spawn.getPosition().y, spawn.getResources());
-            resourceDeposits.put(deposit.getId(), deposit);
-            world.addBody(deposit.getBody());
+            gameEntities.add(deposit);
         }
 
         log.info("Placed {} resource deposits with symmetric layout", resourceDeposits.size());
@@ -264,9 +261,7 @@ public class RTSGameManager {
                         destructible
                 );
             }
-
-            obstacles.put(obstacle.getId(), obstacle);
-            world.addBody(obstacle.getBody());
+            gameEntities.add(obstacle);
         }
 
         log.info("Placed {} obstacles with symmetric layout ({} destructible, {} indestructible)",
@@ -290,8 +285,7 @@ public class RTSGameManager {
                 width, // full width
                 wallThickness // thin height
         );
-        obstacles.put(topWall.getId(), topWall);
-        world.addBody(topWall.getBody());
+        gameEntities.add(topWall);
 
         // Bottom wall (horizontal rectangle)
         Obstacle bottomWall = new Obstacle(
@@ -301,8 +295,7 @@ public class RTSGameManager {
                 width,
                 wallThickness
         );
-        obstacles.put(bottomWall.getId(), bottomWall);
-        world.addBody(bottomWall.getBody());
+        gameEntities.add(bottomWall);
 
         // Left wall (vertical rectangle)
         Obstacle leftWall = new Obstacle(
@@ -312,8 +305,7 @@ public class RTSGameManager {
                 wallThickness, // thin width
                 height // full height
         );
-        obstacles.put(leftWall.getId(), leftWall);
-        world.addBody(leftWall.getBody());
+        gameEntities.add(leftWall);
 
         // Right wall (vertical rectangle)
         Obstacle rightWall = new Obstacle(
@@ -323,10 +315,7 @@ public class RTSGameManager {
                 wallThickness,
                 height
         );
-        obstacles.put(rightWall.getId(), rightWall);
-        world.addBody(rightWall.getBody());
-
-        log.info("Created 4 rectangular world boundary walls");
+        gameEntities.add(rightWall);
     }
 
     /**
@@ -492,13 +481,8 @@ public class RTSGameManager {
 
                     // Add projectile or beam to world
                     if (ordinance != null) {
-                        if (ordinance instanceof Projectile projectile) {
-                            projectiles.put(projectile.getId(), projectile);
-                            world.addBody(projectile.getBody());
-                        } else if (ordinance instanceof Beam beam) {
-                            beams.put(beam.getId(), beam);
-                            // Add beam body to world as sensor for collision detection
-                            world.addBody(beam.getBody());
+                        gameEntities.add(ordinance);
+                        if (ordinance instanceof Beam beam) {
                             // Create electric field if beam has ELECTRIC bullet effect
                             createBeamElectricField(beam);
                         }
@@ -508,11 +492,7 @@ public class RTSGameManager {
                 // Multi-turret AI for deployed units (e.g., Crawler)
                 if (!unit.getTurrets().isEmpty()) {
                     for (Turret turret : unit.getTurrets()) {
-                        Projectile projectile = turret.update(unit, gameEntities, frameCount);
-                        if (projectile != null) {
-                            projectiles.put(projectile.getId(), projectile);
-                            world.addBody(projectile.getBody());
-                        }
+                        turret.update(unit, gameEntities, frameCount);
                     }
                 }
 
@@ -638,10 +618,9 @@ public class RTSGameManager {
                     }
 
                     // Check if Photon Spire fired a beam
-                    Beam beam = building.updatePhotonSpireBehavior(deltaTime, world);
+                    Beam beam = building.updatePhotonSpireBehavior(deltaTime, gameEntities);
+                    gameEntities.add(beam);
                     if (beam != null) {
-                        beams.put(beam.getId(), beam);
-                        world.addBody(beam.getBody());
                         // TODO: handle all potential bullet effects
                         createBeamElectricField(beam);
                     }
@@ -653,31 +632,9 @@ public class RTSGameManager {
                     // Fire weapons from garrisoned units (they handle their own target acquisition)
                     List<AbstractOrdinance> bunkerOrdinances = building.fireBunkerWeapons(gameEntities);
                     for (AbstractOrdinance ordinance : bunkerOrdinances) {
-                        if (ordinance instanceof Projectile proj) {
-                            projectiles.put(proj.getId(), proj);
-                            world.addBody(proj.getBody());
-                        } else if (ordinance instanceof Beam beam) {
-                            beams.put(beam.getId(), beam);
-                            // Add beam body to world as sensor for collision detection
-                            world.addBody(beam.getBody());
-                            // Create electric field if beam has ELECTRIC bullet effect
+                        gameEntities.add(ordinance);
+                        if (ordinance instanceof Beam beam) {
                             createBeamElectricField(beam);
-                        }
-                    }
-                }
-
-                // Handle sandstorm field effect creation (from SandstormComponent)
-                if (building.getBuildingType() == BuildingType.SANDSTORM_GENERATOR) {
-                    SandstormComponent sandstormComp = building.getComponent(SandstormComponent.class);
-                    if (sandstormComp != null) {
-                        FieldEffect sandstorm = sandstormComp.getSandstormFieldEffect();
-
-                        // Add sandstorm field effect to game if not already present
-                        if (sandstorm != null && !fieldEffects.containsKey(sandstorm.getId())) {
-                            fieldEffects.put(sandstorm.getId(), sandstorm);
-                            world.addBody(sandstorm.getBody());
-                            log.debug("Added sandstorm field effect {} for building {} to game world",
-                                    sandstorm.getId(), building.getId());
                         }
                     }
                 }

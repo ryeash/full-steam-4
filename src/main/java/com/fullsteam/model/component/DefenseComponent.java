@@ -1,17 +1,14 @@
 package com.fullsteam.model.component;
 
+import com.fullsteam.model.AbstractOrdinance;
 import com.fullsteam.model.Building;
-import com.fullsteam.model.BulletEffect;
 import com.fullsteam.model.GameEntities;
-import com.fullsteam.model.Ordinance;
-import com.fullsteam.model.Projectile;
 import com.fullsteam.model.Unit;
+import com.fullsteam.model.weapon.Weapon;
+import com.fullsteam.model.weapon.WeaponFactory;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.geometry.Vector2;
-
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * Component that handles defensive turret behavior for buildings.
@@ -24,24 +21,19 @@ import java.util.Set;
 @Getter
 @Setter
 public class DefenseComponent implements IBuildingComponent {
-    private static final double DEFAULT_TURRET_DAMAGE = 25.0;
-    private static final double DEFAULT_TURRET_ATTACK_RATE = 2.0; // attacks per second
     private static final double DEFAULT_TURRET_RANGE = 300.0;
-    private static final double DEFAULT_PROJECTILE_SPEED = 600.0;
 
     private Unit targetUnit = null;
-    private long lastAttackTime = 0;
 
-    private final double damage;
-    private final double attackRate;
-    private final double range;
-    private final double projectileSpeed;
+    private final Weapon weapon;
+    private final double range; // Kept for backward compatibility
 
     /**
      * Create a defense component with default turret stats.
      */
     public DefenseComponent() {
-        this(DEFAULT_TURRET_DAMAGE, DEFAULT_TURRET_ATTACK_RATE, DEFAULT_TURRET_RANGE, DEFAULT_PROJECTILE_SPEED);
+        this.weapon = WeaponFactory.getTurretWeapon();
+        this.range = weapon.getRange();
     }
 
     /**
@@ -52,22 +44,12 @@ public class DefenseComponent implements IBuildingComponent {
      * @param range      Maximum attack range
      */
     public DefenseComponent(double damage, double attackRate, double range) {
-        this(damage, attackRate, range, DEFAULT_PROJECTILE_SPEED);
-    }
-
-    /**
-     * Create a defense component with fully custom stats.
-     *
-     * @param damage          Damage per shot
-     * @param attackRate      Attacks per second
-     * @param range           Maximum attack range
-     * @param projectileSpeed Speed of fired projectiles
-     */
-    public DefenseComponent(double damage, double attackRate, double range, double projectileSpeed) {
-        this.damage = damage;
-        this.attackRate = attackRate;
+        this.weapon = WeaponFactory.getTurretWeapon();
+        // Override with custom stats
+        weapon.setDamage(damage);
+        weapon.setAttackRate(attackRate);
+        weapon.setRange(range);
         this.range = range;
-        this.projectileSpeed = projectileSpeed;
     }
 
     @Override
@@ -84,16 +66,13 @@ public class DefenseComponent implements IBuildingComponent {
             double distance = turretPos.distance(targetPos);
 
             // Check if target is in range
-            if (distance <= range) {
+            if (distance <= weapon.getRange()) {
                 // Face target
                 Vector2 direction = targetPos.copy().subtract(turretPos);
                 building.setRotation(Math.atan2(direction.y, direction.x));
 
-                // Attack if cooldown is ready
-                long now = System.currentTimeMillis();
-                double attackInterval = 1000.0 / attackRate;
-                if (now - lastAttackTime >= attackInterval) {
-                    lastAttackTime = now;
+                // Attack if cooldown is ready (weapon handles cooldown tracking)
+                if (weapon.canFire()) {
                     fireAtTarget(gameEntities, building, turretPos, targetPos);
                 }
             } else {
@@ -104,7 +83,7 @@ public class DefenseComponent implements IBuildingComponent {
     }
 
     /**
-     * Fire a projectile at the current target.
+     * Fire ordinance at the current target using the weapon system.
      *
      * @param building  The building firing
      * @param turretPos Position of the turret
@@ -115,30 +94,23 @@ public class DefenseComponent implements IBuildingComponent {
             return;
         }
 
-        Vector2 direction = targetPos.copy().subtract(turretPos);
-        direction.normalize();
-
-        // Turrets fire bullets
-        Vector2 velocity = direction.multiply(projectileSpeed);
-
-        Set<BulletEffect> effects = new HashSet<>();
-
-        Projectile projectile = new Projectile(
-                turretPos.x,
-                turretPos.y,
-                velocity.x,
-                velocity.y,
-                damage,
-                range,
+        // Fire weapon
+        AbstractOrdinance ordinance = weapon.fire(
+                turretPos,
+                targetPos,
                 building.getId(),
                 building.getTeamNumber(),
-                0.2, // linear damping
-                effects,
-                Ordinance.BULLET,
-                3.5 // Building turrets fire medium-sized projectiles
+                building.getBody(),
+                gameEntities
         );
-        gameEntities.getProjectiles().put(projectile.getId(), projectile);
-        gameEntities.getWorld().addBody(projectile.getBody());
+
+        if (ordinance != null) {
+            // Add projectile to game world (turrets fire projectiles, not beams)
+            if (ordinance instanceof com.fullsteam.model.Projectile projectile) {
+                gameEntities.getProjectiles().put(projectile.getId(), projectile);
+                gameEntities.getWorld().addBody(projectile.getBody());
+            }
+        }
     }
 
     private void acquireTurretTarget(GameEntities gameEntities, Building turret) {

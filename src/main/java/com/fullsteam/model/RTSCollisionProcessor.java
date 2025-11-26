@@ -139,8 +139,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 FieldEffectType.EXPLOSION.getDefaultDuration(),
                 projectile.getOwnerTeam()
         );
-        gameEntities.getFieldEffects().put(effect.getId(), effect);
-        world.addBody(effect.getBody());
+        gameEntities.add(effect);
     }
 
     /**
@@ -163,8 +162,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 FieldEffectType.ELECTRIC.getDefaultDuration(),
                 ordinance.getOwnerTeam()
         );
-        gameEntities.getFieldEffects().put(effect.getId(), effect);
-        world.addBody(effect.getBody());
+        gameEntities.add(effect);
     }
 
     /**

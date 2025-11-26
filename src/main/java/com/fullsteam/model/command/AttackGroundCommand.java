@@ -65,7 +65,7 @@ public class AttackGroundCommand extends UnitCommand {
             if (now - unit.getLastAttackTime() >= attackInterval) {
                 unit.setLastAttackTime(now);
                 // Fire projectile or beam at ground location (world from gameEntities)
-                return unit.fireAt(groundTarget, gameEntities != null ? gameEntities.getWorld() : null);
+                return unit.fireAt(groundTarget, gameEntities );
             }
         }
         return null;

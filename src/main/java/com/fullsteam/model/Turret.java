@@ -1,13 +1,12 @@
 package com.fullsteam.model;
 
+import com.fullsteam.model.weapon.Weapon;
+import com.fullsteam.model.weapon.WeaponFactory;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.geometry.Vector2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * Represents an individual turret on a multi-turret unit (e.g., deployed Crawler).
@@ -17,20 +16,20 @@ import java.util.Set;
 @Setter
 public class Turret {
     private static final Logger log = LoggerFactory.getLogger(Turret.class);
-    private static final double projectileSpeed = 450.0; // Heavy turret projectile speed
 
     private final int index; // Turret index (0-3 for Crawler)
     private final Vector2 offset; // Offset from unit center (relative position)
+    private final Weapon weapon; // The weapon this turret fires
 
     private Unit targetUnit = null;
     private Building targetBuilding = null;
     private double rotation = 0.0; // Turret rotation (independent of unit rotation)
-    private long lastFireTime = 0;
     private long lastTargetAcquisitionFrame = -999; // Track when we last looked for targets
 
-    public Turret(int index, Vector2 offset) {
+    public Turret(int index, Vector2 offset, double damage, double range, double attackRate) {
         this.index = index;
         this.offset = offset;
+        this.weapon = WeaponFactory.getCrawlerTurretWeapon(damage, range, attackRate);
     }
 
     /**
@@ -42,12 +41,12 @@ public class Turret {
 
     /**
      * Update this turret's targeting and firing logic
-     * Returns a projectile if the turret fired, null otherwise
+     * Returns ordinance if the turret fired, null otherwise
      */
-    public Projectile update(Unit parentUnit, GameEntities gameEntities, long frameCount) {
+    public void update(Unit parentUnit, GameEntities gameEntities, long frameCount) {
         Vector2 turretWorldPos = getWorldPosition(parentUnit);
-        double turretRange = parentUnit.getAttackRange();
-        double attackRate = parentUnit.getAttackRate();
+        double turretRange = weapon.getRange();
+        double attackRate = weapon.getAttackRate();
 
         // Clear invalid targets
         if (targetUnit != null && !targetUnit.isActive()) {
@@ -63,11 +62,10 @@ public class Turret {
         }
 
         // Fire at target if in range and cooldown ready
-        if (hasTarget() && canFire(attackRate)) {
-            return fireAtTarget(parentUnit, turretWorldPos, rotation, turretRange);
+        if (hasTarget() && weapon.canFire()) {
+            AbstractOrdinance abstractOrdinance = fireAtTarget(parentUnit, turretWorldPos, gameEntities);
+            gameEntities.add(abstractOrdinance);
         }
-
-        return null;
     }
 
     /**
@@ -129,9 +127,9 @@ public class Turret {
 
     /**
      * Fire at the current target
-     * Returns the projectile created, or null if unable to fire
+     * Returns the ordinance created, or null if unable to fire
      */
-    private Projectile fireAtTarget(Unit parentUnit, Vector2 turretWorldPos, double unitRotation, double turretRange) {
+    private AbstractOrdinance fireAtTarget(Unit parentUnit, Vector2 turretWorldPos, GameEntities gameEntities) {
         Vector2 targetPos = null;
 
         // Use predictive aiming for moving units
@@ -146,6 +144,7 @@ public class Turret {
         }
 
         double distance = turretWorldPos.distance(targetPos);
+        double turretRange = weapon.getRange();
 
         if (distance > turretRange) {
             // Target out of range, clear it
@@ -154,27 +153,38 @@ public class Turret {
         }
 
         // Calculate turret rotation to face target
-        double angleToTarget = Math.atan2(
+        rotation = Math.atan2(
                 targetPos.y - turretWorldPos.y,
                 targetPos.x - turretWorldPos.x
         );
-        rotation = angleToTarget;
 
-        // Create projectile from turret position
-        Projectile projectile = createProjectile(parentUnit, turretWorldPos, angleToTarget);
-        this.lastFireTime = System.currentTimeMillis();
+        // Fire weapon from turret position (weapon handles cooldown tracking)
+        AbstractOrdinance ordinance = weapon.fire(
+                turretWorldPos,
+                targetPos,
+                parentUnit.getId(),
+                parentUnit.getTeamNumber(),
+                parentUnit.getBody(),
+                gameEntities
+        );
 
-        log.debug("Turret {} fired at target (distance: {})", index, distance);
+        if (ordinance != null) {
+            log.debug("Turret {} fired at target (distance: {})", index, distance);
+        }
 
-        return projectile;
+        return ordinance;
     }
 
     /**
      * Calculate intercept point for predictive aiming
+     * Note: Projectile speed is now managed by the weapon, so we estimate based on typical values
      */
     private Vector2 calculateInterceptPoint(Vector2 turretPos, Unit target) {
         Vector2 targetPos = target.getPosition();
         Vector2 targetVelocity = target.getBody().getLinearVelocity();
+
+        // Estimate projectile speed (turrets typically fire at 450 units/sec)
+        double projectileSpeed = 450.0;
 
         // If target is stationary or projectile is very fast, no need to lead
         double targetSpeed = targetVelocity.getMagnitude();
@@ -218,46 +228,6 @@ public class Turret {
         return targetPos.copy().add(targetVelocity.copy().multiply(interceptTime));
     }
 
-    /**
-     * Create a projectile fired from this turret
-     */
-    private Projectile createProjectile(Unit parentUnit, Vector2 turretPos, double angle) {
-        // Calculate velocity from angle and speed
-        double vx = Math.cos(angle) * projectileSpeed;
-        double vy = Math.sin(angle) * projectileSpeed;
-
-        // Use heavy ordinance for Crawler turrets
-        Ordinance ordinance = Ordinance.SHELL;
-
-        // Create bullet effects set
-        Set<BulletEffect> bulletEffects = new HashSet<>();
-        // Turret projectiles are explosive
-        bulletEffects.add(BulletEffect.EXPLOSIVE);
-
-        return new Projectile(
-                turretPos.x,
-                turretPos.y,
-                vx,
-                vy,
-                parentUnit.getDamage(),
-                parentUnit.getAttackRange(), // Max range
-                parentUnit.getId(),
-                parentUnit.getTeamNumber(),
-                0.2, // Linear damping
-                bulletEffects,
-                ordinance,
-                5.0 // Large turret shells (same as Crawler projectile size)
-        );
-    }
-
-    /**
-     * Check if this turret can fire (based on attack rate)
-     */
-    public boolean canFire(double attackRate) {
-        long now = System.currentTimeMillis();
-        double attackCooldown = 1000.0 / attackRate; // Convert attacks/sec to milliseconds
-        return (now - lastFireTime) >= attackCooldown;
-    }
 
     /**
      * Clear the current target

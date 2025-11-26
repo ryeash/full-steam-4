@@ -29,7 +29,7 @@ public class SandstormComponent implements IBuildingComponent {
 
         // Activate sandstorm when conditions are met
         if (shouldBeActive && !wasActiveLastFrame) {
-            activateSandstorm(building);
+            activateSandstorm(gameEntities, building);
         }
 
         // Deactivate sandstorm when conditions are no longer met
@@ -48,7 +48,7 @@ public class SandstormComponent implements IBuildingComponent {
     /**
      * Activate the sandstorm field effect
      */
-    private void activateSandstorm(Building building) {
+    private void activateSandstorm(GameEntities gameEntities, Building building) {
         if (sandstormFieldEffect != null && sandstormFieldEffect.isActive()) {
             return; // Already have an active sandstorm
         }
@@ -63,6 +63,7 @@ public class SandstormComponent implements IBuildingComponent {
                 FieldEffectType.SANDSTORM.getDefaultDuration(),
                 building.getTeamNumber()
         );
+        gameEntities.add(sandstormFieldEffect);
     }
 
     /**
@@ -74,13 +75,6 @@ public class SandstormComponent implements IBuildingComponent {
             log.debug("Deactivated sandstorm field effect {}", sandstormFieldEffect.getId());
             sandstormFieldEffect = null;
         }
-    }
-
-    /**
-     * Check if sandstorm is currently active
-     */
-    public boolean isSandstormActive() {
-        return sandstormFieldEffect != null && sandstormFieldEffect.isActive();
     }
 }
 
