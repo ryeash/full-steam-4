@@ -1,10 +1,11 @@
 package com.fullsteam.controller;
 
 import com.fullsteam.dto.FactionInfoDTO;
-import com.fullsteam.model.factions.Faction;
-import com.fullsteam.model.RTSGameManager;
-import com.fullsteam.model.GameConfig;
 import com.fullsteam.games.FactionInfoService;
+import com.fullsteam.model.GameConfig;
+import com.fullsteam.model.RTSGameManager;
+import com.fullsteam.model.factions.Faction;
+import io.micronaut.context.annotation.Context;
 import io.micronaut.core.io.ResourceResolver;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -13,12 +14,11 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Consumes;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.Produces;
-import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.exceptions.HttpStatusException;
 import io.micronaut.http.server.types.files.StreamedFile;
-import io.micronaut.context.annotation.Context;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import jakarta.validation.Valid;
@@ -45,8 +45,8 @@ public class GameController {
     private final FactionInfoService factionInfoService;
 
     @Inject
-    public GameController(com.fullsteam.RTSLobby rtsLobby, ResourceResolver resourceResolver, 
-                         FactionInfoService factionInfoService) {
+    public GameController(com.fullsteam.RTSLobby rtsLobby, ResourceResolver resourceResolver,
+                          FactionInfoService factionInfoService) {
         this.rtsLobby = rtsLobby;
         this.resourceResolver = resourceResolver;
         this.factionInfoService = factionInfoService;
@@ -63,17 +63,22 @@ public class GameController {
             } else {
                 game = rtsLobby.createGame();
             }
-            
+
             // Create a matchmaking game entry for faction tracking (even for debug games)
-            String factionName = (gameConfig != null && gameConfig.getFaction() != null) 
+            String factionName = (gameConfig != null && gameConfig.getFaction() != null)
                     ? gameConfig.getFaction() : "TERRAN";
-            rtsLobby.createDebugMatchmakingEntry(game.getGameId(), factionName);
-            
+            log.info("DEBUG: Creating debug game with faction: {} (gameConfig={}, gameConfig.getFaction()={})",
+                    factionName, gameConfig, gameConfig != null ? gameConfig.getFaction() : "null");
+            String sessionToken = rtsLobby.createDebugMatchmakingEntry(game.getGameId(), factionName);
+
             // Add AI player for debug games (when called directly, not through matchmaking)
             game.addAIPlayer();
-            
+
+            log.info("DEBUG: Returning gameId={}, sessionToken={}, faction={}",
+                    game.getGameId(), sessionToken, factionName);
             return Map.of(
                     "gameId", game.getGameId(),
+                    "sessionToken", sessionToken,
                     "status", "created"
             );
         } catch (IllegalStateException e) {
@@ -87,7 +92,7 @@ public class GameController {
     public Map<String, Object> getRTSLobby() {
         Map<String, Object> lobbyInfo = new HashMap<>();
         lobbyInfo.put("playerCount", rtsLobby.getGlobalPlayerCount());
-        
+
         List<Map<String, Object>> matchmakingGames = rtsLobby.getMatchmakingGames().stream()
                 .map(game -> {
                     Map<String, Object> gameInfo = new HashMap<>();
@@ -99,7 +104,7 @@ public class GameController {
                     return gameInfo;
                 })
                 .collect(Collectors.toList());
-        
+
         lobbyInfo.put("matchmakingGames", matchmakingGames);
         return lobbyInfo;
     }
@@ -112,7 +117,7 @@ public class GameController {
             String biome = config != null ? config.get("biome") : null;
             String obstacleDensity = config != null ? config.get("obstacleDensity") : null;
             String faction = config != null ? config.get("faction") : null;
-            
+
             Map<String, String> result = rtsLobby.joinMatchmaking(biome, obstacleDensity, faction);
             result.put("status", "joined");
             return result;
@@ -145,7 +150,7 @@ public class GameController {
             throw new HttpStatusException(io.micronaut.http.HttpStatus.NOT_FOUND,
                     "Matchmaking game not found");
         }
-        
+
         Map<String, Object> status = new HashMap<>();
         status.put("gameId", game.getGameId());
         status.put("currentPlayers", game.getCurrentPlayers());
@@ -180,16 +185,16 @@ public class GameController {
             log.info("Fetching faction info for: {}", factionName);
             Faction faction = Faction.valueOf(factionName.toUpperCase());
             FactionInfoDTO result = factionInfoService.getFactionInfo(faction);
-            log.info("Returning faction info with {} units and {} buildings", 
-                    result.getAvailableUnits().size(), 
+            log.info("Returning faction info with {} units and {} buildings",
+                    result.getAvailableUnits().size(),
                     result.getAvailableBuildings().size());
-            
+
             // Log HEADQUARTERS specifically
             result.getAvailableBuildings().stream()
-                .filter(b -> "HEADQUARTERS".equals(b.getBuildingType()))
-                .findFirst()
-                .ifPresent(hq -> log.info("HEADQUARTERS produces: {}", hq.getProducedUnits()));
-            
+                    .filter(b -> "HEADQUARTERS".equals(b.getBuildingType()))
+                    .findFirst()
+                    .ifPresent(hq -> log.info("HEADQUARTERS produces: {}", hq.getProducedUnits()));
+
             return result;
         } catch (IllegalArgumentException e) {
             throw new HttpStatusException(io.micronaut.http.HttpStatus.NOT_FOUND,

@@ -55,11 +55,9 @@ public class ProductionComponent implements IBuildingComponent {
 
             // Check if production is complete
             if (productionProgress >= currentProduction.unitType.getBuildTimeSeconds()) {
-
-                UnitType unitType = building.getCompletedUnitType();
-                if (unitType == null) {
-                    return;
-                }
+                UnitType unitType = currentProduction.unitType;
+                currentProduction = null;
+                productionProgress = 0;
 
                 // Create unit
                 Unit unit = new Unit(
@@ -140,32 +138,6 @@ public class ProductionComponent implements IBuildingComponent {
      */
     public int getProductionQueueSize() {
         return productionQueue.size();
-    }
-
-    /**
-     * Check if a unit is ready to be spawned.
-     *
-     * @return true if production is complete and ready to spawn
-     */
-    public boolean hasCompletedUnit() {
-        return currentProduction != null &&
-                productionProgress >= currentProduction.unitType.getBuildTimeSeconds();
-    }
-
-    /**
-     * Get the completed unit type and clear production.
-     * This method consumes the completed production.
-     *
-     * @return The completed unit type, or null if no production complete
-     */
-    public UnitType getCompletedUnitType() {
-        if (hasCompletedUnit()) {
-            UnitType completed = currentProduction.unitType;
-            currentProduction = null;
-            productionProgress = 0;
-            return completed;
-        }
-        return null;
     }
 
     /**

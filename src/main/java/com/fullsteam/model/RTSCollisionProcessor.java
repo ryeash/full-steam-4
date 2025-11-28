@@ -420,7 +420,8 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 // Check if projectile originated inside this shield
                 Vector2 projectileOrigin = projectile.getOrigin();
                 boolean originatedInShield = shieldBuilding.getComponent(ShieldComponent.class)
-                        .isPositionInside(projectileOrigin, shieldBuilding);
+                        .map(s -> s.isPositionInside(projectileOrigin, shieldBuilding))
+                        .orElse(false);
 
                 if (originatedInShield) {
                     return false; // Allow projectiles fired from inside the shield to exit

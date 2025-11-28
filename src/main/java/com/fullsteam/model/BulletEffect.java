@@ -8,7 +8,6 @@ public enum BulletEffect {
     PIERCING,
     INCENDIARY,
     BOUNCING,
-    SEEKING,
     TOXIC,
     FREEZING,
     ELECTRIC

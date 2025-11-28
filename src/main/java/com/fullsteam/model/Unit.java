@@ -68,9 +68,13 @@ public class Unit extends GameEntity {
     private Weapon weapon; // The weapon this unit fires (null for non-combat units)
 
     // Combat (kept for backward compatibility and stat tracking)
+    @Deprecated
     private long lastAttackTime = 0;
+    @Deprecated
     private double attackRange;
+    @Deprecated
     private double damage;
+    @Deprecated
     private double attackRate;
 
     // Vision

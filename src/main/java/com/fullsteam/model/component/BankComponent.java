@@ -2,6 +2,9 @@ package com.fullsteam.model.component;
 
 import com.fullsteam.model.Building;
 import com.fullsteam.model.GameEntities;
+import com.fullsteam.model.GameEvent;
+import com.fullsteam.model.PlayerFaction;
+import com.fullsteam.model.ResourceType;
 import lombok.Getter;
 
 /**
@@ -16,7 +19,7 @@ public class BankComponent implements IBuildingComponent {
     private static final double DEFAULT_INTEREST_INTERVAL = 30.0; // Pay interest every 30 seconds
     private static final double DEFAULT_INTEREST_RATE = 0.02; // 2% interest per interval
 
-    private double interestTimer = 0; // Time accumulator for interest payments
+    private long lastInterestPayout = Long.MAX_VALUE;
     private final double interestInterval;
     private final double interestRate;
 
@@ -45,39 +48,29 @@ public class BankComponent implements IBuildingComponent {
             return;
         }
 
-        // Accumulate interest timer
-        interestTimer += gameEntities.getWorld().getTimeStep().getDeltaTime();
-    }
-
-    /**
-     * Check if bank is ready to pay interest and reset timer if so.
-     *
-     * @return The interest rate to apply (0.0 if not ready)
-     */
-    public double checkAndResetInterest() {
-        if (interestTimer >= interestInterval) {
-            interestTimer = 0;
-            return interestRate;
+        if (System.currentTimeMillis() >= lastInterestPayout + (long) (interestInterval * 1000D)) {
+            lastInterestPayout = System.currentTimeMillis();
+            PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
+            int currentCredits = faction.getResourceAmount(ResourceType.CREDITS);
+            int interest = (int) Math.round(currentCredits * interestRate);
+            if (interest > 0) {
+                faction.addResources(ResourceType.CREDITS, interest);
+                // Notify player of interest payment (only if significant - 50+ credits)
+                if (interest >= 50) {
+                    gameEntities.getGameEventSender()
+                            .accept(GameEvent.createPlayerEvent(
+                                    "💰 Bank paid +" + interest + " credits interest",
+                                    faction.getPlayerId(),
+                                    GameEvent.EventCategory.INFO
+                            ));
+                }
+            }
         }
-        return 0.0;
     }
 
-    /**
-     * Get the progress towards next interest payment as a percentage (0.0 to 1.0).
-     *
-     * @return Interest timer progress
-     */
-    public double getInterestProgress() {
-        return Math.min(1.0, interestTimer / interestInterval);
-    }
-
-    /**
-     * Get the time remaining until next interest payment.
-     *
-     * @return Time in seconds until next interest payment
-     */
-    public double getTimeUntilNextInterest() {
-        return Math.max(0, interestInterval - interestTimer);
+    @Override
+    public void onConstructionComplete(Building building) {
+        lastInterestPayout = System.currentTimeMillis();
     }
 }
 

@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -104,6 +105,7 @@ public class RTSLobby {
      */
     public synchronized Map<String, String> joinMatchmaking(String biome, String obstacleDensity, String faction) {
         // Try to find an existing game waiting for players
+        Map<String, String> map = new HashMap<>();
         MatchmakingGame availableGame = matchmakingGames.values().stream()
                 .filter(game -> game.getCurrentPlayers() < game.getMaxPlayers())
                 .findFirst()
@@ -115,10 +117,9 @@ public class RTSLobby {
                 log.info("Player joined existing matchmaking game: {}, players: {}/{}, faction: {}, session: {}",
                         availableGame.getGameId(), availableGame.getCurrentPlayers(),
                         availableGame.getMaxPlayers(), faction, sessionToken);
-                return Map.of(
-                        "gameId", availableGame.getGameId(),
-                        "sessionToken", sessionToken
-                );
+                map.put("gameId", availableGame.getGameId());
+                map.put("sessionToken", sessionToken);
+                return map;
             }
         }
 
@@ -158,10 +159,9 @@ public class RTSLobby {
 
         log.info("Created new matchmaking game: {} with biome {}, density {}, faction {}, session: {}",
                 game.getGameId(), selectedBiome, selectedDensity, faction, sessionToken);
-        return Map.of(
-                "gameId", game.getGameId(),
-                "sessionToken", sessionToken
-        );
+        map.put("gameId", game.getGameId());
+        map.put("sessionToken", sessionToken);
+        return map;
     }
 
     /**
@@ -207,12 +207,16 @@ public class RTSLobby {
 
     /**
      * Create a matchmaking entry for a debug game (to track faction selection)
+     *
+     * @return The session token for the player
      */
-    public void createDebugMatchmakingEntry(String gameId, String faction) {
+    public String createDebugMatchmakingEntry(String gameId, String faction) {
         MatchmakingGame matchmakingGame = new MatchmakingGame(gameId, 1); // Single player debug game
-        matchmakingGame.incrementPlayers(faction);
+        String sessionToken = matchmakingGame.reserveSlot(faction);
         matchmakingGames.put(gameId, matchmakingGame);
-        log.info("Created debug matchmaking entry for game {} with faction {}", gameId, faction);
+        log.info("Created debug matchmaking entry for game {} with faction {} and session token {}",
+                gameId, faction, sessionToken);
+        return sessionToken;
     }
 
     /**

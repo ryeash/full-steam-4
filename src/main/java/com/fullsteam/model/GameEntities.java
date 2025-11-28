@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -30,12 +31,14 @@ public class GameEntities {
     private final Map<Integer, Projectile> projectiles;
     private final Map<Integer, Beam> beams;
     private final Map<Integer, FieldEffect> fieldEffects;
+    private final Consumer<GameEvent> gameEventSender;
 
     @Setter
     private World<Body> world; // The physics world (for raycasting, etc.)
 
-    public GameEntities(GameConfig gameConfig) {
+    public GameEntities(GameConfig gameConfig, Consumer<GameEvent> gameEventSender) {
         this.gameConfig = gameConfig;
+        this.gameEventSender = gameEventSender;
         this.playerFactions = new ConcurrentSkipListMap<>();
         this.units = new ConcurrentSkipListMap<>();
         this.buildings = new ConcurrentSkipListMap<>();
@@ -65,6 +68,7 @@ public class GameEntities {
             projectiles.put(p.getId(), p);
         } else if (e instanceof Beam b) {
             beams.put(b.getId(), b);
+            createBeamFieldEffects(b);
         } else if (e instanceof FieldEffect fe) {
             fieldEffects.put(fe.getId(), fe);
         }
@@ -77,108 +81,6 @@ public class GameEntities {
         }
 
         world.addBody(e.getBody());
-    }
-
-    /**
-     * Get all active units as a list
-     */
-    public List<Unit> getAllUnits() {
-        return new ArrayList<>(units.values());
-    }
-
-    /**
-     * Get all active buildings as a list
-     */
-    public List<Building> getAllBuildings() {
-        return new ArrayList<>(buildings.values());
-    }
-
-    /**
-     * Get all active obstacles as a list
-     */
-    public List<Obstacle> getAllObstacles() {
-        return new ArrayList<>(obstacles.values());
-    }
-
-    /**
-     * Get all active resource deposits as a list
-     */
-    public List<ResourceDeposit> getAllResourceDeposits() {
-        return new ArrayList<>(resourceDeposits.values());
-    }
-
-    /**
-     * Get all active wall segments as a list
-     */
-    public List<WallSegment> getAllWallSegments() {
-        return new ArrayList<>(wallSegments.values());
-    }
-
-    /**
-     * Get enemy units for a given team
-     */
-    public List<Unit> getEnemyUnits(int teamNumber) {
-        return units.values().stream()
-                .filter(u -> u.getTeamNumber() != teamNumber && u.isActive())
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get enemy buildings for a given team
-     */
-    public List<Building> getEnemyBuildings(int teamNumber) {
-        return buildings.values().stream()
-                .filter(b -> b.getTeamNumber() != teamNumber && b.isActive())
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get friendly units for a given team
-     */
-    public List<Unit> getFriendlyUnits(int teamNumber) {
-        return units.values().stream()
-                .filter(u -> u.getTeamNumber() == teamNumber && u.isActive())
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get friendly buildings for a given team
-     */
-    public List<Building> getFriendlyBuildings(int teamNumber) {
-        return buildings.values().stream()
-                .filter(b -> b.getTeamNumber() == teamNumber && b.isActive())
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get nearby units within a certain range
-     */
-    public List<Unit> getNearbyUnits(Vector2 position, double range) {
-        return units.values().stream()
-                .filter(u -> u.isActive() && u.getPosition().distance(position) <= range)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get nearby enemy units within a certain range
-     */
-    public List<Unit> getNearbyEnemyUnits(Vector2 position, double range, int teamNumber) {
-        return units.values().stream()
-                .filter(u -> u.isActive() &&
-                        u.getTeamNumber() != teamNumber &&
-                        u.getPosition().distance(position) <= range)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get nearby enemy buildings within a certain range
-     */
-    public List<Building> getNearbyEnemyBuildings(Vector2 position, double range, int teamNumber) {
-        return buildings.values().stream()
-                .filter(b -> b.isActive() &&
-                        b.getTeamNumber() != teamNumber &&
-                        b.getPosition().distance(position) <= range)
-                .collect(Collectors.toList());
     }
 
     /**
@@ -203,40 +105,30 @@ public class GameEntities {
                 .orElse(null);
     }
 
-    /**
-     * Find nearest resource deposit to a position
-     */
-    public ResourceDeposit findNearestResourceDeposit(Vector2 position, ResourceType resourceType) {
-        return resourceDeposits.values().stream()
-                .filter(rd -> rd.isActive() && rd.getResourceType() == resourceType)
-                .min(Comparator.comparingDouble(rd -> rd.getPosition().distance(position)))
-                .orElse(null);
-    }
+    private void createBeamFieldEffects(Beam beam) {
+        for (BulletEffect bulletEffect : beam.getBulletEffects()) {
+            switch (bulletEffect) {
+                case ELECTRIC -> {
+                    Vector2 hitPosition = beam.getEndPosition(); // Where the beam ended (hit or max range)
+                    double electricDamage = beam.getDamage() * 0.3; // 30% of beam damage per second
+                    double electricRadius = 40.0; // Fixed radius for beam electric fields
 
-    /**
-     * Find nearest refinery for a team
-     */
-    public Building findNearestRefinery(Vector2 position, int teamNumber) {
-        return buildings.values().stream()
-                .filter(b -> b.isActive() &&
-                        b.getTeamNumber() == teamNumber &&
-                        b.getBuildingType() == BuildingType.REFINERY &&
-                        !b.isUnderConstruction())
-                .min(Comparator.comparingDouble(b -> b.getPosition().distance(position)))
-                .orElse(null);
-    }
+                    FieldEffect electricField = new FieldEffect(
+                            beam.getOwnerId(),
+                            FieldEffectType.ELECTRIC,
+                            hitPosition,
+                            electricRadius,
+                            electricDamage,
+                            FieldEffectType.ELECTRIC.getDefaultDuration(),
+                            beam.getOwnerTeam()
+                    );
 
-    /**
-     * Find nearest headquarters for a team
-     */
-    public Building findNearestHeadquarters(Vector2 position, int teamNumber) {
-        return buildings.values().stream()
-                .filter(b -> b.isActive() &&
-                        b.getTeamNumber() == teamNumber &&
-                        b.getBuildingType() == BuildingType.HEADQUARTERS &&
-                        !b.isUnderConstruction())
-                .min(Comparator.comparingDouble(b -> b.getPosition().distance(position)))
-                .orElse(null);
+                    fieldEffects.put(electricField.getId(), electricField);
+                    world.addBody(electricField.getBody());
+                }
+                default -> throw new UnsupportedOperationException("unsupported beam effect: " + bulletEffect);
+            }
+        }
     }
 }
 

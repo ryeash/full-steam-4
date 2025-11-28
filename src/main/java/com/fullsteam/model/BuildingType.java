@@ -177,7 +177,7 @@ public enum BuildingType {
             4,       // sides (rectangle)
             0x556B2F, // dark olive green
             false,   // cannot produce units
-            6,       // can garrison 6 infantry units
+            // can garrison 6 infantry units
             -15,     // power consumption
             420.0    // vision range (excellent, defensive structure)
     ),
@@ -206,7 +206,7 @@ public enum BuildingType {
             8,       // sides (octagon)
             0xFFD700, // gold
             false,   // cannot produce units
-            0,       // no garrison capacity
+            // no garrison capacity
             -30,     // power consumption
             350.0    // vision range (moderate, economic building)
     ),
@@ -277,17 +277,11 @@ public enum BuildingType {
     private final int sides; // number of sides for polygon rendering
     private final int color; // hex color for rendering
     private final boolean canProduceUnits;
-    private final int garrisonCapacity; // Number of units that can garrison (0 = no garrison)
     private final int powerValue; // Power generation (positive) or consumption (negative)
     private final double visionRange; // vision radius for fog of war
 
     BuildingType(String displayName, int resourceCost, int buildTimeSeconds, double maxHealth,
                  double size, int sides, int color, boolean canProduceUnits, int powerValue, double visionRange) {
-        this(displayName, resourceCost, buildTimeSeconds, maxHealth, size, sides, color, canProduceUnits, 0, powerValue, visionRange);
-    }
-
-    BuildingType(String displayName, int resourceCost, int buildTimeSeconds, double maxHealth,
-                 double size, int sides, int color, boolean canProduceUnits, int garrisonCapacity, int powerValue, double visionRange) {
         this.displayName = displayName;
         this.resourceCost = resourceCost;
         this.buildTimeSeconds = buildTimeSeconds;
@@ -296,7 +290,6 @@ public enum BuildingType {
         this.sides = sides;
         this.color = color;
         this.canProduceUnits = canProduceUnits;
-        this.garrisonCapacity = garrisonCapacity;
         this.powerValue = powerValue;
         this.visionRange = visionRange;
     }

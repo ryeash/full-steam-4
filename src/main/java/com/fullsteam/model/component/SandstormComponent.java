@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Getter
+// TODO: this could be turned into a generic "AuraComponent"
 public class SandstormComponent implements IBuildingComponent {
     private static final double SANDSTORM_RADIUS = 300.0; // Sandstorm damage radius
     private static final double SANDSTORM_DPS = 15.0; // Damage per second (continuous)

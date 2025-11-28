@@ -1182,51 +1182,6 @@ class RTSEngine {
             }
         }
         
-        // Update aura visualization for monuments
-        // Monument aura rendering (non-damage effects only)
-        // Note: Sandstorm Generator damage is now rendered as a field effect, not an aura
-        const monumentTypes = {
-            'PHOTON_SPIRE': { radius: 250, color: 0x00FF00 },
-            'QUANTUM_NEXUS': { radius: 280, color: 0x9370DB }
-        };
-        
-        if (monumentTypes[buildingData.type]) {
-            if (!buildingContainer.auraGraphics) {
-                const auraGraphics = new PIXI.Graphics();
-                buildingContainer.addChild(auraGraphics);
-                buildingContainer.auraGraphics = auraGraphics;
-            }
-            
-            const aura = buildingContainer.auraGraphics;
-            aura.clear();
-            
-            // Only show aura if active and not under construction
-            if (buildingData.auraActive && !buildingData.underConstruction) {
-                const monumentInfo = monumentTypes[buildingData.type];
-                
-                // Standard pulsing effect for monuments
-                const pulseSpeed = 2.0;
-                const pulseAmount = 0.15;
-                const pulse = Math.sin(Date.now() / 1000 * pulseSpeed) * pulseAmount + 1.0;
-                
-                aura.circle(0, 0, monumentInfo.radius);
-                aura.stroke({ width: 2, color: monumentInfo.color, alpha: 0.2 * pulse });
-                aura.fill({ color: monumentInfo.color, alpha: 0.03 * pulse });
-                
-                // Add glow to the building itself
-                if (buildingContainer.shapeGraphics) {
-                    buildingContainer.shapeGraphics.filters = buildingContainer.shapeGraphics.filters || [];
-                    // Simple glow by adding a slight alpha overlay
-                    buildingContainer.alpha = 0.9 + (0.1 * pulse);
-                }
-            } else {
-                // Reset alpha when inactive
-                if (buildingContainer.shapeGraphics) {
-                    buildingContainer.alpha = 1.0;
-                }
-            }
-        }
-        
         // Update garrison label (for bunkers)
         if (buildingContainer.garrisonLabel) {
             if (buildingData.garrisonCount > 0) {

@@ -73,7 +73,7 @@ public class ShieldComponent implements IBuildingComponent {
      *
      * @param building The building this shield is attached to
      */
-    public void activate(Building building) {
+    private void activate(Building building) {
         if (sensorBody != null) {
             return;
         }
@@ -91,7 +91,7 @@ public class ShieldComponent implements IBuildingComponent {
     /**
      * Deactivate the shield.
      */
-    public void deactivate() {
+    private void deactivate() {
         if (sensorBody == null) {
             return;
         }
@@ -112,13 +112,6 @@ public class ShieldComponent implements IBuildingComponent {
         }
         double distance = building.getPosition().distance(position);
         return distance <= radius;
-    }
-
-    /**
-     * Check if the shield is active
-     */
-    public boolean isShieldActive() {
-        return sensorBody != null; // No shield component
     }
 }
 

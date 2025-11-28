@@ -130,7 +130,7 @@ public class RTSGameManager {
         this.objectMapper = objectMapper;
         this.gameStartTime = System.currentTimeMillis();
 
-        this.gameEntities = new GameEntities(gameConfig);
+        this.gameEntities = new GameEntities(gameConfig, this::sendGameEvent);
         this.units = gameEntities.getUnits();
         this.buildings = gameEntities.getBuildings();
         this.resourceDeposits = gameEntities.getResourceDeposits();
@@ -558,84 +558,6 @@ public class RTSGameManager {
                     if (building.getBuildingType() == BuildingType.WALL) {
                         createWallSegments(building);
                         log.debug("Wall post {} construction completed, creating wall segments", building.getId());
-                    }
-
-                    // Create aura sensor body for monument building
-                    if (building.isMonument()) {
-                        Body auraSensor = building.createAuraSensorBody();
-                        if (auraSensor != null) {
-                            building.setAuraSensorBody(auraSensor);
-                            world.addBody(auraSensor);
-                            log.debug("Monument {} construction completed, aura sensor body created", building.getId());
-                        }
-                    }
-                }
-
-                // Check if Bank is ready to pay interest
-                if (building.getBuildingType() == BuildingType.BANK && faction != null) {
-                    double interestRate = building.checkAndResetBankInterest();
-                    if (interestRate > 0) {
-                        int currentCredits = faction.getResourceAmount(ResourceType.CREDITS);
-                        int interest = (int) Math.round(currentCredits * interestRate);
-                        if (interest > 0) {
-                            faction.addResources(ResourceType.CREDITS, interest);
-                            log.info("Bank {} paid {} credits interest to player {} ({}% of {} credits)",
-                                    building.getId(), interest, building.getOwnerId(),
-                                    (int) (interestRate * 100), currentCredits);
-
-                            // Notify player of interest payment (only if significant - 50+ credits)
-                            if (interest >= 50) {
-                                sendGameEvent(GameEvent.createPlayerEvent(
-                                        "💰 Bank paid +" + interest + " credits interest",
-                                        faction.getPlayerId(),
-                                        GameEvent.EventCategory.INFO
-                                ));
-                            }
-                        }
-                    }
-                }
-
-                // Update Photon Spire targeting and firing (monument with attack capability)
-                if (building.getBuildingType() == BuildingType.PHOTON_SPIRE && !building.isUnderConstruction() && !hasLowPower) {
-                    // Clear invalid targets (dead or too far away)
-                    if (building.getTargetUnit() != null) {
-                        Unit target = building.getTargetUnit();
-                        if (!target.isActive()) {
-                            building.setTargetUnit(null);
-                        } else {
-                            // Check if target escaped (beyond 2x range)
-                            double distance = building.getPosition().distance(target.getPosition());
-                            double spireRange = building.getPhotonSpireRange();
-                            if (distance > spireRange * 2.0) {
-                                building.setTargetUnit(null); // Target escaped
-                            }
-                        }
-                    }
-
-                    // Acquire new target if needed (every 30 frames)
-                    if (building.getTargetUnit() == null && frameCount % 30 == 0) {
-                        acquirePhotonSpireTarget(building);
-                    }
-
-                    // Check if Photon Spire fired a beam
-                    Beam beam = building.updatePhotonSpireBehavior(deltaTime, gameEntities);
-                    gameEntities.add(beam);
-                    if (beam != null) {
-                        // TODO: handle all potential bullet effects
-                        createBeamElectricField(beam);
-                    }
-                }
-
-                // Update bunker firing (only if construction is complete and has garrisoned units)
-                // Each garrisoned unit independently acquires targets and fires
-                if (building.getBuildingType() == BuildingType.BUNKER && !building.isUnderConstruction() && building.getGarrisonCount() > 0) {
-                    // Fire weapons from garrisoned units (they handle their own target acquisition)
-                    List<AbstractOrdinance> bunkerOrdinances = building.fireBunkerWeapons(gameEntities);
-                    for (AbstractOrdinance ordinance : bunkerOrdinances) {
-                        gameEntities.add(ordinance);
-                        if (ordinance instanceof Beam beam) {
-                            createBeamElectricField(beam);
-                        }
                     }
                 }
             });
@@ -1414,30 +1336,6 @@ public class RTSGameManager {
     }
 
     /**
-     * Acquire target for Photon Spire - prioritizes highest health enemies
-     */
-    private void acquirePhotonSpireTarget(Building spire) {
-        Vector2 spirePos = spire.getPosition();
-        double range = spire.getPhotonSpireRange();
-
-        // Find enemy unit with highest health in range
-        Unit highestHealthEnemy = null;
-        double highestHealth = 0;
-
-        for (Unit unit : units.values()) {
-            if (unit.isActive() && unit.getTeamNumber() != spire.getTeamNumber()) {
-                double distance = spirePos.distance(unit.getPosition());
-                if (distance <= range && unit.getHealth() > highestHealth) {
-                    highestHealthEnemy = unit;
-                    highestHealth = unit.getHealth();
-                }
-            }
-        }
-
-        spire.setTargetUnit(highestHealthEnemy);
-    }
-
-    /**
      * Check if a projectile is explosive (creates explosions)
      */
     private boolean isExplosiveProjectile(Projectile projectile) {
@@ -1779,10 +1677,8 @@ public class RTSGameManager {
                 if (unit.getAndroidFactoryId() != null) {
                     Building factory = buildings.get(unit.getAndroidFactoryId());
                     if (factory != null && factory.isActive()) {
-                        AndroidFactoryComponent androidComp = factory.getComponent(AndroidFactoryComponent.class);
-                        if (androidComp != null) {
-                            androidComp.unregisterAndroid(unit.getId());
-                        }
+                        factory.getComponent(AndroidFactoryComponent.class)
+                                .ifPresent(a -> a.unregisterAndroid(unit.getId()));
                     }
                 }
 
@@ -1894,12 +1790,6 @@ public class RTSGameManager {
                             world.addBody(unit.getBody());
                         }
                     }
-                }
-
-                // Remove aura sensor body for monuments
-                if (building.isMonument() && building.getAuraSensorBody() != null) {
-                    world.removeBody(building.getAuraSensorBody());
-                    log.debug("Removed aura sensor body for monument {}", building.getId());
                 }
 
                 // Call onDestroy for all components (handles sandstorm cleanup, etc.)
@@ -2288,19 +2178,13 @@ public class RTSGameManager {
         }
 
         // Shield state (for Shield Generator buildings)
-        if (building.getBuildingType() == BuildingType.SHIELD_GENERATOR) {
-            ShieldComponent component = building.getComponent(ShieldComponent.class);
-            data.put("shieldActive", component.getSensorBody() != null);
-            data.put("shieldRadius", component.getSensorBody() != null ?
-                    component.getSensorBody().getFixture(0).getShape().getRadius()
-                    : 0);
-        }
-
-        // Aura state (for monument buildings)
-        if (building.isMonument()) {
-            data.put("auraActive", building.isAuraActive());
-            data.put("auraRadius", building.getAuraRadius());
-        }
+        building.getComponent(ShieldComponent.class)
+                .ifPresent(component -> {
+                    data.put("shieldActive", component.getSensorBody() != null);
+                    data.put("shieldRadius", component.getSensorBody() != null ?
+                            component.getSensorBody().getFixture(0).getShape().getRadius()
+                            : 0);
+                });
 
         // Garrison state (for Bunker)
         if (building.getBuildingType() == BuildingType.BUNKER) {
@@ -2575,12 +2459,17 @@ public class RTSGameManager {
 
         // Parse faction (default to TERRAN if invalid)
         Faction selectedFaction = Faction.TERRAN;
+        log.info("DEBUG: addPlayer called with factionName={}", factionName);
         if (factionName != null) {
             try {
                 selectedFaction = Faction.valueOf(factionName);
+                log.info("DEBUG: Successfully parsed faction: {}", selectedFaction);
             } catch (IllegalArgumentException e) {
-                log.warn("Invalid faction '{}', defaulting to TERRAN", factionName);
+                log.warn("DEBUG: Invalid faction '{}', defaulting to TERRAN. Valid values: {}",
+                        factionName, java.util.Arrays.toString(Faction.values()));
             }
+        } else {
+            log.warn("DEBUG: factionName is null, defaulting to TERRAN");
         }
 
         // Create faction with selected faction type
@@ -2592,7 +2481,7 @@ public class RTSGameManager {
         );
         playerFactions.put(playerSession.getPlayerId(), faction);
 
-        log.info("Created PlayerFaction for player {}: faction={}, factionDefinition={}",
+        log.info("DEBUG: Created PlayerFaction for player {}: faction={}, factionDefinition={}",
                 playerSession.getPlayerId(), faction.getFaction(), faction.getFactionDefinition() != null);
 
         // Create starting base
