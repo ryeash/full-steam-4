@@ -7,6 +7,7 @@ import com.fullsteam.model.PlayerFaction;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.UnitType;
 import com.fullsteam.model.command.MoveCommand;
+import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.dyn4j.geometry.Vector2;
@@ -31,7 +32,7 @@ public class AndroidFactoryComponent implements IBuildingComponent {
     private final Set<Integer> controlledAndroidIds = new HashSet<>();
     private double productionProgress = 0; // seconds
     private boolean producingAndroid = false;
-    private Unit completedAndroid = null; // Holds completed android ready to spawn
+    private ResearchModifier modifier = new ResearchModifier();
     private GameEntities gameEntities;
 
     @Override
@@ -62,14 +63,15 @@ public class AndroidFactoryComponent implements IBuildingComponent {
             productionProgress += deltaTime;
 
             // Check if production is complete
-            if (productionProgress >= ANDROID_TYPE.getBuildTimeSeconds() && completedAndroid == null) {
+            if ((productionProgress * modifier.getProductionSpeedMultiplier()) >= ANDROID_TYPE.getBuildTimeSeconds()) {
                 // Spawn the android
                 Vector2 spawnPos = findSpawnPosition(building);
 
                 Unit android = new Unit(
                         IdGenerator.nextEntityId(),
                         ANDROID_TYPE,
-                        spawnPos.x, spawnPos.y,
+                        spawnPos.x,
+                        spawnPos.y,
                         building.getOwnerId(),
                         building.getTeamNumber()
                 );
@@ -79,9 +81,6 @@ public class AndroidFactoryComponent implements IBuildingComponent {
 
                 // Register android with factory
                 registerAndroid(android.getId());
-
-                // Store completed android for RTSGameManager to add to world
-                completedAndroid = android;
 
                 // Reset production state
                 producingAndroid = false;
@@ -145,6 +144,11 @@ public class AndroidFactoryComponent implements IBuildingComponent {
         }
     }
 
+    @Override
+    public void applyResearchModifiers(ResearchModifier modifier) {
+        this.modifier = modifier;
+    }
+
     /**
      * Register an android as controlled by this factory.
      *
@@ -174,7 +178,7 @@ public class AndroidFactoryComponent implements IBuildingComponent {
         if (!producingAndroid) {
             return 0.0;
         }
-        return Math.min(1.0, productionProgress / ANDROID_TYPE.getBuildTimeSeconds());
+        return Math.min(1.0, productionProgress / (ANDROID_TYPE.getBuildTimeSeconds() * modifier.getProductionSpeedMultiplier()));
     }
 }
 

@@ -8,6 +8,7 @@ import com.fullsteam.model.RTSCollisionProcessor;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.UnitType;
 import com.fullsteam.model.command.MoveCommand;
+import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.dyn4j.geometry.Vector2;
@@ -26,6 +27,7 @@ import java.util.Queue;
 @Getter
 public class ProductionComponent implements IBuildingComponent {
     private final Queue<ProductionOrder> productionQueue = new LinkedList<>();
+    private ResearchModifier researchModifier = new ResearchModifier();
     private ProductionOrder currentProduction = null;
     private double productionProgress = 0; // seconds
     private Vector2 rallyPoint;
@@ -54,7 +56,7 @@ public class ProductionComponent implements IBuildingComponent {
             productionProgress += deltaTime;
 
             // Check if production is complete
-            if (productionProgress >= currentProduction.unitType.getBuildTimeSeconds()) {
+            if ((productionProgress * researchModifier.getProductionSpeedMultiplier()) >= currentProduction.unitType.getBuildTimeSeconds()) {
                 UnitType unitType = currentProduction.unitType;
                 currentProduction = null;
                 productionProgress = 0;
@@ -90,6 +92,11 @@ public class ProductionComponent implements IBuildingComponent {
             // Production is paused due to low power
             log.debug("Building {} production paused due to LOW POWER", building.getId());
         }
+    }
+
+    @Override
+    public void applyResearchModifiers(ResearchModifier modifier) {
+        this.researchModifier = modifier;
     }
 
     /**

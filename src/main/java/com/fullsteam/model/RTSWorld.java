@@ -1,9 +1,11 @@
 package com.fullsteam.model;
 
+import com.fullsteam.games.IdGenerator;
 import lombok.Getter;
 import org.dyn4j.geometry.Vector2;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
@@ -28,6 +30,9 @@ public class RTSWorld {
 
     // Obstacles (90-degree symmetric placement)
     private final List<ObstacleSpawn> obstacleSpawns;
+
+    private final List<ResourceDeposit> resourceDeposits = new LinkedList<>();
+    private final List<Obstacle> obstacles = new LinkedList<>();
 
     // World bounds
     private final double minX;
@@ -586,6 +591,117 @@ public class RTSWorld {
 
         return vertices;
     }
+
+    /**
+     * Place resource deposits from RTSWorld symmetric layout
+     */
+    public void placeResourceDeposits() {
+        for (RTSWorld.ResourceDepositSpawn spawn : getResourceSpawns()) {
+            ResourceDeposit deposit = new ResourceDeposit(
+                    IdGenerator.nextEntityId(),
+                    ResourceType.CREDITS,
+                    spawn.getPosition().x,
+                    spawn.getPosition().y,
+                    spawn.getResources()
+            );
+            resourceDeposits.add(deposit);
+        }
+    }
+
+    /**
+     * Place obstacles from RTSWorld symmetric layout
+     */
+    public void placeObstacles() {
+        Random random = new Random();
+
+        for (RTSWorld.ObstacleSpawn spawn : getObstacleSpawns()) {
+            Obstacle obstacle;
+
+            // 40% chance of being destructible (mineable)
+            boolean destructible = random.nextDouble() < 0.4;
+
+            // Create obstacle based on shape type
+            if (spawn.getShape() == Obstacle.Shape.IRREGULAR_POLYGON) {
+                // Irregular polygon obstacle (custom vertices)
+                obstacle = new Obstacle(
+                        IdGenerator.nextEntityId(),
+                        spawn.getPosition().x,
+                        spawn.getPosition().y,
+                        spawn.getVertices(),
+                        destructible
+                );
+            } else if (spawn.getShape() == Obstacle.Shape.POLYGON) {
+                // Regular polygon obstacle
+                obstacle = new Obstacle(
+                        IdGenerator.nextEntityId(),
+                        spawn.getPosition().x,
+                        spawn.getPosition().y,
+                        spawn.getSize(),
+                        spawn.getSides(),
+                        destructible
+                );
+            } else {
+                // Circle obstacle (default)
+                obstacle = new Obstacle(
+                        IdGenerator.nextEntityId(),
+                        spawn.getPosition().x,
+                        spawn.getPosition().y,
+                        spawn.getSize(),
+                        destructible
+                );
+            }
+            obstacles.add(obstacle);
+        }
+    }
+
+    /**
+     * Create world boundaries
+     */
+    public void createWorldBoundaries() {
+        // Create rectangular obstacle walls around the world perimeter
+        double wallThickness = 50.0; // Thickness of boundary walls
+
+        // Top wall (horizontal rectangle)
+        Obstacle topWall = new Obstacle(
+                IdGenerator.nextEntityId(),
+                0, // centered horizontally
+                height / 2 - wallThickness / 2,
+                width, // full width
+                wallThickness // thin height
+        );
+        obstacles.add(topWall);
+
+        // Bottom wall (horizontal rectangle)
+        Obstacle bottomWall = new Obstacle(
+                IdGenerator.nextEntityId(),
+                0,
+                -height / 2 + wallThickness / 2,
+                width,
+                wallThickness
+        );
+        obstacles.add(bottomWall);
+
+        // Left wall (vertical rectangle)
+        Obstacle leftWall = new Obstacle(
+                IdGenerator.nextEntityId(),
+                -width / 2 + wallThickness / 2,
+                0, // centered vertically
+                wallThickness, // thin width
+                height // full height
+        );
+        obstacles.add(leftWall);
+
+        // Right wall (vertical rectangle)
+        Obstacle rightWall = new Obstacle(
+                IdGenerator.nextEntityId(),
+                width / 2 - wallThickness / 2,
+                0,
+                wallThickness,
+                height
+        );
+        obstacles.add(rightWall);
+    }
+
 }
 
 

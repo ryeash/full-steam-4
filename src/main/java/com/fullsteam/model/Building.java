@@ -3,12 +3,14 @@ package com.fullsteam.model;
 import com.fullsteam.model.component.AndroidFactoryComponent;
 import com.fullsteam.model.component.BankComponent;
 import com.fullsteam.model.component.DefenseComponent;
+import com.fullsteam.model.component.EntityAware;
 import com.fullsteam.model.component.GarrisonComponent;
 import com.fullsteam.model.component.IBuildingComponent;
 import com.fullsteam.model.component.ProductionComponent;
 import com.fullsteam.model.component.ResearchComponent;
 import com.fullsteam.model.component.SandstormComponent;
 import com.fullsteam.model.component.ShieldComponent;
+import com.fullsteam.model.research.ResearchModifier;
 import com.fullsteam.model.weapon.WeaponFactory;
 import lombok.Getter;
 import lombok.Setter;
@@ -48,14 +50,10 @@ public class Building extends GameEntity {
     // Monument aura fields
     private static final int COMMAND_CITADEL_UPKEEP_BONUS = 50; // +50 max upkeep
 
-    public Building(int id, BuildingType buildingType, double x, double y, int ownerId, int teamNumber) {
-        this(id, buildingType, x, y, ownerId, teamNumber, buildingType.getMaxHealth());
-    }
-
     /**
      * Constructor with custom max health (for faction modifiers)
      */
-    public Building(int id, BuildingType buildingType, double x, double y, int ownerId, int teamNumber, double maxHealth) {
+    public Building(int id, GameEntities gameEntities, BuildingType buildingType, double x, double y, int ownerId, int teamNumber, double maxHealth) {
         super(id, createBuildingBody(x, y, buildingType), maxHealth);
         this.buildingType = buildingType;
         this.ownerId = ownerId;
@@ -77,14 +75,15 @@ public class Building extends GameEntity {
         this.rallyPoint = new Vector2(x, y);
 
         // Initialize components based on building type
-        initializeComponents(new Vector2(x, y));
+        initializeComponents(gameEntities);
     }
 
     /**
      * Initialize components based on building type.
      * This method adds the appropriate components to buildings that need them.
      */
-    private void initializeComponents(Vector2 position) {
+    private void initializeComponents(GameEntities gameEntities) {
+        Vector2 position = getPosition();
         // Add ProductionComponent to buildings that can produce units (except Android Factory)
         if (buildingType.isCanProduceUnits() && buildingType != BuildingType.ANDROID_FACTORY) {
             addComponent(new ProductionComponent(position));
@@ -131,6 +130,12 @@ public class Building extends GameEntity {
 
         // More components will be added here as we extract them:
         // - AuraComponent for monuments
+
+        components.values().forEach(c -> {
+            if (c instanceof EntityAware ea) {
+                ea.setGameEntities(gameEntities);
+            }
+        });
     }
 
     private static Body createBuildingBody(double x, double y, BuildingType buildingType) {
@@ -166,9 +171,6 @@ public class Building extends GameEntity {
         if (!active) {
             return;
         }
-        // TODO: this ad-hoc is weird
-        getComponent(ShieldComponent.class)
-                .ifPresent(s -> s.setGameEntities(gameEntities));
 
         // Update construction progress
         if (underConstruction) {
@@ -178,7 +180,7 @@ public class Building extends GameEntity {
             health = Math.max(1, constructionProgress);
 
             if (constructionProgress >= maxHealth) {
-                completeConstruction();
+                completeConstruction(gameEntities);
             }
             return; // Don't do anything else while under construction
         }
@@ -194,7 +196,7 @@ public class Building extends GameEntity {
      *
      * @return true if construction was just completed (for triggering post-construction logic)
      */
-    public boolean completeConstruction() {
+    public boolean completeConstruction(GameEntities gameEntities) {
         if (underConstruction) {
             underConstruction = false;
             health = maxHealth;
@@ -204,6 +206,10 @@ public class Building extends GameEntity {
             for (IBuildingComponent component : components.values()) {
                 component.onConstructionComplete(this);
             }
+
+            // Apply research modifiers after construction completes
+            PlayerFaction faction = gameEntities.getPlayerFactions().get(ownerId);
+            applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
 
             return true; // Construction just completed
         }
@@ -411,6 +417,21 @@ public class Building extends GameEntity {
      */
     public boolean hasComponent(Class<? extends IBuildingComponent> componentClass) {
         return components.containsKey(componentClass);
+    }
+
+    // TODO: wire in for all research and components
+    public void applyResearchModifiers(ResearchModifier modifier) {
+        // Apply health modifier (increase max health and current health proportionally)
+        double healthMultiplier = modifier.getUnitHealthMultiplier();
+        if (healthMultiplier != 1.0) {
+            double healthPercent = health / maxHealth;
+            maxHealth *= healthMultiplier;
+            health = maxHealth * healthPercent;
+        }
+
+        for (IBuildingComponent value : components.values()) {
+            value.applyResearchModifiers(modifier);
+        }
     }
 }
 

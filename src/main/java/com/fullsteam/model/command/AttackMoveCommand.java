@@ -8,6 +8,7 @@ import lombok.Setter;
 import org.dyn4j.geometry.Vector2;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -115,7 +116,7 @@ public class AttackMoveCommand extends UnitCommand {
      * Scan for enemies and auto-acquire target
      * Called by RTSGameManager during enemy scanning
      */
-    public boolean scanForEnemies(List<Unit> allUnits, List<Building> allBuildings) {
+    public boolean scanForEnemies(Collection<Unit> allUnits, Collection<Building> allBuildings) {
         if (!unit.getUnitType().canAttack()) {
             return false;
         }

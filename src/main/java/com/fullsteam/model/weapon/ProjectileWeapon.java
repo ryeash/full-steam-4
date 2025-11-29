@@ -5,6 +5,7 @@ import com.fullsteam.model.BulletEffect;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Ordinance;
 import com.fullsteam.model.Projectile;
+import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.dynamics.Body;
@@ -79,6 +80,20 @@ public class ProjectileWeapon extends Weapon {
                 damage,
                 range,
                 attackRate,
+                projectileSpeed,
+                linearDamping,
+                projectileSize,
+                ordinanceType,
+                Set.copyOf(bulletEffects)
+        );
+    }
+
+    @Override
+    public Weapon copyWithModifiers(ResearchModifier modifier) {
+        return new ProjectileWeapon(
+                damage * modifier.getBeamDamageMultiplier(),
+                range * modifier.getAttackRangeMultiplier(),
+                attackRate * modifier.getAttackRateMultiplier(),
                 projectileSpeed,
                 linearDamping,
                 projectileSize,

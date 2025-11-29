@@ -285,12 +285,6 @@ public class WeaponFactory {
     public static Weapon copyWeapon(Weapon weapon) {
         return weapon != null ? weapon.copy() : null;
     }
-    
-    /**
-     * Check if a unit type has a weapon.
-     */
-    public static boolean hasWeapon(UnitType unitType) {
-        return unitType.canAttack();
-    }
+
 }
 

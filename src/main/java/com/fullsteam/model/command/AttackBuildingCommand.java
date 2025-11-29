@@ -60,7 +60,7 @@ public class AttackBuildingCommand extends UnitCommand {
         Vector2 currentPos = unit.getPosition();
         Vector2 targetPos = target.getPosition();
         double distance = currentPos.distance(targetPos);
-        double effectiveRange = unit.getAttackRange() + target.getBuildingType().getSize();
+        double effectiveRange = unit.getWeapon().getRange() + target.getBuildingType().getSize();
 
         // Movement is handled by AttackBuildingCommand.updateMovement()
         // This method just does the actual combat
@@ -73,15 +73,7 @@ public class AttackBuildingCommand extends UnitCommand {
             // Face target
             Vector2 direction = targetPos.copy().subtract(currentPos);
             unit.setRotation(Math.atan2(direction.y, direction.x));
-
-            // Attack if cooldown is ready
-            long now = System.currentTimeMillis();
-            double attackInterval = 1000.0 / unit.getAttackRate();
-            if (now - unit.getLastAttackTime() >= attackInterval) {
-                unit.setLastAttackTime(now);
-                // Fire projectile or beam (world from gameEntities)
-                return unit.fireAt(target.getPosition(), gameEntities);
-            }
+            return unit.fireAt(target.getPosition(), gameEntities);
         }
 
         return null;

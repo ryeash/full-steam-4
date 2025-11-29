@@ -66,18 +66,6 @@ public class Unit extends GameEntity {
 
     // Weapon system
     private Weapon weapon; // The weapon this unit fires (null for non-combat units)
-
-    // Combat (kept for backward compatibility and stat tracking)
-    @Deprecated
-    private long lastAttackTime = 0;
-    @Deprecated
-    private double attackRange;
-    @Deprecated
-    private double damage;
-    @Deprecated
-    private double attackRate;
-
-    // Vision
     private double visionRange; // Modified by research
 
     // Resource harvesting (for workers)
@@ -111,12 +99,7 @@ public class Unit extends GameEntity {
         this.ownerId = ownerId;
         this.teamNumber = teamNumber;
         this.movementSpeed = unitType.getMovementSpeed();
-        this.attackRange = unitType.getAttackRange();
-        this.damage = unitType.getDamage();
-        this.attackRate = unitType.getAttackRate();
-        this.visionRange = unitType.getVisionRange(); // Initialize from base type
-
-        // Initialize weapon system
+        this.visionRange = unitType.getVisionRange();
         this.weapon = WeaponFactory.getWeaponForUnitType(unitType);
     }
 
@@ -949,8 +932,9 @@ public class Unit extends GameEntity {
             case DEPLOY:
                 // Crawler deploy mode: +50% range/damage, but immobile, with 4 independent turrets
                 if (specialAbilityActive) {
-                    attackRange = unitType.getAttackRange() * 1.5;
-                    damage = unitType.getDamage() * 1.5;
+                    double attackRange = unitType.getAttackRange() * 1.5;
+                    double damage = unitType.getDamage() * 1.5;
+                    double attackRate = unitType.getAttackRate();
                     movementSpeed = 0; // Immobile when deployed
 
                     // Create 4 turrets at corners of the Crawler (RELATIVE OFFSETS, not absolute positions)
@@ -966,8 +950,6 @@ public class Unit extends GameEntity {
                     log.info("Crawler {} deployed - range: {}, damage: {}, turrets: {}", id, attackRange, damage, turrets.size());
                 } else {
                     // Reset to normal stats and clear turrets
-                    attackRange = unitType.getAttackRange();
-                    damage = unitType.getDamage();
                     movementSpeed = unitType.getMovementSpeed();
                     turrets.clear();
                     log.info("Crawler {} undeployed - returning to mobile mode", id);
@@ -1027,30 +1009,7 @@ public class Unit extends GameEntity {
             health = maxHealth * healthPercent;
         }
 
-        // Apply damage modifiers (projectile or beam based on unit type)
-        if (unitType.firesBeams()) {
-            damage *= modifier.getBeamDamageMultiplier();
-            if (weapon != null) {
-                weapon.applyDamageMultiplier(modifier.getBeamDamageMultiplier());
-            }
-        } else {
-            damage *= modifier.getProjectileDamageMultiplier();
-            if (weapon != null) {
-                weapon.applyDamageMultiplier(modifier.getProjectileDamageMultiplier());
-            }
-        }
-
-        // Apply attack range modifier
-        attackRange *= modifier.getAttackRangeMultiplier();
-        if (weapon != null) {
-            weapon.applyRangeMultiplier(modifier.getAttackRangeMultiplier());
-        }
-
-        // Apply attack rate modifier
-        attackRate *= modifier.getAttackRateMultiplier();
-        if (weapon != null) {
-            weapon.applyAttackRateMultiplier(modifier.getAttackRateMultiplier());
-        }
+        this.weapon = weapon.copyWithModifiers(modifier);
 
         // Apply speed modifiers (infantry or vehicle)
         if (isInfantry()) {

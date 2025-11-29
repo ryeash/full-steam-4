@@ -60,7 +60,7 @@ public class AttackWallSegmentCommand extends UnitCommand {
         Vector2 currentPos = unit.getPosition();
         Vector2 targetPos = target.getPosition();
         double distance = currentPos.distance(targetPos);
-        double effectiveRange = unit.getAttackRange() + 20.0; // Wall segments have ~8 thickness
+        double effectiveRange = unit.getWeapon().getRange() + 20.0; // Wall segments have ~8 thickness
 
         // Movement is handled by AttackWallSegmentCommand.updateMovement()
         // This method just does the actual combat
@@ -73,15 +73,7 @@ public class AttackWallSegmentCommand extends UnitCommand {
             // Face target
             Vector2 direction = targetPos.copy().subtract(currentPos);
             unit.setRotation(Math.atan2(direction.y, direction.x));
-
-            // Attack if cooldown is ready
-            long now = System.currentTimeMillis();
-            double attackInterval = 1000.0 / unit.getAttackRate();
-            if (now - unit.getLastAttackTime() >= attackInterval) {
-                unit.setLastAttackTime(now);
-                // Fire projectile or beam at wall segment (world from gameEntities)
-                return unit.fireAt(targetPos, gameEntities);
-            }
+            return unit.fireAt(targetPos, gameEntities);
         }
 
         return null;

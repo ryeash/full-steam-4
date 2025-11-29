@@ -8,6 +8,7 @@ import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Ordinance;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.WallSegment;
+import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.dynamics.Body;
@@ -186,6 +187,20 @@ public class BeamWeapon extends Weapon {
                 damage,
                 range,
                 attackRate,
+                beamWidth,
+                beamDuration,
+                beamType,
+                ordinanceType,
+                Set.copyOf(bulletEffects)
+        );
+    }
+
+    @Override
+    public Weapon copyWithModifiers(ResearchModifier modifier) {
+        return new BeamWeapon(
+                damage * modifier.getBeamDamageMultiplier(),
+                range * modifier.getAttackRangeMultiplier(),
+                attackRate * modifier.getAttackRateMultiplier(),
                 beamWidth,
                 beamDuration,
                 beamType,

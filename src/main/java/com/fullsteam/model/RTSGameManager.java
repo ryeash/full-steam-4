@@ -37,11 +37,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -88,7 +88,7 @@ public class RTSGameManager {
     private final GameEntities gameEntities;
 
     // Convenience accessors for internal use
-    private final Map<Integer, PlayerFaction> playerFactions = new ConcurrentSkipListMap<>();
+    private final Map<Integer, PlayerFaction> playerFactions;
     private final Map<Integer, Unit> units;
     private final Map<Integer, Building> buildings;
     private final Map<Integer, ResourceDeposit> resourceDeposits;
@@ -107,11 +107,6 @@ public class RTSGameManager {
     // Game state
     @Getter
     protected long gameStartTime;
-    protected boolean gameRunning = false;
-    /**
-     * -- GETTER --
-     * Check if the game is over
-     */
     @Getter
     protected boolean gameOver = false;
     protected int winningTeam = -1;
@@ -131,6 +126,7 @@ public class RTSGameManager {
         this.gameStartTime = System.currentTimeMillis();
 
         this.gameEntities = new GameEntities(gameConfig, this::sendGameEvent);
+        this.playerFactions = gameEntities.getPlayerFactions();
         this.units = gameEntities.getUnits();
         this.buildings = gameEntities.getBuildings();
         this.resourceDeposits = gameEntities.getResourceDeposits();
@@ -170,159 +166,14 @@ public class RTSGameManager {
         this.world.setBounds(new AxisAlignedBounds(gameConfig.getWorldWidth(), gameConfig.getWorldHeight()));
 
         // Initialize world entities
-        initializeWorld();
+        rtsWorld.placeResourceDeposits();
+        rtsWorld.placeObstacles();
+        rtsWorld.createWorldBoundaries();
+        rtsWorld.getResourceDeposits().forEach(gameEntities::add);
+        rtsWorld.getObstacles().forEach(gameEntities::add);
 
         // Start update loop
-        this.updateTask = scheduleUpdateTask();
-
-        log.info("RTS Game {} created with world size {}x{}, {} teams, {} resource deposits, {} obstacles",
-                gameId, gameConfig.getWorldWidth(), gameConfig.getWorldHeight(),
-                gameConfig.getMaxPlayers(), rtsWorld.getResourceSpawns().size(),
-                rtsWorld.getObstacleSpawns().size());
-    }
-
-    /**
-     * Initialize the game world with starting entities from RTSWorld layout
-     */
-    private void initializeWorld() {
-        // Place resource deposits from world layout
-        placeResourceDeposits();
-
-        // Place obstacles from world layout
-        placeObstacles();
-
-        // Create world boundaries
-        createWorldBoundaries();
-    }
-
-    /**
-     * Place resource deposits from RTSWorld symmetric layout
-     */
-    private void placeResourceDeposits() {
-        for (RTSWorld.ResourceDepositSpawn spawn : rtsWorld.getResourceSpawns()) {
-            ResourceDeposit deposit = new ResourceDeposit(
-                    IdGenerator.nextEntityId(),
-                    ResourceType.CREDITS,
-                    spawn.getPosition().x,
-                    spawn.getPosition().y,
-                    spawn.getResources()
-            );
-            log.info("Created resource deposit {} at ({}, {}) with {} resources",
-                    deposit.getId(), spawn.getPosition().x, spawn.getPosition().y, spawn.getResources());
-            gameEntities.add(deposit);
-        }
-
-        log.info("Placed {} resource deposits with symmetric layout", resourceDeposits.size());
-    }
-
-    /**
-     * Place obstacles from RTSWorld symmetric layout
-     */
-    private void placeObstacles() {
-        Random random = new Random();
-        int destructibleCount = 0;
-
-        for (RTSWorld.ObstacleSpawn spawn : rtsWorld.getObstacleSpawns()) {
-            Obstacle obstacle;
-
-            // 40% chance of being destructible (mineable)
-            boolean destructible = random.nextDouble() < 0.4;
-            if (destructible) {
-                destructibleCount++;
-            }
-
-            // Create obstacle based on shape type
-            if (spawn.getShape() == Obstacle.Shape.IRREGULAR_POLYGON) {
-                // Irregular polygon obstacle (custom vertices)
-                obstacle = new Obstacle(
-                        IdGenerator.nextEntityId(),
-                        spawn.getPosition().x,
-                        spawn.getPosition().y,
-                        spawn.getVertices(),
-                        destructible
-                );
-            } else if (spawn.getShape() == Obstacle.Shape.POLYGON) {
-                // Regular polygon obstacle
-                obstacle = new Obstacle(
-                        IdGenerator.nextEntityId(),
-                        spawn.getPosition().x,
-                        spawn.getPosition().y,
-                        spawn.getSize(),
-                        spawn.getSides(),
-                        destructible
-                );
-            } else {
-                // Circle obstacle (default)
-                obstacle = new Obstacle(
-                        IdGenerator.nextEntityId(),
-                        spawn.getPosition().x,
-                        spawn.getPosition().y,
-                        spawn.getSize(),
-                        destructible
-                );
-            }
-            gameEntities.add(obstacle);
-        }
-
-        log.info("Placed {} obstacles with symmetric layout ({} destructible, {} indestructible)",
-                obstacles.size(), destructibleCount, obstacles.size() - destructibleCount);
-    }
-
-    /**
-     * Create world boundaries
-     */
-    private void createWorldBoundaries() {
-        // Create rectangular obstacle walls around the world perimeter
-        double width = gameConfig.getWorldWidth();
-        double height = gameConfig.getWorldHeight();
-        double wallThickness = 50.0; // Thickness of boundary walls
-
-        // Top wall (horizontal rectangle)
-        Obstacle topWall = new Obstacle(
-                IdGenerator.nextEntityId(),
-                0, // centered horizontally
-                height / 2 - wallThickness / 2,
-                width, // full width
-                wallThickness // thin height
-        );
-        gameEntities.add(topWall);
-
-        // Bottom wall (horizontal rectangle)
-        Obstacle bottomWall = new Obstacle(
-                IdGenerator.nextEntityId(),
-                0,
-                -height / 2 + wallThickness / 2,
-                width,
-                wallThickness
-        );
-        gameEntities.add(bottomWall);
-
-        // Left wall (vertical rectangle)
-        Obstacle leftWall = new Obstacle(
-                IdGenerator.nextEntityId(),
-                -width / 2 + wallThickness / 2,
-                0, // centered vertically
-                wallThickness, // thin width
-                height // full height
-        );
-        gameEntities.add(leftWall);
-
-        // Right wall (vertical rectangle)
-        Obstacle rightWall = new Obstacle(
-                IdGenerator.nextEntityId(),
-                width / 2 - wallThickness / 2,
-                0,
-                wallThickness,
-                height
-        );
-        gameEntities.add(rightWall);
-    }
-
-    /**
-     * Schedule the update task
-     */
-    private ScheduledFuture<?> scheduleUpdateTask() {
-        return GameConstants.EXECUTOR.scheduleAtFixedRate(this::update, 0, 16, TimeUnit.MILLISECONDS);
+        this.updateTask = GameConstants.EXECUTOR.scheduleAtFixedRate(this::update, 0, 20, TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -473,7 +324,6 @@ public class RTSGameManager {
                         }
                     }
 
-                    // Command-based combat
                     AbstractOrdinance ordinance = null;
                     if (unit.getCurrentCommand() != null) {
                         ordinance = unit.getCurrentCommand().updateCombat(deltaTime);
@@ -482,10 +332,6 @@ public class RTSGameManager {
                     // Add projectile or beam to world
                     if (ordinance != null) {
                         gameEntities.add(ordinance);
-                        if (ordinance instanceof Beam beam) {
-                            // Create electric field if beam has ELECTRIC bullet effect
-                            createBeamElectricField(beam);
-                        }
                     }
                 }
 
@@ -496,20 +342,12 @@ public class RTSGameManager {
                     }
                 }
 
-                // AI behavior: scan for enemies and auto-attack (every 30 frames / ~0.5 seconds)
-                if (frameCount % 30 == 0) {
-                    // AttackMoveCommand still uses the old scanForEnemies method (legacy)
-                    if (unit.getCurrentCommand() instanceof AttackMoveCommand attackMoveCmd) {
-                        attackMoveCmd.scanForEnemies(new ArrayList<>(units.values()), new ArrayList<>(buildings.values()));
-                    }
-                    // IdleCommand now uses gameEntities automatically (no manual setup needed)
-
-                    // Medics auto-heal damaged friendlies
-                    unit.scanForHealTargets(new ArrayList<>(units.values()));
-
-                    // Engineers auto-repair damaged units and buildings
-                    unit.scanForRepairTargets(new ArrayList<>(buildings.values()), new ArrayList<>(units.values()));
+                // AttackMoveCommand still uses the old scanForEnemies method (legacy)
+                if (unit.getCurrentCommand() instanceof AttackMoveCommand attackMoveCmd) {
+                    attackMoveCmd.scanForEnemies(Collections.unmodifiableCollection(units.values()), Collections.unmodifiableCollection(buildings.values()));
                 }
+                unit.scanForHealTargets(new ArrayList<>(units.values()));
+                unit.scanForRepairTargets(new ArrayList<>(buildings.values()), new ArrayList<>(units.values()));
 
                 // AI behavior: return to home position if needed (defensive stance)
                 if (unit.shouldReturnHome()) {
@@ -950,6 +788,7 @@ public class RTSGameManager {
                 double maxHealth = faction.getBuildingHealth(buildingType);
                 Building building = new Building(
                         IdGenerator.nextEntityId(),
+                        gameEntities,
                         buildingType,
                         location.x, location.y,
                         playerId,
@@ -2548,6 +2387,7 @@ public class RTSGameManager {
                 : BuildingType.HEADQUARTERS.getMaxHealth();
         Building hq = new Building(
                 IdGenerator.nextEntityId(),
+                gameEntities,
                 BuildingType.HEADQUARTERS,
                 position.x, position.y,
                 playerId,

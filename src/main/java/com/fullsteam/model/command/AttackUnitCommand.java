@@ -60,7 +60,7 @@ public class AttackUnitCommand extends UnitCommand {
         // This method just does the actual combat
 
         // Check if in range
-        if (distance <= unit.getAttackRange() * 0.9) { // 90% of range to account for movement
+        if (distance <= unit.getWeapon().getRange() * 0.9) { // 90% of range to account for movement
             // Stop moving when in range
             unit.getBody().setLinearVelocity(0, 0);
 
@@ -69,15 +69,9 @@ public class AttackUnitCommand extends UnitCommand {
             unit.setRotation(Math.atan2(direction.y, direction.x));
 
             // Attack if cooldown is ready
-            long now = System.currentTimeMillis();
-            double attackInterval = 1000.0 / unit.getAttackRate();
-            if (now - unit.getLastAttackTime() >= attackInterval) {
-                unit.setLastAttackTime(now);
-                // Use predictive aiming for moving targets
-                Vector2 interceptPos = unit.calculateInterceptPoint(target);
-                // Fire projectile or beam (world from gameEntities)
-                return unit.fireAt(interceptPos, gameEntities);
-            }
+            // Use predictive aiming for moving targets
+            Vector2 interceptPos = unit.calculateInterceptPoint(target);
+            return unit.fireAt(interceptPos, gameEntities);
         }
 
         return null;

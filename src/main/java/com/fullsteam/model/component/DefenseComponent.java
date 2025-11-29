@@ -3,7 +3,9 @@ package com.fullsteam.model.component;
 import com.fullsteam.model.AbstractOrdinance;
 import com.fullsteam.model.Building;
 import com.fullsteam.model.GameEntities;
+import com.fullsteam.model.Projectile;
 import com.fullsteam.model.Unit;
+import com.fullsteam.model.research.ResearchModifier;
 import com.fullsteam.model.weapon.Weapon;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,7 +22,7 @@ import org.dyn4j.geometry.Vector2;
 @Getter
 @Setter
 public class DefenseComponent implements IBuildingComponent {
-    private final Weapon weapon;
+    private Weapon weapon;
     private Unit targetUnit = null;
 
     public DefenseComponent(Weapon weapon) {
@@ -51,6 +53,11 @@ public class DefenseComponent implements IBuildingComponent {
         }
     }
 
+    @Override
+    public void applyResearchModifiers(ResearchModifier modifier) {
+        this.weapon = weapon.copyWithModifiers(modifier);
+    }
+
     /**
      * Fire ordinance at the current target using the weapon system.
      *
@@ -75,7 +82,7 @@ public class DefenseComponent implements IBuildingComponent {
 
         if (ordinance != null) {
             // Add projectile to game world (turrets fire projectiles, not beams)
-            if (ordinance instanceof com.fullsteam.model.Projectile projectile) {
+            if (ordinance instanceof Projectile projectile) {
                 gameEntities.getProjectiles().put(projectile.getId(), projectile);
                 gameEntities.getWorld().addBody(projectile.getBody());
             }

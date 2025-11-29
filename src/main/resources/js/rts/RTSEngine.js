@@ -2006,7 +2006,7 @@ class RTSEngine {
             // Update power display
             const powerValue = document.getElementById('power-value');
             if (powerValue) {
-                const powerText = `${this.myFaction.powerGenerated}/${this.myFaction.powerConsumed}`;
+                const powerText = `${this.myFaction.powerConsumed}/${this.myFaction.powerGenerated}`;
                 powerValue.textContent = powerText;
                 
                 // Color code based on power status

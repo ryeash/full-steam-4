@@ -22,11 +22,10 @@ import org.dyn4j.geometry.Vector2;
 @Slf4j
 @Getter
 @Setter
-public class ShieldComponent implements IBuildingComponent {
+public class ShieldComponent implements IBuildingComponent, EntityAware {
     private static final double DEFAULT_SHIELD_RADIUS = 200.0;
 
     private Body sensorBody = null;
-    private boolean active = false;
     private final double radius;
     private GameEntities gameEntities;
 
@@ -51,9 +50,9 @@ public class ShieldComponent implements IBuildingComponent {
         this.gameEntities = gameEntities;
         // Update shield state (activate/deactivate based on power and construction)
         boolean shouldBeActive = !hasLowPower && !building.isUnderConstruction();
-        if (shouldBeActive && !active) {
+        if (shouldBeActive) {
             activate(building);
-        } else if (!shouldBeActive && active) {
+        } else {
             deactivate();
         }
     }
@@ -68,13 +67,17 @@ public class ShieldComponent implements IBuildingComponent {
         deactivate();
     }
 
+    public boolean shieldActive() {
+        return sensorBody != null;
+    }
+
     /**
      * Activate the shield.
      *
      * @param building The building this shield is attached to
      */
     private void activate(Building building) {
-        if (sensorBody != null) {
+        if (shieldActive()) {
             return;
         }
         Body sensor = new Body();
@@ -84,7 +87,6 @@ public class ShieldComponent implements IBuildingComponent {
         sensor.getTransform().setTranslation(building.getPosition().x, building.getPosition().y);
         sensor.setUserData(new ShieldSensor(building)); // Wrap building in ShieldSensor
         gameEntities.getWorld().addBody(sensor);
-        active = true;
         sensorBody = sensor;
     }
 
@@ -92,7 +94,7 @@ public class ShieldComponent implements IBuildingComponent {
      * Deactivate the shield.
      */
     private void deactivate() {
-        if (sensorBody == null) {
+        if (!shieldActive()) {
             return;
         }
         gameEntities.getWorld().removeBody(sensorBody);
@@ -107,7 +109,7 @@ public class ShieldComponent implements IBuildingComponent {
      * @return true if position is inside shield radius
      */
     public boolean isPositionInside(Vector2 position, Building building) {
-        if (!active) {
+        if (!shieldActive()) {
             return false;
         }
         double distance = building.getPosition().distance(position);
