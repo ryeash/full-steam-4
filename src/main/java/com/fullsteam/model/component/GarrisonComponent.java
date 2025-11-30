@@ -57,8 +57,12 @@ public class GarrisonComponent extends AbstractBuildingComponent {
 
         garrisonedUnits.add(unit);
         unit.setGarrisoned(true);
-        // set the unit's position with some entropy so they are int different "positions" inside the bunker
-        Vector2 jitter = new Vector2(building.getPosition().x + (4 * ThreadLocalRandom.current().nextDouble() - 2));
+        // set the unit's position with some entropy so they are in different "positions" inside the bunker
+        // (This is mainly for visualization/debugging - actual firing happens from bunker position)
+        Vector2 jitter = new Vector2(
+                building.getPosition().x + (4 * ThreadLocalRandom.current().nextDouble() - 2),
+                building.getPosition().y + (4 * ThreadLocalRandom.current().nextDouble() - 2)
+        );
         unit.setPosition(jitter);
         // Don't set active=false! That would cause the unit to be deleted by removeInactiveEntities()
         // Instead, we'll filter garrisoned units from serialization
@@ -145,6 +149,11 @@ public class GarrisonComponent extends AbstractBuildingComponent {
                 continue;
             }
 
+            // Skip if unit has no weapon
+            if (garrisonedUnit.getWeapon() == null) {
+                continue;
+            }
+
             // Clear invalid target
             if (garrisonedUnit.getTargetUnit() != null && !garrisonedUnit.getTargetUnit().isActive()) {
                 garrisonedUnit.setTargetUnit(null);
@@ -171,8 +180,16 @@ public class GarrisonComponent extends AbstractBuildingComponent {
                 continue;
             }
 
-            // Fire weapon from bunker position
-            AbstractOrdinance ordinance = garrisonedUnit.fireAt(targetPos, gameEntities);
+            // Fire weapon from bunker position (not from garrisoned unit's disabled body position)
+            AbstractOrdinance ordinance = garrisonedUnit.getWeapon().fire(
+                    bunkerPos,
+                    targetPos,
+                    garrisonedUnit.getId(),
+                    garrisonedUnit.getTeamNumber(),
+                    garrisonedUnit.getBody(),
+                    gameEntities
+            );
+            
             if (ordinance != null) {
                 gameEntities.add(ordinance);
             }

@@ -251,7 +251,7 @@ public enum BuildingType {
             6,       // sides (hexagon)
             0x00FF00, // bright green (photon energy)
             false,   // cannot produce units
-            -45,     // power consumption
+            -75,     // power consumption
             480.0    // vision range (excellent, defensive monument)
     ),
 

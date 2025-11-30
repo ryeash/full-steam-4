@@ -106,8 +106,21 @@ public class AttackMoveCommand extends UnitCommand {
     public AbstractOrdinance updateCombat(double deltaTime) {
         // If we have an auto-target, engage it
         if (autoTarget != null && autoTarget.isActive()) {
-            // Call engage method with target parameter and gameEntities
-            return new AttackUnitCommand(unit, autoTarget, false).updateCombat(deltaTime);
+            Vector2 currentPos = unit.getPosition();
+            Vector2 targetPos = autoTarget.getPosition();
+            double distance = currentPos.distance(targetPos);
+
+            // Check if in range
+            if (distance <= unit.getWeapon().getRange() * 0.9) { // 90% of range to account for movement
+                // Face target
+                Vector2 direction = targetPos.copy().subtract(currentPos);
+                unit.setRotation(Math.atan2(direction.y, direction.x));
+
+                // Attack if cooldown is ready
+                // Use predictive aiming for moving targets
+                Vector2 interceptPos = unit.calculateInterceptPoint(autoTarget);
+                return unit.fireAt(interceptPos, gameEntities);
+            }
         }
         return null;
     }

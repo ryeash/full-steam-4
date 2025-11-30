@@ -3,7 +3,6 @@ package com.fullsteam.model.component;
 import com.fullsteam.model.AbstractOrdinance;
 import com.fullsteam.model.Building;
 import com.fullsteam.model.GameEntities;
-import com.fullsteam.model.Projectile;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.research.ResearchModifier;
 import com.fullsteam.model.weapon.Weapon;
@@ -23,7 +22,7 @@ public class DefenseComponent extends AbstractBuildingComponent {
 
     @Override
     public void update(boolean hasLowPower) {
-        if (!building.isActive()) {
+        if (!building.isActive() || hasLowPower) {
             return;
         }
         acquireTurretTarget(gameEntities, building);
@@ -73,11 +72,8 @@ public class DefenseComponent extends AbstractBuildingComponent {
         );
 
         if (ordinance != null) {
-            // Add projectile to game world (turrets fire projectiles, not beams)
-            if (ordinance instanceof Projectile projectile) {
-                gameEntities.getProjectiles().put(projectile.getId(), projectile);
-                gameEntities.getWorld().addBody(projectile.getBody());
-            }
+            // Add ordinance to game world (defensive buildings can fire projectiles or beams)
+            gameEntities.add(ordinance);
         }
     }
 

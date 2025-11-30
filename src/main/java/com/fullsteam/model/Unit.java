@@ -1009,7 +1009,9 @@ public class Unit extends GameEntity {
             health = maxHealth * healthPercent;
         }
 
-        this.weapon = weapon.copyWithModifiers(modifier);
+        if (weapon != null) {
+            this.weapon = weapon.copyWithModifiers(modifier);
+        }
 
         // Apply speed modifiers (infantry or vehicle)
         if (isInfantry()) {
