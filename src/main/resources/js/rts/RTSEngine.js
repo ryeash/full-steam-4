@@ -1754,27 +1754,50 @@ class RTSEngine {
     }
     
     createBeamGraphics(beamData) {
-        const graphics = new PIXI.Graphics();
+        const container = new PIXI.Container();
         
-        // Get beam color based on type
+        // Get beam color based on type with brighter, more saturated colors
         const colors = {
-            'LASER': 0xFF0000,      // Red laser
+            'LASER': 0xFF3333,      // Bright red laser
             'PLASMA': 0x00FFFF,     // Cyan plasma
-            'ION': 0x8800FF,        // Purple ion
+            'ION': 0xAA00FF,        // Bright purple ion
             'PARTICLE': 0xFFFF00    // Yellow particle
         };
         
-        const color = colors[beamData.beamType] || 0xFF0000;
+        const color = colors[beamData.beamType] || 0xFF3333;
         
-        // Draw beam as a line
-        graphics.moveTo(beamData.startX, beamData.startY);
-        graphics.lineTo(beamData.endX, beamData.endY);
-        graphics.stroke({ width: beamData.width, color: color });
+        // Create outer glow layer (widest, most transparent)
+        const outerGlow = new PIXI.Graphics();
+        outerGlow.moveTo(beamData.startX, beamData.startY);
+        outerGlow.lineTo(beamData.endX, beamData.endY);
+        outerGlow.stroke({ width: beamData.width * 4, color: color, alpha: 0.15 });
+        outerGlow.filters = [new PIXI.BlurFilter(8)];
+        container.addChild(outerGlow);
         
-        // Add glow effect
-        graphics.filters = [new PIXI.BlurFilter(2)];
+        // Create middle glow layer
+        const middleGlow = new PIXI.Graphics();
+        middleGlow.moveTo(beamData.startX, beamData.startY);
+        middleGlow.lineTo(beamData.endX, beamData.endY);
+        middleGlow.stroke({ width: beamData.width * 2, color: color, alpha: 0.4 });
+        middleGlow.filters = [new PIXI.BlurFilter(4)];
+        container.addChild(middleGlow);
         
-        return graphics;
+        // Create core beam (bright, solid)
+        const core = new PIXI.Graphics();
+        core.moveTo(beamData.startX, beamData.startY);
+        core.lineTo(beamData.endX, beamData.endY);
+        core.stroke({ width: beamData.width, color: 0xFFFFFF, alpha: 0.9 }); // White core
+        container.addChild(core);
+        
+        // Create inner colored beam (slightly wider than core)
+        const innerBeam = new PIXI.Graphics();
+        innerBeam.moveTo(beamData.startX, beamData.startY);
+        innerBeam.lineTo(beamData.endX, beamData.endY);
+        innerBeam.stroke({ width: beamData.width * 1.5, color: color, alpha: 0.7 });
+        innerBeam.filters = [new PIXI.BlurFilter(1)];
+        container.addChild(innerBeam);
+        
+        return container;
     }
     
     addBuildingDecorations(container, buildingType, typeInfo) {

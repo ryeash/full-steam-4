@@ -1212,7 +1212,7 @@ public class RTSGameManager {
         // Remove inactive field effects and their physics bodies
         fieldEffects.entrySet().removeIf(entry -> {
             FieldEffect effect = entry.getValue();
-            if (!effect.isActive()) {
+            if (!effect.isActive() || effect.isExpired()) {
                 world.removeBody(effect.getBody());
                 log.debug("Removed expired field effect {} ({})", effect.getId(), effect.getType());
                 return true;
