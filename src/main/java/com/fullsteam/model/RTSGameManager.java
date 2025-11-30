@@ -1633,7 +1633,7 @@ public class RTSGameManager {
 
                 // Call onDestroy for all components (handles sandstorm cleanup, etc.)
                 for (IBuildingComponent component : building.getComponents().values()) {
-                    component.onDestroy(building);
+                    component.onDestroy();
                 }
 
                 world.removeBody(building.getBody());

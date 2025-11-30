@@ -416,12 +416,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
             // Check for shield sensor collision FIRST
             if (other instanceof ShieldSensor shieldSensor) {
                 Building shieldBuilding = shieldSensor.getBuilding();
+                ShieldComponent shieldComponent = shieldBuilding.getComponent(ShieldComponent.class).orElseThrow();
 
                 // Check if projectile originated inside this shield
                 Vector2 projectileOrigin = projectile.getOrigin();
-                boolean originatedInShield = shieldBuilding.getComponent(ShieldComponent.class)
-                        .map(s -> s.isPositionInside(projectileOrigin, shieldBuilding))
-                        .orElse(false);
+                boolean originatedInShield = shieldComponent.isPositionInside(projectileOrigin);
 
                 if (originatedInShield) {
                     return false; // Allow projectiles fired from inside the shield to exit

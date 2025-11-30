@@ -17,35 +17,29 @@ import com.fullsteam.model.research.ResearchModifier;
  */
 public interface IBuildingComponent {
 
+    void init(GameEntities gameEntities, Building building);
+
     /**
      * Update this component's state.
      * Called every game tick from the building's update method.
      *
-     * @param gameEntities The game entities for the game world
-     * @param building     The building this component is attached to
-     * @param hasLowPower  Whether the building is suffering from low power
+     * @param hasLowPower Whether the building is suffering from low power
      */
-    void update(GameEntities gameEntities, Building building, boolean hasLowPower);
+    void update(boolean hasLowPower);
 
     /**
      * Called when the building completes construction.
      * Components can use this to initialize or activate features.
-     *
-     * @param building The building that completed construction
      */
-    // TODO: take GameEntities
-    default void onConstructionComplete(Building building) {
+    default void onConstructionComplete() {
         // Default: do nothing
     }
 
     /**
      * Called when the building is destroyed.
      * Components can use this to clean up resources or trigger effects.
-     *
-     * @param building The building that was destroyed
      */
-    // TODO: take GameEntities
-    default void onDestroy(Building building) {
+    default void onDestroy() {
         // Default: do nothing
     }
 

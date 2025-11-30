@@ -3,7 +3,6 @@ package com.fullsteam.model;
 import com.fullsteam.model.component.AndroidFactoryComponent;
 import com.fullsteam.model.component.BankComponent;
 import com.fullsteam.model.component.DefenseComponent;
-import com.fullsteam.model.component.EntityAware;
 import com.fullsteam.model.component.GarrisonComponent;
 import com.fullsteam.model.component.IBuildingComponent;
 import com.fullsteam.model.component.ProductionComponent;
@@ -131,11 +130,8 @@ public class Building extends GameEntity {
         // More components will be added here as we extract them:
         // - AuraComponent for monuments
 
-        components.values().forEach(c -> {
-            if (c instanceof EntityAware ea) {
-                ea.setGameEntities(gameEntities);
-            }
-        });
+        // initialize each building component
+        components.values().forEach(c -> c.init(gameEntities, this));
     }
 
     private static Body createBuildingBody(double x, double y, BuildingType buildingType) {
@@ -187,7 +183,7 @@ public class Building extends GameEntity {
 
         // Update all components
         for (IBuildingComponent component : components.values()) {
-            component.update(gameEntities, this, hasLowPower);
+            component.update(hasLowPower);
         }
     }
 
@@ -204,7 +200,7 @@ public class Building extends GameEntity {
 
             // Notify all components that construction is complete
             for (IBuildingComponent component : components.values()) {
-                component.onConstructionComplete(this);
+                component.onConstructionComplete();
             }
 
             // Apply research modifiers after construction completes

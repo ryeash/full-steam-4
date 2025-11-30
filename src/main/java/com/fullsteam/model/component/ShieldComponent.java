@@ -1,7 +1,5 @@
 package com.fullsteam.model.component;
 
-import com.fullsteam.model.Building;
-import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.ShieldSensor;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,12 +20,11 @@ import org.dyn4j.geometry.Vector2;
 @Slf4j
 @Getter
 @Setter
-public class ShieldComponent implements IBuildingComponent, EntityAware {
+public class ShieldComponent extends AbstractBuildingComponent {
     private static final double DEFAULT_SHIELD_RADIUS = 200.0;
 
     private Body sensorBody = null;
     private final double radius;
-    private GameEntities gameEntities;
 
     /**
      * Create a shield component with default radius.
@@ -46,24 +43,23 @@ public class ShieldComponent implements IBuildingComponent, EntityAware {
     }
 
     @Override
-    public void update(GameEntities gameEntities, Building building, boolean hasLowPower) {
-        this.gameEntities = gameEntities;
+    public void update(boolean hasLowPower) {
         // Update shield state (activate/deactivate based on power and construction)
         boolean shouldBeActive = !hasLowPower && !building.isUnderConstruction();
         if (shouldBeActive) {
-            activate(building);
+            activate();
         } else {
             deactivate();
         }
     }
 
     @Override
-    public void onConstructionComplete(Building building) {
-        activate(building);
+    public void onConstructionComplete() {
+        activate();
     }
 
     @Override
-    public void onDestroy(Building building) {
+    public void onDestroy() {
         deactivate();
     }
 
@@ -71,12 +67,7 @@ public class ShieldComponent implements IBuildingComponent, EntityAware {
         return sensorBody != null;
     }
 
-    /**
-     * Activate the shield.
-     *
-     * @param building The building this shield is attached to
-     */
-    private void activate(Building building) {
+    private void activate() {
         if (shieldActive()) {
             return;
         }
@@ -105,10 +96,9 @@ public class ShieldComponent implements IBuildingComponent, EntityAware {
      * Check if a position is inside this shield's radius.
      *
      * @param position Position to check
-     * @param building The building this shield is attached to
      * @return true if position is inside shield radius
      */
-    public boolean isPositionInside(Vector2 position, Building building) {
+    public boolean isPositionInside(Vector2 position) {
         if (!shieldActive()) {
             return false;
         }

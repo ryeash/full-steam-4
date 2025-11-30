@@ -1,11 +1,7 @@
 package com.fullsteam.model.component;
 
 import com.fullsteam.model.AbstractOrdinance;
-import com.fullsteam.model.Beam;
 import com.fullsteam.model.Building;
-import com.fullsteam.model.BulletEffect;
-import com.fullsteam.model.FieldEffect;
-import com.fullsteam.model.FieldEffectType;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Unit;
 import lombok.Getter;
@@ -23,19 +19,17 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 @Getter
 @Setter
-public class GarrisonComponent implements IBuildingComponent {
+public class GarrisonComponent extends AbstractBuildingComponent {
 
     private final List<Unit> garrisonedUnits = new ArrayList<>();
     private final int maxGarrisonCapacity;
-    private Building myBuilding;
 
     public GarrisonComponent(int maxGarrisonCapacity) {
         this.maxGarrisonCapacity = maxGarrisonCapacity;
     }
 
     @Override
-    public void update(GameEntities gameEntities, Building building, boolean hasLowPower) {
-        this.myBuilding = building;
+    public void update(boolean hasLowPower) {
         if (!building.isActive()) {
             return;
         }
@@ -48,15 +42,11 @@ public class GarrisonComponent implements IBuildingComponent {
      * @return true if successfully garrisoned, false if full or not allowed
      */
     public boolean garrisonUnit(Unit unit) {
-        if (myBuilding == null) {
-            return false;
-        }
-
         if (garrisonedUnits.size() >= maxGarrisonCapacity) {
             return false; // Garrison is full
         }
 
-        if (unit.getTeamNumber() != myBuilding.getTeamNumber()) {
+        if (unit.getTeamNumber() != building.getTeamNumber()) {
             return false; // Can only garrison friendly units
         }
 
@@ -68,7 +58,7 @@ public class GarrisonComponent implements IBuildingComponent {
         garrisonedUnits.add(unit);
         unit.setGarrisoned(true);
         // set the unit's position with some entropy so they are int different "positions" inside the bunker
-        Vector2 jitter = new Vector2(myBuilding.getPosition().x + (4 * ThreadLocalRandom.current().nextDouble() - 2));
+        Vector2 jitter = new Vector2(building.getPosition().x + (4 * ThreadLocalRandom.current().nextDouble() - 2));
         unit.setPosition(jitter);
         // Don't set active=false! That would cause the unit to be deleted by removeInactiveEntities()
         // Instead, we'll filter garrisoned units from serialization
@@ -116,11 +106,11 @@ public class GarrisonComponent implements IBuildingComponent {
     }
 
     /**
-     * Calculate exit position for ungarrisoning units
+     * Calculate exit position to un-garrison units
      */
     private Vector2 calculateExitPosition() {
-        Vector2 pos = myBuilding.getPosition();
-        double size = myBuilding.getBody().getFixture(0).getShape().getRadius();
+        Vector2 pos = building.getPosition();
+        double size = building.getBody().getFixture(0).getShape().getRadius();
         // Place units at a random angle around the building
         double angle = Math.random() * Math.PI * 2;
         double distance = size + 30.0; // Place outside building radius
@@ -214,27 +204,6 @@ public class GarrisonComponent implements IBuildingComponent {
         }
 
         return closestEnemy;
-    }
-
-    // TODO: this method is duplicated in a few places
-    private void createBeamElectricField(GameEntities gameEntities, Beam beam) {
-        // Create electric field if beam has ELECTRIC bullet effect (area denial)
-        if (beam.getBulletEffects().contains(BulletEffect.ELECTRIC)) {
-            Vector2 hitPosition = beam.getEndPosition(); // Where the beam ended (hit or max range)
-            double electricDamage = beam.getDamage() * 0.3; // 30% of beam damage per second
-            double electricRadius = 40.0; // Fixed radius for beam electric fields
-
-            FieldEffect electricField = new FieldEffect(
-                    beam.getOwnerId(),
-                    FieldEffectType.ELECTRIC,
-                    hitPosition,
-                    electricRadius,
-                    electricDamage,
-                    FieldEffectType.ELECTRIC.getDefaultDuration(),
-                    beam.getOwnerTeam()
-            );
-            gameEntities.add(electricField);
-        }
     }
 }
 

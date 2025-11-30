@@ -1,7 +1,6 @@
 package com.fullsteam.model.component;
 
 import com.fullsteam.model.Building;
-import com.fullsteam.model.GameEntities;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -11,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Getter
-public class ResearchComponent implements IBuildingComponent {
+public class ResearchComponent extends AbstractBuildingComponent {
 
     private final Building building;
 
@@ -20,7 +19,7 @@ public class ResearchComponent implements IBuildingComponent {
     }
 
     @Override
-    public void update(GameEntities gameEntities, Building building, boolean isUnderConstruction) {
+    public void update(boolean isUnderConstruction) {
         // Research progress is managed by ResearchManager in RTSGameManager
         // This component just tracks which building is researching what
         // The actual progress update happens in ResearchManager.updateResearch()

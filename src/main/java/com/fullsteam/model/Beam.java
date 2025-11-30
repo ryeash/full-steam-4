@@ -60,8 +60,6 @@ public class Beam extends AbstractOrdinance {
      * @param beamType      Visual beam type
      * @param width         Beam width
      * @param duration      Visual duration
-     * @param hitObstacle   Whether beam hit an obstacle
-     * @param hitBody       The body that was hit (if any)
      */
     public Beam(Vector2 start,
                 Vector2 end,
@@ -73,9 +71,7 @@ public class Beam extends AbstractOrdinance {
                 Ordinance ordinanceType,
                 BeamType beamType,
                 double width,
-                double duration,
-                boolean hitObstacle,
-                Body hitBody) {
+                double duration) {
         super(IdGenerator.nextEntityId(),
                 createBeamBody(start, end, width),
                 ownerId, ownerTeam, start, damage, bulletEffects, ordinanceType, width);
@@ -87,37 +83,16 @@ public class Beam extends AbstractOrdinance {
         this.width = width;
         this.duration = duration;
         this.beamType = beamType;
-        
+
         // Calculate angle from start to end
         Vector2 direction = end.copy().subtract(start);
         this.angle = Math.atan2(direction.y, direction.x);
         this.length = start.distance(end);
-        
-        this.hitObstacle = hitObstacle;
-        this.hitBody = hitBody;
+
         this.expires = (long) (System.currentTimeMillis() + (duration * 1000));
 
         // Set user data
         body.setUserData(this);
-    }
-
-    /**
-     * Helper class to pass beam data through body creation
-     */
-    private static class BeamData {
-        Vector2 direction;
-        Vector2 endPosition;
-        double angle;
-        boolean hitObstacle;
-        Body hitBody;
-
-        BeamData(Vector2 direction, Vector2 endPosition, double angle, boolean hitObstacle, Body hitBody) {
-            this.direction = direction;
-            this.endPosition = endPosition;
-            this.angle = angle;
-            this.hitObstacle = hitObstacle;
-            this.hitBody = hitBody;
-        }
     }
 
     /**

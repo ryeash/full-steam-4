@@ -2,12 +2,12 @@ package com.fullsteam.model.weapon;
 
 import com.fullsteam.model.AbstractOrdinance;
 import com.fullsteam.model.Beam;
-import com.fullsteam.model.Building;
 import com.fullsteam.model.BulletEffect;
 import com.fullsteam.model.GameEntities;
+import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Ordinance;
-import com.fullsteam.model.Unit;
-import com.fullsteam.model.WallSegment;
+import com.fullsteam.model.ShieldSensor;
+import com.fullsteam.model.component.ShieldComponent;
 import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,6 +20,7 @@ import org.dyn4j.world.World;
 import org.dyn4j.world.result.RaycastResult;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -72,12 +73,12 @@ public class BeamWeapon extends Weapon {
         direction.normalize();
 
         // Perform raycast to find actual beam endpoint
-        RCResult rcResult = performRaycast(world, position, direction, range, ignoredBody, ownerTeam);
+        Vector2 end = performRaycast(world, position, direction, range, ignoredBody, ownerTeam);
 
         // Create and return beam with raycast results
         return new Beam(
                 position.copy(),
-                rcResult.endPosition,
+                end,
                 range,
                 ownerId,
                 ownerTeam,
@@ -86,70 +87,21 @@ public class BeamWeapon extends Weapon {
                 ordinanceType,
                 beamType,
                 beamWidth,
-                beamDuration,
-                rcResult.hitObstacle,
-                rcResult.hitBody
+                beamDuration
         );
-    }
-
-    /**
-     * Helper class to return raycast results
-     */
-    private static class RCResult {
-        Vector2 endPosition;
-        boolean hitObstacle;
-        Body hitBody;
-
-        RCResult(Vector2 endPosition, boolean hitObstacle, Body hitBody) {
-            this.endPosition = endPosition;
-            this.hitObstacle = hitObstacle;
-            this.hitBody = hitBody;
-        }
     }
 
     /**
      * Perform raycast using dyn4j's built-in raycast functionality.
      * This determines where the beam actually ends (may hit obstacles before max range).
      */
-    private static RCResult performRaycast(World<Body> world, Vector2 start, Vector2 direction,
-                                           double maxRange, Body ignoredBody, int ownerTeam) {
+    private static Vector2 performRaycast(World<Body> world, Vector2 start, Vector2 direction,
+                                          double maxRange, Body ignoredBody, int ownerTeam) {
         // Create a ray for the raycast
         Ray ray = new Ray(start, direction);
 
         // Create a filter that excludes the firing body and friendly units/buildings
-        DetectFilter<Body, BodyFixture> filter = new DetectFilter<>(true, true, null) {
-            @Override
-            public boolean isAllowed(Body body, BodyFixture fixture) {
-                // Ignore the firing body itself
-                if (body == ignoredBody) {
-                    return false;
-                }
-
-                // Check if this body belongs to a friendly entity
-                Object userData = body.getUserData();
-
-                // Skip friendly fire - beams pass through friendly units
-                if (userData instanceof Unit unit) {
-                    if (unit.getTeamNumber() == ownerTeam) {
-                        return false;
-                    }
-                }
-
-                // Skip friendly fire - beams pass through friendly buildings
-                if (userData instanceof Building building) {
-                    if (building.getTeamNumber() == ownerTeam) {
-                        return false;
-                    }
-                }
-
-                // Skip friendly fire - beams pass through friendly wall segments
-                if (userData instanceof WallSegment segment) {
-                    return segment.getTeamNumber() != ownerTeam;
-                }
-
-                return true;
-            }
-        };
+        DetectFilter<Body, BodyFixture> filter = new DetectFilter<>(false, true, null);
 
         // Perform the raycast and get all results
         List<RaycastResult<Body, BodyFixture>> results = world.raycast(ray, maxRange, filter);
@@ -159,26 +111,41 @@ public class BeamWeapon extends Weapon {
         double closestDistance = maxRange;
 
         for (RaycastResult<Body, BodyFixture> result : results) {
-            // Get the raycast distance
-            double distance = result.getRaycast().getDistance();
+            // Get the raycast distance to obstacles
+            if (result.getBody().getUserData() instanceof Obstacle) {
+                double distance = result.getRaycast().getDistance();
 
-            // Check if this is the closest hit so far
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestHit = result;
+                // Check if this is the closest hit so far
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestHit = result;
+                }
+            }
+            // the SHIELD_GENERATOR should terminate beams entering
+            else if (result.getBody().getUserData() instanceof ShieldSensor s) {
+                Optional<ShieldComponent> component = s.getBuilding().getComponent(ShieldComponent.class);
+                if (component.isPresent() && !component.get().isPositionInside(start)) {
+                    double distance = result.getRaycast().getDistance();
+
+                    // Check if this is the closest hit so far
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        closestHit = result;
+                    }
+                    // TODO: we need to pass damage on to the building
+//                    s.getBuilding().takeDamage()
+                }
             }
         }
 
         // If we hit something, calculate the hit point
         if (closestHit != null) {
             // Get the hit point from the raycast result
-            Vector2 hitPoint = closestHit.getRaycast().getPoint();
-            return new RCResult(hitPoint.copy(), true, closestHit.getBody());
+            return closestHit.getRaycast().getPoint();
         }
 
         // No hit - beam travels full distance
-        Vector2 endPos = start.copy().add(direction.copy().multiply(maxRange));
-        return new RCResult(endPos, false, null);
+        return start.copy().add(direction.copy().multiply(maxRange));
     }
 
     @Override

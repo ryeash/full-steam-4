@@ -11,17 +11,9 @@ import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.geometry.Vector2;
 
-/**
- * Component that handles defensive turret behavior for buildings.
- * Defensive buildings can target and attack enemy units within range.
- * Target acquisition is handled externally (by RTSGameManager),
- * this component handles rotation, firing, and cooldown management.
- * <p>
- * Used by: TURRET, PHOTON_SPIRE
- */
 @Getter
 @Setter
-public class DefenseComponent implements IBuildingComponent {
+public class DefenseComponent extends AbstractBuildingComponent {
     private Weapon weapon;
     private Unit targetUnit = null;
 
@@ -30,7 +22,7 @@ public class DefenseComponent implements IBuildingComponent {
     }
 
     @Override
-    public void update(GameEntities gameEntities, Building building, boolean hasLowPower) {
+    public void update(boolean hasLowPower) {
         if (!building.isActive()) {
             return;
         }

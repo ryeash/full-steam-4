@@ -2,7 +2,6 @@ package com.fullsteam.model.component;
 
 import com.fullsteam.games.IdGenerator;
 import com.fullsteam.model.Building;
-import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.PlayerFaction;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.UnitType;
@@ -25,7 +24,7 @@ import java.util.Set;
  */
 @Slf4j
 @Getter
-public class AndroidFactoryComponent implements IBuildingComponent {
+public class AndroidFactoryComponent extends AbstractBuildingComponent {
     private static final int MAX_ANDROIDS = 6; // Maximum number of androids per factory
     private static final UnitType ANDROID_TYPE = UnitType.ANDROID;
 
@@ -33,11 +32,9 @@ public class AndroidFactoryComponent implements IBuildingComponent {
     private double productionProgress = 0; // seconds
     private boolean producingAndroid = false;
     private ResearchModifier modifier = new ResearchModifier();
-    private GameEntities gameEntities;
 
     @Override
-    public void update(GameEntities gameEntities, Building building, boolean hasLowPower) {
-        this.gameEntities = gameEntities;
+    public void update(boolean hasLowPower) {
         double deltaTime = gameEntities.getWorld().getTimeStep().getDeltaTime();
         // Don't produce while under construction or low power
         if (building.isUnderConstruction() || hasLowPower) {
@@ -128,14 +125,8 @@ public class AndroidFactoryComponent implements IBuildingComponent {
     }
 
     @Override
-    public void onConstructionComplete(Building building) {
-        log.info("Android Factory {} construction complete - starting android production", building.getId());
-    }
-
-    @Override
-    public void onDestroy(Building building) {
-        log.info("Android Factory {} destroyed - {} androids will be destroyed",
-                building.getId(), controlledAndroidIds.size());
+    public void onDestroy() {
+        log.info("Android Factory {} destroyed - {} androids will be destroyed", building.getId(), controlledAndroidIds.size());
         for (Integer controlledAndroidId : controlledAndroidIds) {
             Unit unit = gameEntities.getUnits().get(controlledAndroidId);
             if (unit != null) {

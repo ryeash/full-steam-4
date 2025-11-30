@@ -17,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Getter
 // TODO: this could be turned into a generic "AuraComponent"
-public class SandstormComponent implements IBuildingComponent {
+public class SandstormComponent extends AbstractBuildingComponent {
     private static final double SANDSTORM_RADIUS = 300.0; // Sandstorm damage radius
     private static final double SANDSTORM_DPS = 15.0; // Damage per second (continuous)
 
@@ -25,7 +25,7 @@ public class SandstormComponent implements IBuildingComponent {
     private boolean wasActiveLastFrame = false;
 
     @Override
-    public void update(GameEntities gameEntities, Building building, boolean hasLowPower) {
+    public void update(boolean hasLowPower) {
         boolean shouldBeActive = !hasLowPower && !building.isUnderConstruction();
 
         // Activate sandstorm when conditions are met
@@ -42,7 +42,7 @@ public class SandstormComponent implements IBuildingComponent {
     }
 
     @Override
-    public void onDestroy(Building building) {
+    public void onDestroy() {
         deactivateSandstorm();
     }
 

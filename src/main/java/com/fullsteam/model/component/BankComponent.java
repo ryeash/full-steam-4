@@ -1,7 +1,5 @@
 package com.fullsteam.model.component;
 
-import com.fullsteam.model.Building;
-import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.PlayerFaction;
 import com.fullsteam.model.ResourceType;
@@ -15,7 +13,7 @@ import lombok.Getter;
  * Used by: BANK
  */
 @Getter
-public class BankComponent implements IBuildingComponent {
+public class BankComponent extends AbstractBuildingComponent {
     private static final double DEFAULT_INTEREST_INTERVAL = 30.0; // Pay interest every 30 seconds
     private static final double DEFAULT_INTEREST_RATE = 0.02; // 2% interest per interval
 
@@ -42,7 +40,7 @@ public class BankComponent implements IBuildingComponent {
     }
 
     @Override
-    public void update(GameEntities gameEntities, Building building, boolean hasLowPower) {
+    public void update(boolean hasLowPower) {
         // Don't accumulate interest if under construction or low power
         if (building.isUnderConstruction() || hasLowPower) {
             return;
@@ -69,7 +67,7 @@ public class BankComponent implements IBuildingComponent {
     }
 
     @Override
-    public void onConstructionComplete(Building building) {
+    public void onConstructionComplete() {
         lastInterestPayout = System.currentTimeMillis();
     }
 }

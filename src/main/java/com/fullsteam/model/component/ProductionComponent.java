@@ -25,7 +25,7 @@ import java.util.Queue;
  */
 @Slf4j
 @Getter
-public class ProductionComponent implements IBuildingComponent {
+public class ProductionComponent extends AbstractBuildingComponent {
     private final Queue<ProductionOrder> productionQueue = new LinkedList<>();
     private ResearchModifier researchModifier = new ResearchModifier();
     private ProductionOrder currentProduction = null;
@@ -42,7 +42,7 @@ public class ProductionComponent implements IBuildingComponent {
     }
 
     @Override
-    public void update(GameEntities gameEntities, Building building, boolean hasLowPower) {
+    public void update(boolean hasLowPower) {
         double deltaTime = gameEntities.getWorld().getTimeStep().getDeltaTime();
         // Start next production if none active
         if (currentProduction == null && !productionQueue.isEmpty()) {
