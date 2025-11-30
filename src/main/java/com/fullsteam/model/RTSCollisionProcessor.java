@@ -387,6 +387,12 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
         Object obj1 = body1.getUserData();
         Object obj2 = body2.getUserData();
+        
+        // Check if either object is null (this can happen if body wasn't properly initialized)
+        if (obj1 == null || obj2 == null) {
+            log.warn("Collision detected with null user data: obj1={}, obj2={}", obj1, obj2);
+            return false;
+        }
 
         // Check if this is a projectile collision
         boolean body1IsProjectile = obj1 instanceof Projectile;
@@ -543,18 +549,27 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         if (body1IsBeam || body2IsBeam) {
             Beam beam = body1IsBeam ? (Beam) obj1 : (Beam) obj2;
             Object other = body1IsBeam ? obj2 : obj1;
+            
+            String otherType = other != null ? other.getClass().getSimpleName() : "null";
+            if (other instanceof GameEntity ge) {
+                otherType += " (ID=" + ge.getId() + ")";
+            }
+            System.out.println("Beam " + beam.getId() + " collision with " + otherType);
 
             if (!beam.isActive()) {
+                System.out.println("  -> Beam is inactive, ignoring");
                 return false; // Ignore inactive beams
             }
 
             // Beams pass through other beams and projectiles
             if (other instanceof Beam || other instanceof Projectile) {
+                System.out.println("  -> Passing through beam/projectile");
                 return false;
             }
 
             // Beams pass through field effects
             if (other instanceof FieldEffect) {
+                System.out.println("  -> Passing through field effect");
                 return false;
             }
 

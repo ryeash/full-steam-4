@@ -24,6 +24,3 @@ public enum ResearchCategory {
         this.color = color;
     }
 }
-
-
-

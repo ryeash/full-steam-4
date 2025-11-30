@@ -91,7 +91,7 @@ public class Beam extends AbstractOrdinance {
 
         this.expires = (long) (System.currentTimeMillis() + (duration * 1000));
 
-        // Set user data
+        // Set user data (GameEntity already sets this, but we ensure it's set)
         body.setUserData(this);
     }
 
@@ -123,9 +123,10 @@ public class Beam extends AbstractOrdinance {
 
         body.setMass(MassType.INFINITE); // Beams don't move
 
-        // Position and rotate the body
-        body.translate(midpoint.x, midpoint.y);
+        // IMPORTANT: Rotate first, then translate
+        // If you translate first, rotation happens around origin (0,0) and shifts the beam
         body.rotate(angle);
+        body.translate(midpoint.x, midpoint.y);
 
         return body;
     }

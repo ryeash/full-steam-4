@@ -55,6 +55,3 @@ public class ResearchProgress {
         return (int) Math.ceil(totalTime - timeElapsed);
     }
 }
-
-
-

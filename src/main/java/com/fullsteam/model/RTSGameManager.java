@@ -417,14 +417,8 @@ public class RTSGameManager {
                 return false;
             });
 
-            // Update beams (they fade out over time)
-            beams.entrySet().removeIf(entry -> {
-                Beam beam = entry.getValue();
-                beam.update(gameEntities);
-
-                // Remove inactive beams
-                return !beam.isActive();
-            });
+            // Update beams (they fade out over time, but don't remove yet)
+            beams.values().forEach(beam -> beam.update(gameEntities));
 
             // Update physics world (handles collisions via CollisionListener)
             world.updatev(deltaTime);
@@ -1504,6 +1498,15 @@ public class RTSGameManager {
             Projectile value = e.getValue();
             if (!value.isActive()) {
                 world.removeBody(value.getBody());
+                return true;
+            }
+            return false;
+        });
+
+        beams.entrySet().removeIf(e -> {
+            Beam beam = e.getValue();
+            if (!beam.isActive()) {
+                world.removeBody(beam.getBody());
                 return true;
             }
             return false;

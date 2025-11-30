@@ -71,7 +71,3 @@ public class BankComponent extends AbstractBuildingComponent {
         lastInterestPayout = System.currentTimeMillis();
     }
 }
-
-
-
-
