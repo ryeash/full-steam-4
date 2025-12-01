@@ -208,46 +208,6 @@ public class ResearchManager {
     }
 
     /**
-     * Get active research progress for a building
-     */
-    public ResearchProgress getActiveResearch(int buildingId) {
-        return activeResearch.get(buildingId);
-    }
-
-    /**
-     * Get all available research for the player
-     */
-    public List<ResearchType> getAvailableResearch(Set<BuildingType> playerBuildings) {
-        return Arrays.stream(ResearchType.values())
-                .filter(research -> canStartResearch(research, playerBuildings))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get research by category
-     */
-    public List<ResearchType> getResearchByCategory(ResearchCategory category, Set<BuildingType> playerBuildings) {
-        return Arrays.stream(ResearchType.values())
-                .filter(research -> research.getCategory() == category)
-                .filter(research -> canStartResearch(research, playerBuildings) || completedResearch.contains(research))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Check if a specific research is completed
-     */
-    public boolean hasResearch(ResearchType researchType) {
-        return completedResearch.contains(researchType);
-    }
-
-    /**
-     * Get the number of completed research
-     */
-    public int getCompletedResearchCount() {
-        return completedResearch.size();
-    }
-
-    /**
      * Get the number of active research projects
      */
     public int getActiveResearchCount() {

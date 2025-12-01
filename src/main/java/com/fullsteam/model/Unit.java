@@ -54,8 +54,7 @@ public class Unit extends GameEntity {
     private long lastSpecialAbilityTime = 0; // For cooldown tracking
 
     // Cloak system (for Cloak Tank)
-    private static final double CLOAK_DETECTION_RANGE = 150.0; // Range at which cloaked units are detected
-    private static final long CLOAK_DELAY_AFTER_FIRE = 3000; // 3 seconds before cloak reactivates after firing (ms)
+    private static final double CLOAK_DETECTION_RANGE = 50.0; // Range at which cloaked units are detected
     private long lastFireTime = 0; // Track when unit last fired (for cloak delay)
 
     // Android Factory tracking (for androids only)

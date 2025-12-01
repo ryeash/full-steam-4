@@ -260,7 +260,7 @@ public enum BuildingType {
             "Command Citadel",
             700,     // resource cost (expensive monument)
             40,      // build time (seconds)
-            1050,    // max health (+5%)
+            1050,    // max health (+5%)d
             55.0,    // size (radius) - large and imposing
             8,       // sides (octagon)
             0x4169E1, // royal blue (command authority)

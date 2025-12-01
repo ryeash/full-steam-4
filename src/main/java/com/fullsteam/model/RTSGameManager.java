@@ -1786,17 +1786,8 @@ public class RTSGameManager {
         state.put("timestamp", System.currentTimeMillis());
 
         // Apply fog of war - only send visible units and buildings
-        List<Unit> visibleUnits = FogOfWar.getVisibleUnits(
-                units.values(),
-                buildings.values(),
-                teamNumber
-        );
-
-        List<Building> visibleBuildings = FogOfWar.getVisibleBuildings(
-                units.values(),
-                buildings.values(),
-                teamNumber
-        );
+        List<Unit> visibleUnits = FogOfWar.getVisibleUnits(gameEntities, teamNumber);
+        List<Building> visibleBuildings = FogOfWar.getVisibleBuildings(gameEntities, teamNumber);
 
         // Serialize visible units (exclude garrisoned units)
         List<Map<String, Object>> unitsList = visibleUnits.stream()

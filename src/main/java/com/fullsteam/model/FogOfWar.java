@@ -17,30 +17,21 @@ public class FogOfWar {
     /**
      * Helper class to store vision source position and range
      */
-    private static class VisionSource {
-        final Vector2 position;
-        final double visionRange;
-
-        VisionSource(Vector2 position, double visionRange) {
-            this.position = position;
-            this.visionRange = visionRange;
-        }
+    private record VisionSource(Vector2 position, double visionRange) {
     }
 
     /**
      * Filter units visible to a specific team.
      * Only returns units within vision range of the team's units/buildings.
      *
-     * @param allUnits     All units in the game
-     * @param allBuildings All buildings in the game
+     * @param gameEntities All the game entities
      * @param teamNumber   The team to calculate vision for
      * @return List of units visible to this team
      */
-    public static List<Unit> getVisibleUnits(
-            Collection<Unit> allUnits,
-            Collection<Building> allBuildings,
-            int teamNumber) {
-
+    public static List<Unit> getVisibleUnits(GameEntities gameEntities,
+                                             int teamNumber) {
+        Collection<Unit> allUnits = gameEntities.getUnits().values();
+        Collection<Building> allBuildings = gameEntities.getBuildings().values();
         // Get all vision sources for this team with their specific vision ranges
         List<VisionSource> visionSources = new ArrayList<>();
 
@@ -100,14 +91,13 @@ public class FogOfWar {
      * Filter buildings visible to a specific team.
      * Only returns buildings within vision range of the team's units/buildings.
      *
-     * @param allUnits     All units in the game (for vision sources)
-     * @param allBuildings All buildings in the game
+     * @param gameEntities All the game entities
      * @param teamNumber   The team to calculate vision for
      * @return List of buildings visible to this team
      */
-    public static List<Building> getVisibleBuildings(Collection<Unit> allUnits,
-                                                     Collection<Building> allBuildings,
-                                                     int teamNumber) {
+    public static List<Building> getVisibleBuildings(GameEntities gameEntities, int teamNumber) {
+        Collection<Unit> allUnits = gameEntities.getUnits().values();
+        Collection<Building> allBuildings = gameEntities.getBuildings().values();
 
         // Get all vision sources for this team with their specific vision ranges
         List<VisionSource> visionSources = new ArrayList<>();
@@ -178,14 +168,14 @@ public class FogOfWar {
 
         return false;
     }
-    
+
     /**
      * Check if a position is visible from any vision source (with custom detection range for cloaked units).
      *
-     * @param position        Position to check
-     * @param visionSources   List of vision sources with their ranges
-     * @param targetRadius    Radius of the target (for edge detection)
-     * @param detectionRange  Maximum range at which this target can be detected (for cloaked units)
+     * @param position       Position to check
+     * @param visionSources  List of vision sources with their ranges
+     * @param targetRadius   Radius of the target (for edge detection)
+     * @param detectionRange Maximum range at which this target can be detected (for cloaked units)
      * @return true if position is visible
      */
     private static boolean isPositionVisible(
@@ -221,61 +211,6 @@ public class FogOfWar {
      */
     private static double getVisionRadius(Building building) {
         return building.getBuildingType().getSize();
-    }
-
-    /**
-     * Check if a specific position would be visible to a team.
-     * Useful for validating attack orders, etc.
-     *
-     * @param position     Position to check
-     * @param allUnits     All units in game
-     * @param allBuildings All buildings in game
-     * @param teamNumber   Team to check vision for
-     * @return true if position is visible to team
-     */
-    public static boolean isPositionVisibleToTeam(
-            Vector2 position,
-            Collection<Unit> allUnits,
-            Collection<Building> allBuildings,
-            int teamNumber) {
-
-        // Get all vision sources for this team with their specific vision ranges
-        List<VisionSource> visionSources = new ArrayList<>();
-
-        for (Unit unit : allUnits) {
-            if (unit.isActive() && unit.getTeamNumber() == teamNumber) {
-                visionSources.add(new VisionSource(unit.getPosition(), unit.getUnitType().getVisionRange()));
-            }
-        }
-
-        // Add vision from friendly buildings (only if construction is complete)
-        for (Building building : allBuildings) {
-            if (building.isActive() && building.getTeamNumber() == teamNumber && !building.isUnderConstruction()) {
-                visionSources.add(new VisionSource(building.getPosition(), building.getBuildingType().getVisionRange()));
-            }
-        }
-
-        return isPositionVisible(position, visionSources, 0.0);
-    }
-
-    /**
-     * Get vision range for a specific unit (includes research modifiers).
-     *
-     * @param unit The unit to get vision range for
-     * @return Vision range for this unit
-     */
-    public static double getUnitVisionRange(Unit unit) {
-        return unit.getVisionRange();
-    }
-
-    /**
-     * Get vision range for a specific building type.
-     *
-     * @param building The building to get vision range for
-     * @return Vision range for this building
-     */
-    public static double getBuildingVisionRange(Building building) {
-        return building.getBuildingType().getVisionRange();
     }
 }
 

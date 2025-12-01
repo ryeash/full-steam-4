@@ -6,13 +6,10 @@ import org.dyn4j.dynamics.Body;
 import org.dyn4j.geometry.Vector2;
 import org.dyn4j.world.World;
 
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 /**
  * Container for all game entities and the physics world.
@@ -84,12 +81,19 @@ public class GameEntities {
     }
 
     /**
-     * Find nearest enemy unit to a position
+     * Find nearest enemy unit to a position (respects cloak detection)
      */
     public Unit findNearestEnemyUnit(Vector2 position, int teamNumber, double maxRange) {
         return units.values().stream()
                 .filter(u -> u.isActive() && u.getTeamNumber() != teamNumber)
-                .filter(u -> u.getPosition().distance(position) <= maxRange)
+                .filter(u -> {
+                    double distance = u.getPosition().distance(position);
+                    // Cloaked units can only be detected within cloak detection range
+                    if (u.isCloaked()) {
+                        return distance <= Math.min(maxRange, Unit.getCloakDetectionRange());
+                    }
+                    return distance <= maxRange;
+                })
                 .min(Comparator.comparingDouble(u -> u.getPosition().distance(position)))
                 .orElse(null);
     }
@@ -122,9 +126,7 @@ public class GameEntities {
                             FieldEffectType.ELECTRIC.getDefaultDuration(),
                             beam.getOwnerTeam()
                     );
-
-                    fieldEffects.put(electricField.getId(), electricField);
-                    world.addBody(electricField.getBody());
+                    add(electricField);
                 }
                 default -> throw new UnsupportedOperationException("unsupported beam effect: " + bulletEffect);
             }

@@ -92,12 +92,13 @@ public class DefenseComponent extends AbstractBuildingComponent {
         double nearestDistance = Double.MAX_VALUE;
 
         for (Unit unit : gameEntities.getUnits().values()) {
-            if (unit.isActive() && unit.getTeamNumber() != turret.getTeamNumber()) {
-                double distance = turretPos.distance(unit.getPosition());
-                if (distance <= weapon.getRange() && distance < nearestDistance) {
-                    nearestEnemy = unit;
-                    nearestDistance = distance;
-                }
+            double distance = turretPos.distance(unit.getPosition());
+            boolean targetable = unit.isActive()
+                    && unit.getTeamNumber() != turret.getTeamNumber()
+                    && (!unit.isCloaked() || (unit.isCloaked() && distance < Unit.getCloakDetectionRange()));
+            if (targetable && distance <= weapon.getRange() && distance < nearestDistance) {
+                nearestEnemy = unit;
+                nearestDistance = distance;
             }
         }
         targetUnit = nearestEnemy;

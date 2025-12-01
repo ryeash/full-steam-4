@@ -52,3 +52,4 @@ public interface IBuildingComponent {
         // TODO: ensure this is properly working for all components
     }
 }
+

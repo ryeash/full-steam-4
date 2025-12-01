@@ -144,6 +144,12 @@ public class AttackMoveCommand extends UnitCommand {
         for (Unit other : allUnits) {
             if (other.getTeamNumber() != unit.getTeamNumber() && other.isActive()) {
                 double distance = currentPos.distance(other.getPosition());
+                
+                // Cloaked units can only be detected within cloak detection range
+                if (other.isCloaked() && distance > Unit.getCloakDetectionRange()) {
+                    continue;
+                }
+                
                 if (distance < visionRange && distance < nearestDistance) {
                     nearestDistance = distance;
                     nearestEnemy = other;

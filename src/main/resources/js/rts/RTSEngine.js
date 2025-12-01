@@ -3238,6 +3238,11 @@ class RTSEngine {
                 noResearch.textContent = 'No research available';
                 panel.appendChild(noResearch);
             } else {
+                // Check simultaneous research limit
+                const activeCount = this.getActiveResearchCount();
+                const maxSimultaneous = this.getMaxSimultaneousResearch();
+                const atLimit = activeCount >= maxSimultaneous;
+                
                 // Show up to 4 research options
                 availableResearch.slice(0, 4).forEach(research => {
                     const button = document.createElement('button');
@@ -3249,10 +3254,15 @@ class RTSEngine {
                     `;
                     button.onclick = () => this.startResearch(buildingData.id, research.researchId);
                     
-                    // Disable if can't afford
+                    // Disable if can't afford or at simultaneous research limit
                     if (this.myMoney < research.creditCost) {
                         button.disabled = true;
                         button.style.opacity = '0.5';
+                        button.title = 'Not enough credits';
+                    } else if (atLimit) {
+                        button.disabled = true;
+                        button.style.opacity = '0.5';
+                        button.title = `Simultaneous research limit reached (${activeCount}/${maxSimultaneous})`;
                     }
                     
                     panel.appendChild(button);
