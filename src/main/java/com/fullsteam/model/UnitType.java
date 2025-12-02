@@ -186,7 +186,7 @@ public enum UnitType {
             68,      // damage (+30% vs beam tank)
             1.2,     // attack rate
             240,     // attack range (+15% vs beam tank)
-            30.0,    // size (radius)
+            27.0,    // size (radius)
             5,       // sides (pentagon)
             0x8888FF, // light blue
             BuildingType.FACTORY,
@@ -442,7 +442,7 @@ public enum UnitType {
             280,     // damage (MASSIVE!)
             0.4,     // attack rate (slow but devastating)
             460,     // attack range (LONGEST!)
-            38.0,    // size (radius) (HUGE!)
+            32.0,    // size (radius) (HUGE!)
             8,       // sides (octagon)
             0x00FF00, // bright green (pure energy)
             BuildingType.ADVANCED_FACTORY,
@@ -484,9 +484,9 @@ public enum UnitType {
     private final int upkeepCost; // supply/upkeep cost
     /**
      * -- GETTER --
-     *  Get vision range for this unit type
-     *  Most units: 1.5x attack range
-     *  Gigantonaut: terrible vision (0.5x attack range)
+     * Get vision range for this unit type
+     * Most units: 1.5x attack range
+     * Gigantonaut: terrible vision (0.5x attack range)
      */
     private final double visionRange; // vision radius for fog of war
 
@@ -500,7 +500,70 @@ public enum UnitType {
     public List<Convex> createPhysicsFixtures() {
         return switch (this) {
             // Basic Infantry - standard triangle (pointing forward)
-            case INFANTRY, LASER_INFANTRY, PLASMA_TROOPER -> List.of(Geometry.createPolygonalCircle(3, size));
+            case INFANTRY -> List.of(Geometry.createPolygonalCircle(3, size));
+
+            // Laser Infantry - angular prism design with crystalline focusing arrays
+            case LASER_INFANTRY -> {
+                // Create a multi-faceted prism shape with focusing crystals
+                // Main body: elongated diamond (prism core)
+                Vector2[] mainPrism = new Vector2[]{
+                        new Vector2(-size * 0.7, -size * 0.3),  // Back left
+                        new Vector2(size * 0.9, -size * 0.4),   // Front left (angular)
+                        new Vector2(size * 1.1, 0),             // Front point (beam emitter)
+                        new Vector2(size * 0.9, size * 0.4),    // Front right (angular)
+                        new Vector2(-size * 0.7, size * 0.3)    // Back right
+                };
+                Convex core = Geometry.createPolygon(mainPrism);
+
+                // Left focusing crystal (small triangle)
+                Vector2[] leftCrystal = new Vector2[]{
+                        new Vector2(size * 0.2, -size * 0.5),
+                        new Vector2(size * 0.6, -size * 0.6),
+                        new Vector2(size * 0.5, -size * 0.3)
+                };
+                Convex leftFocus = Geometry.createPolygon(leftCrystal);
+
+                // Right focusing crystal (small triangle)
+                Vector2[] rightCrystal = new Vector2[]{
+                        new Vector2(size * 0.2, size * 0.5),
+                        new Vector2(size * 0.5, size * 0.3),
+                        new Vector2(size * 0.6, size * 0.6)
+                };
+                Convex rightFocus = Geometry.createPolygon(rightCrystal);
+
+                yield List.of(core, leftFocus, rightFocus);
+            }
+
+            // Plasma Trooper - energy prism with plasma containment geometry
+            case PLASMA_TROOPER -> {
+                // Main plasma containment chamber (hexagonal prism)
+                Vector2[] chamber = new Vector2[]{
+                        new Vector2(-size * 0.7, 0),
+                        new Vector2(-size * 0.3, -size * 0.5),
+                        new Vector2(size * 0.5, -size * 0.5),
+                        new Vector2(size * 1.0, 0),             // Front emitter
+                        new Vector2(size * 0.5, size * 0.5),
+                        new Vector2(-size * 0.3, size * 0.5)
+                };
+                Convex mainChamber = Geometry.createPolygon(chamber);
+
+                // Plasma accelerator spikes (fractal-like angular protrusions)
+                Vector2[] topSpike = new Vector2[]{
+                        new Vector2(size * 0.1, -size * 0.6),
+                        new Vector2(size * 0.3, -size * 0.8),
+                        new Vector2(size * 0.5, -size * 0.6)
+                };
+                Convex topAccel = Geometry.createPolygon(topSpike);
+
+                Vector2[] bottomSpike = new Vector2[]{
+                        new Vector2(size * 0.1, size * 0.6),
+                        new Vector2(size * 0.5, size * 0.6),
+                        new Vector2(size * 0.3, size * 0.8)
+                };
+                Convex bottomAccel = Geometry.createPolygon(bottomSpike);
+
+                yield List.of(mainChamber, topAccel, bottomAccel);
+            }
 
             // Rocket Soldier - wider pentagon (anti-vehicle specialist with launcher)
             case ROCKET_SOLDIER -> {
@@ -529,17 +592,60 @@ public enum UnitType {
                 yield List.of(Geometry.createPolygon(vertices));
             }
 
-            // Ion Ranger - elongated pentagon (advanced beam sniper)
+            // Ion Ranger - complex multi-lens focusing array for long-range ion beam
             case ION_RANGER -> {
-                // Pointing right (positive X direction)
-                Vector2[] vertices = new Vector2[]{
-                        new Vector2(-size * 0.9, -size * 0.5),// Back left
-                        new Vector2(size * 0.2, -size * 0.7), // Left side
-                        new Vector2(size * 1.3, 0),           // Front point (beam emitter, pointing right)
-                        new Vector2(size * 0.2, size * 0.7),  // Right side
-                        new Vector2(-size * 0.9, size * 0.5)  // Back right
+                // Main body: elongated focusing chamber
+                Vector2[] mainBody = new Vector2[]{
+                        new Vector2(-size * 0.9, -size * 0.4),
+                        new Vector2(size * 0.4, -size * 0.5),
+                        new Vector2(size * 1.3, 0),             // Primary lens tip
+                        new Vector2(size * 0.4, size * 0.5),
+                        new Vector2(-size * 0.9, size * 0.4)
                 };
-                yield List.of(Geometry.createPolygon(vertices));
+                Convex focusingBody = Geometry.createPolygon(mainBody);
+
+                // Primary focusing lens (forward angular prism)
+                Vector2[] primaryLens = new Vector2[]{
+                        new Vector2(size * 0.7, -size * 0.3),
+                        new Vector2(size * 1.1, -size * 0.2),
+                        new Vector2(size * 1.2, 0),
+                        new Vector2(size * 1.1, size * 0.2),
+                        new Vector2(size * 0.7, size * 0.3)
+                };
+                Convex lens1 = Geometry.createPolygon(primaryLens);
+
+                // Secondary refractor (top)
+                Vector2[] topRefractor = new Vector2[]{
+                        new Vector2(size * 0.0, -size * 0.6),
+                        new Vector2(size * 0.4, -size * 0.75),
+                        new Vector2(size * 0.6, -size * 0.55)
+                };
+                Convex refractorTop = Geometry.createPolygon(topRefractor);
+
+                // Secondary refractor (bottom)
+                Vector2[] bottomRefractor = new Vector2[]{
+                        new Vector2(size * 0.0, size * 0.6),
+                        new Vector2(size * 0.6, size * 0.55),
+                        new Vector2(size * 0.4, size * 0.75)
+                };
+                Convex refractorBottom = Geometry.createPolygon(bottomRefractor);
+
+                // Tertiary focusing crystals (fractal detail)
+                Vector2[] leftCrystal = new Vector2[]{
+                        new Vector2(-size * 0.2, -size * 0.5),
+                        new Vector2(size * 0.1, -size * 0.65),
+                        new Vector2(size * 0.2, -size * 0.5)
+                };
+                Convex crystalLeft = Geometry.createPolygon(leftCrystal);
+
+                Vector2[] rightCrystal = new Vector2[]{
+                        new Vector2(-size * 0.2, size * 0.5),
+                        new Vector2(size * 0.2, size * 0.5),
+                        new Vector2(size * 0.1, size * 0.65)
+                };
+                Convex crystalRight = Geometry.createPolygon(rightCrystal);
+
+                yield List.of(focusingBody, lens1, refractorTop, refractorBottom, crystalLeft, crystalRight);
             }
 
             // Worker/Support units - circular for easy navigation
@@ -548,24 +654,204 @@ public enum UnitType {
             // Android - diamond/square shape (synthetic unit)
             case ANDROID -> List.of(Geometry.createPolygonalCircle(4, size));
 
-            // Light vehicles - elongated rectangle (fast, nimble)
-            case JEEP, PHOTON_SCOUT -> List.of(Geometry.createRectangle(size * 1.6, size));
-
-            // Standard Tank - hexagonal turret platform (balanced)
-            case TANK -> List.of(Geometry.createPolygonalCircle(6, size));
-
-            // Beam Tank - wider hexagon (beam weapon platform)
-            case BEAM_TANK -> {
-                // Pointing right (positive X direction)
-                Vector2[] vertices = new Vector2[]{
-                        new Vector2(-size * 0.9, 0),          // Back
-                        new Vector2(-size * 0.4, -size * 1.1),// Back left (wider)
-                        new Vector2(size * 0.4, -size * 1.1), // Front left (wider)
-                        new Vector2(size * 0.9, 0),           // Front (pointing right)
-                        new Vector2(size * 0.4, size * 1.1),  // Front right (wider)
-                        new Vector2(-size * 0.4, size * 1.1)  // Back right (wider)
+            // Jeep - fast light vehicle with angular chassis and armor plating
+            case JEEP -> {
+                // Main chassis: elongated hexagon (streamlined body)
+                Vector2[] chassis = new Vector2[]{
+                        new Vector2(-size * 0.9, -size * 0.4),
+                        new Vector2(size * 0.3, -size * 0.6),
+                        new Vector2(size * 1.1, 0),
+                        new Vector2(size * 0.3, size * 0.6),
+                        new Vector2(-size * 0.9, size * 0.4)
                 };
-                yield List.of(Geometry.createPolygon(vertices));
+                Convex mainBody = Geometry.createPolygon(chassis);
+
+                // Top armor plate (small angular detail)
+                Vector2[] topPlate = new Vector2[]{
+                        new Vector2(-size * 0.2, -size * 0.65),
+                        new Vector2(size * 0.4, -size * 0.75),
+                        new Vector2(size * 0.6, -size * 0.55)
+                };
+                Convex plateTop = Geometry.createPolygon(topPlate);
+
+                // Bottom armor plate (small angular detail)
+                Vector2[] bottomPlate = new Vector2[]{
+                        new Vector2(-size * 0.2, size * 0.65),
+                        new Vector2(size * 0.6, size * 0.55),
+                        new Vector2(size * 0.4, size * 0.75)
+                };
+                Convex plateBottom = Geometry.createPolygon(bottomPlate);
+
+                yield List.of(mainBody, plateTop, plateBottom);
+            }
+
+            // Photon Scout - angular reflector array vehicle with prismatic beam deflectors
+            case PHOTON_SCOUT -> {
+                // Main chassis: elongated hexagon
+                Vector2[] chassis = new Vector2[]{
+                        new Vector2(-size * 1.0, -size * 0.4),
+                        new Vector2(size * 0.5, -size * 0.6),
+                        new Vector2(size * 1.2, 0),
+                        new Vector2(size * 0.5, size * 0.6),
+                        new Vector2(-size * 1.0, size * 0.4)
+                };
+                Convex mainChassis = Geometry.createPolygon(chassis);
+
+                // Front reflector array (angular prism)
+                Vector2[] frontReflector = new Vector2[]{
+                        new Vector2(size * 0.8, -size * 0.4),
+                        new Vector2(size * 1.4, -size * 0.3),
+                        new Vector2(size * 1.5, 0),
+                        new Vector2(size * 1.4, size * 0.3),
+                        new Vector2(size * 0.8, size * 0.4)
+                };
+                Convex frontArray = Geometry.createPolygon(frontReflector);
+
+                // Top beam deflector (fractal wing)
+                Vector2[] topDeflector = new Vector2[]{
+                        new Vector2(size * 0.2, -size * 0.7),
+                        new Vector2(size * 0.8, -size * 0.85),
+                        new Vector2(size * 0.9, -size * 0.6)
+                };
+                Convex deflectorTop = Geometry.createPolygon(topDeflector);
+
+                // Bottom beam deflector (fractal wing)
+                Vector2[] bottomDeflector = new Vector2[]{
+                        new Vector2(size * 0.2, size * 0.7),
+                        new Vector2(size * 0.9, size * 0.6),
+                        new Vector2(size * 0.8, size * 0.85)
+                };
+                Convex deflectorBottom = Geometry.createPolygon(bottomDeflector);
+
+                // Rear energy collector (small angular piece)
+                Vector2[] rearCollector = new Vector2[]{
+                        new Vector2(-size * 1.1, -size * 0.25),
+                        new Vector2(-size * 0.7, -size * 0.3),
+                        new Vector2(-size * 0.7, size * 0.3),
+                        new Vector2(-size * 1.1, size * 0.25)
+                };
+                Convex collector = Geometry.createPolygon(rearCollector);
+
+                yield List.of(mainChassis, frontArray, deflectorTop, deflectorBottom, collector);
+            }
+
+            // Tank - main battle tank with turret platform and armor plating
+            case TANK -> {
+                // Main hull: octagonal platform
+                Vector2[] hull = new Vector2[]{
+                        new Vector2(-size * 0.9, -size * 0.4),
+                        new Vector2(-size * 0.4, -size * 0.8),
+                        new Vector2(size * 0.4, -size * 0.8),
+                        new Vector2(size * 0.9, -size * 0.4),
+                        new Vector2(size * 0.9, size * 0.4),
+                        new Vector2(size * 0.4, size * 0.8),
+                        new Vector2(-size * 0.4, size * 0.8),
+                        new Vector2(-size * 0.9, size * 0.4)
+                };
+                Convex mainHull = Geometry.createPolygon(hull);
+
+                // Turret base (hexagon on top of hull)
+                Vector2[] turretBase = new Vector2[]{
+                        new Vector2(-size * 0.3, -size * 0.5),
+                        new Vector2(size * 0.2, -size * 0.6),
+                        new Vector2(size * 0.6, -size * 0.3),
+                        new Vector2(size * 0.6, size * 0.3),
+                        new Vector2(size * 0.2, size * 0.6),
+                        new Vector2(-size * 0.3, size * 0.5)
+                };
+                Convex turret = Geometry.createPolygon(turretBase);
+
+                // Side armor plates (left)
+                Vector2[] leftArmor = new Vector2[]{
+                        new Vector2(-size * 0.5, -size * 0.85),
+                        new Vector2(size * 0.1, -size * 0.95),
+                        new Vector2(size * 0.3, -size * 0.8)
+                };
+                Convex armorLeft = Geometry.createPolygon(leftArmor);
+
+                // Side armor plates (right)
+                Vector2[] rightArmor = new Vector2[]{
+                        new Vector2(-size * 0.5, size * 0.85),
+                        new Vector2(size * 0.3, size * 0.8),
+                        new Vector2(size * 0.1, size * 0.95)
+                };
+                Convex armorRight = Geometry.createPolygon(rightArmor);
+
+                yield List.of(mainHull, turret, armorLeft, armorRight);
+            }
+
+            // Beam Tank - multi-faceted prism platform with crystalline beam array
+            case BEAM_TANK -> {
+                // Main platform: wide octagonal base
+                Vector2[] platform = new Vector2[]{
+                        new Vector2(-size * 0.9, -size * 0.5),
+                        new Vector2(-size * 0.3, -size * 0.9),
+                        new Vector2(size * 0.3, -size * 0.9),
+                        new Vector2(size * 0.9, -size * 0.5),
+                        new Vector2(size * 1.0, 0),
+                        new Vector2(size * 0.9, size * 0.5),
+                        new Vector2(size * 0.3, size * 0.9),
+                        new Vector2(-size * 0.3, size * 0.9),
+                        new Vector2(-size * 0.9, size * 0.5)
+                };
+                Convex mainPlatform = Geometry.createPolygon(platform);
+
+                // Primary focusing prism (center front)
+                Vector2[] primaryPrism = new Vector2[]{
+                        new Vector2(size * 0.4, -size * 0.3),
+                        new Vector2(size * 1.1, -size * 0.2),
+                        new Vector2(size * 1.2, 0),
+                        new Vector2(size * 1.1, size * 0.2),
+                        new Vector2(size * 0.4, size * 0.3)
+                };
+                Convex centerPrism = Geometry.createPolygon(primaryPrism);
+
+                // Upper beam array (fractal antenna)
+                Vector2[] upperArray = new Vector2[]{
+                        new Vector2(-size * 0.1, -size * 1.0),
+                        new Vector2(size * 0.3, -size * 1.15),
+                        new Vector2(size * 0.6, -size * 1.0),
+                        new Vector2(size * 0.4, -size * 0.8)
+                };
+                Convex topArray = Geometry.createPolygon(upperArray);
+
+                // Lower beam array (fractal antenna)
+                Vector2[] lowerArray = new Vector2[]{
+                        new Vector2(-size * 0.1, size * 1.0),
+                        new Vector2(size * 0.4, size * 0.8),
+                        new Vector2(size * 0.6, size * 1.0),
+                        new Vector2(size * 0.3, size * 1.15)
+                };
+                Convex bottomArray = Geometry.createPolygon(lowerArray);
+
+                // Left energy lens
+                Vector2[] leftLens = new Vector2[]{
+                        new Vector2(size * 0.0, -size * 0.7),
+                        new Vector2(size * 0.3, -size * 0.85),
+                        new Vector2(size * 0.5, -size * 0.7),
+                        new Vector2(size * 0.3, -size * 0.55)
+                };
+                Convex lensLeft = Geometry.createPolygon(leftLens);
+
+                // Right energy lens
+                Vector2[] rightLens = new Vector2[]{
+                        new Vector2(size * 0.0, size * 0.7),
+                        new Vector2(size * 0.3, size * 0.55),
+                        new Vector2(size * 0.5, size * 0.7),
+                        new Vector2(size * 0.3, size * 0.85)
+                };
+                Convex lensRight = Geometry.createPolygon(rightLens);
+
+                // Rear power crystal (angular)
+                Vector2[] powerCrystal = new Vector2[]{
+                        new Vector2(-size * 1.0, -size * 0.3),
+                        new Vector2(-size * 0.6, -size * 0.4),
+                        new Vector2(-size * 0.6, size * 0.4),
+                        new Vector2(-size * 1.0, size * 0.3)
+                };
+                Convex crystal = Geometry.createPolygon(powerCrystal);
+
+                yield List.of(mainPlatform, centerPrism, topArray, bottomArray, lensLeft, lensRight, crystal);
             }
 
             // Cloak Tank - sleek diamond (low profile, streamlined)
@@ -597,31 +883,135 @@ public enum UnitType {
                 yield List.of(Geometry.createPolygon(vertices));
             }
 
-            // Artillery - elongated pentagon (long barrel siege weapon)
+            // Artillery - long-range siege weapon with stabilizer outriggers
             case ARTILLERY -> {
-                // Pointing right (positive X direction)
-                Vector2[] vertices = new Vector2[]{
-                        new Vector2(-size * 0.8, -size * 0.7),// Back left
-                        new Vector2(size * 0.3, -size * 0.8), // Left side
-                        new Vector2(size * 1.3, 0),           // Front (long barrel, pointing right)
-                        new Vector2(size * 0.3, size * 0.8),  // Right side
-                        new Vector2(-size * 0.8, size * 0.7)  // Back right
+                // Main body: elongated hexagon (gun platform)
+                Vector2[] mainBody = new Vector2[]{
+                        new Vector2(-size * 0.9, -size * 0.5),
+                        new Vector2(size * 0.2, -size * 0.7),
+                        new Vector2(size * 0.8, -size * 0.4),
+                        new Vector2(size * 0.8, size * 0.4),
+                        new Vector2(size * 0.2, size * 0.7),
+                        new Vector2(-size * 0.9, size * 0.5)
                 };
-                yield List.of(Geometry.createPolygon(vertices));
+                Convex platform = Geometry.createPolygon(mainBody);
+
+                // Left stabilizer outrigger (for recoil stability)
+                Vector2[] leftStabilizer = new Vector2[]{
+                        new Vector2(-size * 0.4, -size * 0.75),
+                        new Vector2(size * 0.0, -size * 0.95),
+                        new Vector2(size * 0.3, -size * 0.8),
+                        new Vector2(size * 0.1, -size * 0.65)
+                };
+                Convex stabLeft = Geometry.createPolygon(leftStabilizer);
+
+                // Right stabilizer outrigger (for recoil stability)
+                Vector2[] rightStabilizer = new Vector2[]{
+                        new Vector2(-size * 0.4, size * 0.75),
+                        new Vector2(size * 0.1, size * 0.65),
+                        new Vector2(size * 0.3, size * 0.8),
+                        new Vector2(size * 0.0, size * 0.95)
+                };
+                Convex stabRight = Geometry.createPolygon(rightStabilizer);
+
+                // Rear counterweight (balance for long barrel)
+                Vector2[] counterweight = new Vector2[]{
+                        new Vector2(-size * 1.0, -size * 0.3),
+                        new Vector2(-size * 0.6, -size * 0.4),
+                        new Vector2(-size * 0.6, size * 0.4),
+                        new Vector2(-size * 1.0, size * 0.3)
+                };
+                Convex weight = Geometry.createPolygon(counterweight);
+
+                yield List.of(platform, stabLeft, stabRight, weight);
             }
 
-            // Pulse Artillery - wide hexagon (beam artillery platform)
+            // Pulse Artillery - complex fractal lens array with multi-stage beam amplification
             case PULSE_ARTILLERY -> {
-                // Pointing right (positive X direction)
-                Vector2[] vertices = new Vector2[]{
-                        new Vector2(-size * 1.0, 0),          // Back
-                        new Vector2(-size * 0.5, -size * 1.0),// Back left (wide)
-                        new Vector2(size * 0.5, -size * 1.0), // Front left (wide)
-                        new Vector2(size * 1.2, 0),           // Front (beam emitter, pointing right)
-                        new Vector2(size * 0.5, size * 1.0),  // Front right (wide)
-                        new Vector2(-size * 0.5, size * 1.0)  // Back right (wide)
+                // Main body: large angular platform (convex octagon)
+                Vector2[] mainBody = new Vector2[]{
+                        new Vector2(-size * 1.1, 0),
+                        new Vector2(-size * 0.6, -size * 0.7),
+                        new Vector2(size * 0.3, -size * 0.8),
+                        new Vector2(size * 1.0, -size * 0.4),
+                        new Vector2(size * 1.2, 0),
+                        new Vector2(size * 1.0, size * 0.4),
+                        new Vector2(size * 0.3, size * 0.8),
+                        new Vector2(-size * 0.6, size * 0.7)
                 };
-                yield List.of(Geometry.createPolygon(vertices));
+                Convex artilleryBody = Geometry.createPolygon(mainBody);
+
+                // Primary lens chamber (forward focusing array - simplified convex)
+                Vector2[] primaryChamber = new Vector2[]{
+                        new Vector2(size * 0.7, -size * 0.4),
+                        new Vector2(size * 1.3, -size * 0.3),
+                        new Vector2(size * 1.4, 0),
+                        new Vector2(size * 1.3, size * 0.3),
+                        new Vector2(size * 0.7, size * 0.4)
+                };
+                Convex primaryLens = Geometry.createPolygon(primaryChamber);
+
+                // Upper amplifier array (convex trapezoid)
+                Vector2[] topAmplifier = new Vector2[]{
+                        new Vector2(size * 0.0, -size * 0.85),
+                        new Vector2(size * 0.4, -size * 1.0),
+                        new Vector2(size * 0.8, -size * 0.95),
+                        new Vector2(size * 0.6, -size * 0.75)
+                };
+                Convex ampTop = Geometry.createPolygon(topAmplifier);
+
+                // Lower amplifier array (convex trapezoid)
+                Vector2[] bottomAmplifier = new Vector2[]{
+                        new Vector2(size * 0.0, size * 0.85),
+                        new Vector2(size * 0.6, size * 0.75),
+                        new Vector2(size * 0.8, size * 0.95),
+                        new Vector2(size * 0.4, size * 1.0)
+                };
+                Convex ampBottom = Geometry.createPolygon(bottomAmplifier);
+
+                // Left side crystal array (triangle)
+                Vector2[] leftArray = new Vector2[]{
+                        new Vector2(-size * 0.3, -size * 0.85),
+                        new Vector2(size * 0.1, -size * 1.0),
+                        new Vector2(size * 0.2, -size * 0.8)
+                };
+                Convex arrayLeft = Geometry.createPolygon(leftArray);
+
+                // Right side crystal array (triangle)
+                Vector2[] rightArray = new Vector2[]{
+                        new Vector2(-size * 0.3, size * 0.85),
+                        new Vector2(size * 0.2, size * 0.8),
+                        new Vector2(size * 0.1, size * 1.0)
+                };
+                Convex arrayRight = Geometry.createPolygon(rightArray);
+
+                // Upper focusing crystal (small triangle)
+                Vector2[] upperCrystal = new Vector2[]{
+                        new Vector2(size * 0.3, -size * 0.6),
+                        new Vector2(size * 0.6, -size * 0.7),
+                        new Vector2(size * 0.5, -size * 0.5)
+                };
+                Convex crystalU = Geometry.createPolygon(upperCrystal);
+
+                // Lower focusing crystal (small triangle)
+                Vector2[] lowerCrystal = new Vector2[]{
+                        new Vector2(size * 0.3, size * 0.6),
+                        new Vector2(size * 0.5, size * 0.5),
+                        new Vector2(size * 0.6, size * 0.7)
+                };
+                Convex crystalL = Geometry.createPolygon(lowerCrystal);
+
+                // Rear power core (convex pentagon)
+                Vector2[] powerCore = new Vector2[]{
+                        new Vector2(-size * 1.2, 0),
+                        new Vector2(-size * 0.8, -size * 0.5),
+                        new Vector2(-size * 0.6, 0),
+                        new Vector2(-size * 0.8, size * 0.5)
+                };
+                Convex core = Geometry.createPolygon(powerCore);
+
+                yield List.of(artilleryBody, primaryLens, ampTop, ampBottom,
+                        arrayLeft, arrayRight, crystalU, crystalL, core);
             }
 
             // Gigantonaut - trapezoid (wide at back, tapered at front for heavy artillery look)
@@ -676,19 +1066,121 @@ public enum UnitType {
                 yield List.of(Geometry.createPolygon(vertices));
             }
 
-            // Photon Titan - energy platform hexagon (massive beam hero)
+            // Photon Titan - massive crystalline energy platform with nested prism arrays
             case PHOTON_TITAN -> {
-                // Wide hexagonal energy platform
-                // Pointing right (positive X direction)
-                Vector2[] vertices = new Vector2[]{
-                        new Vector2(-size * 1.1, 0),          // Back
-                        new Vector2(-size * 0.6, -size * 1.2),// Back left (very wide)
-                        new Vector2(size * 0.6, -size * 1.2), // Front left (very wide)
-                        new Vector2(size * 1.1, 0),           // Front (pointing right)
-                        new Vector2(size * 0.6, size * 1.2),  // Front right (very wide)
-                        new Vector2(-size * 0.6, size * 1.2)  // Back right (very wide)
+                // Main platform: large convex crystalline base (octagon)
+                Vector2[] mainPlatform = new Vector2[]{
+                        new Vector2(-size * 1.2, 0),
+                        new Vector2(-size * 0.8, -size * 0.9),
+                        new Vector2(size * 0.0, -size * 1.1),
+                        new Vector2(size * 0.8, -size * 0.9),
+                        new Vector2(size * 1.2, 0),
+                        new Vector2(size * 0.8, size * 0.9),
+                        new Vector2(size * 0.0, size * 1.1),
+                        new Vector2(-size * 0.8, size * 0.9)
                 };
-                yield List.of(Geometry.createPolygon(vertices));
+                Convex titanBase = Geometry.createPolygon(mainPlatform);
+
+                // Primary energy core (central convex hexagon)
+                Vector2[] energyCore = new Vector2[]{
+                        new Vector2(-size * 0.4, 0),
+                        new Vector2(-size * 0.2, -size * 0.5),
+                        new Vector2(size * 0.3, -size * 0.5),
+                        new Vector2(size * 0.6, 0),
+                        new Vector2(size * 0.3, size * 0.5),
+                        new Vector2(-size * 0.2, size * 0.5)
+                };
+                Convex core = Geometry.createPolygon(energyCore);
+
+                // Primary beam emitter (forward prism - pentagon)
+                Vector2[] beamEmitter = new Vector2[]{
+                        new Vector2(size * 0.7, -size * 0.3),
+                        new Vector2(size * 1.4, -size * 0.2),
+                        new Vector2(size * 1.5, 0),
+                        new Vector2(size * 1.4, size * 0.2),
+                        new Vector2(size * 0.7, size * 0.3)
+                };
+                Convex emitter = Geometry.createPolygon(beamEmitter);
+
+                // Upper crystalline array (convex quadrilateral)
+                Vector2[] upperCrystalArray = new Vector2[]{
+                        new Vector2(size * 0.0, -size * 1.15),
+                        new Vector2(size * 0.5, -size * 1.25),
+                        new Vector2(size * 0.7, -size * 0.95),
+                        new Vector2(size * 0.3, -size * 0.85)
+                };
+                Convex upperArray = Geometry.createPolygon(upperCrystalArray);
+
+                // Lower crystalline array (convex quadrilateral)
+                Vector2[] lowerCrystalArray = new Vector2[]{
+                        new Vector2(size * 0.0, size * 1.15),
+                        new Vector2(size * 0.3, size * 0.85),
+                        new Vector2(size * 0.7, size * 0.95),
+                        new Vector2(size * 0.5, size * 1.25)
+                };
+                Convex lowerArray = Geometry.createPolygon(lowerCrystalArray);
+
+                // Left wing prism array (convex quadrilateral)
+                Vector2[] leftWingArray = new Vector2[]{
+                        new Vector2(-size * 0.8, -size * 0.85),
+                        new Vector2(-size * 0.2, -size * 1.05),
+                        new Vector2(size * 0.2, -size * 0.95),
+                        new Vector2(size * 0.0, -size * 0.75)
+                };
+                Convex leftWing = Geometry.createPolygon(leftWingArray);
+
+                // Right wing prism array (convex quadrilateral)
+                Vector2[] rightWingArray = new Vector2[]{
+                        new Vector2(-size * 0.8, size * 0.85),
+                        new Vector2(size * 0.0, size * 0.75),
+                        new Vector2(size * 0.2, size * 0.95),
+                        new Vector2(-size * 0.2, size * 1.05)
+                };
+                Convex rightWing = Geometry.createPolygon(rightWingArray);
+
+                // Upper focusing prism (triangle)
+                Vector2[] upperPrism = new Vector2[]{
+                        new Vector2(size * 0.3, -size * 0.65),
+                        new Vector2(size * 0.7, -size * 0.75),
+                        new Vector2(size * 0.6, -size * 0.55)
+                };
+                Convex prismU = Geometry.createPolygon(upperPrism);
+
+                // Lower focusing prism (triangle)
+                Vector2[] lowerPrism = new Vector2[]{
+                        new Vector2(size * 0.3, size * 0.65),
+                        new Vector2(size * 0.6, size * 0.55),
+                        new Vector2(size * 0.7, size * 0.75)
+                };
+                Convex prismL = Geometry.createPolygon(lowerPrism);
+
+                // Upper micro-crystal (triangle)
+                Vector2[] microTop = new Vector2[]{
+                        new Vector2(size * 0.4, -size * 0.95),
+                        new Vector2(size * 0.6, -size * 1.05),
+                        new Vector2(size * 0.7, -size * 0.9)
+                };
+                Convex microT = Geometry.createPolygon(microTop);
+
+                // Lower micro-crystal (triangle)
+                Vector2[] microBottom = new Vector2[]{
+                        new Vector2(size * 0.4, size * 0.95),
+                        new Vector2(size * 0.7, size * 0.9),
+                        new Vector2(size * 0.6, size * 1.05)
+                };
+                Convex microB = Geometry.createPolygon(microBottom);
+
+                // Rear power resonator (convex pentagon)
+                Vector2[] powerResonator = new Vector2[]{
+                        new Vector2(-size * 1.3, 0),
+                        new Vector2(-size * 0.9, -size * 0.5),
+                        new Vector2(-size * 0.7, 0),
+                        new Vector2(-size * 0.9, size * 0.5)
+                };
+                Convex resonator = Geometry.createPolygon(powerResonator);
+
+                yield List.of(titanBase, core, emitter, upperArray, lowerArray,
+                        leftWing, rightWing, prismU, prismL, microT, microB, resonator);
             }
 
             // Colossus - wide diamond (imposing massive walker)
