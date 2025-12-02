@@ -554,22 +554,18 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
             if (other instanceof GameEntity ge) {
                 otherType += " (ID=" + ge.getId() + ")";
             }
-            System.out.println("Beam " + beam.getId() + " collision with " + otherType);
 
             if (!beam.isActive()) {
-                System.out.println("  -> Beam is inactive, ignoring");
                 return false; // Ignore inactive beams
             }
 
             // Beams pass through other beams and projectiles
             if (other instanceof Beam || other instanceof Projectile) {
-                System.out.println("  -> Passing through beam/projectile");
                 return false;
             }
 
             // Beams pass through field effects
             if (other instanceof FieldEffect) {
-                System.out.println("  -> Passing through field effect");
                 return false;
             }
 

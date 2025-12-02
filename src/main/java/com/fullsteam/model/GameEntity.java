@@ -31,8 +31,6 @@ public abstract class GameEntity {
             body.setAtRest(false);
             body.setAtRestDetectionEnabled(false);
             body.setEnabled(true);
-
-            // Only set userData if it's not already set (Beam uses it to pass data)
             if (body.getUserData() == null) {
                 body.setUserData(this);
             }

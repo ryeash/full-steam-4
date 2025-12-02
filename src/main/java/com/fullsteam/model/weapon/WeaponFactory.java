@@ -146,8 +146,8 @@ public class WeaponFactory {
             
             case LASER_INFANTRY -> new BeamWeapon(
                 damage, range, attackRate,
-                2.0,  // beam width
-                0.15, // duration (150ms)
+                2.5,  // beam width
+                0.3, // duration (150ms)
                 Beam.BeamType.LASER,
                 Ordinance.LASER,
                 new HashSet<>()
@@ -155,8 +155,8 @@ public class WeaponFactory {
             
             case PLASMA_TROOPER -> new BeamWeapon(
                 damage, range, attackRate,
-                2.5,  // beam width (thicker)
-                0.2,  // duration
+                3.0,  // beam width (thicker)
+                0.4,  // duration
                 Beam.BeamType.PLASMA,
                 Ordinance.LASER,
                 new HashSet<>()
@@ -164,8 +164,8 @@ public class WeaponFactory {
             
             case ION_RANGER -> new BeamWeapon(
                 damage, range, attackRate,
-                2.2,  // beam width
-                0.18, // duration
+                2.8,  // beam width
+                0.36, // duration
                 Beam.BeamType.ION,
                 Ordinance.LASER,
                 new HashSet<>()
@@ -173,8 +173,8 @@ public class WeaponFactory {
             
             case PHOTON_SCOUT -> new BeamWeapon(
                 damage, range, attackRate,
-                2.0,  // beam width
-                0.15, // duration
+                3.0,  // beam width
+                0.3, // duration
                 Beam.BeamType.LASER,
                 Ordinance.LASER,
                 new HashSet<>()
@@ -182,8 +182,8 @@ public class WeaponFactory {
             
             case BEAM_TANK -> new BeamWeapon(
                 damage, range, attackRate,
-                3.0,  // beam width (thicker, vehicle-mounted)
-                0.2,  // duration
+                4.0,  // beam width (thicker, vehicle-mounted)
+                0.4,  // duration
                 Beam.BeamType.LASER,
                 Ordinance.LASER,
                 new HashSet<>()
@@ -191,8 +191,8 @@ public class WeaponFactory {
             
             case PULSE_ARTILLERY -> new BeamWeapon(
                 damage, range, attackRate,
-                4.0,  // beam width (very thick)
-                0.25, // duration
+                6.0,  // beam width (very thick)
+                0.7, // duration
                 Beam.BeamType.PLASMA,
                 Ordinance.LASER,
                 Set.of(BulletEffect.ELECTRIC) // Area denial
@@ -200,8 +200,8 @@ public class WeaponFactory {
             
             case PHOTON_TITAN -> new BeamWeapon(
                 damage, range, attackRate,
-                5.0,  // beam width (massive hero beam)
-                0.3,  // duration
+                8.0,  // beam width (massive hero beam)
+                1.0,  // duration
                 Beam.BeamType.LASER,
                 Ordinance.LASER,
                 new HashSet<>()

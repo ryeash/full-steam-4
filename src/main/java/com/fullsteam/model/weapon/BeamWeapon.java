@@ -70,10 +70,14 @@ public class BeamWeapon extends Weapon {
 
         // Calculate direction to target
         Vector2 direction = targetPosition.copy().subtract(position);
+        double distanceToTarget = direction.getMagnitude();
         direction.normalize();
 
+        // Use the minimum of weapon range and distance to target
+        double effectiveRange = Math.min(range, distanceToTarget);
+
         // Perform raycast to find actual beam endpoint
-        Vector2 end = performRaycast(world, position, direction, range, ignoredBody, ownerTeam);
+        Vector2 end = performRaycast(world, position, direction, effectiveRange, ignoredBody, ownerTeam);
 
         // Create and return beam with raycast results
         return new Beam(
@@ -95,8 +99,8 @@ public class BeamWeapon extends Weapon {
      * Perform raycast using dyn4j's built-in raycast functionality.
      * This determines where the beam actually ends (may hit obstacles before max range).
      */
-    private static Vector2 performRaycast(World<Body> world, Vector2 start, Vector2 direction,
-                                          double maxRange, Body ignoredBody, int ownerTeam) {
+    private Vector2 performRaycast(World<Body> world, Vector2 start, Vector2 direction,
+                                   double maxRange, Body ignoredBody, int ownerTeam) {
         // Create a ray for the raycast
         Ray ray = new Ray(start, direction);
 
@@ -126,14 +130,13 @@ public class BeamWeapon extends Weapon {
                 Optional<ShieldComponent> component = s.getBuilding().getComponent(ShieldComponent.class);
                 if (component.isPresent() && !component.get().isPositionInside(start)) {
                     double distance = result.getRaycast().getDistance();
-
                     // Check if this is the closest hit so far
                     if (distance < closestDistance) {
                         closestDistance = distance;
                         closestHit = result;
                     }
-                    // TODO: we need to pass damage on to the building
-//                    s.getBuilding().takeDamage()
+                    // pass damage on to the building
+                    s.getBuilding().takeDamage(getDamage());
                 }
             }
         }

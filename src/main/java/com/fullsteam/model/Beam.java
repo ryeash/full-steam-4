@@ -7,12 +7,8 @@ import org.dyn4j.dynamics.Body;
 import org.dyn4j.dynamics.BodyFixture;
 import org.dyn4j.geometry.Geometry;
 import org.dyn4j.geometry.MassType;
-import org.dyn4j.geometry.Ray;
 import org.dyn4j.geometry.Vector2;
-import org.dyn4j.world.DetectFilter;
-import org.dyn4j.world.World;
 
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -88,11 +84,7 @@ public class Beam extends AbstractOrdinance {
         Vector2 direction = end.copy().subtract(start);
         this.angle = Math.atan2(direction.y, direction.x);
         this.length = start.distance(end);
-
         this.expires = (long) (System.currentTimeMillis() + (duration * 1000));
-
-        // Set user data (GameEntity already sets this, but we ensure it's set)
-        body.setUserData(this);
     }
 
     /**
@@ -108,26 +100,19 @@ public class Beam extends AbstractOrdinance {
         double length = start.distance(end);
 
         // Calculate midpoint and angle
+        Vector2 direction = end.copy().subtract(start);
+        double angle = Math.atan2(direction.y, direction.x);
+        BodyFixture fixture = body.addFixture(Geometry.createRectangle(length, width));
+        fixture.setSensor(true);
+        body.setMass(MassType.INFINITE);
+        // IMPORTANT: Rotate first, then translate
+        // If you translate first, rotation happens around origin (0,0) and shifts the beam
+        body.rotate(angle);
         Vector2 midpoint = new Vector2(
                 (start.x + end.x) / 2.0,
                 (start.y + end.y) / 2.0
         );
-        Vector2 direction = end.copy().subtract(start);
-        double angle = Math.atan2(direction.y, direction.x);
-
-        // Create a thin rectangle for the beam
-        BodyFixture fixture = body.addFixture(Geometry.createRectangle(length, width));
-
-        // Make it a sensor so it doesn't physically interact with other bodies
-        fixture.setSensor(true);
-
-        body.setMass(MassType.INFINITE); // Beams don't move
-
-        // IMPORTANT: Rotate first, then translate
-        // If you translate first, rotation happens around origin (0,0) and shifts the beam
-        body.rotate(angle);
         body.translate(midpoint.x, midpoint.y);
-
         return body;
     }
 

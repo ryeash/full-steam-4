@@ -837,7 +837,7 @@ class RTSEngine {
             'ARTILLERY': { sides: 6, size: 25, color: 0xFF00FF },
             'GIGANTONAUT': { sides: 8, size: 35, color: 0x8B0000 }, // Super heavy artillery!
             'CRAWLER': { sides: 8, size: 50, color: 0x4A4A4A },
-            'STEALTH_TANK': { sides: 5, size: 28, color: 0x2F4F4F },
+            'CLOAK_TANK': { sides: 5, size: 28, color: 0x2F4F4F },
             'MAMMOTH_TANK': { sides: 6, size: 40, color: 0x556B2F },
             // Hero units
             'PALADIN': { sides: 8, size: 32, color: 0xC0C0C0 }, // Silver (Terran hero)
@@ -3773,14 +3773,11 @@ class RTSEngine {
         // Find a building of the required type that:
         // 1. Belongs to the player
         // 2. Is not under construction
-        // 3. Is not already researching
         for (const buildingId in this.lastGameState.buildings) {
             const building = this.lastGameState.buildings[buildingId];
-            
             if (building.type === requiredBuildingType &&
                 building.ownerId === this.myPlayerId &&
-                !building.underConstruction &&
-                !this.getActiveResearchAtBuilding(building.id)) {
+                !building.underConstruction) {
                 return building;
             }
         }
@@ -4054,7 +4051,7 @@ class RTSEngine {
                 { type: 'ARTILLERY', name: '💣 Artillery', cost: 500 },
                 { type: 'GIGANTONAUT', name: '🏔️ Gigantonaut', cost: 1200 },
                 { type: 'CRAWLER', name: '🦂 Crawler', cost: 1500 },
-                { type: 'STEALTH_TANK', name: '👻 Stealth Tank', cost: 800 },
+                { type: 'CLOAK_TANK', name: '👻 Cloak Tank', cost: 800 },
                 { type: 'MAMMOTH_TANK', name: '🦣 Mammoth Tank', cost: 1200 }
             ]
         };
@@ -4080,7 +4077,7 @@ class RTSEngine {
             'ARTILLERY': '💣 Artillery',
             'GIGANTONAUT': '🏔️ Gigantonaut',
             'CRAWLER': '🦂 Crawler',
-            'STEALTH_TANK': '👻 Stealth Tank',
+            'CLOAK_TANK': '👻 Cloak Tank',
             'MAMMOTH_TANK': '🦣 Mammoth Tank',
             // Hero units
             'PALADIN': '⚔️ Paladin',
