@@ -286,24 +286,6 @@ public enum UnitType {
 
     // ===== HERO UNITS =====
 
-    // PALADIN - Terran hero unit, balanced powerhouse
-    PALADIN(
-            "Paladin",
-            1100,    // resource cost
-            32,      // build time (seconds)
-            1105,    // max health (+30%)
-            95.0,    // movement speed (moderate)
-            70,      // damage (high)
-            1.5,     // attack rate (balanced)
-            220,     // attack range
-            32.0,    // size (radius)
-            8,       // sides (octagon - balanced)
-            0xC0C0C0, // silver (Terran hero)
-            BuildingType.ADVANCED_FACTORY,
-            55,      // upkeep cost
-            500.0    // vision range (hero unit, excellent vision)
-    ),
-
     // RAIDER - Nomads hero unit, fast hit-and-run cavalry
     RAIDER(
             "Raider",
@@ -1034,89 +1016,6 @@ public enum UnitType {
                 rearTread.translate(-size * .3, 0);
                 Convex body = Geometry.createRectangle(size * 1.8, size);
                 yield List.of(frontTread, rearTread, body);
-            }
-
-            // Paladin - Terran hero knight with layered shield armor and lance
-            case PALADIN -> {
-                // Main shield body (large protective hexagon)
-                Vector2[] mainShield = new Vector2[]{
-                        new Vector2(-size * 1.0, 0),
-                        new Vector2(-size * 0.5, -size * 0.8),
-                        new Vector2(size * 0.4, -size * 0.9),
-                        new Vector2(size * 1.0, 0),
-                        new Vector2(size * 0.4, size * 0.9),
-                        new Vector2(-size * 0.5, size * 0.8)
-                };
-                Convex shieldBody = Geometry.createPolygon(mainShield);
-
-                // Inner shield core (reinforced center)
-                Vector2[] innerCore = new Vector2[]{
-                        new Vector2(-size * 0.4, 0),
-                        new Vector2(-size * 0.1, -size * 0.5),
-                        new Vector2(size * 0.4, -size * 0.5),
-                        new Vector2(size * 0.6, 0),
-                        new Vector2(size * 0.4, size * 0.5),
-                        new Vector2(-size * 0.1, size * 0.5)
-                };
-                Convex core = Geometry.createPolygon(innerCore);
-
-                // Lance tip (forward striking point)
-                Vector2[] lanceTip = new Vector2[]{
-                        new Vector2(size * 0.7, -size * 0.3),
-                        new Vector2(size * 1.3, -size * 0.15),
-                        new Vector2(size * 1.4, 0),
-                        new Vector2(size * 1.3, size * 0.15),
-                        new Vector2(size * 0.7, size * 0.3)
-                };
-                Convex lance = Geometry.createPolygon(lanceTip);
-
-                // Upper shield boss (decorative armor - left shoulder)
-                Vector2[] upperBoss = new Vector2[]{
-                        new Vector2(-size * 0.2, -size * 0.85),
-                        new Vector2(size * 0.2, -size * 1.0),
-                        new Vector2(size * 0.5, -size * 0.9),
-                        new Vector2(size * 0.3, -size * 0.7)
-                };
-                Convex bossUpper = Geometry.createPolygon(upperBoss);
-
-                // Lower shield boss (decorative armor - right shoulder)
-                Vector2[] lowerBoss = new Vector2[]{
-                        new Vector2(-size * 0.2, size * 0.85),
-                        new Vector2(size * 0.3, size * 0.7),
-                        new Vector2(size * 0.5, size * 0.9),
-                        new Vector2(size * 0.2, size * 1.0)
-                };
-                Convex bossLower = Geometry.createPolygon(lowerBoss);
-
-                // Left pauldron (shoulder armor)
-                Vector2[] leftPauldron = new Vector2[]{
-                        new Vector2(-size * 0.6, -size * 0.75),
-                        new Vector2(-size * 0.2, -size * 0.95),
-                        new Vector2(size * 0.1, -size * 0.85),
-                        new Vector2(size * 0.0, -size * 0.65)
-                };
-                Convex pauldronL = Geometry.createPolygon(leftPauldron);
-
-                // Right pauldron (shoulder armor)
-                Vector2[] rightPauldron = new Vector2[]{
-                        new Vector2(-size * 0.6, size * 0.75),
-                        new Vector2(size * 0.0, size * 0.65),
-                        new Vector2(size * 0.1, size * 0.85),
-                        new Vector2(-size * 0.2, size * 0.95)
-                };
-                Convex pauldronR = Geometry.createPolygon(rightPauldron);
-
-                // Rear guard (back protection)
-                Vector2[] rearGuard = new Vector2[]{
-                        new Vector2(-size * 1.1, 0),
-                        new Vector2(-size * 0.8, -size * 0.4),
-                        new Vector2(-size * 0.6, 0),
-                        new Vector2(-size * 0.8, size * 0.4)
-                };
-                Convex guard = Geometry.createPolygon(rearGuard);
-
-                yield List.of(shieldBody, core, lance, bossUpper, bossLower, 
-                             pauldronL, pauldronR, guard);
             }
 
             // Raider - Nomads hero cavalry with aggressive bladed design

@@ -63,10 +63,9 @@ public class FactionRegistry {
         buildingProducers.put(BuildingType.WEAPONS_DEPOT, List.of(UnitType.ROCKET_SOLDIER, UnitType.SNIPER, UnitType.ENGINEER));
         buildingProducers.put(BuildingType.ADVANCED_FACTORY, List.of(
                 UnitType.GIGANTONAUT, 
-                UnitType.CRAWLER, 
-                UnitType.CLOAK_TANK, 
+                UnitType.CLOAK_TANK,
                 UnitType.MAMMOTH_TANK,
-                UnitType.PALADIN  // Terran hero
+                UnitType.CRAWLER  // Terran hero
         ));
         
         FactionTechTree techTree = FactionTechTree.builder()
@@ -78,7 +77,7 @@ public class FactionRegistry {
         return FactionDefinition.builder()
                 .faction(Faction.TERRAN)
                 .techTree(techTree)
-                .heroUnit(UnitType.PALADIN)
+                .heroUnit(UnitType.CRAWLER)
                 .monumentBuilding(BuildingType.COMMAND_CITADEL)  // Terran monument - command center
                 .buildingHealthMultiplier(1.1)  // +10% building health
                 .build();
@@ -238,8 +237,7 @@ public class FactionRegistry {
         buildingProducers.put(BuildingType.FACTORY, List.of(UnitType.PHOTON_SCOUT, UnitType.BEAM_TANK));
         buildingProducers.put(BuildingType.ADVANCED_FACTORY, List.of(
                 UnitType.PULSE_ARTILLERY, 
-                UnitType.PHOTON_TITAN,  // Tech Alliance hero
-                UnitType.CRAWLER
+                UnitType.PHOTON_TITAN  // Tech Alliance hero
         ));
         
         FactionTechTree techTree = FactionTechTree.builder()

@@ -836,11 +836,10 @@ class RTSEngine {
             'TANK': { sides: 5, size: 30, color: 0x8888FF },
             'ARTILLERY': { sides: 6, size: 25, color: 0xFF00FF },
             'GIGANTONAUT': { sides: 8, size: 35, color: 0x8B0000 }, // Super heavy artillery!
-            'CRAWLER': { sides: 8, size: 50, color: 0x4A4A4A },
             'CLOAK_TANK': { sides: 5, size: 28, color: 0x2F4F4F },
             'MAMMOTH_TANK': { sides: 6, size: 40, color: 0x556B2F },
             // Hero units
-            'PALADIN': { sides: 8, size: 32, color: 0xC0C0C0 }, // Silver (Terran hero)
+            'CRAWLER': { sides: 8, size: 50, color: 0x4A4A4A },
             'RAIDER': { sides: 3, size: 22, color: 0xDC143C }, // Crimson (Nomads hero)
             'COLOSSUS': { sides: 6, size: 50, color: 0x4B0082 }, // Indigo (Synthesis hero)
             // Tech Alliance beam weapon units
@@ -4076,11 +4075,10 @@ class RTSEngine {
             'TANK': '🛡️ Tank',
             'ARTILLERY': '💣 Artillery',
             'GIGANTONAUT': '🏔️ Gigantonaut',
-            'CRAWLER': '🦂 Crawler',
             'CLOAK_TANK': '👻 Cloak Tank',
             'MAMMOTH_TANK': '🦣 Mammoth Tank',
             // Hero units
-            'PALADIN': '⚔️ Paladin',
+            'CRAWLER': '🦂 Crawler',
             'RAIDER': '🏇 Raider',
             'COLOSSUS': '🗿 Colossus',
             'PHOTON_TITAN': '💎 Photon Titan',
