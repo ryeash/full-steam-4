@@ -1027,10 +1027,7 @@ public enum UnitType {
                 yield List.of(Geometry.createPolygon(vertices));
             }
 
-            // Crawler - dumbbell shape (MULTI-FIXTURE PROOF OF CONCEPT!)
-            // This is a compound shape: two circular "treads" connected by a rectangular body
             case CRAWLER -> {
-                // Create a dumbbell/tank-tread shape with 3 fixtures
                 Convex frontTread = Geometry.createCircle(size * .6);
                 frontTread.translate(size * .3, 0);
                 Convex rearTread = Geometry.createCircle(size * .6);
@@ -1039,31 +1036,174 @@ public enum UnitType {
                 yield List.of(frontTread, rearTread, body);
             }
 
-            // Paladin - shield shape (Terran hero knight)
+            // Paladin - Terran hero knight with layered shield armor and lance
             case PALADIN -> {
-                // Shield-like hexagon
-                // Pointing right (positive X direction)
-                Vector2[] vertices = new Vector2[]{
-                        new Vector2(-size * 1.0, 0),          // Bottom point (back)
-                        new Vector2(-size * 0.6, -size * 0.9),// Left bottom
-                        new Vector2(size * 0.5, -size * 1.0), // Left shoulder
-                        new Vector2(size * 1.2, 0),           // Top point (shield front, pointing right)
-                        new Vector2(size * 0.5, size * 1.0),  // Right shoulder
-                        new Vector2(-size * 0.6, size * 0.9)  // Right bottom
+                // Main shield body (large protective hexagon)
+                Vector2[] mainShield = new Vector2[]{
+                        new Vector2(-size * 1.0, 0),
+                        new Vector2(-size * 0.5, -size * 0.8),
+                        new Vector2(size * 0.4, -size * 0.9),
+                        new Vector2(size * 1.0, 0),
+                        new Vector2(size * 0.4, size * 0.9),
+                        new Vector2(-size * 0.5, size * 0.8)
                 };
-                yield List.of(Geometry.createPolygon(vertices));
+                Convex shieldBody = Geometry.createPolygon(mainShield);
+
+                // Inner shield core (reinforced center)
+                Vector2[] innerCore = new Vector2[]{
+                        new Vector2(-size * 0.4, 0),
+                        new Vector2(-size * 0.1, -size * 0.5),
+                        new Vector2(size * 0.4, -size * 0.5),
+                        new Vector2(size * 0.6, 0),
+                        new Vector2(size * 0.4, size * 0.5),
+                        new Vector2(-size * 0.1, size * 0.5)
+                };
+                Convex core = Geometry.createPolygon(innerCore);
+
+                // Lance tip (forward striking point)
+                Vector2[] lanceTip = new Vector2[]{
+                        new Vector2(size * 0.7, -size * 0.3),
+                        new Vector2(size * 1.3, -size * 0.15),
+                        new Vector2(size * 1.4, 0),
+                        new Vector2(size * 1.3, size * 0.15),
+                        new Vector2(size * 0.7, size * 0.3)
+                };
+                Convex lance = Geometry.createPolygon(lanceTip);
+
+                // Upper shield boss (decorative armor - left shoulder)
+                Vector2[] upperBoss = new Vector2[]{
+                        new Vector2(-size * 0.2, -size * 0.85),
+                        new Vector2(size * 0.2, -size * 1.0),
+                        new Vector2(size * 0.5, -size * 0.9),
+                        new Vector2(size * 0.3, -size * 0.7)
+                };
+                Convex bossUpper = Geometry.createPolygon(upperBoss);
+
+                // Lower shield boss (decorative armor - right shoulder)
+                Vector2[] lowerBoss = new Vector2[]{
+                        new Vector2(-size * 0.2, size * 0.85),
+                        new Vector2(size * 0.3, size * 0.7),
+                        new Vector2(size * 0.5, size * 0.9),
+                        new Vector2(size * 0.2, size * 1.0)
+                };
+                Convex bossLower = Geometry.createPolygon(lowerBoss);
+
+                // Left pauldron (shoulder armor)
+                Vector2[] leftPauldron = new Vector2[]{
+                        new Vector2(-size * 0.6, -size * 0.75),
+                        new Vector2(-size * 0.2, -size * 0.95),
+                        new Vector2(size * 0.1, -size * 0.85),
+                        new Vector2(size * 0.0, -size * 0.65)
+                };
+                Convex pauldronL = Geometry.createPolygon(leftPauldron);
+
+                // Right pauldron (shoulder armor)
+                Vector2[] rightPauldron = new Vector2[]{
+                        new Vector2(-size * 0.6, size * 0.75),
+                        new Vector2(size * 0.0, size * 0.65),
+                        new Vector2(size * 0.1, size * 0.85),
+                        new Vector2(-size * 0.2, size * 0.95)
+                };
+                Convex pauldronR = Geometry.createPolygon(rightPauldron);
+
+                // Rear guard (back protection)
+                Vector2[] rearGuard = new Vector2[]{
+                        new Vector2(-size * 1.1, 0),
+                        new Vector2(-size * 0.8, -size * 0.4),
+                        new Vector2(-size * 0.6, 0),
+                        new Vector2(-size * 0.8, size * 0.4)
+                };
+                Convex guard = Geometry.createPolygon(rearGuard);
+
+                yield List.of(shieldBody, core, lance, bossUpper, bossLower, 
+                             pauldronL, pauldronR, guard);
             }
 
-            // Raider - elongated arrow (fast cavalry)
+            // Raider - Nomads hero cavalry with aggressive bladed design
             case RAIDER -> {
-                // Stretched triangle like an arrow (fast, agile)
-                // Pointing right (positive X direction)
-                Vector2[] vertices = new Vector2[]{
-                        new Vector2(-size * 0.9, -size * 0.8),// Back left (wide stance)
-                        new Vector2(size * 1.4, 0),           // Front point (very long, pointing right)
-                        new Vector2(-size * 0.9, size * 0.8)  // Back right (wide stance)
+                // Main body: aggressive arrow-like chassis (stretched forward)
+                Vector2[] mainBody = new Vector2[]{
+                        new Vector2(-size * 0.9, -size * 0.5),
+                        new Vector2(size * 0.5, -size * 0.6),
+                        new Vector2(size * 1.3, 0),
+                        new Vector2(size * 0.5, size * 0.6),
+                        new Vector2(-size * 0.9, size * 0.5)
                 };
-                yield List.of(Geometry.createPolygon(vertices));
+                Convex chassis = Geometry.createPolygon(mainBody);
+
+                // Forward blade (piercing spear tip)
+                Vector2[] forwardBlade = new Vector2[]{
+                        new Vector2(size * 1.0, -size * 0.3),
+                        new Vector2(size * 1.5, -size * 0.15),
+                        new Vector2(size * 1.6, 0),
+                        new Vector2(size * 1.5, size * 0.15),
+                        new Vector2(size * 1.0, size * 0.3)
+                };
+                Convex blade = Geometry.createPolygon(forwardBlade);
+
+                // Upper wing blade (aggressive swept-back design)
+                Vector2[] upperWing = new Vector2[]{
+                        new Vector2(-size * 0.5, -size * 0.7),
+                        new Vector2(size * 0.2, -size * 1.0),
+                        new Vector2(size * 0.8, -size * 0.85),
+                        new Vector2(size * 0.6, -size * 0.6)
+                };
+                Convex wingUpper = Geometry.createPolygon(upperWing);
+
+                // Lower wing blade (aggressive swept-back design)
+                Vector2[] lowerWing = new Vector2[]{
+                        new Vector2(-size * 0.5, size * 0.7),
+                        new Vector2(size * 0.6, size * 0.6),
+                        new Vector2(size * 0.8, size * 0.85),
+                        new Vector2(size * 0.2, size * 1.0)
+                };
+                Convex wingLower = Geometry.createPolygon(lowerWing);
+
+                // Upper secondary blade (fractal aggression)
+                Vector2[] upperSecondary = new Vector2[]{
+                        new Vector2(size * 0.1, -size * 0.75),
+                        new Vector2(size * 0.5, -size * 0.95),
+                        new Vector2(size * 0.7, -size * 0.75)
+                };
+                Convex bladeUS = Geometry.createPolygon(upperSecondary);
+
+                // Lower secondary blade (fractal aggression)
+                Vector2[] lowerSecondary = new Vector2[]{
+                        new Vector2(size * 0.1, size * 0.75),
+                        new Vector2(size * 0.7, size * 0.75),
+                        new Vector2(size * 0.5, size * 0.95)
+                };
+                Convex bladeLS = Geometry.createPolygon(lowerSecondary);
+
+                // Rear stabilizer fins (speed aesthetic - upper)
+                Vector2[] rearFinUpper = new Vector2[]{
+                        new Vector2(-size * 1.0, -size * 0.4),
+                        new Vector2(-size * 0.5, -size * 0.8),
+                        new Vector2(-size * 0.3, -size * 0.6),
+                        new Vector2(-size * 0.6, -size * 0.4)
+                };
+                Convex finU = Geometry.createPolygon(rearFinUpper);
+
+                // Rear stabilizer fins (speed aesthetic - lower)
+                Vector2[] rearFinLower = new Vector2[]{
+                        new Vector2(-size * 1.0, size * 0.4),
+                        new Vector2(-size * 0.6, size * 0.4),
+                        new Vector2(-size * 0.3, size * 0.6),
+                        new Vector2(-size * 0.5, size * 0.8)
+                };
+                Convex finL = Geometry.createPolygon(rearFinLower);
+
+                // Engine/power core (rear energy source)
+                Vector2[] powerCore = new Vector2[]{
+                        new Vector2(-size * 1.1, 0),
+                        new Vector2(-size * 0.8, -size * 0.35),
+                        new Vector2(-size * 0.6, 0),
+                        new Vector2(-size * 0.8, size * 0.35)
+                };
+                Convex engine = Geometry.createPolygon(powerCore);
+
+                yield List.of(chassis, blade, wingUpper, wingLower, bladeUS, bladeLS, 
+                             finU, finL, engine);
             }
 
             // Photon Titan - massive crystalline energy platform with nested prism arrays
@@ -1183,17 +1323,120 @@ public enum UnitType {
                         leftWing, rightWing, prismU, prismL, microT, microB, resonator);
             }
 
-            // Colossus - wide diamond (imposing massive walker)
+            // Colossus - massive robotic walker with mechanical leg assemblies
             case COLOSSUS -> {
-                // Create a wide diamond: wider than it is long for imposing presence
-                // Pointing right (positive X direction)
-                Vector2[] vertices = new Vector2[]{
-                        new Vector2(-size * 0.7, 0),          // Back point (rear)
-                        new Vector2(0, -size * 1.3),          // Left point (wide)
-                        new Vector2(size * 0.7, 0),           // Front point (forward, pointing right)
-                        new Vector2(0, size * 1.3)            // Right point (wide)
+                // Central chassis (main robotic body)
+                Vector2[] centralBody = new Vector2[]{
+                        new Vector2(-size * 0.6, -size * 0.7),
+                        new Vector2(size * 0.3, -size * 0.8),
+                        new Vector2(size * 0.7, -size * 0.4),
+                        new Vector2(size * 0.7, size * 0.4),
+                        new Vector2(size * 0.3, size * 0.8),
+                        new Vector2(-size * 0.6, size * 0.7)
                 };
-                yield List.of(Geometry.createPolygon(vertices));
+                Convex chassis = Geometry.createPolygon(centralBody);
+
+                // Upper torso (head/sensor assembly)
+                Vector2[] upperTorso = new Vector2[]{
+                        new Vector2(-size * 0.3, -size * 0.85),
+                        new Vector2(size * 0.2, -size * 1.0),
+                        new Vector2(size * 0.6, -size * 0.75),
+                        new Vector2(size * 0.4, -size * 0.55)
+                };
+                Convex torso = Geometry.createPolygon(upperTorso);
+
+                // Lower torso (power core section)
+                Vector2[] lowerTorso = new Vector2[]{
+                        new Vector2(-size * 0.3, size * 0.85),
+                        new Vector2(size * 0.4, size * 0.55),
+                        new Vector2(size * 0.6, size * 0.75),
+                        new Vector2(size * 0.2, size * 1.0)
+                };
+                Convex lowerCore = Geometry.createPolygon(lowerTorso);
+
+                // Left leg assembly (upper - mechanical joint)
+                Vector2[] leftLegUpper = new Vector2[]{
+                        new Vector2(-size * 0.8, -size * 0.9),
+                        new Vector2(-size * 0.3, -size * 1.15),
+                        new Vector2(size * 0.0, -size * 1.1),
+                        new Vector2(-size * 0.2, -size * 0.85)
+                };
+                Convex legLU = Geometry.createPolygon(leftLegUpper);
+
+                // Right leg assembly (upper - mechanical joint)
+                Vector2[] rightLegUpper = new Vector2[]{
+                        new Vector2(-size * 0.8, size * 0.9),
+                        new Vector2(-size * 0.2, size * 0.85),
+                        new Vector2(size * 0.0, size * 1.1),
+                        new Vector2(-size * 0.3, size * 1.15)
+                };
+                Convex legRU = Geometry.createPolygon(rightLegUpper);
+
+                // Left leg extension (lower segment)
+                Vector2[] leftLegLower = new Vector2[]{
+                        new Vector2(-size * 0.5, -size * 1.2),
+                        new Vector2(-size * 0.1, -size * 1.3),
+                        new Vector2(size * 0.2, -size * 1.15),
+                        new Vector2(size * 0.1, -size * 1.0)
+                };
+                Convex legLL = Geometry.createPolygon(leftLegLower);
+
+                // Right leg extension (lower segment)
+                Vector2[] rightLegLower = new Vector2[]{
+                        new Vector2(-size * 0.5, size * 1.2),
+                        new Vector2(size * 0.1, size * 1.0),
+                        new Vector2(size * 0.2, size * 1.15),
+                        new Vector2(-size * 0.1, size * 1.3)
+                };
+                Convex legRL = Geometry.createPolygon(rightLegLower);
+
+                // Front arm/weapon mount (left)
+                Vector2[] frontArmLeft = new Vector2[]{
+                        new Vector2(size * 0.5, -size * 0.6),
+                        new Vector2(size * 0.9, -size * 0.7),
+                        new Vector2(size * 1.0, -size * 0.4),
+                        new Vector2(size * 0.7, -size * 0.35)
+                };
+                Convex armFL = Geometry.createPolygon(frontArmLeft);
+
+                // Front arm/weapon mount (right)
+                Vector2[] frontArmRight = new Vector2[]{
+                        new Vector2(size * 0.5, size * 0.6),
+                        new Vector2(size * 0.7, size * 0.35),
+                        new Vector2(size * 1.0, size * 0.4),
+                        new Vector2(size * 0.9, size * 0.7)
+                };
+                Convex armFR = Geometry.createPolygon(frontArmRight);
+
+                // Rear stabilizer strut (mechanical support - left)
+                Vector2[] rearStrutLeft = new Vector2[]{
+                        new Vector2(-size * 0.9, -size * 0.5),
+                        new Vector2(-size * 0.5, -size * 0.75),
+                        new Vector2(-size * 0.3, -size * 0.6),
+                        new Vector2(-size * 0.6, -size * 0.4)
+                };
+                Convex strutL = Geometry.createPolygon(rearStrutLeft);
+
+                // Rear stabilizer strut (mechanical support - right)
+                Vector2[] rearStrutRight = new Vector2[]{
+                        new Vector2(-size * 0.9, size * 0.5),
+                        new Vector2(-size * 0.6, size * 0.4),
+                        new Vector2(-size * 0.3, size * 0.6),
+                        new Vector2(-size * 0.5, size * 0.75)
+                };
+                Convex strutR = Geometry.createPolygon(rearStrutRight);
+
+                // Back power unit (reactor/engine)
+                Vector2[] backPower = new Vector2[]{
+                        new Vector2(-size * 0.9, 0),
+                        new Vector2(-size * 0.6, -size * 0.35),
+                        new Vector2(-size * 0.4, 0),
+                        new Vector2(-size * 0.6, size * 0.35)
+                };
+                Convex reactor = Geometry.createPolygon(backPower);
+
+                yield List.of(chassis, torso, lowerCore, legLU, legRU, legLL, legRL,
+                             armFL, armFR, strutL, strutR, reactor);
             }
         };
     }

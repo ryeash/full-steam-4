@@ -58,11 +58,10 @@ public class FactionRegistry {
         // Terran has access to all standard units (explicit list)
         Map<BuildingType, List<UnitType>> buildingProducers = new HashMap<>();
         buildingProducers.put(BuildingType.HEADQUARTERS, List.of(UnitType.WORKER, UnitType.MINER));
-        buildingProducers.put(BuildingType.BARRACKS, List.of(UnitType.INFANTRY, UnitType.MEDIC, UnitType.LASER_INFANTRY));
-        buildingProducers.put(BuildingType.FACTORY, List.of(UnitType.JEEP, UnitType.TANK));
+        buildingProducers.put(BuildingType.BARRACKS, List.of(UnitType.INFANTRY, UnitType.MEDIC));
+        buildingProducers.put(BuildingType.FACTORY, List.of(UnitType.JEEP, UnitType.TANK, UnitType.ARTILLERY));
         buildingProducers.put(BuildingType.WEAPONS_DEPOT, List.of(UnitType.ROCKET_SOLDIER, UnitType.SNIPER, UnitType.ENGINEER));
         buildingProducers.put(BuildingType.ADVANCED_FACTORY, List.of(
-                UnitType.ARTILLERY, 
                 UnitType.GIGANTONAUT, 
                 UnitType.CRAWLER, 
                 UnitType.CLOAK_TANK, 
