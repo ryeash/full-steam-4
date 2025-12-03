@@ -72,3 +72,4 @@ public class BankComponent extends AbstractBuildingComponent {
     }
 }
 
+

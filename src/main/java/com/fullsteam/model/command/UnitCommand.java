@@ -48,10 +48,10 @@ public abstract class UnitCommand {
     /**
      * Check if this command should engage in combat
      * @param deltaTime Time since last update
-     * @return AbstractOrdinance (Projectile or Beam) if fired, null otherwise
+     * @return List of AbstractOrdinances (Projectiles or Beams) if fired, empty list otherwise
      */
-    public AbstractOrdinance updateCombat(double deltaTime) {
-        return null; // Override in combat commands
+    public List<AbstractOrdinance> updateCombat(double deltaTime) {
+        return List.of(); // Override in combat commands
     }
     
     /**

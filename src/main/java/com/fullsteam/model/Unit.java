@@ -394,16 +394,16 @@ public class Unit extends GameEntity {
     }
 
     /**
-     * Fire a projectile or beam at a target position using the weapon system
+     * Fire projectiles or beams at a target position using the weapon system
      *
      * @param targetPos    The position to fire at
      * @param gameEntities The game entities (provides access to world and all entities)
-     * @return Projectile or Beam, or null if unable to fire
+     * @return List of ordinances created (may be empty if unable to fire)
      */
-    public AbstractOrdinance fireAt(Vector2 targetPos, GameEntities gameEntities) {
+    public List<AbstractOrdinance> fireAt(Vector2 targetPos, GameEntities gameEntities) {
         // Check if unit has a weapon
         if (weapon == null) {
-            return null;
+            return List.of();
         }
 
         // Decloak a cloaked unit

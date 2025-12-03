@@ -52,9 +52,9 @@ public class AttackWallSegmentCommand extends UnitCommand {
     }
 
     @Override
-    public AbstractOrdinance updateCombat(double deltaTime) {
+    public List<AbstractOrdinance> updateCombat(double deltaTime) {
         if (target == null || !target.isActive()) {
-            return null;
+            return List.of();
         }
 
         Vector2 currentPos = unit.getPosition();
@@ -76,7 +76,7 @@ public class AttackWallSegmentCommand extends UnitCommand {
             return unit.fireAt(targetPos, gameEntities);
         }
 
-        return null;
+        return List.of();
     }
 
     @Override

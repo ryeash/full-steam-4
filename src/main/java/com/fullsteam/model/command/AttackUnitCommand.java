@@ -47,9 +47,9 @@ public class AttackUnitCommand extends UnitCommand {
     }
 
     @Override
-    public AbstractOrdinance updateCombat(double deltaTime) {
+    public List<AbstractOrdinance> updateCombat(double deltaTime) {
         if (target == null || !target.isActive()) {
-            return null;
+            return List.of();
         }
 
         Vector2 currentPos = unit.getPosition();
@@ -74,7 +74,7 @@ public class AttackUnitCommand extends UnitCommand {
             return unit.fireAt(interceptPos, gameEntities);
         }
 
-        return null;
+        return List.of();
     }
 
     @Override

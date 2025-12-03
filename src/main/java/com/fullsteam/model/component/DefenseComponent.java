@@ -10,6 +10,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.geometry.Vector2;
 
+import java.util.List;
+
 @Getter
 @Setter
 public class DefenseComponent extends AbstractBuildingComponent {
@@ -62,7 +64,7 @@ public class DefenseComponent extends AbstractBuildingComponent {
         }
 
         // Fire weapon
-        AbstractOrdinance ordinance = weapon.fire(
+        List<AbstractOrdinance> ordinances = weapon.fire(
                 turretPos,
                 targetPos,
                 building.getId(),
@@ -71,8 +73,8 @@ public class DefenseComponent extends AbstractBuildingComponent {
                 gameEntities
         );
 
-        if (ordinance != null) {
-            // Add ordinance to game world (defensive buildings can fire projectiles or beams)
+        // Add ordinances to game world (defensive buildings can fire projectiles or beams)
+        for (AbstractOrdinance ordinance : ordinances) {
             gameEntities.add(ordinance);
         }
     }

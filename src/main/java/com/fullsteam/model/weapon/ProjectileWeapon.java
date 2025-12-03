@@ -11,6 +11,7 @@ import lombok.Setter;
 import org.dyn4j.dynamics.Body;
 import org.dyn4j.geometry.Vector2;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -46,12 +47,12 @@ public class ProjectileWeapon extends Weapon {
     }
 
     @Override
-    protected AbstractOrdinance createOrdinance(Vector2 position,
-                                                Vector2 targetPosition,
-                                                int ownerId,
-                                                int ownerTeam,
-                                                Body ignoredBody,
-                                                GameEntities gameEntities) {
+    protected List<AbstractOrdinance> createOrdinances(Vector2 position,
+                                                       Vector2 targetPosition,
+                                                       int ownerId,
+                                                       int ownerTeam,
+                                                       Body ignoredBody,
+                                                       GameEntities gameEntities) {
         // Calculate direction to target
         Vector2 direction = targetPosition.copy().subtract(position);
         direction.normalize();
@@ -59,8 +60,8 @@ public class ProjectileWeapon extends Weapon {
         // Calculate velocity
         Vector2 velocity = direction.multiply(projectileSpeed);
 
-        // Create and return projectile
-        return new Projectile(
+        // Create and return projectile in a list (single projectile for standard weapons)
+        Projectile projectile = new Projectile(
                 position,
                 velocity,
                 damage,
@@ -72,6 +73,8 @@ public class ProjectileWeapon extends Weapon {
                 ordinanceType,
                 projectileSize
         );
+        
+        return List.of(projectile);
     }
 
     @Override

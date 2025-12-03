@@ -142,6 +142,28 @@ public class WeaponFactory {
                 new HashSet<>()
             );
             
+            // ===== HERO UNITS =====
+            
+            case RAIDER -> new ProjectileWeapon(
+                damage, range, attackRate,
+                700,  // projectile speed (very fast, hit-and-run)
+                0.15, // linear damping
+                3.0,  // size (hero weapon)
+                Ordinance.BULLET,
+                Set.of(BulletEffect.PIERCING) // Elite raider bullets
+            );
+            
+            case COLOSSUS -> new MultiProjectileWeapon(
+                damage, range, attackRate,
+                500,  // projectile speed
+                0.1,  // linear damping
+                5.0,  // size (large projectiles)
+                Ordinance.SHELL,
+                Set.of(BulletEffect.EXPLOSIVE),
+                3,    // projectile count (3 parallel shots)
+                25.0  // spread distance (parallel barrels)
+            );
+            
             // ===== BEAM WEAPONS =====
             
             case LASER_INFANTRY -> new BeamWeapon(

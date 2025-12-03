@@ -8,6 +8,8 @@ import org.dyn4j.geometry.Vector2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 /**
  * Represents an individual turret on a multi-turret unit (e.g., deployed Crawler).
  * Each turret can independently target and fire at enemies.
@@ -41,7 +43,6 @@ public class Turret {
 
     /**
      * Update this turret's targeting and firing logic
-     * Returns ordinance if the turret fired, null otherwise
      */
     public void update(Unit parentUnit, GameEntities gameEntities, long frameCount) {
         Vector2 turretWorldPos = getWorldPosition(parentUnit);
@@ -63,8 +64,10 @@ public class Turret {
 
         // Fire at target if in range and cooldown ready
         if (hasTarget() && weapon.canFire()) {
-            AbstractOrdinance abstractOrdinance = fireAtTarget(parentUnit, turretWorldPos, gameEntities);
-            gameEntities.add(abstractOrdinance);
+            List<AbstractOrdinance> ordinances = fireAtTarget(parentUnit, turretWorldPos, gameEntities);
+            for (AbstractOrdinance ordinance : ordinances) {
+                gameEntities.add(ordinance);
+            }
         }
     }
 
@@ -133,9 +136,9 @@ public class Turret {
 
     /**
      * Fire at the current target
-     * Returns the ordinance created, or null if unable to fire
+     * Returns the list of ordinances created (may be empty if unable to fire)
      */
-    private AbstractOrdinance fireAtTarget(Unit parentUnit, Vector2 turretWorldPos, GameEntities gameEntities) {
+    private List<AbstractOrdinance> fireAtTarget(Unit parentUnit, Vector2 turretWorldPos, GameEntities gameEntities) {
         Vector2 targetPos = null;
 
         // Use predictive aiming for moving units
@@ -146,7 +149,7 @@ public class Turret {
         }
 
         if (targetPos == null) {
-            return null;
+            return List.of();
         }
 
         double distance = turretWorldPos.distance(targetPos);
@@ -155,7 +158,7 @@ public class Turret {
         if (distance > turretRange) {
             // Target out of range, clear it
             clearTarget();
-            return null;
+            return List.of();
         }
 
         // Calculate turret rotation to face target
@@ -165,7 +168,7 @@ public class Turret {
         );
 
         // Fire weapon from turret position (weapon handles cooldown tracking)
-        AbstractOrdinance ordinance = weapon.fire(
+        List<AbstractOrdinance> ordinances = weapon.fire(
                 turretWorldPos,
                 targetPos,
                 parentUnit.getId(),
@@ -174,11 +177,12 @@ public class Turret {
                 gameEntities
         );
 
-        if (ordinance != null) {
-            log.debug("Turret {} fired at target (distance: {})", index, distance);
+        if (!ordinances.isEmpty()) {
+            log.debug("Turret {} fired {} ordinance(s) at target (distance: {})", 
+                    index, ordinances.size(), distance);
         }
 
-        return ordinance;
+        return ordinances;
     }
 
     /**

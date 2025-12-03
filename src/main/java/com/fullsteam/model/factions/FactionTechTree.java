@@ -36,12 +36,6 @@ public class FactionTechTree {
     private final Map<BuildingType, List<UnitType>> buildingProducers;
     
     /**
-     * Tech tier requirements for buildings (can override defaults per faction)
-     */
-    @Builder.Default
-    private final Map<BuildingType, Integer> buildingTechTiers = new HashMap<>();
-    
-    /**
      * Check if a unit is available to this faction (checks if any building produces it)
      */
     public boolean canBuildUnit(UnitType unitType) {

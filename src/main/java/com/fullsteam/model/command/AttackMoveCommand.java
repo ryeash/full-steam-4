@@ -103,7 +103,7 @@ public class AttackMoveCommand extends UnitCommand {
     }
 
     @Override
-    public AbstractOrdinance updateCombat(double deltaTime) {
+    public List<AbstractOrdinance> updateCombat(double deltaTime) {
         // If we have an auto-target, engage it
         if (autoTarget != null && autoTarget.isActive()) {
             Vector2 currentPos = unit.getPosition();
@@ -122,7 +122,7 @@ public class AttackMoveCommand extends UnitCommand {
                 return unit.fireAt(interceptPos, gameEntities);
             }
         }
-        return null;
+        return List.of();
     }
 
     /**

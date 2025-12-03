@@ -324,13 +324,13 @@ public class RTSGameManager {
                         }
                     }
 
-                    AbstractOrdinance ordinance = null;
+                    List<AbstractOrdinance> ordinances = List.of();
                     if (unit.getCurrentCommand() != null) {
-                        ordinance = unit.getCurrentCommand().updateCombat(deltaTime);
+                        ordinances = unit.getCurrentCommand().updateCombat(deltaTime);
                     }
 
-                    // Add projectile or beam to world
-                    if (ordinance != null) {
+                    // Add projectiles or beams to world
+                    for (AbstractOrdinance ordinance : ordinances) {
                         gameEntities.add(ordinance);
                     }
                 }

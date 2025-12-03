@@ -42,9 +42,9 @@ public class AttackGroundCommand extends UnitCommand {
     }
 
     @Override
-    public AbstractOrdinance updateCombat(double deltaTime) {
+    public List<AbstractOrdinance> updateCombat(double deltaTime) {
         if (groundTarget == null) {
-            return null;
+            return List.of();
         }
 
         Vector2 currentPos = unit.getPosition();
@@ -60,7 +60,7 @@ public class AttackGroundCommand extends UnitCommand {
             unit.setRotation(Math.atan2(direction.y, direction.x));
             return unit.fireAt(groundTarget, gameEntities);
         }
-        return null;
+        return List.of();
     }
 
     @Override

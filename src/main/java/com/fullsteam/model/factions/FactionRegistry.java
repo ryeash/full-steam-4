@@ -3,7 +3,6 @@ package com.fullsteam.model.factions;
 import com.fullsteam.model.BuildingType;
 import com.fullsteam.model.UnitType;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +53,7 @@ public class FactionRegistry {
                 BuildingType.BANK,
                 BuildingType.COMMAND_CITADEL  // Terran monument
         );
-        
+
         // Terran has access to all standard units (explicit list)
         Map<BuildingType, List<UnitType>> buildingProducers = new HashMap<>();
         buildingProducers.put(BuildingType.HEADQUARTERS, List.of(UnitType.WORKER, UnitType.MINER));
@@ -62,16 +61,15 @@ public class FactionRegistry {
         buildingProducers.put(BuildingType.FACTORY, List.of(UnitType.JEEP, UnitType.TANK, UnitType.ARTILLERY));
         buildingProducers.put(BuildingType.WEAPONS_DEPOT, List.of(UnitType.ROCKET_SOLDIER, UnitType.SNIPER, UnitType.ENGINEER));
         buildingProducers.put(BuildingType.ADVANCED_FACTORY, List.of(
-                UnitType.GIGANTONAUT, 
+                UnitType.GIGANTONAUT,
                 UnitType.CLOAK_TANK,
                 UnitType.MAMMOTH_TANK,
                 UnitType.CRAWLER  // Terran hero
         ));
-        
+
         FactionTechTree techTree = FactionTechTree.builder()
                 .availableBuildings(terranBuildings)
                 .buildingProducers(buildingProducers)
-                .buildingTechTiers(new HashMap<>())
                 .build();
 
         return FactionDefinition.builder()
@@ -113,15 +111,13 @@ public class FactionRegistry {
         buildingProducers.put(BuildingType.FACTORY, List.of(UnitType.JEEP, UnitType.TANK));
         buildingProducers.put(BuildingType.WEAPONS_DEPOT, List.of(UnitType.ROCKET_SOLDIER, UnitType.SNIPER, UnitType.ENGINEER));
         buildingProducers.put(BuildingType.ADVANCED_FACTORY, List.of(
-                UnitType.CRAWLER, 
-                UnitType.CLOAK_TANK, 
+                UnitType.CLOAK_TANK,
                 UnitType.RAIDER  // Nomads hero
         ));
 
         FactionTechTree techTree = FactionTechTree.builder()
                 .availableBuildings(nomadBuildings)
                 .buildingProducers(buildingProducers)
-                .buildingTechTiers(new HashMap<>())
                 .build();
 
         // Nomad-specific unit cost modifiers (vehicles cheaper)
@@ -129,7 +125,6 @@ public class FactionRegistry {
         costModifiers.put(UnitType.JEEP, 0.8);  // -20%
         costModifiers.put(UnitType.TANK, 0.8);  // -20%
         costModifiers.put(UnitType.CLOAK_TANK, 0.8);  // -20%
-        costModifiers.put(UnitType.CRAWLER, 0.85);  // -15%
 
         // Nomad-specific unit stat modifiers (vehicles faster)
         Map<UnitType, FactionDefinition.UnitStatModifier> statModifiers = new HashMap<>();
@@ -180,11 +175,10 @@ public class FactionRegistry {
         buildingProducers.put(BuildingType.FACTORY, List.of(UnitType.TANK));  // No Jeep
         buildingProducers.put(BuildingType.WEAPONS_DEPOT, List.of(UnitType.ROCKET_SOLDIER, UnitType.SNIPER, UnitType.ENGINEER));
         buildingProducers.put(BuildingType.ADVANCED_FACTORY, List.of(
-                UnitType.ARTILLERY, 
-                UnitType.GIGANTONAUT, 
-                UnitType.CRAWLER, 
-                UnitType.CLOAK_TANK, 
-                UnitType.MAMMOTH_TANK, 
+                UnitType.ARTILLERY,
+                UnitType.GIGANTONAUT,
+                UnitType.CLOAK_TANK,
+                UnitType.MAMMOTH_TANK,
                 UnitType.COLOSSUS  // Synthesis hero
         ));
         buildingProducers.put(BuildingType.ANDROID_FACTORY, List.of(UnitType.ANDROID));  // Monument produces androids
@@ -192,7 +186,6 @@ public class FactionRegistry {
         FactionTechTree techTree = FactionTechTree.builder()
                 .availableBuildings(synthesisBuildings)
                 .buildingProducers(buildingProducers)
-                .buildingTechTiers(new HashMap<>())
                 .build();
 
         return FactionDefinition.builder()
@@ -205,7 +198,7 @@ public class FactionRegistry {
                 .buildingHealthMultiplier(1.15)  // +15% building health
                 .build();
     }
-    
+
     /**
      * TECH ALLIANCE - High-tech faction specializing in beam weapons
      */
@@ -228,7 +221,7 @@ public class FactionRegistry {
                 BuildingType.WALL,
                 BuildingType.PHOTON_SPIRE  // Tech Alliance monument
         );
-        
+
         // Tech Alliance uses beam weapons exclusively (explicit list)
         Map<BuildingType, List<UnitType>> buildingProducers = new HashMap<>();
         buildingProducers.put(BuildingType.HEADQUARTERS, List.of(UnitType.WORKER, UnitType.MINER));
@@ -236,16 +229,15 @@ public class FactionRegistry {
         buildingProducers.put(BuildingType.WEAPONS_DEPOT, List.of(UnitType.ION_RANGER, UnitType.ENGINEER));
         buildingProducers.put(BuildingType.FACTORY, List.of(UnitType.PHOTON_SCOUT, UnitType.BEAM_TANK));
         buildingProducers.put(BuildingType.ADVANCED_FACTORY, List.of(
-                UnitType.PULSE_ARTILLERY, 
+                UnitType.PULSE_ARTILLERY,
                 UnitType.PHOTON_TITAN  // Tech Alliance hero
         ));
-        
+
         FactionTechTree techTree = FactionTechTree.builder()
                 .availableBuildings(techAllianceBuildings)
                 .buildingProducers(buildingProducers)
-                .buildingTechTiers(new HashMap<>())
                 .build();
-        
+
         return FactionDefinition.builder()
                 .faction(Faction.TECH_ALLIANCE)
                 .techTree(techTree)

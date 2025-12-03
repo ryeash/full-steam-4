@@ -181,7 +181,7 @@ public class GarrisonComponent extends AbstractBuildingComponent {
             }
 
             // Fire weapon from bunker position (not from garrisoned unit's disabled body position)
-            AbstractOrdinance ordinance = garrisonedUnit.getWeapon().fire(
+            List<AbstractOrdinance> ordinances = garrisonedUnit.getWeapon().fire(
                     bunkerPos,
                     targetPos,
                     garrisonedUnit.getId(),
@@ -190,7 +190,7 @@ public class GarrisonComponent extends AbstractBuildingComponent {
                     gameEntities
             );
             
-            if (ordinance != null) {
+            for (AbstractOrdinance ordinance : ordinances) {
                 gameEntities.add(ordinance);
             }
         }

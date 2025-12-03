@@ -56,16 +56,16 @@ public class BeamWeapon extends Weapon {
     }
 
     @Override
-    protected AbstractOrdinance createOrdinance(Vector2 position,
-                                                Vector2 targetPosition,
-                                                int ownerId,
-                                                int ownerTeam,
-                                                Body ignoredBody,
-                                                GameEntities gameEntities) {
+    protected List<AbstractOrdinance> createOrdinances(Vector2 position,
+                                                       Vector2 targetPosition,
+                                                       int ownerId,
+                                                       int ownerTeam,
+                                                       Body ignoredBody,
+                                                       GameEntities gameEntities) {
         // Beams require the world for raycasting
         World<Body> world = gameEntities.getWorld();
         if (world == null) {
-            return null;
+            return List.of();
         }
 
         // Calculate direction to target
@@ -79,8 +79,8 @@ public class BeamWeapon extends Weapon {
         // Perform raycast to find actual beam endpoint
         Vector2 end = performRaycast(world, position, direction, effectiveRange, ignoredBody, ownerTeam);
 
-        // Create and return beam with raycast results
-        return new Beam(
+        // Create and return beam with raycast results in a list (single beam for standard weapons)
+        Beam beam = new Beam(
                 position.copy(),
                 end,
                 range,
@@ -93,6 +93,8 @@ public class BeamWeapon extends Weapon {
                 beamWidth,
                 beamDuration
         );
+        
+        return List.of(beam);
     }
 
     /**

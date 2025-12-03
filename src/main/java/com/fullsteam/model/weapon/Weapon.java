@@ -8,6 +8,8 @@ import lombok.Setter;
 import org.dyn4j.dynamics.Body;
 import org.dyn4j.geometry.Vector2;
 
+import java.util.List;
+
 /**
  * Abstract base class for all weapon types in the game.
  * Encapsulates weapon stats, firing behavior, and cooldown tracking.
@@ -46,9 +48,9 @@ public abstract class Weapon {
      * @param ownerTeam      The team number of the firing entity
      * @param ignoredBody    The physics body to ignore in collision/raycasting (typically the firer)
      * @param gameEntities   Access to all game entities and the physics world
-     * @return The created ordinance (Projectile, Beam, etc.) or null if unable to fire
+     * @return List of created ordinance (may be empty if unable to fire)
      */
-    public AbstractOrdinance fire(
+    public List<AbstractOrdinance> fire(
             Vector2 position,
             Vector2 targetPosition,
             int ownerId,
@@ -58,23 +60,24 @@ public abstract class Weapon {
     ) {
         // Check if weapon is ready to fire
         if (!canFire()) {
-            return null;
+            return List.of();
         }
 
         // Fire the weapon (implemented by subclass)
-        AbstractOrdinance ordinance = createOrdinance(position, targetPosition, ownerId, ownerTeam, ignoredBody, gameEntities);
+        List<AbstractOrdinance> ordinances = createOrdinances(position, targetPosition, ownerId, ownerTeam, ignoredBody, gameEntities);
 
         // Record the fire time if successful
-        if (ordinance != null) {
+        if (!ordinances.isEmpty()) {
             recordFire();
         }
 
-        return ordinance;
+        return ordinances;
     }
 
     /**
-     * Create the ordinance for this weapon type.
-     * Subclasses implement this to create their specific ordinance (Projectile, Beam, etc.).
+     * Create the ordinances for this weapon type.
+     * Subclasses implement this to create their specific ordinance(s) (Projectile, Beam, etc.).
+     * Most weapons return a single-element list, but some (like multi-barrel weapons) return multiple.
      *
      * @param position       The firing position
      * @param targetPosition The target position to aim at
@@ -82,9 +85,9 @@ public abstract class Weapon {
      * @param ownerTeam      The team number of the firing entity
      * @param ignoredBody    The physics body to ignore in collision/raycasting (typically the firer)
      * @param gameEntities   Access to all game entities and the physics world
-     * @return The created ordinance (Projectile, Beam, etc.) or null if unable to create
+     * @return List of created ordinances (may be empty if unable to create)
      */
-    protected abstract AbstractOrdinance createOrdinance(
+    protected abstract List<AbstractOrdinance> createOrdinances(
             Vector2 position,
             Vector2 targetPosition,
             int ownerId,
