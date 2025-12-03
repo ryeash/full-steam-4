@@ -3903,8 +3903,10 @@ class RTSEngine {
         };
         
         this.myFactionData.availableBuildings.forEach(building => {
-            const tier = building.requiredTechTier || 1;
-            buildingsByTier[tier].push(building);
+            if (building.buildingType !== 'HEADQUARTERS') {
+                const tier = building.requiredTechTier || 1;
+                buildingsByTier[tier].push(building);
+            }
         });
         
         // Define tier categories

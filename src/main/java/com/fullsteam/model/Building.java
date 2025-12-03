@@ -309,16 +309,6 @@ public class Building extends GameEntity {
     }
 
     /**
-     * Check if this building is on a specific team
-     */
-    public boolean isOnTeam(int team) {
-        return this.teamNumber == team;
-    }
-
-
-    // ==================== MONUMENT METHODS ====================
-
-    /**
      * Check if this is a monument building
      */
     public boolean isMonument() {
@@ -362,7 +352,7 @@ public class Building extends GameEntity {
     }
 
     /**
-     * Ungarrison all units from this building
+     * Un-garrison all units from this building
      *
      * @return List of ungarrisoned units
      */
@@ -386,10 +376,6 @@ public class Building extends GameEntity {
                 .map(GarrisonComponent::getMaxGarrisonCapacity)
                 .orElse(0);
     }
-
-    // ========================================
-    // Component Management
-    // ========================================
 
     /**
      * Add a component to this building.
@@ -415,19 +401,9 @@ public class Building extends GameEntity {
         return Optional.ofNullable(componentClass.cast(components.get(componentClass)));
     }
 
-    /**
-     * Check if this building has a specific component.
-     *
-     * @param componentClass The class of the component to check
-     * @return true if the component is present
-     */
-    public boolean hasComponent(Class<? extends IBuildingComponent> componentClass) {
-        return components.containsKey(componentClass);
-    }
-
-    // TODO: wire in for all research and components
     public void applyResearchModifiers(ResearchModifier modifier) {
         // Apply health modifier (increase max health and current health proportionally)
+        // TODO: wire in for all research and components
         double healthMultiplier = modifier.getUnitHealthMultiplier();
         if (healthMultiplier != 1.0) {
             double healthPercent = health / maxHealth;
