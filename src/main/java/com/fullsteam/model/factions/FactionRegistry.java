@@ -6,7 +6,6 @@ import com.fullsteam.model.UnitType;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Central registry for all faction definitions.
@@ -17,7 +16,6 @@ public class FactionRegistry {
     private static final Map<Faction, FactionDefinition> FACTION_DEFINITIONS = new HashMap<>();
 
     static {
-        // Initialize all faction definitions
         FACTION_DEFINITIONS.put(Faction.TERRAN, createTerranDefinition());
         FACTION_DEFINITIONS.put(Faction.NOMADS, createNomadsDefinition());
         FACTION_DEFINITIONS.put(Faction.SYNTHESIS, createSynthesisDefinition());
@@ -35,49 +33,53 @@ public class FactionRegistry {
      * TERRAN - Balanced faction with all standard units
      */
     private static FactionDefinition createTerranDefinition() {
-        // Terran has access to all standard buildings (explicit list)
-        // Note: HEADQUARTERS excluded - it's a starting building only, cannot be built
-        Set<BuildingType> terranBuildings = Set.of(
-                BuildingType.POWER_PLANT,
-                BuildingType.BARRACKS,
-                BuildingType.REFINERY,
-                BuildingType.WALL,
-                BuildingType.RESEARCH_LAB,
-                BuildingType.FACTORY,
-                BuildingType.WEAPONS_DEPOT,
-                BuildingType.TURRET,
-                BuildingType.BUNKER,  // Common defensive building
-                BuildingType.SHIELD_GENERATOR,
-                BuildingType.TECH_CENTER,
-                BuildingType.ADVANCED_FACTORY,
-                BuildingType.BANK,
-                BuildingType.COMMAND_CITADEL  // Terran monument
-        );
-
-        // Terran has access to all standard units (explicit list)
-        Map<BuildingType, List<UnitType>> buildingProducers = new HashMap<>();
-        buildingProducers.put(BuildingType.HEADQUARTERS, List.of(UnitType.WORKER, UnitType.MINER));
-        buildingProducers.put(BuildingType.BARRACKS, List.of(UnitType.INFANTRY, UnitType.MEDIC));
-        buildingProducers.put(BuildingType.FACTORY, List.of(UnitType.JEEP, UnitType.TANK, UnitType.ARTILLERY));
-        buildingProducers.put(BuildingType.WEAPONS_DEPOT, List.of(UnitType.ROCKET_SOLDIER, UnitType.SNIPER, UnitType.ENGINEER));
-        buildingProducers.put(BuildingType.ADVANCED_FACTORY, List.of(
-                UnitType.GIGANTONAUT,
-                UnitType.CLOAK_TANK,
-                UnitType.MAMMOTH_TANK,
-                UnitType.CRAWLER  // Terran hero
-        ));
-
         FactionTechTree techTree = FactionTechTree.builder()
-                .availableBuildings(terranBuildings)
-                .buildingProducers(buildingProducers)
+                .buildingsAndUnits(Map.ofEntries(
+                        Map.entry(BuildingType.HEADQUARTERS, List.of(
+                                UnitType.WORKER,
+                                UnitType.MINER
+                        )),
+                        Map.entry(BuildingType.POWER_PLANT, List.of()),
+                        Map.entry(BuildingType.BARRACKS, List.of(
+                                UnitType.INFANTRY,
+                                UnitType.MEDIC
+                        )),
+                        Map.entry(BuildingType.REFINERY, List.of()),
+                        Map.entry(BuildingType.WALL, List.of()),
+                        Map.entry(BuildingType.RESEARCH_LAB, List.of()),
+                        Map.entry(BuildingType.FACTORY, List.of(
+                                UnitType.JEEP,
+                                UnitType.TANK,
+                                UnitType.ARTILLERY
+                        )),
+                        Map.entry(BuildingType.WEAPONS_DEPOT, List.of(
+                                UnitType.ROCKET_SOLDIER,
+                                UnitType.SNIPER,
+                                UnitType.ENGINEER
+                        )),
+                        Map.entry(BuildingType.TURRET, List.of()),
+                        Map.entry(BuildingType.ROCKET_TURRET, List.of()),
+                        Map.entry(BuildingType.LASER_TURRET, List.of()),
+                        Map.entry(BuildingType.BUNKER, List.of()),
+                        Map.entry(BuildingType.SHIELD_GENERATOR, List.of()),
+                        Map.entry(BuildingType.TECH_CENTER, List.of()),
+                        Map.entry(BuildingType.ADVANCED_FACTORY, List.of(
+                                UnitType.GIGANTONAUT,
+                                UnitType.CLOAK_TANK,
+                                UnitType.MAMMOTH_TANK,
+                                UnitType.CRAWLER
+                        )),
+                        Map.entry(BuildingType.BANK, List.of()),
+                        Map.entry(BuildingType.COMMAND_CITADEL, List.of())
+                ))
                 .build();
 
         return FactionDefinition.builder()
                 .faction(Faction.TERRAN)
                 .techTree(techTree)
                 .heroUnit(UnitType.CRAWLER)
-                .monumentBuilding(BuildingType.COMMAND_CITADEL)  // Terran monument - command center
-                .buildingHealthMultiplier(1.1)  // +10% building health
+                .monumentBuilding(BuildingType.COMMAND_CITADEL)
+                .buildingHealthMultiplier(1.1)
                 .build();
     }
 
@@ -85,39 +87,42 @@ public class FactionRegistry {
      * NOMADS - Mobile warfare faction
      */
     private static FactionDefinition createNomadsDefinition() {
-        // Nomads have all standard buildings (explicit list)
-        // Note: HEADQUARTERS excluded - it's a starting building only, cannot be built
-        Set<BuildingType> nomadBuildings = Set.of(
-                BuildingType.POWER_PLANT,
-                BuildingType.BARRACKS,
-                BuildingType.REFINERY,
-                BuildingType.WALL,
-                BuildingType.RESEARCH_LAB,
-                BuildingType.FACTORY,
-                BuildingType.WEAPONS_DEPOT,
-                BuildingType.TURRET,
-                BuildingType.BUNKER,  // Common defensive building
-                BuildingType.SHIELD_GENERATOR,
-                BuildingType.TECH_CENTER,
-                BuildingType.ADVANCED_FACTORY,
-                BuildingType.BANK,
-                BuildingType.SANDSTORM_GENERATOR  // Nomads monument
-        );
-
-        // Nomads focus on light, fast units - no heavy vehicles
-        Map<BuildingType, List<UnitType>> buildingProducers = new HashMap<>();
-        buildingProducers.put(BuildingType.HEADQUARTERS, List.of(UnitType.WORKER, UnitType.MINER));
-        buildingProducers.put(BuildingType.BARRACKS, List.of(UnitType.INFANTRY, UnitType.MEDIC));
-        buildingProducers.put(BuildingType.FACTORY, List.of(UnitType.JEEP, UnitType.TANK));
-        buildingProducers.put(BuildingType.WEAPONS_DEPOT, List.of(UnitType.ROCKET_SOLDIER, UnitType.SNIPER, UnitType.ENGINEER));
-        buildingProducers.put(BuildingType.ADVANCED_FACTORY, List.of(
-                UnitType.CLOAK_TANK,
-                UnitType.RAIDER  // Nomads hero
-        ));
-
         FactionTechTree techTree = FactionTechTree.builder()
-                .availableBuildings(nomadBuildings)
-                .buildingProducers(buildingProducers)
+                .buildingsAndUnits(Map.ofEntries(
+                        Map.entry(BuildingType.HEADQUARTERS, List.of(
+                                UnitType.WORKER,
+                                UnitType.MINER
+                        )),
+                        Map.entry(BuildingType.POWER_PLANT, List.of()),
+                        Map.entry(BuildingType.BARRACKS, List.of(
+                                UnitType.INFANTRY,
+                                UnitType.MEDIC
+                        )),
+                        Map.entry(BuildingType.REFINERY, List.of()),
+                        Map.entry(BuildingType.WALL, List.of()),
+                        Map.entry(BuildingType.RESEARCH_LAB, List.of()),
+                        Map.entry(BuildingType.FACTORY, List.of(
+                                UnitType.JEEP,
+                                UnitType.TANK
+                        )),
+                        Map.entry(BuildingType.WEAPONS_DEPOT, List.of(
+                                UnitType.ROCKET_SOLDIER,
+                                UnitType.SNIPER,
+                                UnitType.ENGINEER
+                        )),
+                        Map.entry(BuildingType.TURRET, List.of()),
+                        Map.entry(BuildingType.ROCKET_TURRET, List.of()),
+                        Map.entry(BuildingType.LASER_TURRET, List.of()),
+                        Map.entry(BuildingType.BUNKER, List.of()),
+                        Map.entry(BuildingType.SHIELD_GENERATOR, List.of()),
+                        Map.entry(BuildingType.TECH_CENTER, List.of()),
+                        Map.entry(BuildingType.ADVANCED_FACTORY, List.of(
+                                UnitType.CLOAK_TANK,
+                                UnitType.RAIDER
+                        )),
+                        Map.entry(BuildingType.BANK, List.of()),
+                        Map.entry(BuildingType.SANDSTORM_GENERATOR, List.of())
+                ))
                 .build();
 
         // Nomad-specific unit cost modifiers (vehicles cheaper)
@@ -151,41 +156,40 @@ public class FactionRegistry {
      * SYNTHESIS - Advanced technology faction
      */
     private static FactionDefinition createSynthesisDefinition() {
-        // Synthesis has advanced buildings, no barracks (explicit list)
-        // Note: HEADQUARTERS excluded - it's a starting building only, cannot be built
-        Set<BuildingType> synthesisBuildings = Set.of(
-                BuildingType.POWER_PLANT,
-                BuildingType.REFINERY,
-                BuildingType.WALL,
-                BuildingType.RESEARCH_LAB,
-                BuildingType.FACTORY,
-                BuildingType.WEAPONS_DEPOT,
-                BuildingType.TURRET,
-                BuildingType.BUNKER,  // Common defensive building
-                BuildingType.SHIELD_GENERATOR,
-                BuildingType.TECH_CENTER,
-                BuildingType.ADVANCED_FACTORY,
-                BuildingType.BANK,
-                BuildingType.ANDROID_FACTORY  // Synthesis monument
-        );
-
-        // Synthesis focuses on advanced, heavy units - no basic infantry
-        Map<BuildingType, List<UnitType>> buildingProducers = new HashMap<>();
-        buildingProducers.put(BuildingType.HEADQUARTERS, List.of(UnitType.WORKER, UnitType.MINER));
-        buildingProducers.put(BuildingType.FACTORY, List.of(UnitType.TANK));  // No Jeep
-        buildingProducers.put(BuildingType.WEAPONS_DEPOT, List.of(UnitType.ROCKET_SOLDIER, UnitType.SNIPER, UnitType.ENGINEER));
-        buildingProducers.put(BuildingType.ADVANCED_FACTORY, List.of(
-                UnitType.ARTILLERY,
-                UnitType.GIGANTONAUT,
-                UnitType.CLOAK_TANK,
-                UnitType.MAMMOTH_TANK,
-                UnitType.COLOSSUS  // Synthesis hero
-        ));
-        buildingProducers.put(BuildingType.ANDROID_FACTORY, List.of(UnitType.ANDROID));  // Monument produces androids
-
         FactionTechTree techTree = FactionTechTree.builder()
-                .availableBuildings(synthesisBuildings)
-                .buildingProducers(buildingProducers)
+                .buildingsAndUnits(Map.ofEntries(
+                        Map.entry(BuildingType.HEADQUARTERS, List.of(
+                                UnitType.WORKER,
+                                UnitType.MINER
+                        )),
+                        Map.entry(BuildingType.POWER_PLANT, List.of()),
+                        Map.entry(BuildingType.REFINERY, List.of()),
+                        Map.entry(BuildingType.WALL, List.of()),
+                        Map.entry(BuildingType.RESEARCH_LAB, List.of()),
+                        Map.entry(BuildingType.FACTORY, List.of(
+                                UnitType.TANK,
+                                UnitType.ARTILLERY
+                        )),
+                        Map.entry(BuildingType.WEAPONS_DEPOT, List.of(
+                                UnitType.ROCKET_SOLDIER,
+                                UnitType.SNIPER,
+                                UnitType.ENGINEER
+                        )),
+                        Map.entry(BuildingType.TURRET, List.of()),
+                        Map.entry(BuildingType.ROCKET_TURRET, List.of()),
+                        Map.entry(BuildingType.LASER_TURRET, List.of()),
+                        Map.entry(BuildingType.BUNKER, List.of()),
+                        Map.entry(BuildingType.SHIELD_GENERATOR, List.of()),
+                        Map.entry(BuildingType.TECH_CENTER, List.of()),
+                        Map.entry(BuildingType.ADVANCED_FACTORY, List.of(
+                                UnitType.GIGANTONAUT,
+                                UnitType.CLOAK_TANK,
+                                UnitType.MAMMOTH_TANK,
+                                UnitType.COLOSSUS
+                        )),
+                        Map.entry(BuildingType.BANK, List.of()),
+                        Map.entry(BuildingType.ANDROID_FACTORY, List.of(UnitType.ANDROID))
+                ))
                 .build();
 
         return FactionDefinition.builder()
@@ -203,39 +207,41 @@ public class FactionRegistry {
      * TECH ALLIANCE - High-tech faction specializing in beam weapons
      */
     private static FactionDefinition createTechAllianceDefinition() {
-        // Tech Alliance has standard buildings (explicit list)
-        // Note: HEADQUARTERS excluded - it's a starting building only, cannot be built
-        Set<BuildingType> techAllianceBuildings = Set.of(
-                BuildingType.POWER_PLANT,
-                BuildingType.REFINERY,
-                BuildingType.BARRACKS,
-                BuildingType.FACTORY,
-                BuildingType.TURRET,
-                BuildingType.BUNKER,  // Common defensive building
-                BuildingType.WEAPONS_DEPOT,
-                BuildingType.ADVANCED_FACTORY,
-                BuildingType.SHIELD_GENERATOR,
-                BuildingType.BANK,
-                BuildingType.RESEARCH_LAB,
-                BuildingType.TECH_CENTER,
-                BuildingType.WALL,
-                BuildingType.PHOTON_SPIRE  // Tech Alliance monument
-        );
-
-        // Tech Alliance uses beam weapons exclusively (explicit list)
-        Map<BuildingType, List<UnitType>> buildingProducers = new HashMap<>();
-        buildingProducers.put(BuildingType.HEADQUARTERS, List.of(UnitType.WORKER, UnitType.MINER));
-        buildingProducers.put(BuildingType.BARRACKS, List.of(UnitType.PLASMA_TROOPER, UnitType.MEDIC));
-        buildingProducers.put(BuildingType.WEAPONS_DEPOT, List.of(UnitType.ION_RANGER, UnitType.ENGINEER));
-        buildingProducers.put(BuildingType.FACTORY, List.of(UnitType.PHOTON_SCOUT, UnitType.BEAM_TANK));
-        buildingProducers.put(BuildingType.ADVANCED_FACTORY, List.of(
-                UnitType.PULSE_ARTILLERY,
-                UnitType.PHOTON_TITAN  // Tech Alliance hero
-        ));
-
         FactionTechTree techTree = FactionTechTree.builder()
-                .availableBuildings(techAllianceBuildings)
-                .buildingProducers(buildingProducers)
+                .buildingsAndUnits(Map.ofEntries(
+                        Map.entry(BuildingType.HEADQUARTERS, List.of(
+                                UnitType.WORKER,
+                                UnitType.MINER
+                        )),
+                        Map.entry(BuildingType.POWER_PLANT, List.of()),
+                        Map.entry(BuildingType.REFINERY, List.of()),
+                        Map.entry(BuildingType.BARRACKS, List.of(
+                                UnitType.PLASMA_TROOPER,
+                                UnitType.MEDIC
+                        )),
+                        Map.entry(BuildingType.FACTORY, List.of(
+                                UnitType.PHOTON_SCOUT,
+                                UnitType.BEAM_TANK
+                        )),
+                        Map.entry(BuildingType.TURRET, List.of()),
+                        Map.entry(BuildingType.ROCKET_TURRET, List.of()),
+                        Map.entry(BuildingType.LASER_TURRET, List.of()),
+                        Map.entry(BuildingType.BUNKER, List.of()),
+                        Map.entry(BuildingType.WEAPONS_DEPOT, List.of(
+                                UnitType.ION_RANGER,
+                                UnitType.ENGINEER
+                        )),
+                        Map.entry(BuildingType.ADVANCED_FACTORY, List.of(
+                                UnitType.PULSE_ARTILLERY,
+                                UnitType.PHOTON_TITAN
+                        )),
+                        Map.entry(BuildingType.SHIELD_GENERATOR, List.of()),
+                        Map.entry(BuildingType.BANK, List.of()),
+                        Map.entry(BuildingType.RESEARCH_LAB, List.of()),
+                        Map.entry(BuildingType.TECH_CENTER, List.of()),
+                        Map.entry(BuildingType.WALL, List.of()),
+                        Map.entry(BuildingType.PHOTON_SPIRE, List.of())
+                ))
                 .build();
 
         return FactionDefinition.builder()

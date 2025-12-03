@@ -99,6 +99,16 @@ public class Building extends GameEntity {
             log.debug("Building {} ({}) initialized with DefenseComponent", id, buildingType.getDisplayName());
         }
 
+        if (buildingType == BuildingType.ROCKET_TURRET) {
+            addComponent(new DefenseComponent(WeaponFactory.getRocketTurretWeapon()));
+            log.debug("Building {} ({}) initialized with DefenseComponent (Rocket)", id, buildingType.getDisplayName());
+        }
+
+        if (buildingType == BuildingType.LASER_TURRET) {
+            addComponent(new DefenseComponent(WeaponFactory.getLaserTurretWeapon()));
+            log.debug("Building {} ({}) initialized with DefenseComponent (Laser)", id, buildingType.getDisplayName());
+        }
+
         if (buildingType == BuildingType.PHOTON_SPIRE) {
             addComponent(new DefenseComponent(WeaponFactory.getPhotonSpireWeapon()));
             log.debug("Building {} ({}) initialized with DefenseComponent", id, buildingType.getDisplayName());

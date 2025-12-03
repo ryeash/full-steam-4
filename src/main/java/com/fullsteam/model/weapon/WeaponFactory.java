@@ -265,6 +265,40 @@ public class WeaponFactory {
     }
     
     /**
+     * Get the weapon for rocket turret building (ROCKET_TURRET).
+     * High damage, long range, slower fire rate, explosive.
+     */
+    public static Weapon getRocketTurretWeapon() {
+        return new ProjectileWeapon(
+            60.0,  // damage (high single-target damage)
+            400.0, // range (longer than basic turret)
+            0.8,   // attack rate (slow fire rate)
+            450.0, // projectile speed (slower rockets)
+            0.05,  // linear damping (low - rockets maintain speed)
+            5.0,   // size (large rockets)
+            Ordinance.ROCKET,
+            Set.of(BulletEffect.EXPLOSIVE)
+        );
+    }
+    
+    /**
+     * Get the weapon for laser turret building (LASER_TURRET).
+     * Moderate damage, instant hit, high fire rate.
+     */
+    public static Weapon getLaserTurretWeapon() {
+        return new BeamWeapon(
+            35.0,  // damage (moderate per shot, but high DPS due to fire rate)
+            350.0, // range (good range)
+            2.5,   // attack rate (fast fire rate)
+            4.0,   // beam width (visible laser)
+            0.4,   // duration (visible beam)
+            Beam.BeamType.LASER,
+            Ordinance.LASER,
+            new HashSet<>()
+        );
+    }
+    
+    /**
      * Get the weapon for Photon Spire (Obelisk of Light style).
      */
     public static Weapon getPhotonSpireWeapon() {

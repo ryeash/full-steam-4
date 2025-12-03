@@ -214,10 +214,10 @@ public class FactionInfoService {
             case HEADQUARTERS, POWER_PLANT, BARRACKS, REFINERY, BUNKER, WALL -> List.of();
 
             // T2 - Requires Power Plant
-            case RESEARCH_LAB, FACTORY, WEAPONS_DEPOT, TURRET, SHIELD_GENERATOR -> List.of("POWER_PLANT");
+            case RESEARCH_LAB, FACTORY, WEAPONS_DEPOT, TURRET, ROCKET_TURRET, SHIELD_GENERATOR -> List.of("POWER_PLANT");
 
             // T3 - Requires Power Plant + Research Lab
-            case TECH_CENTER, ADVANCED_FACTORY, BANK -> List.of("POWER_PLANT", "RESEARCH_LAB");
+            case TECH_CENTER, ADVANCED_FACTORY, BANK, LASER_TURRET -> List.of("POWER_PLANT", "RESEARCH_LAB");
 
             // Monument Buildings - Requires Power Plant + Research Lab (T3)
             case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL -> List.of("POWER_PLANT", "RESEARCH_LAB");

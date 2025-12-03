@@ -11,6 +11,7 @@ import lombok.Setter;
 import org.dyn4j.geometry.Vector2;
 
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Getter
 @Setter
@@ -20,6 +21,12 @@ public class DefenseComponent extends AbstractBuildingComponent {
 
     public DefenseComponent(Weapon weapon) {
         this.weapon = weapon;
+    }
+
+    @Override
+    public void init(GameEntities gameEntities, Building building) {
+        super.init(gameEntities, building);
+        building.setRotation(ThreadLocalRandom.current().nextDouble(Math.PI));
     }
 
     @Override

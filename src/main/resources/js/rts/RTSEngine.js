@@ -1211,19 +1211,23 @@ class RTSEngine {
             'ADVANCED_FACTORY': { sides: 6, size: 65, color: 0x2F4F4F, rotation: 0 },
             'WALL': { sides: 4, size: 15, color: 0x708090, rotation: 0 },
             'TURRET': { sides: 5, size: 25, color: 0xFF4500, rotation: 0 },
+            'ROCKET_TURRET': { sides: 6, size: 25, color: 0xFF6347, rotation: 0 },
+            'LASER_TURRET': { sides: 8, size: 25, color: 0x00FFFF, rotation: Math.PI / 8 },
             'SHIELD_GENERATOR': { sides: 6, size: 30, color: 0x00BFFF, rotation: 0 },
             'BANK': { sides: 8, size: 35, color: 0xFFD700, rotation: Math.PI / 8 },
             'BUNKER': { sides: 4, size: 40, color: 0x556B2F, rotation: Math.PI / 4 },
             // Monument buildings
             'SANDSTORM_GENERATOR': { sides: 6, size: 45, color: 0xDEB887, rotation: 0 },
             'QUANTUM_NEXUS': { sides: 8, size: 50, color: 0x9370DB, rotation: Math.PI / 8 },
-            'PHOTON_SPIRE': { sides: 6, size: 48, color: 0x00FF00, rotation: Math.PI / 6 }
+            'PHOTON_SPIRE': { sides: 6, size: 48, color: 0x00FF00, rotation: Math.PI / 6 },
+            'ANDROID_FACTORY': { sides: 8, size: 55, color: 0x4B0082, rotation: Math.PI / 8 },
+            'COMMAND_CITADEL': { sides: 8, size: 55, color: 0x4169E1, rotation: 0 }
         };
         
         const typeInfo = buildingTypes[buildingData.type] || { sides: 4, size: 50, color: 0xFFFFFF, rotation: 0 };
         
         // Create a rotating container for turret buildings
-        const hasTurret = buildingData.type === 'TURRET';
+        const hasTurret = buildingData.type === 'TURRET' || buildingData.type === 'ROCKET_TURRET' || buildingData.type === 'LASER_TURRET';
         let rotatingContainer;
         
         if (hasTurret) {
@@ -1277,6 +1281,8 @@ class RTSEngine {
             'FACTORY': 'F',
             'WALL': 'W',
             'TURRET': 'T',
+            'ROCKET_TURRET': 'RT',
+            'LASER_TURRET': 'LT',
             'POWER_PLANT': 'P',
             'RESEARCH_LAB': 'RL',
             'WEAPONS_DEPOT': 'WD',
@@ -2666,6 +2672,7 @@ class RTSEngine {
         this.buildPreview.shapeGraphics = shape;
         
         // Range indicator (for turrets)
+        // TODO: we need more range indicators and we shouldn't need to hardcode?
         if (buildingType === 'TURRET') {
             const rangeCircle = new PIXI.Graphics();
             rangeCircle.circle(0, 0, 300); // Turret range
@@ -3954,6 +3961,8 @@ class RTSEngine {
             'FACTORY': '🚗',
             'WEAPONS_DEPOT': '🔫',
             'TURRET': '🎯',
+            'ROCKET_TURRET': '🚀',
+            'LASER_TURRET': '🔷',
             'SHIELD_GENERATOR': '🛡️',
             'TECH_CENTER': '🧪',
             'ADVANCED_FACTORY': '🏭',
@@ -3982,6 +3991,8 @@ class RTSEngine {
             'FACTORY': 'Factory',
             'WEAPONS_DEPOT': 'Weapons Depot',
             'TURRET': 'Turret',
+            'ROCKET_TURRET': 'Rocket Turret',
+            'LASER_TURRET': 'Laser Turret',
             'SHIELD_GENERATOR': 'Shield Generator',
             'TECH_CENTER': 'Tech Center',
             'ADVANCED_FACTORY': 'Advanced Factory',

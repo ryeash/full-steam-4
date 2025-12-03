@@ -1723,11 +1723,11 @@ public class RTSGameManager {
             case POWER_PLANT, BARRACKS, REFINERY, BUNKER, WALL -> true;
 
             // T2 - Requires Power Plant
-            case RESEARCH_LAB, FACTORY, WEAPONS_DEPOT, TURRET, SHIELD_GENERATOR ->
+            case RESEARCH_LAB, FACTORY, WEAPONS_DEPOT, TURRET, ROCKET_TURRET, SHIELD_GENERATOR ->
                     playerBuildings.contains(BuildingType.POWER_PLANT);
 
             // T3 - Requires Power Plant + Research Lab
-            case TECH_CENTER, ADVANCED_FACTORY, BANK -> playerBuildings.contains(BuildingType.POWER_PLANT) &&
+            case TECH_CENTER, ADVANCED_FACTORY, BANK, LASER_TURRET -> playerBuildings.contains(BuildingType.POWER_PLANT) &&
                     playerBuildings.contains(BuildingType.RESEARCH_LAB);
 
             // Monument Buildings - Requires Power Plant + Research Lab (T3)

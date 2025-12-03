@@ -153,7 +153,7 @@ public enum BuildingType {
             250.0    // vision range (limited, small defensive structure)
     ),
 
-    // Defensive structure - attacks enemies
+    // Defensive structure - attacks enemies with machine gun
     TURRET(
             "Turret",
             250,     // resource cost
@@ -163,8 +163,36 @@ public enum BuildingType {
             5,       // sides (pentagon)
             0xFF4500, // orange red
             false,   // cannot produce units
-            -20,     // power consumption
+            -35,     // power consumption
             450.0    // vision range (excellent, needs to spot threats)
+    ),
+
+    // Defensive structure - fires rockets with explosive damage
+    ROCKET_TURRET(
+            "Rocket Turret",
+            350,     // resource cost (more expensive than basic turret)
+            20,      // build time (seconds)
+            380,     // max health (lower than basic turret)
+            25.0,    // size (radius)
+            6,       // sides (hexagon)
+            0xFF6347, // tomato red
+            false,   // cannot produce units
+            -50,     // power consumption (higher than basic)
+            480.0    // vision range (excellent, long-range targeting)
+    ),
+
+    // Defensive structure - fires laser beams
+    LASER_TURRET(
+            "Laser Turret",
+            400,     // resource cost (expensive advanced turret)
+            25,      // build time (seconds)
+            350,     // max health (lowest of turrets - glass cannon)
+            25.0,    // size (radius)
+            8,       // sides (octagon - advanced tech)
+            0x00FFFF, // cyan (laser blue)
+            false,   // cannot produce units
+            -65,     // power consumption (highest - energy weapon)
+            500.0    // vision range (best, advanced sensors)
     ),
 
     // Defensive structure - infantry can garrison inside and fire out
@@ -298,7 +326,7 @@ public enum BuildingType {
      * Check if this building is defensive (turret)
      */
     public boolean isDefensive() {
-        return this == TURRET;
+        return this == TURRET || this == ROCKET_TURRET || this == LASER_TURRET;
     }
 
     /**
@@ -307,9 +335,9 @@ public enum BuildingType {
     public int getRequiredTechTier() {
         return switch (this) {
             case HEADQUARTERS, REFINERY, BARRACKS, POWER_PLANT, BUNKER, WALL -> 1;
-            case FACTORY, RESEARCH_LAB, WEAPONS_DEPOT, TURRET, SHIELD_GENERATOR -> 2;
+            case FACTORY, RESEARCH_LAB, WEAPONS_DEPOT, TURRET, SHIELD_GENERATOR, ROCKET_TURRET -> 2;
             case TECH_CENTER, ADVANCED_FACTORY, BANK, SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE,
-                 COMMAND_CITADEL -> 3;
+                 COMMAND_CITADEL, LASER_TURRET -> 3;
         };
     }
 
@@ -355,6 +383,12 @@ public enum BuildingType {
 
             // Turret - pentagonal defensive structure
             case TURRET -> List.of(Geometry.createPolygonalCircle(5, size));
+
+            // Rocket Turret - hexagonal rocket platform
+            case ROCKET_TURRET -> List.of(Geometry.createPolygonalCircle(6, size));
+
+            // Laser Turret - octagonal advanced energy turret
+            case LASER_TURRET -> List.of(Geometry.createPolygonalCircle(8, size));
 
             // Shield Generator - hexagonal energy projector
             case SHIELD_GENERATOR -> List.of(Geometry.createPolygonalCircle(6, size));
