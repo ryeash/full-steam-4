@@ -176,7 +176,6 @@ public class FactionInfoService {
         // Get tech requirements (buildings required before this can be built)
         List<String> techReqs = getTechRequirements(buildingType);
 
-
         return FactionInfoDTO.BuildingInfo.builder()
                 .buildingType(buildingType.name())
                 .displayName(buildingType.getDisplayName())

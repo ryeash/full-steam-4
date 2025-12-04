@@ -18,7 +18,7 @@ public enum BuildingType {
             "Headquarters",
             0,       // free (starting building)
             0,       // no build time
-            1050,    // max health (+5%)
+            5000,    // max health
             80.0,    // size (radius)
             8,       // sides (octagon)
             0xFFD700, // gold
@@ -32,7 +32,7 @@ public enum BuildingType {
             "Refinery",
             300,     // resource cost
             20,      // build time (seconds)
-            525,     // max health (+5%)
+            600,     // max health
             50.0,    // size (radius)
             6,       // sides (hexagon)
             0x808080, // gray
@@ -46,7 +46,7 @@ public enum BuildingType {
             "Barracks",
             200,     // resource cost
             15,      // build time (seconds)
-            630,     // max health (+5%)
+            550,     // max health
             45.0,    // size (radius)
             4,       // sides (rectangle)
             0x8B4513, // brown
@@ -60,7 +60,7 @@ public enum BuildingType {
             "Power Plant",
             250,     // resource cost
             20,      // build time (seconds)
-            420,     // max health (+5%)
+            400,     // max health
             40.0,    // size (radius)
             6,       // sides (hexagon)
             0xFFFF00, // yellow
@@ -74,7 +74,7 @@ public enum BuildingType {
             "Factory",
             400,     // resource cost
             25,      // build time (seconds)
-            735,     // max health (+5%)
+            800,     // max health
             55.0,    // size (radius)
             4,       // sides (rectangle)
             0x696969, // dark gray
@@ -88,7 +88,7 @@ public enum BuildingType {
             "Research Lab",
             500,     // resource cost
             30,      // build time (seconds)
-            630,     // max health (+5%)
+            700,     // max health
             50.0,    // size (radius)
             6,       // sides (hexagon)
             0x00CED1, // dark turquoise
@@ -102,7 +102,7 @@ public enum BuildingType {
             "Weapons Depot",
             400,     // resource cost
             25,      // build time (seconds)
-            683,     // max health (+5%)
+            700,     // max health
             48.0,    // size (radius)
             5,       // sides (pentagon)
             0x8B0000, // dark red
@@ -116,7 +116,7 @@ public enum BuildingType {
             "Tech Center",
             800,     // resource cost
             40,      // build time (seconds)
-            840,     // max health (+5%)
+            900,     // max health
             60.0,    // size (radius)
             8,       // sides (octagon)
             0x4169E1, // royal blue
@@ -130,7 +130,7 @@ public enum BuildingType {
             "Advanced Factory",
             1000,    // resource cost
             45,      // build time (seconds)
-            945,     // max health (+5%)
+            1000,     // max health
             65.0,    // size (radius)
             6,       // sides (hexagon)
             0x2F4F4F, // dark slate gray
@@ -144,7 +144,7 @@ public enum BuildingType {
             "Wall",
             50,      // resource cost
             5,       // build time (seconds)
-            420,     // max health (+5%)
+            500,     // max health
             15.0,    // size (radius) - small for tight placement
             4,       // sides (square)
             0x708090, // slate gray
@@ -158,7 +158,7 @@ public enum BuildingType {
             "Turret",
             250,     // resource cost
             15,      // build time (seconds)
-            420,     // max health (+5%)
+            500,     // max health
             25.0,    // size (radius)
             5,       // sides (pentagon)
             0xFF4500, // orange red
@@ -172,7 +172,7 @@ public enum BuildingType {
             "Rocket Turret",
             350,     // resource cost (more expensive than basic turret)
             20,      // build time (seconds)
-            380,     // max health (lower than basic turret)
+            400,     // max health (lower than basic turret)
             25.0,    // size (radius)
             6,       // sides (hexagon)
             0xFF6347, // tomato red
@@ -200,7 +200,7 @@ public enum BuildingType {
             "Bunker",
             250,     // resource cost - reduced to make it accessible as T1
             18,      // build time (seconds)
-            840,     // max health (+5%)
+            1200,     // max health
             35.0,    // size (radius)
             4,       // sides (rectangle)
             0x556B2F, // dark olive green
@@ -215,7 +215,7 @@ public enum BuildingType {
             "Shield Generator",
             400,     // resource cost
             25,      // build time (seconds)
-            525,     // max health (+5%)
+            500,     // max health
             30.0,    // size (radius)
             6,       // sides (hexagon)
             0x00BFFF, // deep sky blue
@@ -229,7 +229,7 @@ public enum BuildingType {
             "Bank",
             600,     // resource cost (expensive T3 building)
             30,      // build time (seconds)
-            420,     // max health (+5%)
+            420,     // max health
             35.0,    // size (radius)
             8,       // sides (octagon)
             0xFFD700, // gold
@@ -245,8 +245,8 @@ public enum BuildingType {
     SANDSTORM_GENERATOR(
             "Sandstorm Generator",
             600,     // resource cost
-            35,      // build time (seconds)
-            735,     // max health (+5%)
+            60,      // build time (seconds)
+            800,     // max health
             35.0,    // size (radius) - reduced from 45
             6,       // sides (hexagon)
             0xDEB887, // burlywood (sandy color)
@@ -259,7 +259,7 @@ public enum BuildingType {
     ANDROID_FACTORY(
             "Android Factory",
             700,     // resource cost
-            40,      // build time (seconds)
+            90,      // build time (seconds)
             900,     // max health
             42.0,    // size (radius)
             8,       // sides (octagon)
@@ -273,8 +273,8 @@ public enum BuildingType {
     PHOTON_SPIRE(
             "Photon Spire",
             650,     // resource cost
-            38,      // build time (seconds)
-            1200,    // max health (very durable for a defensive structure)
+            60,      // build time (seconds)
+            800,    // max health
             48.0,    // size (radius)
             6,       // sides (hexagon)
             0x00FF00, // bright green (photon energy)
@@ -287,8 +287,8 @@ public enum BuildingType {
     COMMAND_CITADEL(
             "Command Citadel",
             700,     // resource cost (expensive monument)
-            40,      // build time (seconds)
-            1050,    // max health (+5%)d
+            80,      // build time (seconds)
+            1000,    // max health
             55.0,    // size (radius) - large and imposing
             8,       // sides (octagon)
             0x4169E1, // royal blue (command authority)

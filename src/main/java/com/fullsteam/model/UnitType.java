@@ -19,7 +19,7 @@ public enum UnitType {
             "Worker",
             50,      // resource cost
             10,      // build time (seconds)
-            75,      // max health (+50%)
+            75,      // max health
             100.0,   // movement speed
             5,       // damage
             1.0,     // attack rate
@@ -37,7 +37,7 @@ public enum UnitType {
             "Infantry",
             75,      // resource cost
             5,       // build time (seconds)
-            128,     // max health (+60%)
+            128,     // max health
             120.0,   // movement speed
             18,      // damage (+30% vs beam infantry)
             2.0,     // attack rate
@@ -55,7 +55,7 @@ public enum UnitType {
             "Laser Infantry",
             125,     // resource cost (more expensive than regular infantry)
             7,       // build time (seconds)
-            128,     // max health (+60%)
+            128,     // max health
             120.0,   // movement speed (same as infantry)
             20,      // damage (higher than infantry)
             1.5,     // attack rate (faster than infantry)
@@ -73,7 +73,7 @@ public enum UnitType {
             "Medic",
             100,     // resource cost
             8,       // build time (seconds)
-            90,      // max health (+50%)
+            90,      // max health
             110.0,   // movement speed
             0,       // damage (cannot attack)
             0.0,     // attack rate
@@ -91,7 +91,7 @@ public enum UnitType {
             "Rocket Soldier",
             150,     // resource cost
             8,       // build time (seconds)
-            112,     // max health (+60%)
+            112,     // max health
             110.0,   // movement speed
             40,      // damage
             0.8,     // attack rate (slower)
@@ -109,7 +109,7 @@ public enum UnitType {
             "Sniper",
             200,     // resource cost
             10,      // build time (seconds)
-            80,      // max health (+60%, still fragile)
+            80,      // max health
             100.0,   // movement speed
             65,      // damage (+30% vs beam sniper)
             0.5,     // attack rate (slow, precise shots)
@@ -127,7 +127,7 @@ public enum UnitType {
             "Engineer",
             150,     // resource cost
             12,      // build time (seconds)
-            105,     // max health (+50%)
+            105,     // max health
             105.0,   // movement speed
             0,       // damage (cannot attack)
             0.0,     // attack rate
@@ -145,7 +145,7 @@ public enum UnitType {
             "Miner",
             100,     // resource cost
             10,      // build time (seconds)
-            90,      // max health (+50%)
+            90,      // max health
             95.0,    // movement speed (slower than worker)
             0,       // damage (cannot attack)
             0.0,     // attack rate
@@ -163,7 +163,7 @@ public enum UnitType {
             "Jeep",
             200,     // resource cost
             10,      // build time (seconds)
-            168,     // max health (+40%)
+            168,     // max health
             180.0,   // movement speed (fast!)
             26,      // damage (+30% vs beam scout)
             3.0,     // attack rate
@@ -181,7 +181,7 @@ public enum UnitType {
             "Tank",
             400,     // resource cost
             15,      // build time (seconds)
-            390,     // max health (+30%)
+            390,     // max health
             80.0,    // movement speed (slow)
             68,      // damage (+30% vs beam tank)
             1.2,     // attack rate
@@ -199,7 +199,7 @@ public enum UnitType {
             "Artillery",
             500,     // resource cost
             20,      // build time (seconds)
-            180,     // max health (+20%)
+            180,     // max health
             60.0,    // movement speed (very slow)
             117,     // damage (+30% vs beam artillery)
             0.5,     // attack rate (very slow)
@@ -217,7 +217,7 @@ public enum UnitType {
             "Gigantonaut",
             1200,    // resource cost (VERY EXPENSIVE!)
             35,      // build time (seconds) (LONG!)
-            360,     // max health (+20%)
+            360,     // max health
             30.0,    // movement speed (SLOWEST!)
             250,     // damage (MASSIVE!)
             0.3,     // attack rate (EXTREMELY SLOW!)
@@ -253,7 +253,7 @@ public enum UnitType {
             "Cloak Tank",
             800,     // resource cost
             25,      // build time (seconds)
-            260,     // max health (+30%)
+            260,     // max health
             100.0,   // movement speed
             28,      // damage
             1.5,     // attack rate
@@ -271,7 +271,7 @@ public enum UnitType {
             "Mammoth Tank",
             1200,    // resource cost
             35,      // build time (seconds)
-            1800,    // max health (+20%)
+            1800,    // max health
             50.0,    // movement speed (very slow)
             80,      // damage (high)
             0.8,     // attack rate (slow but powerful)
@@ -291,7 +291,7 @@ public enum UnitType {
             "Raider",
             900,     // resource cost
             28,      // build time (seconds)
-            364,     // max health (+30%)
+            364,     // max health
             220.0,   // movement speed (VERY FAST - fastest unit!)
             55,      // damage (high)
             2.2,     // attack rate (fast)
@@ -309,7 +309,7 @@ public enum UnitType {
             "Colossus",
             1600,    // resource cost (VERY EXPENSIVE!)
             45,      // build time (seconds) (VERY LONG!)
-            2640,    // max health (+20%)
+            2640,    // max health
             40.0,    // movement speed (VERY SLOW)
             95,      // damage (very high)
             0.9,     // attack rate (moderate)
@@ -329,7 +329,7 @@ public enum UnitType {
             "Plasma Trooper",
             100,     // resource cost
             6,       // build time (seconds)
-            136,     // max health (+60%)
+            136,     // max health
             115.0,   // movement speed
             14,      // damage (instant hit beam weapon)
             2.0,     // attack rate (fast)
@@ -347,7 +347,7 @@ public enum UnitType {
             "Ion Ranger",
             250,     // resource cost
             12,      // build time (seconds)
-            96,      // max health (+60%)
+            96,      // max health
             105.0,   // movement speed
             50,      // damage (instant hit beam weapon)
             0.6,     // attack rate (slow, precise)
@@ -365,7 +365,7 @@ public enum UnitType {
             "Photon Scout",
             220,     // resource cost
             11,      // build time (seconds)
-            154,     // max health (+40%)
+            154,     // max health
             190.0,   // movement speed (very fast!)
             20,      // damage (instant hit beam weapon)
             2.5,     // attack rate (rapid fire)
@@ -383,7 +383,7 @@ public enum UnitType {
             "Beam Tank",
             450,     // resource cost
             16,      // build time (seconds)
-            416,     // max health (+30%)
+            416,     // max health
             75.0,    // movement speed (slow)
             52,      // damage (instant hit beam weapon)
             1.3,     // attack rate
@@ -401,7 +401,7 @@ public enum UnitType {
             "Pulse Artillery",
             550,     // resource cost
             22,      // build time (seconds)
-            168,     // max health (+20%)
+            168,     // max health
             55.0,    // movement speed (very slow)
             90,      // damage (instant hit beam weapon)
             0.6,     // attack rate (slow)
@@ -419,7 +419,7 @@ public enum UnitType {
             "Photon Titan",
             1400,    // resource cost (VERY EXPENSIVE!)
             40,      // build time (seconds) (LONG!)
-            420,     // max health (+20%)
+            420,     // max health
             35.0,    // movement speed (VERY SLOW!)
             280,     // damage (MASSIVE!)
             0.4,     // attack rate (slow but devastating)
@@ -523,7 +523,7 @@ public enum UnitType {
                         new Vector2(-size * 0.7, 0),
                         new Vector2(-size * 0.3, -size * 0.5),
                         new Vector2(size * 0.5, -size * 0.5),
-                        new Vector2(size * 1.0, 0),             // Front emitter
+                        new Vector2(size, 0),             // Front emitter
                         new Vector2(size * 0.5, size * 0.5),
                         new Vector2(-size * 0.3, size * 0.5)
                 };
@@ -671,11 +671,11 @@ public enum UnitType {
             case PHOTON_SCOUT -> {
                 // Main chassis: elongated hexagon
                 Vector2[] chassis = new Vector2[]{
-                        new Vector2(-size * 1.0, -size * 0.4),
+                        new Vector2(-size, -size * 0.4),
                         new Vector2(size * 0.5, -size * 0.6),
                         new Vector2(size * 1.2, 0),
                         new Vector2(size * 0.5, size * 0.6),
-                        new Vector2(-size * 1.0, size * 0.4)
+                        new Vector2(-size, size * 0.4)
                 };
                 Convex mainChassis = Geometry.createPolygon(chassis);
 
@@ -770,7 +770,7 @@ public enum UnitType {
                         new Vector2(-size * 0.3, -size * 0.9),
                         new Vector2(size * 0.3, -size * 0.9),
                         new Vector2(size * 0.9, -size * 0.5),
-                        new Vector2(size * 1.0, 0),
+                        new Vector2(size, 0),
                         new Vector2(size * 0.9, size * 0.5),
                         new Vector2(size * 0.3, size * 0.9),
                         new Vector2(-size * 0.3, size * 0.9),
@@ -790,18 +790,18 @@ public enum UnitType {
 
                 // Upper beam array (fractal antenna)
                 Vector2[] upperArray = new Vector2[]{
-                        new Vector2(-size * 0.1, -size * 1.0),
+                        new Vector2(-size * 0.1, -size),
                         new Vector2(size * 0.3, -size * 1.15),
-                        new Vector2(size * 0.6, -size * 1.0),
+                        new Vector2(size * 0.6, -size),
                         new Vector2(size * 0.4, -size * 0.8)
                 };
                 Convex topArray = Geometry.createPolygon(upperArray);
 
                 // Lower beam array (fractal antenna)
                 Vector2[] lowerArray = new Vector2[]{
-                        new Vector2(-size * 0.1, size * 1.0),
+                        new Vector2(-size * 0.1, size),
                         new Vector2(size * 0.4, size * 0.8),
-                        new Vector2(size * 0.6, size * 1.0),
+                        new Vector2(size * 0.6, size),
                         new Vector2(size * 0.3, size * 1.15)
                 };
                 Convex bottomArray = Geometry.createPolygon(lowerArray);
@@ -826,10 +826,10 @@ public enum UnitType {
 
                 // Rear power crystal (angular)
                 Vector2[] powerCrystal = new Vector2[]{
-                        new Vector2(-size * 1.0, -size * 0.3),
+                        new Vector2(-size, -size * 0.3),
                         new Vector2(-size * 0.6, -size * 0.4),
                         new Vector2(-size * 0.6, size * 0.4),
-                        new Vector2(-size * 1.0, size * 0.3)
+                        new Vector2(-size, size * 0.3)
                 };
                 Convex crystal = Geometry.createPolygon(powerCrystal);
 
@@ -840,9 +840,9 @@ public enum UnitType {
             case CLOAK_TANK -> {
                 // Pointing right (positive X direction)
                 Vector2[] vertices = new Vector2[]{
-                        new Vector2(-size * 1.0, 0),          // Back point
+                        new Vector2(-size, 0),          // Back point
                         new Vector2(0, -size * 0.7),          // Left point (narrow)
-                        new Vector2(size * 1.0, 0),           // Front point (sleek, pointing right)
+                        new Vector2(size, 0),           // Front point (sleek, pointing right)
                         new Vector2(0, size * 0.7)            // Right point (narrow)
                 };
                 yield List.of(Geometry.createPolygon(vertices));
@@ -898,10 +898,10 @@ public enum UnitType {
 
                 // Rear counterweight (balance for long barrel)
                 Vector2[] counterweight = new Vector2[]{
-                        new Vector2(-size * 1.0, -size * 0.3),
+                        new Vector2(-size, -size * 0.3),
                         new Vector2(-size * 0.6, -size * 0.4),
                         new Vector2(-size * 0.6, size * 0.4),
-                        new Vector2(-size * 1.0, size * 0.3)
+                        new Vector2(-size, size * 0.3)
                 };
                 Convex weight = Geometry.createPolygon(counterweight);
 
@@ -915,9 +915,9 @@ public enum UnitType {
                         new Vector2(-size * 1.1, 0),
                         new Vector2(-size * 0.6, -size * 0.7),
                         new Vector2(size * 0.3, -size * 0.8),
-                        new Vector2(size * 1.0, -size * 0.4),
+                        new Vector2(size, -size * 0.4),
                         new Vector2(size * 1.2, 0),
-                        new Vector2(size * 1.0, size * 0.4),
+                        new Vector2(size, size * 0.4),
                         new Vector2(size * 0.3, size * 0.8),
                         new Vector2(-size * 0.6, size * 0.7)
                 };
@@ -936,7 +936,7 @@ public enum UnitType {
                 // Upper amplifier array (convex trapezoid)
                 Vector2[] topAmplifier = new Vector2[]{
                         new Vector2(size * 0.0, -size * 0.85),
-                        new Vector2(size * 0.4, -size * 1.0),
+                        new Vector2(size * 0.4, -size),
                         new Vector2(size * 0.8, -size * 0.95),
                         new Vector2(size * 0.6, -size * 0.75)
                 };
@@ -947,14 +947,14 @@ public enum UnitType {
                         new Vector2(size * 0.0, size * 0.85),
                         new Vector2(size * 0.6, size * 0.75),
                         new Vector2(size * 0.8, size * 0.95),
-                        new Vector2(size * 0.4, size * 1.0)
+                        new Vector2(size * 0.4, size)
                 };
                 Convex ampBottom = Geometry.createPolygon(bottomAmplifier);
 
                 // Left side crystal array (triangle)
                 Vector2[] leftArray = new Vector2[]{
                         new Vector2(-size * 0.3, -size * 0.85),
-                        new Vector2(size * 0.1, -size * 1.0),
+                        new Vector2(size * 0.1, -size),
                         new Vector2(size * 0.2, -size * 0.8)
                 };
                 Convex arrayLeft = Geometry.createPolygon(leftArray);
@@ -963,7 +963,7 @@ public enum UnitType {
                 Vector2[] rightArray = new Vector2[]{
                         new Vector2(-size * 0.3, size * 0.85),
                         new Vector2(size * 0.2, size * 0.8),
-                        new Vector2(size * 0.1, size * 1.0)
+                        new Vector2(size * 0.1, size)
                 };
                 Convex arrayRight = Geometry.createPolygon(rightArray);
 
@@ -1032,18 +1032,18 @@ public enum UnitType {
 
                 // Forward blade (piercing spear tip)
                 Vector2[] forwardBlade = new Vector2[]{
-                        new Vector2(size * 1.0, -size * 0.3),
+                        new Vector2(size, -size * 0.3),
                         new Vector2(size * 1.5, -size * 0.15),
                         new Vector2(size * 1.6, 0),
                         new Vector2(size * 1.5, size * 0.15),
-                        new Vector2(size * 1.0, size * 0.3)
+                        new Vector2(size, size * 0.3)
                 };
                 Convex blade = Geometry.createPolygon(forwardBlade);
 
                 // Upper wing blade (aggressive swept-back design)
                 Vector2[] upperWing = new Vector2[]{
                         new Vector2(-size * 0.5, -size * 0.7),
-                        new Vector2(size * 0.2, -size * 1.0),
+                        new Vector2(size * 0.2, -size),
                         new Vector2(size * 0.8, -size * 0.85),
                         new Vector2(size * 0.6, -size * 0.6)
                 };
@@ -1054,7 +1054,7 @@ public enum UnitType {
                         new Vector2(-size * 0.5, size * 0.7),
                         new Vector2(size * 0.6, size * 0.6),
                         new Vector2(size * 0.8, size * 0.85),
-                        new Vector2(size * 0.2, size * 1.0)
+                        new Vector2(size * 0.2, size)
                 };
                 Convex wingLower = Geometry.createPolygon(lowerWing);
 
@@ -1076,7 +1076,7 @@ public enum UnitType {
 
                 // Rear stabilizer fins (speed aesthetic - upper)
                 Vector2[] rearFinUpper = new Vector2[]{
-                        new Vector2(-size * 1.0, -size * 0.4),
+                        new Vector2(-size, -size * 0.4),
                         new Vector2(-size * 0.5, -size * 0.8),
                         new Vector2(-size * 0.3, -size * 0.6),
                         new Vector2(-size * 0.6, -size * 0.4)
@@ -1085,7 +1085,7 @@ public enum UnitType {
 
                 // Rear stabilizer fins (speed aesthetic - lower)
                 Vector2[] rearFinLower = new Vector2[]{
-                        new Vector2(-size * 1.0, size * 0.4),
+                        new Vector2(-size, size * 0.4),
                         new Vector2(-size * 0.6, size * 0.4),
                         new Vector2(-size * 0.3, size * 0.6),
                         new Vector2(-size * 0.5, size * 0.8)
@@ -1238,7 +1238,7 @@ public enum UnitType {
                 // Upper torso (head/sensor assembly)
                 Vector2[] upperTorso = new Vector2[]{
                         new Vector2(-size * 0.3, -size * 0.85),
-                        new Vector2(size * 0.2, -size * 1.0),
+                        new Vector2(size * 0.2, -size),
                         new Vector2(size * 0.6, -size * 0.75),
                         new Vector2(size * 0.4, -size * 0.55)
                 };
@@ -1249,7 +1249,7 @@ public enum UnitType {
                         new Vector2(-size * 0.3, size * 0.85),
                         new Vector2(size * 0.4, size * 0.55),
                         new Vector2(size * 0.6, size * 0.75),
-                        new Vector2(size * 0.2, size * 1.0)
+                        new Vector2(size * 0.2, size)
                 };
                 Convex lowerCore = Geometry.createPolygon(lowerTorso);
 
@@ -1276,14 +1276,14 @@ public enum UnitType {
                         new Vector2(-size * 0.5, -size * 1.2),
                         new Vector2(-size * 0.1, -size * 1.3),
                         new Vector2(size * 0.2, -size * 1.15),
-                        new Vector2(size * 0.1, -size * 1.0)
+                        new Vector2(size * 0.1, -size)
                 };
                 Convex legLL = Geometry.createPolygon(leftLegLower);
 
                 // Right leg extension (lower segment)
                 Vector2[] rightLegLower = new Vector2[]{
                         new Vector2(-size * 0.5, size * 1.2),
-                        new Vector2(size * 0.1, size * 1.0),
+                        new Vector2(size * 0.1, size),
                         new Vector2(size * 0.2, size * 1.15),
                         new Vector2(-size * 0.1, size * 1.3)
                 };
@@ -1293,7 +1293,7 @@ public enum UnitType {
                 Vector2[] frontArmLeft = new Vector2[]{
                         new Vector2(size * 0.5, -size * 0.6),
                         new Vector2(size * 0.9, -size * 0.7),
-                        new Vector2(size * 1.0, -size * 0.4),
+                        new Vector2(size, -size * 0.4),
                         new Vector2(size * 0.7, -size * 0.35)
                 };
                 Convex armFL = Geometry.createPolygon(frontArmLeft);
@@ -1302,7 +1302,7 @@ public enum UnitType {
                 Vector2[] frontArmRight = new Vector2[]{
                         new Vector2(size * 0.5, size * 0.6),
                         new Vector2(size * 0.7, size * 0.35),
-                        new Vector2(size * 1.0, size * 0.4),
+                        new Vector2(size, size * 0.4),
                         new Vector2(size * 0.9, size * 0.7)
                 };
                 Convex armFR = Geometry.createPolygon(frontArmRight);

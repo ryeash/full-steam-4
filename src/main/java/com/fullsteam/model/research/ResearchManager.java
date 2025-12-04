@@ -164,14 +164,11 @@ public class ResearchManager {
 
         for (Map.Entry<Integer, ResearchProgress> entry : activeResearch.entrySet()) {
             ResearchProgress progress = entry.getValue();
-            progress.update(deltaTime);
-
             if (progress.isComplete()) {
                 ResearchType researchType = progress.getResearchType();
                 completeResearch(researchType);
                 completed.add(researchType);
                 toRemove.add(entry.getKey());
-
                 log.info("Player {} completed research {}", playerId, researchType);
             }
         }

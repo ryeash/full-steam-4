@@ -45,7 +45,7 @@ public class FactionTechTree {
      * SINGLE SOURCE OF TRUTH - direct lookup in buildingProducers
      */
     public List<UnitType> getUnitsProducedBy(BuildingType buildingType) {
-        return buildingsAndUnits.getOrDefault(buildingType, Collections.emptyList());
+        return buildingsAndUnits.getOrDefault(buildingType, List.of());
     }
 
     /**
@@ -53,7 +53,6 @@ public class FactionTechTree {
      * SINGLE SOURCE OF TRUTH - direct lookup in buildingProducers
      */
     public boolean canBuildingProduceUnit(BuildingType buildingType, UnitType unitType) {
-        List<UnitType> producibleUnits = buildingsAndUnits.get(buildingType);
-        return producibleUnits != null && producibleUnits.contains(unitType);
+        return buildingsAndUnits.getOrDefault(buildingType, List.of()).contains(unitType);
     }
 }
