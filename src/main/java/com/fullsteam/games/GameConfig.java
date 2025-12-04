@@ -17,15 +17,15 @@ import lombok.extern.jackson.Jacksonized;
 @Jacksonized
 @Introspected
 public class GameConfig {
-    @Min(2)
+    @Min(2)  // Minimum 2 players (including AI)
     @Max(4)
     @Builder.Default
-    private int maxPlayers = 10;
+    private int maxPlayers = 4;
 
     @Min(0)
     @Max(4)
     @Builder.Default
-    private int teamCount = 2; // 0 = FFA, 1 = invalid, 2-4 = team modes
+    private int teamCount = 0; // 0 = FFA (default), 2-4 = team modes
 
     @DecimalMin("800.0")
     @DecimalMax("10000.0")
@@ -59,6 +59,9 @@ public class GameConfig {
     @NotNull
     @Builder.Default
     private ObstacleDensity obstacleDensity = ObstacleDensity.MEDIUM;
+    
+    // Faction selection (optional, for tracking in matchmaking)
+    private String faction;  // Can be null, defaults to TERRAN if not specified
 }
 
 

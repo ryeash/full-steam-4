@@ -114,11 +114,22 @@ public class GameController {
     public Map<String, String> joinMatchmaking(@Body Map<String, String> config) {
         try {
             // Extract configuration from request body
+            String gameId = config != null ? config.get("gameId") : null;
             String biome = config != null ? config.get("biome") : null;
             String obstacleDensity = config != null ? config.get("obstacleDensity") : null;
             String faction = config != null ? config.get("faction") : null;
+            
+            // Parse maxPlayers if provided
+            Integer maxPlayers = null;
+            if (config != null && config.containsKey("maxPlayers")) {
+                try {
+                    maxPlayers = Integer.parseInt(config.get("maxPlayers"));
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid maxPlayers value: {}", config.get("maxPlayers"));
+                }
+            }
 
-            Map<String, String> result = rtsLobby.joinMatchmaking(biome, obstacleDensity, faction);
+            Map<String, String> result = rtsLobby.joinMatchmaking(gameId, biome, obstacleDensity, faction, maxPlayers);
             result.put("status", "joined");
             return result;
         } catch (Exception e) {

@@ -36,7 +36,7 @@ public class RTSLobby {
     @Inject
     public RTSLobby(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
-        GameConstants.EXECUTOR.schedule(this::cleanupFinishedGames, 5, TimeUnit.SECONDS);
+        GameConstants.EXECUTOR.scheduleAtFixedRate(this::cleanupFinishedGames, 5, 5, TimeUnit.SECONDS);
     }
 
     public long getGlobalPlayerCount() {
@@ -101,28 +101,41 @@ public class RTSLobby {
     /**
      * Join or create a matchmaking game
      *
+     * @param gameId Optional - if provided, join this specific game
+     * @param biome The map biome
+     * @param obstacleDensity The obstacle density
+     * @param faction The player's selected faction
+     * @param maxPlayers Optional - if creating a new game, the max players (default 2)
      * @return Map containing gameId and sessionToken
      */
-    public synchronized Map<String, String> joinMatchmaking(String biome, String obstacleDensity, String faction) {
-        // Try to find an existing game waiting for players
+    public synchronized Map<String, String> joinMatchmaking(String gameId, String biome, String obstacleDensity, 
+                                                            String faction, Integer maxPlayers) {
         Map<String, String> map = new HashMap<>();
-        MatchmakingGame availableGame = matchmakingGames.values().stream()
-                .filter(game -> game.getCurrentPlayers() < game.getMaxPlayers())
-                .findFirst()
-                .orElse(null);
-
-        if (availableGame != null) {
-            String sessionToken = availableGame.reserveSlot(faction);
-            if (sessionToken != null) {
-                log.info("Player joined existing matchmaking game: {}, players: {}/{}, faction: {}, session: {}",
-                        availableGame.getGameId(), availableGame.getCurrentPlayers(),
-                        availableGame.getMaxPlayers(), faction, sessionToken);
-                map.put("gameId", availableGame.getGameId());
-                map.put("sessionToken", sessionToken);
-                return map;
+        
+        // If gameId is specified, join that specific game
+        if (gameId != null && !gameId.isEmpty()) {
+            MatchmakingGame specificGame = matchmakingGames.get(gameId);
+            if (specificGame != null && specificGame.getCurrentPlayers() < specificGame.getMaxPlayers()) {
+                String sessionToken = specificGame.reserveSlot(faction);
+                if (sessionToken != null) {
+                    log.info("Player joined specific game: {}, players: {}/{}, faction: {}, session: {}",
+                            gameId, specificGame.getCurrentPlayers(),
+                            specificGame.getMaxPlayers(), faction, sessionToken);
+                    map.put("gameId", specificGame.getGameId());
+                    map.put("sessionToken", sessionToken);
+                    return map;
+                } else {
+                    throw new IllegalStateException("Game is full or unable to join");
+                }
+            } else {
+                throw new IllegalArgumentException("Game not found or is full");
             }
         }
-
+        
+        // Otherwise, try to find an existing game waiting for players with matching settings
+        // (For now, we skip auto-matching and just create a new game)
+        // In future, we could match based on biome/density/playerCount
+        
         // Parse biome (default to GRASSLAND if not provided or invalid)
         Biome selectedBiome = Biome.GRASSLAND;
         if (biome != null) {
@@ -142,26 +155,41 @@ public class RTSLobby {
                 log.warn("Invalid obstacle density '{}', defaulting to MEDIUM", obstacleDensity);
             }
         }
+        
+        // Determine max players (default to 2 if not specified, max 4)
+        int players = (maxPlayers != null && maxPlayers >= 2 && maxPlayers <= 4) ? maxPlayers : 2;
+        
+        // Determine world size based on player count
+        int worldSize = calculateWorldSize(players);
 
         // Create a new matchmaking game with selected configuration
         GameConfig config = GameConfig.builder()
-                .maxPlayers(2)  // 1v1 for now
-                .worldWidth(3000)
-                .worldHeight(3000)
+                .maxPlayers(players)
+                .worldWidth(worldSize)
+                .worldHeight(worldSize)
                 .biome(selectedBiome)
                 .obstacleDensity(selectedDensity)
                 .build();
 
         RTSGameManager game = createGameWithConfig(config);
-        MatchmakingGame matchmakingGame = new MatchmakingGame(game.getGameId(), 2);
+        MatchmakingGame matchmakingGame = new MatchmakingGame(game.getGameId(), players);
         String sessionToken = matchmakingGame.reserveSlot(faction);
         matchmakingGames.put(game.getGameId(), matchmakingGame);
 
-        log.info("Created new matchmaking game: {} with biome {}, density {}, faction {}, session: {}",
-                game.getGameId(), selectedBiome, selectedDensity, faction, sessionToken);
+        log.info("Created new matchmaking game: {} with biome {}, density {}, maxPlayers {}, faction {}, session: {}",
+                game.getGameId(), selectedBiome, selectedDensity, players, faction, sessionToken);
         map.put("gameId", game.getGameId());
         map.put("sessionToken", sessionToken);
         return map;
+    }
+    
+    /**
+     * Calculate appropriate world size based on player count
+     */
+    private int calculateWorldSize(int playerCount) {
+        if (playerCount <= 2) return 3000;
+        if (playerCount <= 3) return 3500;
+        return 4000; // 4 players
     }
 
     /**
