@@ -484,10 +484,12 @@
         </div>
     </div>
 
-    <!-- Game Configuration Section -->
-    <div class="matchmaking-section" id="game-config-section">
-        <h2>⚙️ Game Settings</h2>
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 30px; max-width: 1000px; margin: 0 auto;">
+    <!-- Create Game Section -->
+    <div class="matchmaking-section" id="create-game-section">
+        <h2>🎮 Create a Match</h2>
+        <p>Configure your game settings and create a match for others to join</p>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; max-width: 1000px; margin: 20px auto 30px;">
             <div class="config-group">
                 <label for="biome-select" class="config-label">Biome</label>
                 <select id="biome-select" class="config-select">
@@ -508,7 +510,7 @@
                     <option value="DENSE">Dense (150%)</option>
                     <option value="VERY_DENSE">Very Dense (200%)</option>
                 </select>
-                <div class="config-description">Controls how many obstacles spawn on the map</div>
+                <div class="config-description">Map obstacle count</div>
             </div>
             
             <div class="config-group">
@@ -518,15 +520,10 @@
                     <option value="3">3 Players</option>
                     <option value="4">4 Players</option>
                 </select>
-                <div class="config-description">Free-for-all match with up to 4 players</div>
+                <div class="config-description">Free-for-all match</div>
             </div>
         </div>
-    </div>
-
-    <!-- Create Game Section -->
-    <div class="matchmaking-section" id="matchmaking-section">
-        <h2>🎮 Create a Match</h2>
-        <p>Create a new game with your chosen settings. Other players can join from the list below!</p>
+        
         <div class="button-group">
             <button class="primary-button" id="create-game-button" onclick="createMatch()">
                 ➕ Create Match
@@ -569,7 +566,7 @@
     const playerCountValue = document.getElementById('player-count-value');
     const gamesCountValue = document.getElementById('games-count-value');
     const serverStatus = document.getElementById('server-status');
-    const matchmakingSection = document.getElementById('matchmaking-section');
+    const createGameSection = document.getElementById('create-game-section');
     const matchmakingStatus = document.getElementById('matchmaking-status');
     const createGameButton = document.getElementById('create-game-button');
     
@@ -760,7 +757,7 @@
             }
             
             // Show matchmaking status
-            matchmakingSection.style.display = 'none';
+            createGameSection.style.display = 'none';
             matchmakingStatus.classList.add('active');
             matchmakingActive = true;
             
@@ -861,7 +858,7 @@
     function resetMatchmaking() {
         matchmakingActive = false;
         currentGameId = null;
-        matchmakingSection.style.display = 'block';
+        createGameSection.style.display = 'block';
         matchmakingStatus.classList.remove('active');
         createGameButton.disabled = false;
         
@@ -907,7 +904,7 @@
             }
             
             // Show matchmaking status
-            matchmakingSection.style.display = 'none';
+            createGameSection.style.display = 'none';
             matchmakingStatus.classList.add('active');
             matchmakingActive = true;
             
