@@ -409,7 +409,7 @@ public class Unit extends GameEntity {
         // Decloak a cloaked unit
         if (isCloaked()) {
             specialAbilityActive = false;
-            aiStance = preCloakAIStance != null ? preCloakAIStance : AIStance.AGGRESSIVE;
+            aiStance = preCloakAIStance != null ? preCloakAIStance : AIStance.DEFENSIVE;
         }
 
         // Fire the weapon
