@@ -17,6 +17,12 @@ import com.fullsteam.model.research.ResearchModifier;
  */
 public interface IBuildingComponent {
 
+    /**
+     * Called when {@link Building} is being created to initialize and component behaviors.
+     *
+     * @param gameEntities all game entities
+     * @param building     this component's building entity
+     */
     void init(GameEntities gameEntities, Building building);
 
     /**
