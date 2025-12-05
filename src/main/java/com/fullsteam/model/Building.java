@@ -215,7 +215,9 @@ public class Building extends GameEntity {
 
             // Apply research modifiers after construction completes
             PlayerFaction faction = gameEntities.getPlayerFactions().get(ownerId);
-            applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
+            if (faction != null) {
+                applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
+            }
 
             return true; // Construction just completed
         }

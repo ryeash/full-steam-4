@@ -119,8 +119,9 @@ public class FieldEffect extends GameEntity {
                 return false;
             }
 
-            // In team mode, can only damage units on different teams
-            if (ownerTeam != unit.getTeamNumber()) {
+            // FFA mode (team 0): Can damage all other units (already checked not self above)
+            // Team mode (team > 0): Can only damage units on different teams
+            if (ownerTeam == 0 || ownerTeam != unit.getTeamNumber()) {
                 return canDamageEntity(entity.getId());
             }
 
@@ -129,12 +130,18 @@ public class FieldEffect extends GameEntity {
 
         // Team-based damage rules for buildings
         if (entity instanceof Building building) {
-            // No friendly fire
-            if (building.getTeamNumber() == ownerTeam) {
+            // Can't damage buildings owned by the same player
+            if (building.getOwnerId() == ownerId) {
                 return false;
             }
 
-            return canDamageEntity(entity.getId());
+            // FFA mode (team 0): Can damage all other buildings (already checked not same owner above)
+            // Team mode (team > 0): Can only damage buildings on different teams
+            if (ownerTeam == 0 || building.getTeamNumber() != ownerTeam) {
+                return canDamageEntity(entity.getId());
+            }
+
+            return false;
         }
 
         // Other entities (shouldn't happen, but allow damage by default)

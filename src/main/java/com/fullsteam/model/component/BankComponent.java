@@ -49,18 +49,20 @@ public class BankComponent extends AbstractBuildingComponent {
         if (System.currentTimeMillis() >= lastInterestPayout + (long) (interestInterval * 1000D)) {
             lastInterestPayout = System.currentTimeMillis();
             PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
-            int currentCredits = faction.getResourceAmount(ResourceType.CREDITS);
-            int interest = (int) Math.round(currentCredits * interestRate);
-            if (interest > 0) {
-                faction.addResources(ResourceType.CREDITS, interest);
-                // Notify player of interest payment (only if significant - 50+ credits)
-                if (interest >= 50) {
-                    gameEntities.getGameEventSender()
-                            .accept(GameEvent.createPlayerEvent(
-                                    "💰 Bank paid +" + interest + " credits interest",
-                                    faction.getPlayerId(),
-                                    GameEvent.EventCategory.INFO
-                            ));
+            if (faction != null) {
+                int currentCredits = faction.getResourceAmount(ResourceType.CREDITS);
+                int interest = (int) Math.round(currentCredits * interestRate);
+                if (interest > 0) {
+                    faction.addResources(ResourceType.CREDITS, interest);
+                    // Notify player of interest payment (only if significant - 50+ credits)
+                    if (interest >= 50) {
+                        gameEntities.getGameEventSender()
+                                .accept(GameEvent.createPlayerEvent(
+                                        "💰 Bank paid +" + interest + " credits interest",
+                                        faction.getPlayerId(),
+                                        GameEvent.EventCategory.INFO
+                                ));
+                    }
                 }
             }
         }
