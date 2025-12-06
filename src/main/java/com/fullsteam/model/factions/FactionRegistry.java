@@ -187,6 +187,9 @@ public class FactionRegistry {
                                 UnitType.MAMMOTH_TANK,
                                 UnitType.COLOSSUS
                         )),
+                        Map.entry(BuildingType.AIRFIELD, List.of(
+                                UnitType.SCOUT_DRONE
+                        )),
                         Map.entry(BuildingType.BANK, List.of()),
                         Map.entry(BuildingType.ANDROID_FACTORY, List.of(UnitType.ANDROID))
                 ))

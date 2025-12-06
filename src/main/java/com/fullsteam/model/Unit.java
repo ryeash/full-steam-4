@@ -108,6 +108,9 @@ public class Unit extends GameEntity {
         // Create custom physics fixtures for this unit type (supports multi-fixture bodies)
         List<Convex> shapes = unitType.createPhysicsFixtures();
 
+        // Air units are sensors (no physical collision with obstacles/units)
+        boolean isAirUnit = unitType.isAirUnit();
+
         // Add all fixtures to the body
         for (Convex shape : shapes) {
             BodyFixture fixture = body.addFixture(shape);
@@ -115,7 +118,7 @@ public class Unit extends GameEntity {
             // Configure fixture properties
             fixture.setFriction(0.1);      // Low friction for smooth movement
             fixture.setRestitution(0.0);   // No bounce
-            fixture.setSensor(false);      // Solid collision (not a sensor)
+            fixture.setSensor(isAirUnit);  // Air units are sensors (fly over obstacles)
         }
 
         // Rotate polygons to face right by default (positive X direction)

@@ -84,8 +84,8 @@ public class ProductionComponent extends AbstractBuildingComponent {
                 gameEntities.getWorld().addBody(unit.getBody());
 
                 // Order unit to rally point
-                if (building.getRallyPoint() != null) {
-                    unit.issueCommand(new MoveCommand(unit, building.getRallyPoint(), false));
+                if (rallyPoint != null) {
+                    unit.issueCommand(new MoveCommand(unit, rallyPoint, false));
                 }
             }
         } else if (hasLowPower && currentProduction != null) {
@@ -177,7 +177,6 @@ public class ProductionComponent extends AbstractBuildingComponent {
      */
     private Vector2 findSpawnPosition(GameEntities gameEntities, Building building, Unit unit) {
         Vector2 buildingPos = building.getPosition();
-        Vector2 rallyPoint = building.getRallyPoint();
 
         // Calculate spawn radius (building radius + small clearance)
         double buildingRadius = building.getBody().getFixture(0).getShape().getRadius();

@@ -449,6 +449,27 @@ public enum UnitType {
             BuildingType.ANDROID_FACTORY,
             0,       // upkeep cost (ZERO!)
             340.0    // vision range (moderate, autonomous unit)
+    ),
+
+    // ===== AIR UNITS =====
+
+    // SCOUT_DRONE - Fast reconnaissance VTOL drone
+    // First air unit, cheap and fast, excellent vision
+    SCOUT_DRONE(
+            "Scout Drone",
+            150,     // resource cost (cheap for air unit)
+            12,      // build time (seconds)
+            80,      // max health (fragile)
+            200.0,   // movement speed (VERY FAST)
+            8,       // damage (light weapons)
+            2.5,     // attack rate (rapid fire)
+            150,     // attack range (moderate)
+            12.0,    // size (radius) - small
+            4,       // sides (square/diamond shape)
+            0x87CEEB, // light sky blue (air unit color)
+            BuildingType.AIRFIELD,
+            15,      // upkeep cost
+            600.0    // vision range (EXCELLENT - scout unit!)
     );
 
     private final String displayName;
@@ -635,6 +656,51 @@ public enum UnitType {
 
             // Android - diamond/square shape (synthetic unit)
             case ANDROID -> List.of(Geometry.createPolygonalCircle(4, size));
+
+            // Scout Drone - X-shaped quadcopter with 4 rotors
+            case SCOUT_DRONE -> {
+                // Central hub (small diamond)
+                Convex hub = Geometry.createPolygonalCircle(4, size * 0.4);
+                
+                // Four rotor arms extending from center
+                // Front-left rotor arm
+                Vector2[] armFL = new Vector2[]{
+                        new Vector2(-size * 0.2, size * 0.2),
+                        new Vector2(-size * 0.7, size * 0.7),
+                        new Vector2(-size * 0.85, size * 0.55),
+                        new Vector2(-size * 0.35, size * 0.05)
+                };
+                Convex rotorArmFL = Geometry.createPolygon(armFL);
+                
+                // Front-right rotor arm
+                Vector2[] armFR = new Vector2[]{
+                        new Vector2(size * 0.2, size * 0.2),
+                        new Vector2(size * 0.35, size * 0.05),
+                        new Vector2(size * 0.85, size * 0.55),
+                        new Vector2(size * 0.7, size * 0.7)
+                };
+                Convex rotorArmFR = Geometry.createPolygon(armFR);
+                
+                // Rear-left rotor arm
+                Vector2[] armRL = new Vector2[]{
+                        new Vector2(-size * 0.2, -size * 0.2),
+                        new Vector2(-size * 0.35, -size * 0.05),
+                        new Vector2(-size * 0.85, -size * 0.55),
+                        new Vector2(-size * 0.7, -size * 0.7)
+                };
+                Convex rotorArmRL = Geometry.createPolygon(armRL);
+                
+                // Rear-right rotor arm
+                Vector2[] armRR = new Vector2[]{
+                        new Vector2(size * 0.2, -size * 0.2),
+                        new Vector2(size * 0.7, -size * 0.7),
+                        new Vector2(size * 0.85, -size * 0.55),
+                        new Vector2(size * 0.35, -size * 0.05)
+                };
+                Convex rotorArmRR = Geometry.createPolygon(armRR);
+                
+                yield List.of(hub, rotorArmFL, rotorArmFR, rotorArmRL, rotorArmRR);
+            }
 
             // Jeep - fast light vehicle with angular chassis and armor plating
             case JEEP -> {
@@ -1461,6 +1527,13 @@ public enum UnitType {
                 this == MEDIC ||
                 this == ENGINEER ||
                 this == ANDROID;
+    }
+
+    /**
+     * Check if this is an air unit (can fly over obstacles, different rendering)
+     */
+    public boolean isAirUnit() {
+        return this == SCOUT_DRONE;
     }
 }
 

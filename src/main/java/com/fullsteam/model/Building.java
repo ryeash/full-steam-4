@@ -43,9 +43,6 @@ public class Building extends GameEntity {
     private boolean underConstruction = true;
     private double constructionProgress = 0; // 0 to maxHealth
 
-    // Rally point for produced units
-    private Vector2 rallyPoint = null;
-
     // Monument aura fields
     private static final int COMMAND_CITADEL_UPKEEP_BONUS = 50; // +50 max upkeep
 
@@ -70,9 +67,6 @@ public class Building extends GameEntity {
             constructionProgress = 1;
         }
 
-        // Set rally point to building position by default
-        this.rallyPoint = new Vector2(x, y);
-
         // Initialize components based on building type
         initializeComponents(gameEntities);
     }
@@ -82,10 +76,9 @@ public class Building extends GameEntity {
      * This method adds the appropriate components to buildings that need them.
      */
     private void initializeComponents(GameEntities gameEntities) {
-        Vector2 position = getPosition();
         // Add ProductionComponent to buildings that can produce units (except Android Factory)
         if (buildingType.isCanProduceUnits() && buildingType != BuildingType.ANDROID_FACTORY) {
-            addComponent(new ProductionComponent(position));
+            addComponent(new ProductionComponent(null));
             log.debug("Building {} ({}) initialized with ProductionComponent", id, buildingType.getDisplayName());
         }
 
@@ -297,9 +290,9 @@ public class Building extends GameEntity {
      * Set rally point for produced units
      */
     public void setRallyPoint(Vector2 point) {
-        this.rallyPoint = point != null ? point.copy() : null;
-        // Also update the ProductionComponent if present
         getComponent(ProductionComponent.class)
+                .ifPresent(pc -> pc.setRallyPoint(point));
+        getComponent(AndroidFactoryComponent.class)
                 .ifPresent(pc -> pc.setRallyPoint(point));
     }
 
@@ -401,6 +394,14 @@ public class Building extends GameEntity {
      */
     public <T extends IBuildingComponent> Optional<T> getComponent(Class<T> componentClass) {
         return Optional.ofNullable(componentClass.cast(components.get(componentClass)));
+    }
+
+    public Vector2 getRallyPoint() {
+        return getComponent(ProductionComponent.class)
+                .map(ProductionComponent::getRallyPoint)
+                .or(() -> getComponent(AndroidFactoryComponent.class)
+                        .map(AndroidFactoryComponent::getRallyPoint))
+                .orElse(null);
     }
 
     public void applyResearchModifiers(ResearchModifier modifier) {

@@ -8,6 +8,7 @@ import com.fullsteam.model.UnitType;
 import com.fullsteam.model.command.MoveCommand;
 import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.dyn4j.geometry.Vector2;
 
@@ -32,6 +33,8 @@ public class AndroidFactoryComponent extends AbstractBuildingComponent {
     private double productionProgress = 0; // seconds
     private boolean producingAndroid = false;
     private ResearchModifier modifier = new ResearchModifier();
+    @Setter
+    private Vector2 rallyPoint;
 
     @Override
     public void update(boolean hasLowPower) {

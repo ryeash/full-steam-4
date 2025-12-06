@@ -16,6 +16,7 @@ import com.fullsteam.model.command.MineCommand;
 import com.fullsteam.model.command.MoveCommand;
 import com.fullsteam.model.component.AndroidFactoryComponent;
 import com.fullsteam.model.component.IBuildingComponent;
+import com.fullsteam.model.component.ProductionComponent;
 import com.fullsteam.model.component.ShieldComponent;
 import com.fullsteam.model.factions.Faction;
 import com.fullsteam.model.research.ResearchManager;
@@ -1727,8 +1728,9 @@ public class RTSGameManager {
                     playerBuildings.contains(BuildingType.POWER_PLANT);
 
             // T3 - Requires Power Plant + Research Lab
-            case TECH_CENTER, ADVANCED_FACTORY, BANK, LASER_TURRET -> playerBuildings.contains(BuildingType.POWER_PLANT) &&
-                    playerBuildings.contains(BuildingType.RESEARCH_LAB);
+            case TECH_CENTER, ADVANCED_FACTORY, BANK, LASER_TURRET, AIRFIELD ->
+                    playerBuildings.contains(BuildingType.POWER_PLANT) &&
+                            playerBuildings.contains(BuildingType.RESEARCH_LAB);
 
             // Monument Buildings - Requires Power Plant + Research Lab (T3)
             case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL ->

@@ -759,6 +759,11 @@ class RTSEngine {
             }
         }
         
+        // ANIMATE AIR UNITS (bobbing, rotor spinning, etc.)
+        if (unitContainer.isAirUnit) {
+            this.updateAirUnitAnimation(unitContainer);
+        }
+        
         // Update turrets (for deployed Crawler)
         if (unitData.turrets && unitData.turrets.length > 0) {
             if (!unitContainer.turretGraphics) {
@@ -822,6 +827,46 @@ class RTSEngine {
         unitContainer.unitData = unitData;
     }
     
+    /**
+     * Update air unit animations (bobbing, rotor spinning, LED pulsing)
+     */
+    updateAirUnitAnimation(container) {
+        // Increment animation time
+        container.animationTime += 0.05;
+        const time = container.animationTime;
+        
+        // 1. BOBBING MOTION (drone body moves up/down, shadow stays fixed but changes alpha)
+        const bob = Math.sin(time) * 3; // 3 pixel bob
+        
+        if (container.rotatingContainer) {
+            // Move the drone body up and down
+            container.rotatingContainer.y = bob; // Negative = up, bob adds downward movement
+        }
+        
+        if (container.shadowGraphics) {
+            // Shadow stays at fixed position but changes alpha based on altitude
+            const shadowAlpha = 0.3 - (bob * 0.02); // Shadow darker when drone is lower (bob is negative)
+            container.shadowGraphics.alpha = Math.max(0.1, shadowAlpha);
+        }
+        
+        // 2. SPIN ROTORS (4 independent rotors)
+        if (container.rotors) {
+            container.rotors.forEach((rotor, index) => {
+                // Each rotor spins at slightly different speed for variety
+                const speedVariation = 1 + (index * 0.1);
+                rotor.rotation += 0.3 * speedVariation;
+            });
+        }
+        
+        // 3. PULSE LED LIGHTS
+        if (container.leds) {
+            const ledPulse = 0.5 + Math.sin(time * 2) * 0.3; // Pulse between 0.2 and 0.8
+            container.leds.forEach(led => {
+                led.alpha = ledPulse;
+            });
+        }
+    }
+    
     getUnitTypeInfo(unitType) {
         const unitTypes = {
             'WORKER': { sides: 16, size: 15, color: 0xFFFF00 },
@@ -848,17 +893,22 @@ class RTSEngine {
             'PHOTON_SCOUT': { sides: 4, size: 18, color: 0x7FFF00 }, // Chartreuse
             'BEAM_TANK': { sides: 6, size: 30, color: 0x00FA9A }, // Medium spring green
             'PULSE_ARTILLERY': { sides: 6, size: 26, color: 0xFFD700 }, // Gold
-            'PHOTON_TITAN': { sides: 8, size: 38, color: 0x00FF00 } // Bright green (hero unit)
+            'PHOTON_TITAN': { sides: 8, size: 38, color: 0x00FF00 }, // Bright green (hero unit)
+            // Air units
+            'SCOUT_DRONE': { sides: 4, size: 12, color: 0x87CEEB, isAir: true } // Light sky blue
         };
         return unitTypes[unitType] || { sides: 4, size: 15, color: 0xFFFFFF };
     }
     
     createUnitGraphics(unitData) {
-        const container = new PIXI.Container();
-        
-        // Get unit type info
         const typeInfo = this.getUnitTypeInfo(unitData.type);
         
+        // Special rendering for air units
+        if (typeInfo.isAir) {
+            return this.createAirUnitGraphics(unitData, typeInfo);
+        }
+        
+        const container = new PIXI.Container();
         // Create a rotating container for the unit shape and direction indicator
         const rotatingContainer = new PIXI.Container();
         container.addChild(rotatingContainer);
@@ -937,6 +987,130 @@ class RTSEngine {
         selectionCircle.visible = false;
         container.addChild(selectionCircle);
         container.selectionCircle = selectionCircle;
+        
+        return container;
+    }
+    
+    /**
+     * Create special graphics for air units (Scout Drone, etc.)
+     * Features: shadow, rotor animation, glow effects, bobbing motion
+     */
+    createAirUnitGraphics(unitData, typeInfo) {
+        const container = new PIXI.Container();
+        container.isAirUnit = true;
+        
+        // 1. SHADOW (drawn first, appears below unit)
+        const shadow = new PIXI.Graphics();
+        const shadowOffset = -24; // Positive Y = down in PixiJS (shadow appears below unit)
+        shadow.ellipse(0, shadowOffset, typeInfo.size * 0.7, typeInfo.size * 0.4);
+        shadow.fill({ color: 0x000000, alpha: 0.3 });
+        container.addChild(shadow);
+        container.shadowGraphics = shadow;
+        
+        // 2. ROTATING CONTAINER for main body + rotors (lifted up to create altitude)
+        const rotatingContainer = new PIXI.Container();
+        container.addChild(rotatingContainer);
+        container.rotatingContainer = rotatingContainer;
+        
+        // 3. MAIN BODY (quadcopter center hub + arms)
+        const body = new PIXI.Graphics();
+        
+        // Draw X-shaped drone body using physics vertices if available
+        if (unitData.vertices && unitData.vertices.length > 0) {
+            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
+            
+            if (isMultiFixture) {
+                for (const fixtureVertices of unitData.vertices) {
+                    if (fixtureVertices.length > 0) {
+                        this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
+                    }
+                }
+            } else {
+                this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
+            }
+        } else {
+            // Fallback: simple diamond shape
+            this.drawPolygon(body, 4, typeInfo.size, typeInfo.color, unitData.team);
+        }
+        
+        // Make body semi-transparent for "floating" effect
+        body.alpha = 0.9;
+        rotatingContainer.addChild(body);
+        
+        // 4. ROTOR BLADES (4 rotors at corners, spinning independently)
+        const rotorPositions = [
+            { x: typeInfo.size * 0.7, y: typeInfo.size * 0.7 },   // Front-right
+            { x: -typeInfo.size * 0.7, y: typeInfo.size * 0.7 },  // Front-left
+            { x: -typeInfo.size * 0.7, y: -typeInfo.size * 0.7 }, // Rear-left
+            { x: typeInfo.size * 0.7, y: -typeInfo.size * 0.7 }   // Rear-right
+        ];
+        
+        container.rotors = [];
+        for (const pos of rotorPositions) {
+            const rotor = new PIXI.Graphics();
+            
+            // Draw rotor blades (two perpendicular lines)
+            rotor.moveTo(-typeInfo.size * 0.25, 0);
+            rotor.lineTo(typeInfo.size * 0.25, 0);
+            rotor.stroke({ width: 1.5, color: 0x888888, alpha: 0.7 });
+            
+            rotor.moveTo(0, -typeInfo.size * 0.25);
+            rotor.lineTo(0, typeInfo.size * 0.25);
+            rotor.stroke({ width: 1.5, color: 0x888888, alpha: 0.7 });
+            
+            rotor.position.set(pos.x, pos.y);
+            rotatingContainer.addChild(rotor);
+            container.rotors.push(rotor);
+        }
+        
+        // 5. LED LIGHTS at rotor positions (pulsing effect)
+        container.leds = [];
+        for (const pos of rotorPositions) {
+            const led = new PIXI.Graphics();
+            led.circle(0, 0, 2);
+            led.fill({ color: 0x00FFFF, alpha: 0.8 });
+            led.position.set(pos.x, pos.y);
+            rotatingContainer.addChild(led);
+            container.leds.push(led);
+        }
+        
+        // 6. GLOW FILTER for ethereal look
+        if (PIXI.GlowFilter) {
+            const glow = new PIXI.GlowFilter({
+                distance: 10,
+                outerStrength: 1.5,
+                color: typeInfo.color,
+                quality: 0.3
+            });
+            body.filters = [glow];
+        }
+        
+        // 7. HEALTH BAR (same as ground units)
+//        const healthBarBg = new PIXI.Graphics();
+//        healthBarBg.rect(-typeInfo.size * 0.6, -typeInfo.size - 8, typeInfo.size * 1.2, 4);
+//        healthBarBg.fill({ color: 0x000000, alpha: 0.5 });
+//        container.addChild(healthBarBg);
+        
+        const healthBar = new PIXI.Graphics();
+        healthBar.rect(-typeInfo.size * 0.6, -typeInfo.size - 8, typeInfo.size * 1.2, 4);
+        healthBar.fill({ color: 0x00FF00 });
+        container.addChild(healthBar);
+        container.healthBar = healthBar;
+        
+        // 8. SELECTION RING (drawn when selected)
+        const selectionRing = new PIXI.Graphics();
+        selectionRing.visible = false;
+        selectionRing.circle(0, 0, typeInfo.size * 1.3);
+        selectionRing.stroke({ width: 2, color: 0x00FF00 });
+        container.addChild(selectionRing);
+        container.selectionRing = selectionRing;
+        
+        // Store animation state
+        container.animationTime = Math.random() * Math.PI * 2; // Random start phase
+        
+        // Store data
+        container.unitData = unitData;
+        container.typeInfo = typeInfo;
         
         return container;
     }
@@ -1221,7 +1395,9 @@ class RTSEngine {
             'QUANTUM_NEXUS': { sides: 8, size: 50, color: 0x9370DB, rotation: Math.PI / 8 },
             'PHOTON_SPIRE': { sides: 6, size: 48, color: 0x00FF00, rotation: Math.PI / 6 },
             'ANDROID_FACTORY': { sides: 8, size: 55, color: 0x4B0082, rotation: Math.PI / 8 },
-            'COMMAND_CITADEL': { sides: 8, size: 55, color: 0x4169E1, rotation: 0 }
+            'COMMAND_CITADEL': { sides: 8, size: 55, color: 0x4169E1, rotation: 0 },
+            // Air unit production
+            'AIRFIELD': { sides: 8, size: 60, color: 0x708090, rotation: 0 }
         };
         
         const typeInfo = buildingTypes[buildingData.type] || { sides: 4, size: 50, color: 0xFFFFFF, rotation: 0 };
@@ -1285,6 +1461,7 @@ class RTSEngine {
             'LASER_TURRET': 'LT',
             'POWER_PLANT': 'P',
             'RESEARCH_LAB': 'RL',
+            'AIRFIELD': 'AF',
             'WEAPONS_DEPOT': 'WD',
             'TECH_CENTER': 'TC',
             'ADVANCED_FACTORY': 'AF',
@@ -2743,6 +2920,7 @@ class RTSEngine {
             'RESEARCH_LAB': { size: 50, cost: 500, name: 'Research Lab' },
             'WEAPONS_DEPOT': { size: 48, cost: 400, name: 'Weapons Depot' },
             'TECH_CENTER': { size: 60, cost: 800, name: 'Tech Center' },
+            'AIRFIELD': { size: 60, cost: 600, name: 'Airfield' },
             'ADVANCED_FACTORY': { size: 65, cost: 1000, name: 'Advanced Factory' },
             'BANK': { size: 35, cost: 600, name: 'Bank' }
         };
@@ -3970,6 +4148,7 @@ class RTSEngine {
             'ADVANCED_FACTORY': '🏭',
             'BANK': '💰',
             'BUNKER': '🏰',
+            'AIRFIELD': '✈️',
             'SANDSTORM_GENERATOR': '🌪️',
             'QUANTUM_NEXUS': '⚛️',
             'PHOTON_SPIRE': '💎',
@@ -4000,6 +4179,7 @@ class RTSEngine {
             'ADVANCED_FACTORY': 'Advanced Factory',
             'BANK': 'Bank',
             'BUNKER': 'Bunker',
+            'AIRFIELD': 'Airfield',
             'SANDSTORM_GENERATOR': 'Sandstorm Generator',
             'QUANTUM_NEXUS': 'Quantum Nexus',
             'PHOTON_SPIRE': 'Photon Spire',

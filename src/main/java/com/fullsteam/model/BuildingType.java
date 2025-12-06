@@ -295,6 +295,20 @@ public enum BuildingType {
             false,   // cannot produce units
             -50,     // power consumption
             800.0    // vision range (HUGE, command center bonus)
+    ),
+
+    // Air unit production - requires Tech Center
+    AIRFIELD(
+            "Airfield",
+            600,     // resource cost
+            35,      // build time (seconds)
+            700,     // max health
+            60.0,    // size (radius) - large landing pad
+            8,       // sides (octagon)
+            0x708090, // slate gray (runway color)
+            true,    // can produce units (air units!)
+            -40,     // power consumption
+            420.0    // vision range (good, airfield tower)
     );
 
     private final String displayName;
@@ -337,7 +351,7 @@ public enum BuildingType {
             case HEADQUARTERS, REFINERY, BARRACKS, POWER_PLANT, BUNKER, WALL -> 1;
             case FACTORY, RESEARCH_LAB, WEAPONS_DEPOT, TURRET, SHIELD_GENERATOR, ROCKET_TURRET -> 2;
             case TECH_CENTER, ADVANCED_FACTORY, BANK, SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE,
-                 COMMAND_CITADEL, LASER_TURRET -> 3;
+                 COMMAND_CITADEL, LASER_TURRET, AIRFIELD -> 3;
         };
     }
 
@@ -440,6 +454,18 @@ public enum BuildingType {
 
             // Command Citadel - octagonal fortress tower
             case COMMAND_CITADEL -> List.of(Geometry.createPolygonalCircle(8, size));
+            
+            // Airfield - rectangular runway with control tower
+            case AIRFIELD -> {
+                // Main runway (large rectangle)
+                Convex runway = Geometry.createRectangle(size * 2.2, size * 1.3);
+                
+                // Control tower (small square at the side)
+                Convex tower = Geometry.createSquare(size * 0.4);
+                tower.translate(-size * 0.9, -size * 0.6);
+                
+                yield List.of(runway, tower);
+            }
         };
     }
 }
