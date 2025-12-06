@@ -1086,11 +1086,6 @@ class RTSEngine {
         }
         
         // 7. HEALTH BAR (same as ground units)
-//        const healthBarBg = new PIXI.Graphics();
-//        healthBarBg.rect(-typeInfo.size * 0.6, -typeInfo.size - 8, typeInfo.size * 1.2, 4);
-//        healthBarBg.fill({ color: 0x000000, alpha: 0.5 });
-//        container.addChild(healthBarBg);
-        
         const healthBar = new PIXI.Graphics();
         healthBar.rect(-typeInfo.size * 0.6, -typeInfo.size - 8, typeInfo.size * 1.2, 4);
         healthBar.fill({ color: 0x00FF00 });
