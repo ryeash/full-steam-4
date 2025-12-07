@@ -92,7 +92,7 @@ public class Unit extends GameEntity {
 
     // Selection state
     private boolean selected = false;
-    private boolean garrisoned = false; // True if unit is inside a building (bunker)
+    private boolean garrisoned = false; // True if unit is inside a building
 
     public Unit(int id, UnitType unitType, double x, double y, int ownerId, int teamNumber) {
         super(id, createUnitBody(x, y, unitType), unitType.getMaxHealth());

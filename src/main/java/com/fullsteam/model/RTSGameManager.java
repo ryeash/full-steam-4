@@ -741,37 +741,18 @@ public class RTSGameManager {
                 HangarComponent hangarComponent = hangar.getComponent(HangarComponent.class).orElse(null);
                 if (hangarComponent != null && hangarComponent.isReadyForSortie()) {
                     // Spawn bomber for sortie
-                    UnitType bomberType = hangarComponent.getHousedAircraftType();
-                    
-                    Unit bomber = new Unit(
-                            IdGenerator.nextEntityId(),
-                            bomberType,
-                            hangar.getPosition().x,
-                            hangar.getPosition().y,
-                            playerId,
-                            faction.getTeamNumber()
-                    );
-                    
-                    // Set bomber health to match housed aircraft
-                    bomber.setHealth(hangarComponent.getHousedAircraftHealth());
-                    
-                    // Apply research modifiers
-                    if (faction.getResearchManager() != null) {
-                        bomber.applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
-                    }
-                    
-                    // Add bomber to world
-                    units.put(bomber.getId(), bomber);
-                    world.addBody(bomber.getBody());
+                    Unit aircraft = hangarComponent.getHousedAircraft();
+                    aircraft.getBody().setEnabled(true);
+                    aircraft.setGarrisoned(false);
                     
                     // Issue sortie command
-                    bomber.issueCommand(new SortieCommand(bomber, input.getSortieTargetLocation(), hangar.getId(), true));
+                    aircraft.issueCommand(new SortieCommand(aircraft, input.getSortieTargetLocation(), hangar.getId(), true));
                     
                     // Mark hangar as having deployed bomber
-                    hangarComponent.deployOnSortie(bomber.getId());
+                    hangarComponent.deployOnSortie(aircraft.getId());
                     
                     log.info("Player {} launched bomber {} from hangar {} to target ({}, {})",
-                            playerId, bomber.getId(), hangar.getId(),
+                            playerId, aircraft.getId(), hangar.getId(),
                             input.getSortieTargetLocation().x, input.getSortieTargetLocation().y);
                     
                     sendGameEvent(GameEvent.createPlayerEvent(
@@ -780,7 +761,7 @@ public class RTSGameManager {
                             GameEvent.EventCategory.INFO
                     ));
                 } else if (hangarComponent != null && !hangarComponent.isReadyForSortie()) {
-                    String reason = hangarComponent.getHousedAircraftType() == null ? "Hangar is empty" :
+                    String reason = hangarComponent.getHousedAircraft() == null ? "Hangar is empty" :
                                    hangarComponent.isOnSortie() ? "Aircraft already on sortie" :
                                    "Aircraft is damaged and repairing";
                     sendGameEvent(GameEvent.createPlayerEvent(

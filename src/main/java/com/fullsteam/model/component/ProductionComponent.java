@@ -79,14 +79,10 @@ public class ProductionComponent extends AbstractBuildingComponent {
                 // Check if this is a sortie-based unit (Bomber, etc.)
                 if (unitType.isSortieBased()) {
                     // Sortie-based units should be housed in the building (Hangar), not spawned
-                    HangarComponent hangarComponent = building.getComponent(HangarComponent.class);
-                    if (hangarComponent != null) {
-                        hangarComponent.houseUnit(unit);
-                        log.info("Sortie-based unit {} housed in building {}", unitType, building.getId());
-                    } else {
-                        log.error("Building {} produced sortie-based unit {} but has no HangarComponent!", 
-                                building.getId(), unitType);
-                    }
+                    building.getComponent(HangarComponent.class)
+                            .ifPresent(hangarComponent -> {
+                                hangarComponent.houseAircraft(unit);
+                            });
                 } else {
                     // Regular units spawn on the map
                     // Find spawn position near building
@@ -100,7 +96,7 @@ public class ProductionComponent extends AbstractBuildingComponent {
                     if (rallyPoint != null) {
                         unit.issueCommand(new MoveCommand(unit, rallyPoint, false));
                     }
-                    
+
                     log.info("Unit {} spawned at position {}", unitType, spawnPos);
                 }
             }
