@@ -14,7 +14,9 @@ import com.fullsteam.model.command.GarrisonBunkerCommand;
 import com.fullsteam.model.command.HarvestCommand;
 import com.fullsteam.model.command.MineCommand;
 import com.fullsteam.model.command.MoveCommand;
+import com.fullsteam.model.command.SortieCommand;
 import com.fullsteam.model.component.AndroidFactoryComponent;
+import com.fullsteam.model.component.HangarComponent;
 import com.fullsteam.model.component.IBuildingComponent;
 import com.fullsteam.model.component.ProductionComponent;
 import com.fullsteam.model.component.ShieldComponent;
@@ -728,6 +730,67 @@ public class RTSGameManager {
                 }
             }
         }
+        
+        // Handle sortie orders (bomber aircraft)
+        if (input.getSortieHangarId() != null && input.getSortieTargetLocation() != null) {
+            Building hangar = buildings.get(input.getSortieHangarId());
+            if (hangar != null && hangar.getBuildingType() == BuildingType.HANGAR &&
+                    hangar.belongsTo(playerId) && !hangar.isUnderConstruction()) {
+                
+                // Get the hangar component
+                HangarComponent hangarComponent = hangar.getComponent(HangarComponent.class).orElse(null);
+                if (hangarComponent != null && hangarComponent.isReadyForSortie()) {
+                    // Spawn bomber for sortie
+                    UnitType bomberType = hangarComponent.getHousedAircraftType();
+                    
+                    Unit bomber = new Unit(
+                            IdGenerator.nextEntityId(),
+                            bomberType,
+                            hangar.getPosition().x,
+                            hangar.getPosition().y,
+                            playerId,
+                            faction.getTeamNumber()
+                    );
+                    
+                    // Set bomber health to match housed aircraft
+                    bomber.setHealth(hangarComponent.getHousedAircraftHealth());
+                    
+                    // Apply research modifiers
+                    if (faction.getResearchManager() != null) {
+                        bomber.applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
+                    }
+                    
+                    // Add bomber to world
+                    units.put(bomber.getId(), bomber);
+                    world.addBody(bomber.getBody());
+                    
+                    // Issue sortie command
+                    bomber.issueCommand(new SortieCommand(bomber, input.getSortieTargetLocation(), hangar.getId(), true));
+                    
+                    // Mark hangar as having deployed bomber
+                    hangarComponent.deployOnSortie(bomber.getId());
+                    
+                    log.info("Player {} launched bomber {} from hangar {} to target ({}, {})",
+                            playerId, bomber.getId(), hangar.getId(),
+                            input.getSortieTargetLocation().x, input.getSortieTargetLocation().y);
+                    
+                    sendGameEvent(GameEvent.createPlayerEvent(
+                            "✈️ Bomber launched on sortie",
+                            playerId,
+                            GameEvent.EventCategory.INFO
+                    ));
+                } else if (hangarComponent != null && !hangarComponent.isReadyForSortie()) {
+                    String reason = hangarComponent.getHousedAircraftType() == null ? "Hangar is empty" :
+                                   hangarComponent.isOnSortie() ? "Aircraft already on sortie" :
+                                   "Aircraft is damaged and repairing";
+                    sendGameEvent(GameEvent.createPlayerEvent(
+                            "⚠️ Cannot launch sortie: " + reason,
+                            playerId,
+                            GameEvent.EventCategory.WARNING
+                    ));
+                }
+            }
+        }
 
         // Handle build orders
         if (input.getBuildOrder() != null) {
@@ -768,6 +831,24 @@ public class RTSGameManager {
                             playerId, buildingType, location.x, location.y);
                     sendGameEvent(GameEvent.createPlayerEvent(
                             "⚠️ Cannot place building here - location is blocked or too close to other structures",
+                            playerId,
+                            GameEvent.EventCategory.WARNING
+                    ));
+                    return;
+                }
+                
+                // Check support capacity (e.g., Hangars require nearby Airfield with capacity)
+                if (!collisionProcessor.hasSupportCapacity(location, buildingType, playerId)) {
+                    BuildingType requirement = buildingType.getProximityRequirement();
+                    int capacity = requirement != null ? requirement.getSupportCapacity() : 0;
+                    log.warn("Player {} tried to build {} but no {} with available capacity nearby",
+                            playerId, buildingType, requirement);
+                    sendGameEvent(GameEvent.createPlayerEvent(
+                            String.format("⚠️ Cannot build %s here - need nearby %s with available capacity (max %d per %s)",
+                                    buildingType.getDisplayName(),
+                                    requirement != null ? requirement.getDisplayName() : "support building",
+                                    capacity,
+                                    requirement != null ? requirement.getDisplayName() : "building"),
                             playerId,
                             GameEvent.EventCategory.WARNING
                     ));
@@ -1728,7 +1809,7 @@ public class RTSGameManager {
                     playerBuildings.contains(BuildingType.POWER_PLANT);
 
             // T3 - Requires Power Plant + Research Lab
-            case TECH_CENTER, ADVANCED_FACTORY, BANK, LASER_TURRET, AIRFIELD ->
+            case TECH_CENTER, ADVANCED_FACTORY, BANK, LASER_TURRET, AIRFIELD, HANGAR ->
                     playerBuildings.contains(BuildingType.POWER_PLANT) &&
                             playerBuildings.contains(BuildingType.RESEARCH_LAB);
 

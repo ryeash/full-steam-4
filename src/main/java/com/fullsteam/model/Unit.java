@@ -1,7 +1,9 @@
 package com.fullsteam.model;
 
 import com.fullsteam.model.command.IdleCommand;
+import com.fullsteam.model.command.SortieCommand;
 import com.fullsteam.model.command.UnitCommand;
+import com.fullsteam.model.component.HangarComponent;
 import com.fullsteam.model.research.ResearchModifier;
 import com.fullsteam.model.weapon.ProjectileWeapon;
 import com.fullsteam.model.weapon.Weapon;
@@ -151,10 +153,35 @@ public class Unit extends GameEntity {
         if (currentCommand != null) {
             boolean stillActive = currentCommand.update(gameEntities.getWorld().getTimeStep().getDeltaTime());
             if (!stillActive) {
+                // Special handling for sortie-based units (Bomber, etc.)
+                if (currentCommand instanceof SortieCommand sortieCmd) {
+                    handleSortieCompletion(sortieCmd, gameEntities);
+                    return; // Unit is being removed/returned to hangar
+                }
+                
                 // Command completed, switch to idle
                 currentCommand = new IdleCommand(this);
             }
         }
+    }
+    
+    /**
+     * Handle bomber returning from sortie - update hangar and despawn
+     */
+    private void handleSortieCompletion(SortieCommand sortieCmd, GameEntities gameEntities) {
+        int hangarId = sortieCmd.getHomeHangarId();
+        Building hangar = gameEntities.getBuildings().get(hangarId);
+        
+        if (hangar != null && hangar.isActive()) {
+            // Return to hangar component
+            HangarComponent hangarComponent = hangar.getComponent(HangarComponent.class).orElse(null);
+            if (hangarComponent != null) {
+                hangarComponent.returnFromSortie(this); // Updates aircraft health
+            }
+        }
+        
+        // Despawn the bomber unit
+        this.setActive(false);
     }
 
     /**

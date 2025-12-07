@@ -65,6 +65,10 @@ public class RTSPlayerInput {
     private boolean ungarrisonAll; // If true, ungarrison all units from building
     private Integer specialAbilityTargetBuilding; // Target building ID for repair
     
+    // Sortie orders (for bomber aircraft)
+    private Integer sortieHangarId; // Hangar ID to launch sortie from
+    private org.dyn4j.geometry.Vector2 sortieTargetLocation; // Target location for bombing run
+    
     // Camera/viewport
     private double cameraX;
     private double cameraY;

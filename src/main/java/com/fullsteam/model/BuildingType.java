@@ -309,6 +309,20 @@ public enum BuildingType {
             true,    // can produce units (air units!)
             -40,     // power consumption
             420.0    // vision range (good, airfield tower)
+    ),
+    
+    // Aircraft housing - must be built near Airfield, houses sortie-based aircraft
+    HANGAR(
+            "Hangar",
+            400,     // resource cost (cheaper than airfield, but requires one)
+            25,      // build time (seconds)
+            600,     // max health
+            35.0,    // size (radius) - medium building
+            4,       // sides (rectangle - hangar shape)
+            0x4A5568, // dark blue-gray (hangar color)
+            false,   // cannot produce units directly (aircraft are housed, not produced)
+            -20,     // power consumption
+            350.0    // vision range (moderate)
     );
 
     private final String displayName;
@@ -342,6 +356,40 @@ public enum BuildingType {
     public boolean isDefensive() {
         return this == TURRET || this == ROCKET_TURRET || this == LASER_TURRET;
     }
+    
+    /**
+     * Check if this building requires proximity to another building type
+     * @return the required building type, or null if no proximity requirement
+     */
+    public BuildingType getProximityRequirement() {
+        return switch (this) {
+            case HANGAR -> AIRFIELD;
+            default -> null;
+        };
+    }
+    
+    /**
+     * Get the required proximity range for buildings that need to be near another building
+     * @return the maximum distance in pixels, or 0 if no proximity requirement
+     */
+    public double getProximityRange() {
+        return switch (this) {
+            case HANGAR -> 200.0; // Must be within 200 pixels of an Airfield
+            default -> 0.0;
+        };
+    }
+    
+    /**
+     * Get the number of support slots this building provides for dependent buildings
+     * For example, an Airfield can support N Hangars
+     * @return number of dependent buildings this can support, or 0 if none
+     */
+    public int getSupportCapacity() {
+        return switch (this) {
+            case AIRFIELD -> 4; // Each Airfield can support 4 Hangars
+            default -> 0;
+        };
+    }
 
     /**
      * Get the tech tier required to build this building
@@ -351,7 +399,7 @@ public enum BuildingType {
             case HEADQUARTERS, REFINERY, BARRACKS, POWER_PLANT, BUNKER, WALL -> 1;
             case FACTORY, RESEARCH_LAB, WEAPONS_DEPOT, TURRET, SHIELD_GENERATOR, ROCKET_TURRET -> 2;
             case TECH_CENTER, ADVANCED_FACTORY, BANK, SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE,
-                 COMMAND_CITADEL, LASER_TURRET, AIRFIELD -> 3;
+                 COMMAND_CITADEL, LASER_TURRET, AIRFIELD, HANGAR -> 3;
         };
     }
 
@@ -465,6 +513,18 @@ public enum BuildingType {
                 tower.translate(-size * 0.9, -size * 0.6);
                 
                 yield List.of(runway, tower);
+            }
+            
+            // Hangar - rectangular building with angled roof
+            case HANGAR -> {
+                // Main hangar body (wide rectangle)
+                Convex body = Geometry.createRectangle(size * 1.8, size * 1.2);
+                
+                // Small entrance/door area (rectangle at front)
+                Convex entrance = Geometry.createRectangle(size * 0.5, size * 0.3);
+                entrance.translate(size * 0.65, 0);
+                
+                yield List.of(body, entrance);
             }
         };
     }

@@ -470,6 +470,26 @@ public enum UnitType {
             BuildingType.AIRFIELD,
             15,      // upkeep cost
             600.0    // vision range (EXCELLENT - scout unit!)
+    ),
+    
+    // BOMBER - Sortie-based heavy bomber aircraft
+    // Housed in Hangar, executes bombing runs on command, then returns to base
+    // NOT controllable like regular units - sortie-based only
+    BOMBER(
+            "Bomber",
+            800,     // resource cost (EXPENSIVE - strategic asset)
+            60,      // build time (seconds)
+            250,     // max health (more durable than scout)
+            180.0,   // movement speed (slower than scout drone)
+            100,     // damage (MASSIVE - area effect bombs)
+            0.5,     // attack rate (slow - payload limitation)
+            0,       // attack range (N/A - bombs are dropped, not fired)
+            18.0,    // size (radius) - larger aircraft
+            6,       // sides (hexagonal fuselage)
+            0x2F4F4F, // dark slate gray (bomber color)
+            BuildingType.HANGAR, // Housed in hangar, not produced at airfield
+            50,      // upkeep cost (HIGH - strategic bomber)
+            400.0    // vision range (good but not scout-level)
     );
 
     private final String displayName;
@@ -700,6 +720,40 @@ public enum UnitType {
                 Convex rotorArmRR = Geometry.createPolygon(armRR);
                 
                 yield List.of(hub, rotorArmFL, rotorArmFR, rotorArmRL, rotorArmRR);
+            }
+            
+            // Bomber - Heavy aircraft with fuselage and wings
+            case BOMBER -> {
+                // Main fuselage (elongated hexagon - aircraft body)
+                Vector2[] fuselage = new Vector2[]{
+                        new Vector2(size * 0.9, 0),                    // Nose (front)
+                        new Vector2(size * 0.3, size * 0.35),          // Top-front
+                        new Vector2(-size * 0.7, size * 0.35),         // Top-rear
+                        new Vector2(-size * 0.9, 0),                   // Tail (rear)
+                        new Vector2(-size * 0.7, -size * 0.35),        // Bottom-rear
+                        new Vector2(size * 0.3, -size * 0.35)          // Bottom-front
+                };
+                Convex body = Geometry.createPolygon(fuselage);
+                
+                // Left wing (swept back)
+                Vector2[] leftWing = new Vector2[]{
+                        new Vector2(-size * 0.2, size * 0.4),          // Inner front
+                        new Vector2(-size * 0.6, size * 0.95),         // Outer tip
+                        new Vector2(-size * 0.75, size * 0.85),        // Outer rear
+                        new Vector2(-size * 0.35, size * 0.3)          // Inner rear
+                };
+                Convex wingLeft = Geometry.createPolygon(leftWing);
+                
+                // Right wing (swept back, mirrored)
+                Vector2[] rightWing = new Vector2[]{
+                        new Vector2(-size * 0.2, -size * 0.4),         // Inner front
+                        new Vector2(-size * 0.35, -size * 0.3),        // Inner rear
+                        new Vector2(-size * 0.75, -size * 0.85),       // Outer rear
+                        new Vector2(-size * 0.6, -size * 0.95)         // Outer tip
+                };
+                Convex wingRight = Geometry.createPolygon(rightWing);
+                
+                yield List.of(body, wingLeft, wingRight);
             }
 
             // Jeep - fast light vehicle with angular chassis and armor plating
@@ -1533,7 +1587,14 @@ public enum UnitType {
      * Check if this is an air unit (can fly over obstacles, different rendering)
      */
     public boolean isAirUnit() {
-        return this == SCOUT_DRONE;
+        return this == SCOUT_DRONE || this == BOMBER;
+    }
+    
+    /**
+     * Check if this is a sortie-based unit (not player-controllable, executes missions and returns to base)
+     */
+    public boolean isSortieBased() {
+        return this == BOMBER;
     }
 }
 

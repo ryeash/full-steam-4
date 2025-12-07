@@ -70,22 +70,38 @@ public class ProductionComponent extends AbstractBuildingComponent {
                         building.getTeamNumber()
                 );
 
-                // Find spawn position near building
-                Vector2 spawnPos = findSpawnPosition(gameEntities, building, unit);
-                unit.setPosition(spawnPos);
-
                 // Apply research modifiers from player's research
                 PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
                 if (faction != null && faction.getResearchManager() != null) {
                     unit.applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
                 }
 
-                gameEntities.getUnits().put(unit.getId(), unit);
-                gameEntities.getWorld().addBody(unit.getBody());
+                // Check if this is a sortie-based unit (Bomber, etc.)
+                if (unitType.isSortieBased()) {
+                    // Sortie-based units should be housed in the building (Hangar), not spawned
+                    HangarComponent hangarComponent = building.getComponent(HangarComponent.class);
+                    if (hangarComponent != null) {
+                        hangarComponent.houseUnit(unit);
+                        log.info("Sortie-based unit {} housed in building {}", unitType, building.getId());
+                    } else {
+                        log.error("Building {} produced sortie-based unit {} but has no HangarComponent!", 
+                                building.getId(), unitType);
+                    }
+                } else {
+                    // Regular units spawn on the map
+                    // Find spawn position near building
+                    Vector2 spawnPos = findSpawnPosition(gameEntities, building, unit);
+                    unit.setPosition(spawnPos);
 
-                // Order unit to rally point
-                if (rallyPoint != null) {
-                    unit.issueCommand(new MoveCommand(unit, rallyPoint, false));
+                    gameEntities.getUnits().put(unit.getId(), unit);
+                    gameEntities.getWorld().addBody(unit.getBody());
+
+                    // Order unit to rally point
+                    if (rallyPoint != null) {
+                        unit.issueCommand(new MoveCommand(unit, rallyPoint, false));
+                    }
+                    
+                    log.info("Unit {} spawned at position {}", unitType, spawnPos);
                 }
             }
         } else if (hasLowPower && currentProduction != null) {

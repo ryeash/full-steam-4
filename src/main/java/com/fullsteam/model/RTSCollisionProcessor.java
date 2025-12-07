@@ -260,8 +260,95 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
             log.debug("Build location outside world bounds");
             return false;
         }
+        
+        // Check proximity requirements (e.g., Hangar must be near Airfield)
+        BuildingType proximityRequirement = buildingType.getProximityRequirement();
+        if (proximityRequirement != null) {
+            double requiredRange = buildingType.getProximityRange();
+            boolean foundNearbyRequirement = false;
+            
+            for (Building building : buildings.values()) {
+                if (building.getBuildingType() == proximityRequirement && building.isActive()) {
+                    double dist = location.distance(building.getPosition());
+                    if (dist <= requiredRange) {
+                        foundNearbyRequirement = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (!foundNearbyRequirement) {
+                log.debug("Build location does not meet proximity requirement: {} must be within {} pixels of {}",
+                        buildingType, requiredRange, proximityRequirement);
+                return false;
+            }
+        }
 
         return true;
+    }
+    
+    /**
+     * Check if a support building can support another dependent building
+     * For example, check if an Airfield has capacity for another Hangar
+     * 
+     * @param location Location where the new building will be placed
+     * @param buildingType Type of building being placed
+     * @param playerId Owner of the building
+     * @return true if support capacity is available, false if at capacity
+     */
+    public boolean hasSupportCapacity(Vector2 location, BuildingType buildingType, int playerId) {
+        BuildingType proximityRequirement = buildingType.getProximityRequirement();
+        if (proximityRequirement == null) {
+            return true; // No proximity requirement = no support capacity check needed
+        }
+        
+        int supportCapacity = proximityRequirement.getSupportCapacity();
+        if (supportCapacity == 0) {
+            return true; // No capacity limit
+        }
+        
+        double requiredRange = buildingType.getProximityRange();
+        
+        // Find the nearest support building within range
+        Building nearestSupport = null;
+        double nearestDist = Double.MAX_VALUE;
+        
+        for (Building building : buildings.values()) {
+            if (building.getBuildingType() == proximityRequirement && 
+                building.isActive() && 
+                building.getOwnerId() == playerId) { // Must belong to same player
+                double dist = location.distance(building.getPosition());
+                if (dist <= requiredRange && dist < nearestDist) {
+                    nearestSupport = building;
+                    nearestDist = dist;
+                }
+            }
+        }
+        
+        if (nearestSupport == null) {
+            return false; // No support building nearby
+        }
+        
+        // Count how many dependent buildings this support building already has
+        int currentDependents = 0;
+        for (Building building : buildings.values()) {
+            if (building.getBuildingType() == buildingType && 
+                building.isActive() && 
+                building.getOwnerId() == playerId) {
+                double dist = building.getPosition().distance(nearestSupport.getPosition());
+                if (dist <= requiredRange) {
+                    currentDependents++;
+                }
+            }
+        }
+        
+        boolean hasCapacity = currentDependents < supportCapacity;
+        if (!hasCapacity) {
+            log.debug("Support building {} at capacity: {}/{} dependent buildings",
+                    proximityRequirement, currentDependents, supportCapacity);
+        }
+        
+        return hasCapacity;
     }
 
     /**

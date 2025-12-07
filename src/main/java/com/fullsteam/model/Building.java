@@ -4,6 +4,7 @@ import com.fullsteam.model.component.AndroidFactoryComponent;
 import com.fullsteam.model.component.BankComponent;
 import com.fullsteam.model.component.DefenseComponent;
 import com.fullsteam.model.component.GarrisonComponent;
+import com.fullsteam.model.component.HangarComponent;
 import com.fullsteam.model.component.IBuildingComponent;
 import com.fullsteam.model.component.ProductionComponent;
 import com.fullsteam.model.component.ResearchComponent;
@@ -128,6 +129,11 @@ public class Building extends GameEntity {
 
         if (buildingType == BuildingType.BUNKER) {
             addComponent(new GarrisonComponent(6));
+        }
+        
+        if (buildingType == BuildingType.HANGAR) {
+            addComponent(new HangarComponent());
+            log.debug("Building {} ({}) initialized with HangarComponent", id, buildingType.getDisplayName());
         }
 
         // More components will be added here as we extract them:
