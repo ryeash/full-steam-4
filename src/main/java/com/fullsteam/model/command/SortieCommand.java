@@ -110,10 +110,13 @@ public class SortieCommand extends UnitCommand {
 
     @Override
     public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
+        Building homeHangar = gameEntities.getBuildings().get(homeHangarId);
+        if (homeHangar == null) return;
+        
         switch (currentPhase) {
             case OUTBOUND:
-                // Fly towards target
-                unit.applySteeringForces(targetLocation, nearbyUnits, deltaTime);
+                // Fly straight towards target
+                moveTowardsTarget(targetLocation);
                 break;
 
             case ATTACK:
@@ -127,11 +130,8 @@ public class SortieCommand extends UnitCommand {
                 break;
 
             case INBOUND:
-                // Return to hangar
-                Building homeHangar = gameEntities.getBuildings().get(homeHangarId);
-                if (homeHangar != null) {
-                    unit.applySteeringForces(homeHangar.getPosition(), nearbyUnits, deltaTime);
-                }
+                // Fly straight back to hangar
+                moveTowardsTarget(homeHangar.getPosition());
                 break;
 
             case LANDING:
@@ -139,6 +139,26 @@ public class SortieCommand extends UnitCommand {
                 Vector2 velocity = unit.getBody().getLinearVelocity();
                 unit.getBody().setLinearVelocity(velocity.product(0.9)); // Decelerate
                 break;
+        }
+    }
+    
+    /**
+     * Simple straight-line movement towards a target position.
+     */
+    private void moveTowardsTarget(Vector2 target) {
+        Vector2 currentPos = unit.getPosition();
+        Vector2 direction = target.copy().subtract(currentPos);
+        
+        if (direction.getMagnitude() > 1.0) {
+            // Normalize and apply speed
+            direction = direction.getNormalized();
+            double speed = unit.getUnitType().getMovementSpeed();
+            
+            // Set velocity directly towards target
+            unit.getBody().setLinearVelocity(direction.product(speed));
+            
+            // Face the direction of travel
+            unit.setRotation(Math.atan2(direction.y, direction.x));
         }
     }
 

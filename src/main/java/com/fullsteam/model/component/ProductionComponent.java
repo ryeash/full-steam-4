@@ -70,35 +70,30 @@ public class ProductionComponent extends AbstractBuildingComponent {
                         building.getTeamNumber()
                 );
 
+                // Initialize components
+                unit.initializeComponents(gameEntities);
+
                 // Apply research modifiers from player's research
                 PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
                 if (faction != null && faction.getResearchManager() != null) {
                     unit.applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
                 }
 
-                // Check if this is a sortie-based unit (Bomber, etc.)
-                if (unitType.isSortieBased()) {
-                    // Sortie-based units should be housed in the building (Hangar), not spawned
-                    building.getComponent(HangarComponent.class)
-                            .ifPresent(hangarComponent -> {
-                                hangarComponent.houseAircraft(unit);
-                            });
-                } else {
-                    // Regular units spawn on the map
-                    // Find spawn position near building
-                    Vector2 spawnPos = findSpawnPosition(gameEntities, building, unit);
-                    unit.setPosition(spawnPos);
+                // Sortie-based units (e.g., Bombers) are now produced directly by their component (HangarComponent)
+                // and should never reach ProductionComponent, so we don't need special handling here.
+                // Regular units spawn on the map
+                Vector2 spawnPos = findSpawnPosition(gameEntities, building, unit);
+                unit.setPosition(spawnPos);
 
-                    gameEntities.getUnits().put(unit.getId(), unit);
-                    gameEntities.getWorld().addBody(unit.getBody());
+                gameEntities.getUnits().put(unit.getId(), unit);
+                gameEntities.getWorld().addBody(unit.getBody());
 
-                    // Order unit to rally point
-                    if (rallyPoint != null) {
-                        unit.issueCommand(new MoveCommand(unit, rallyPoint, false));
-                    }
-
-                    log.info("Unit {} spawned at position {}", unitType, spawnPos);
+                // Order unit to rally point
+                if (rallyPoint != null) {
+                    unit.issueCommand(new MoveCommand(unit, rallyPoint, false), gameEntities);
                 }
+
+                log.info("Unit {} spawned at position {}", unitType, spawnPos);
             }
         } else if (hasLowPower && currentProduction != null) {
             // Production is paused due to low power

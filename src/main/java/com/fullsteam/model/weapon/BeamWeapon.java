@@ -46,8 +46,9 @@ public class BeamWeapon extends Weapon {
                       double beamDuration,
                       Beam.BeamType beamType,
                       Ordinance ordinanceType,
-                      Set<BulletEffect> bulletEffects) {
-        super(damage, range, attackRate);
+                      Set<BulletEffect> bulletEffects,
+                      ElevationTargeting elevationTargeting) {
+        super(damage, range, attackRate, elevationTargeting);
         this.beamWidth = beamWidth;
         this.beamDuration = beamDuration;
         this.beamType = beamType;
@@ -91,7 +92,8 @@ public class BeamWeapon extends Weapon {
                 ordinanceType,
                 beamType,
                 beamWidth,
-                beamDuration
+                beamDuration,
+                elevationTargeting
         );
         
         return List.of(beam);
@@ -163,7 +165,8 @@ public class BeamWeapon extends Weapon {
                 beamDuration,
                 beamType,
                 ordinanceType,
-                Set.copyOf(bulletEffects)
+                Set.copyOf(bulletEffects),
+                elevationTargeting
         );
     }
 
@@ -177,7 +180,8 @@ public class BeamWeapon extends Weapon {
                 beamDuration,
                 beamType,
                 ordinanceType,
-                Set.copyOf(bulletEffects)
+                Set.copyOf(bulletEffects),
+                elevationTargeting
         );
     }
 }

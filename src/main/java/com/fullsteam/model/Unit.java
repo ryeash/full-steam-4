@@ -3,7 +3,15 @@ package com.fullsteam.model;
 import com.fullsteam.model.command.IdleCommand;
 import com.fullsteam.model.command.SortieCommand;
 import com.fullsteam.model.command.UnitCommand;
+import com.fullsteam.model.component.AndroidComponent;
+import com.fullsteam.model.component.CloakComponent;
+import com.fullsteam.model.component.DeployComponent;
 import com.fullsteam.model.component.HangarComponent;
+import com.fullsteam.model.component.HarvestComponent;
+import com.fullsteam.model.component.HealComponent;
+import com.fullsteam.model.component.IUnitComponent;
+import com.fullsteam.model.component.MineComponent;
+import com.fullsteam.model.component.RepairComponent;
 import com.fullsteam.model.research.ResearchModifier;
 import com.fullsteam.model.weapon.ProjectileWeapon;
 import com.fullsteam.model.weapon.Weapon;
@@ -19,7 +27,11 @@ import org.dyn4j.geometry.Polygon;
 import org.dyn4j.geometry.Vector2;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Represents a unit (worker, infantry, vehicle, etc.)
@@ -34,13 +46,13 @@ public class Unit extends GameEntity {
     private UnitCommand currentCommand = null;
     private double movementSpeed;
 
-    // LEGACY fields kept for backward compatibility with existing logic
-    // TODO: These can be removed once all subsystems fully use commands
-    private Vector2 targetPosition = null; // Used by legacy pathfinding
-    private Unit targetUnit = null; // Used by legacy combat
-    private Building targetBuilding = null; // Used by legacy combat/harvesting
-    private boolean isMoving = false; // Used by legacy movement
-    private boolean hasPlayerOrder = false; // Used by AI scanning
+    // Component system for modular behaviors
+    private final Map<Class<? extends IUnitComponent>, IUnitComponent> components = new LinkedHashMap<>();
+
+    // Legacy fields still in use - will be migrated to command system over time
+    private Unit targetUnit = null; // Used by GarrisonComponent and serialization
+    private Building targetBuilding = null; // Used by GarrisonComponent and serialization
+    private boolean isMoving = false; // Used by pathfinding and serialization
 
     // Pathfinding
     private List<Vector2> currentPath = new ArrayList<>();
@@ -55,40 +67,12 @@ public class Unit extends GameEntity {
     private boolean specialAbilityActive = false; // For toggle abilities (deploy, cloak, etc.)
     private long lastSpecialAbilityTime = 0; // For cooldown tracking
 
-    // Cloak system (for Cloak Tank)
-    private static final double CLOAK_DETECTION_RANGE = 50.0; // Range at which cloaked units are detected
-    private long lastFireTime = 0; // Track when unit last fired (for cloak delay)
-
-    // Android Factory tracking (for androids only)
-    private Integer androidFactoryId = null; // ID of the Android Factory that produced this unit (null if not an android)
-
-    // Multi-turret system (for Crawler when deployed)
-    private List<Turret> turrets = new ArrayList<>();
-
     // Weapon system
     private Weapon weapon; // The weapon this unit fires (null for non-combat units)
     private double visionRange; // Modified by research
 
-    // Resource harvesting (for workers)
-    private double carriedResources = 0;
-    private static final double BASE_MAX_CARRIED_RESOURCES = 100.0;
-    private double maxCarriedResources = BASE_MAX_CARRIED_RESOURCES; // Can be modified by research
-    private boolean isHarvesting = false;
-    private boolean isReturningResources = false;
-    private Building targetRefinery = null;
-
-    // Building construction (for workers)
-    private Building constructionTarget = null;
+    // Building construction (for workers) - TODO: Move to ConstructComponent in future
     private boolean isConstructing = false;
-
-    // Obstacle mining (for miners)
-    private Obstacle targetObstacle = null;
-    private boolean isMining = false;
-    private boolean isReturningForRepair = false;
-    private double pickaxeDurability = 100.0; // Pickaxe condition (0-100%)
-    private static final double MAX_PICKAXE_DURABILITY = 100.0;
-    private static final double PICKAXE_WEAR_RATE = 5.0; // Durability lost per second of mining
-    private static final double MINING_DAMAGE_RATE = 15.0; // Damage dealt to obstacle per second
 
     // Selection state
     private boolean selected = false;
@@ -102,6 +86,46 @@ public class Unit extends GameEntity {
         this.movementSpeed = unitType.getMovementSpeed();
         this.visionRange = unitType.getVisionRange();
         this.weapon = WeaponFactory.getWeaponForUnitType(unitType);
+        // Note: Components are initialized via initializeComponents() after construction
+    }
+
+    /**
+     * Initialize components based on unit type.
+     * Should be called immediately after construction with GameEntities reference.
+     *
+     * @param gameEntities Reference to all game entities
+     */
+    public void initializeComponents(GameEntities gameEntities) {
+        // Add components based on unit capabilities
+        if (unitType.canHarvest()) {
+            addComponent(new HarvestComponent(), gameEntities);
+        }
+
+        if (unitType.canMine()) {
+            addComponent(new MineComponent(), gameEntities);
+        }
+
+        if (unitType == UnitType.ANDROID) {
+            addComponent(new AndroidComponent(), gameEntities);
+        }
+
+        if (unitType.canHeal()) {
+            addComponent(new HealComponent(), gameEntities);
+        }
+
+        if (unitType.canRepair()) {
+            addComponent(new RepairComponent(), gameEntities);
+        }
+
+        // Special abilities
+        SpecialAbility ability = unitType.getSpecialAbility();
+        if (ability == SpecialAbility.DEPLOY) {
+            addComponent(new DeployComponent(), gameEntities);
+        } else if (ability == SpecialAbility.CLOAK) {
+            addComponent(new CloakComponent(), gameEntities);
+        }
+
+        log.debug("Unit {} initialized with {} components", id, components.size());
     }
 
     private static Body createUnitBody(double x, double y, UnitType unitType) {
@@ -143,6 +167,58 @@ public class Unit extends GameEntity {
         return body;
     }
 
+    // ==================== Component Management ====================
+
+    /**
+     * Add a component to this unit.
+     * The component will be initialized immediately.
+     *
+     * @param component The component to add
+     * @param <T>       The component type
+     */
+    public <T extends IUnitComponent> void addComponent(T component, GameEntities gameEntities) {
+        components.put(component.getClass(), component);
+        component.init(this, gameEntities);
+        log.debug("Added component {} to unit {}", component.getClass().getSimpleName(), id);
+    }
+
+    /**
+     * Get a component from this unit.
+     *
+     * @param componentClass The component class
+     * @param <T>            The component type
+     * @return The component, or null if not present
+     */
+    @SuppressWarnings("unchecked")
+    public <T extends IUnitComponent> Optional<T> getComponent(Class<T> componentClass) {
+        return Optional.ofNullable((T) components.get(componentClass));
+    }
+
+    /**
+     * Check if this unit has a specific component.
+     *
+     * @param componentClass The component class
+     * @return true if the component is present
+     */
+    public boolean hasComponent(Class<? extends IUnitComponent> componentClass) {
+        return components.containsKey(componentClass);
+    }
+
+    /**
+     * Remove a component from this unit.
+     *
+     * @param componentClass The component class to remove
+     */
+    public void removeComponent(Class<? extends IUnitComponent> componentClass) {
+        IUnitComponent component = components.remove(componentClass);
+        if (component != null) {
+            component.onDestroy();
+            log.debug("Removed component {} from unit {}", componentClass.getSimpleName(), id);
+        }
+    }
+
+    // ==================== Update Logic ====================
+
     @Override
     public void update(GameEntities gameEntities) {
         if (!active) {
@@ -158,20 +234,25 @@ public class Unit extends GameEntity {
                     handleSortieCompletion(sortieCmd, gameEntities);
                     return; // Unit is being removed/returned to hangar
                 }
-                
+
                 // Command completed, switch to idle
                 currentCommand = new IdleCommand(this);
             }
         }
+
+        // Update all components
+        for (IUnitComponent component : components.values()) {
+            component.update(gameEntities);
+        }
     }
-    
+
     /**
      * Handle bomber returning from sortie - update hangar and despawn
      */
     private void handleSortieCompletion(SortieCommand sortieCmd, GameEntities gameEntities) {
         int hangarId = sortieCmd.getHomeHangarId();
         Building hangar = gameEntities.getBuildings().get(hangarId);
-        
+
         if (hangar != null && hangar.isActive()) {
             // Return to hangar component
             HangarComponent hangarComponent = hangar.getComponent(HangarComponent.class).orElse(null);
@@ -179,7 +260,7 @@ public class Unit extends GameEntity {
                 hangarComponent.returnFromSortie(this); // Updates aircraft health
             }
         }
-        
+
         // Despawn the bomber unit
         this.setActive(false);
     }
@@ -319,9 +400,7 @@ public class Unit extends GameEntity {
     public void setPath(List<Vector2> path, boolean isPlayerOrder) {
         this.currentPath = new ArrayList<>(path);
         this.currentPathIndex = 0;
-        this.hasPlayerOrder = isPlayerOrder;
         if (!path.isEmpty()) {
-            this.targetPosition = path.get(path.size() - 1);
             this.isMoving = true;
 
             // Update home position to new destination for defensive stance
@@ -436,11 +515,8 @@ public class Unit extends GameEntity {
             return List.of();
         }
 
-        // Decloak a cloaked unit
-        if (isCloaked()) {
-            specialAbilityActive = false;
-            aiStance = preCloakAIStance != null ? preCloakAIStance : AIStance.DEFENSIVE;
-        }
+        // Notify cloak component of firing (will break cloak temporarily)
+        getComponent(CloakComponent.class).ifPresent(CloakComponent::onFire);
 
         // Fire the weapon
         return weapon.fire(getPosition(), targetPos, getId(), teamNumber, body, gameEntities);
@@ -453,12 +529,11 @@ public class Unit extends GameEntity {
      * @return true if should switch to returning resources
      */
     public boolean harvestResources(ResourceDeposit deposit, double deltaTime) {
-        if (deposit == null || !deposit.isActive()) {
+        HarvestComponent harvestComp = getComponent(HarvestComponent.class).orElse(null);
+        if (harvestComp == null) {
+            log.warn("Unit {} attempted to harvest but has no HarvestComponent", id);
             return false;
         }
-
-        // Movement is handled by HarvestCommand.updateMovement()
-        // This method just does the actual harvesting work
 
         // Check if in range
         Vector2 currentPos = getPosition();
@@ -468,16 +543,7 @@ public class Unit extends GameEntity {
         if (distance <= deposit.getHarvestRange() + unitType.getSize()) {
             // In range - stop and harvest
             body.setLinearVelocity(0, 0);
-
-            // Harvest at rate of 10 resources per second
-            if (carriedResources < maxCarriedResources) {
-                double harvestAmount = 10.0 * deltaTime;
-                double actualHarvested = deposit.harvest(harvestAmount);
-                carriedResources += actualHarvested;
-
-                // If full or deposit depleted, signal to return to refinery
-                return carriedResources >= maxCarriedResources || actualHarvested == 0; // Switch to returning resources
-            }
+            return harvestComp.harvestFrom(deposit);
         }
 
         return false; // Continue harvesting
@@ -510,9 +576,9 @@ public class Unit extends GameEntity {
             body.setLinearVelocity(0, 0);
 
             // Deposit resources to refinery owner's faction
-            if (carriedResources > 0) {
-                // Resources will be added by RTSGameManager
-                carriedResources = 0;
+            HarvestComponent harvestComp = getComponent(HarvestComponent.class).orElse(null);
+            if (harvestComp != null && harvestComp.hasResources()) {
+                harvestComp.depositResources(refinery);
                 return true; // Signal to return to harvesting
             }
         }
@@ -556,18 +622,11 @@ public class Unit extends GameEntity {
      * @return true if should switch to returning for repair
      */
     public boolean mineObstacle(Obstacle obstacle, double deltaTime) {
-        if (obstacle == null || !obstacle.isActive()) {
+        MineComponent mineComp = getComponent(MineComponent.class).orElse(null);
+        if (mineComp == null) {
+            log.warn("Unit {} attempted to mine but has no MineComponent", id);
             return false;
         }
-
-        // Check if pickaxe needs repair
-        if (pickaxeDurability <= 0) {
-            log.info("Miner {} pickaxe broke, returning to headquarters for repair", id);
-            return true; // Signal to return for repair
-        }
-
-        // Movement is handled by MineCommand.updateMovement()
-        // This method just does the actual mining work
 
         // Check if in range
         Vector2 currentPos = getPosition();
@@ -579,21 +638,11 @@ public class Unit extends GameEntity {
             // In range - stop and mine
             body.setLinearVelocity(0, 0);
 
-            // Deal damage to obstacle and wear down pickaxe
-            double damageDealt = MINING_DAMAGE_RATE * deltaTime;
-            obstacle.takeDamage(damageDealt);
-            pickaxeDurability -= PICKAXE_WEAR_RATE * deltaTime;
-
             // Face the obstacle
             Vector2 direction = obstaclePos.copy().subtract(currentPos);
             setRotation(Math.atan2(direction.y, direction.x));
 
-            // Check if obstacle is destroyed or pickaxe is low
-            if (!obstacle.isActive()) {
-                log.info("Miner {} destroyed obstacle {}", id, obstacle.getId());
-                // If pickaxe is low, return for repair
-                return pickaxeDurability < 30.0; // Signal to return for repair
-            }
+            return mineComp.mineObstacle(obstacle);
         }
 
         return false; // Continue mining
@@ -625,13 +674,10 @@ public class Unit extends GameEntity {
             // Stop and repair pickaxe
             body.setLinearVelocity(0, 0);
 
-            // Repair pickaxe at rate of 50 durability per second (fast repair)
-            pickaxeDurability = Math.min(MAX_PICKAXE_DURABILITY, pickaxeDurability + 50.0 * deltaTime);
-
-            // Check if repair is complete
-            if (pickaxeDurability >= MAX_PICKAXE_DURABILITY) {
-                log.info("Miner {} pickaxe repaired", id);
-                return true; // Signal to return to mining
+            // Delegate to MineComponent
+            MineComponent mineComp = getComponent(MineComponent.class).orElse(null);
+            if (mineComp != null) {
+                return mineComp.repairPickaxe(headquarters);
             }
         }
 
@@ -641,10 +687,11 @@ public class Unit extends GameEntity {
     /**
      * Issue a new command to this unit (replaces current command)
      */
-    public void issueCommand(UnitCommand newCommand) {
+    public void issueCommand(UnitCommand newCommand, GameEntities gameEntities) {
         if (currentCommand != null) {
             currentCommand.onCancel(); // Clean up old command
         }
+        newCommand.init(gameEntities); // Initialize command with game context
         currentCommand = newCommand;
     }
 
@@ -666,8 +713,12 @@ public class Unit extends GameEntity {
             return false;
         }
 
-        // Don't interrupt player orders
-        if (hasPlayerOrder || isMoving) {
+        // Don't interrupt player orders  
+        if (currentCommand != null && currentCommand.isPlayerOrder()) {
+            return false;
+        }
+        // Also check legacy isMoving flag (used by GarrisonComponent)
+        if (isMoving) {
             return false;
         }
 
@@ -730,8 +781,12 @@ public class Unit extends GameEntity {
             return false;
         }
 
-        // Don't interrupt player orders
-        if (hasPlayerOrder || isMoving || isConstructing) {
+        // Don't interrupt player orders or construction
+        if (currentCommand != null && currentCommand.isPlayerOrder()) {
+            return false;
+        }
+        // Also check legacy isMoving flag (used by GarrisonComponent)
+        if (isMoving || isConstructing) {
             return false;
         }
 
@@ -826,8 +881,12 @@ public class Unit extends GameEntity {
         Vector2 currentPos = getPosition();
         double distanceFromHome = currentPos.distance(homePosition);
 
-        return !isMoving
-                && !isHarvesting
+        // Check if unit is idle (no command or idle command) and not constructing
+        // Also check legacy target fields (used by GarrisonComponent)
+        boolean isIdle = (currentCommand == null || currentCommand instanceof IdleCommand);
+
+        return isIdle
+                && !isMoving
                 && !isConstructing
                 && targetUnit == null
                 && targetBuilding == null
@@ -961,51 +1020,12 @@ public class Unit extends GameEntity {
             case DEPLOY:
                 // Crawler deploy mode: +50% range/damage, but immobile, with 4 independent turrets
                 if (specialAbilityActive) {
-                    double attackRange = unitType.getAttackRange() * 1.5;
-                    double damage = unitType.getDamage() * 1.5;
-                    double attackRate = unitType.getAttackRate();
-                    movementSpeed = 0; // Immobile when deployed
-
-                    // Create 4 turrets at corners of the Crawler (RELATIVE OFFSETS, not absolute positions)
-                    turrets.clear();
-                    double turretOffset = unitType.getSize() * 0.6; // 60% of unit size
-                    // Store as offsets from unit center, not absolute world positions
-                    // Pass weapon stats to each turret
-                    turrets.add(new Turret(0, new Vector2(turretOffset, turretOffset), damage, attackRange, attackRate));   // Top-right
-                    turrets.add(new Turret(1, new Vector2(-turretOffset, turretOffset), damage, attackRange, attackRate));  // Top-left
-                    turrets.add(new Turret(2, new Vector2(-turretOffset, -turretOffset), damage, attackRange, attackRate)); // Bottom-left
-                    turrets.add(new Turret(3, new Vector2(turretOffset, -turretOffset), damage, attackRange, attackRate));  // Bottom-right
-
-                    log.info("Crawler {} deployed - range: {}, damage: {}, turrets: {}", id, attackRange, damage, turrets.size());
-                } else {
-                    // Reset to normal stats and clear turrets
-                    movementSpeed = unitType.getMovementSpeed();
-                    turrets.clear();
-                    log.info("Crawler {} undeployed - returning to mobile mode", id);
+                    getComponent(DeployComponent.class).ifPresent(DeployComponent::toggleDeploy);
                 }
                 break;
 
             case CLOAK:
-                // Cloak mode: invisible to enemies unless detected
-                if (specialAbilityActive) {
-                    log.info("Unit {} activated cloak", id);
-                    // Reset last fire time to start cloak immediately
-                    lastFireTime = 0;
-                    // Save current AI stance and switch to PASSIVE to avoid accidental reveals
-                    if (aiStance != AIStance.PASSIVE) {
-                        preCloakAIStance = aiStance;
-                        aiStance = AIStance.PASSIVE;
-                        log.info("Unit {} switched to PASSIVE stance while cloaked (saved: {})", id, preCloakAIStance);
-                    }
-                } else {
-                    log.info("Unit {} deactivated cloak", id);
-                    // Restore previous AI stance when cloak is manually deactivated
-                    if (preCloakAIStance != null) {
-                        aiStance = preCloakAIStance;
-                        log.info("Unit {} restored AI stance to {}", id, aiStance);
-                        preCloakAIStance = null;
-                    }
-                }
+                getComponent(CloakComponent.class).ifPresent(CloakComponent::toggleCloak);
                 break;
 
             default:
@@ -1049,13 +1069,16 @@ public class Unit extends GameEntity {
             movementSpeed *= modifier.getVehicleSpeedMultiplier();
         }
 
-        // Apply worker capacity bonus
-        if (unitType.canHarvest()) {
-            maxCarriedResources = BASE_MAX_CARRIED_RESOURCES + modifier.getWorkerCapacityBonus();
-        }
+        // Worker capacity bonus is now handled by HarvestComponent
+        // (already delegated via component.applyResearchModifiers)
 
         // Apply vision range modifier
         visionRange *= modifier.getVisionRangeMultiplier();
+
+        // Apply modifiers to all components
+        for (IUnitComponent component : components.values()) {
+            component.applyResearchModifiers(modifier);
+        }
     }
 
     /**
@@ -1080,13 +1103,40 @@ public class Unit extends GameEntity {
 
     /**
      * Check if this unit is currently cloaked (invisible to enemies unless detected)
-     * Cloak is disabled for CLOAK_DELAY_AFTER_FIRE ms after firing
+     * Delegates to CloakComponent
      */
     public boolean isCloaked() {
-        if (unitType != UnitType.CLOAK_TANK) {
+        return getComponent(CloakComponent.class)
+                .map(CloakComponent::isCloaked)
+                .orElse(false);
+    }
+
+    /**
+     * Check if this unit's weapon can target another unit at its elevation.
+     * 
+     * @param target The potential target unit
+     * @return true if this unit's weapon can hit the target's elevation
+     */
+    public boolean canTargetElevation(Unit target) {
+        if (weapon == null || target == null) {
             return false;
         }
-        return specialAbilityActive;
+        return weapon.getElevationTargeting().canTarget(target.getUnitType().getElevation());
+    }
+    
+    /**
+     * Check if a given weapon can target a unit at its elevation.
+     * Static helper for use by buildings/turrets.
+     * 
+     * @param weapon The weapon attempting to target
+     * @param target The potential target unit
+     * @return true if the weapon can hit the target's elevation
+     */
+    public static boolean canWeaponTargetUnit(Weapon weapon, Unit target) {
+        if (weapon == null || target == null) {
+            return false;
+        }
+        return weapon.getElevationTargeting().canTarget(target.getUnitType().getElevation());
     }
 
     /**
@@ -1094,7 +1144,7 @@ public class Unit extends GameEntity {
      * Enemies within this range can see cloaked units
      */
     public static double getCloakDetectionRange() {
-        return CLOAK_DETECTION_RANGE;
+        return CloakComponent.getDetectionRange();
     }
 }
 

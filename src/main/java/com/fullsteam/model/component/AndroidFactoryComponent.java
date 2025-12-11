@@ -76,8 +76,12 @@ public class AndroidFactoryComponent extends AbstractBuildingComponent {
                         building.getTeamNumber()
                 );
 
-                // Link android to its factory
-                android.setAndroidFactoryId(building.getId());
+                // Initialize components
+                android.initializeComponents(gameEntities);
+
+                // Link android to its factory via component
+                android.getComponent(AndroidComponent.class)
+                        .ifPresent(ac -> ac.setAndroidFactoryId(building.getId()));
 
                 // Register android with factory
                 registerAndroid(android.getId());
@@ -97,7 +101,7 @@ public class AndroidFactoryComponent extends AbstractBuildingComponent {
 
                 // Order android to rally point
                 if (building.getRallyPoint() != null) {
-                    android.issueCommand(new MoveCommand(android, building.getRallyPoint(), false));
+                    android.issueCommand(new MoveCommand(android, building.getRallyPoint(), false), gameEntities);
                 }
             }
         }

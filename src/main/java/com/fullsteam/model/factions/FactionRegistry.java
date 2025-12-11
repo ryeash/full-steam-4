@@ -70,10 +70,11 @@ public class FactionRegistry {
                                 UnitType.CRAWLER
                         )),
                         Map.entry(BuildingType.AIRFIELD, List.of(
-                                UnitType.SCOUT_DRONE,
+                                UnitType.SCOUT_DRONE
+                        )),
+                        Map.entry(BuildingType.HANGAR, List.of(
                                 UnitType.BOMBER
                         )),
-                        Map.entry(BuildingType.HANGAR, List.of()),
                         Map.entry(BuildingType.BANK, List.of()),
                         Map.entry(BuildingType.COMMAND_CITADEL, List.of())
                 ))
@@ -193,10 +194,11 @@ public class FactionRegistry {
                                 UnitType.COLOSSUS
                         )),
                         Map.entry(BuildingType.AIRFIELD, List.of(
-                                UnitType.SCOUT_DRONE,
+                                UnitType.SCOUT_DRONE
+                        )),
+                        Map.entry(BuildingType.HANGAR, List.of(
                                 UnitType.BOMBER
                         )),
-                        Map.entry(BuildingType.HANGAR, List.of()),
                         Map.entry(BuildingType.BANK, List.of()),
                         Map.entry(BuildingType.ANDROID_FACTORY, List.of(UnitType.ANDROID))
                 ))
@@ -246,10 +248,11 @@ public class FactionRegistry {
                                 UnitType.PHOTON_TITAN
                         )),
                         Map.entry(BuildingType.AIRFIELD, List.of(
-                                UnitType.SCOUT_DRONE,
+                                UnitType.SCOUT_DRONE
+                        )),
+                        Map.entry(BuildingType.HANGAR, List.of(
                                 UnitType.BOMBER
                         )),
-                        Map.entry(BuildingType.HANGAR, List.of()),
                         Map.entry(BuildingType.SHIELD_GENERATOR, List.of()),
                         Map.entry(BuildingType.BANK, List.of()),
                         Map.entry(BuildingType.RESEARCH_LAB, List.of()),

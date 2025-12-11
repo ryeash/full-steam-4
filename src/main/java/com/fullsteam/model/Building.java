@@ -77,8 +77,12 @@ public class Building extends GameEntity {
      * This method adds the appropriate components to buildings that need them.
      */
     private void initializeComponents(GameEntities gameEntities) {
-        // Add ProductionComponent to buildings that can produce units (except Android Factory)
-        if (buildingType.isCanProduceUnits() && buildingType != BuildingType.ANDROID_FACTORY) {
+        // Add ProductionComponent to buildings that can produce units (except Android Factory and Hangar)
+        // Android Factory uses AndroidFactoryComponent for autonomous production
+        // Hangar uses HangarComponent for bomber production (one bomber per hangar)
+        if (buildingType.isCanProduceUnits() 
+                && buildingType != BuildingType.ANDROID_FACTORY 
+                && buildingType != BuildingType.HANGAR) {
             addComponent(new ProductionComponent(null));
             log.debug("Building {} ({}) initialized with ProductionComponent", id, buildingType.getDisplayName());
         }

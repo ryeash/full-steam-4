@@ -143,6 +143,11 @@ public class AttackMoveCommand extends UnitCommand {
 
         for (Unit other : allUnits) {
             if (other.getTeamNumber() != unit.getTeamNumber() && other.isActive()) {
+                // Check if this unit's weapon can target the other unit's elevation
+                if (!unit.canTargetElevation(other)) {
+                    continue; // Cannot target this elevation
+                }
+                
                 double distance = currentPos.distance(other.getPosition());
                 
                 // Cloaked units can only be detected within cloak detection range

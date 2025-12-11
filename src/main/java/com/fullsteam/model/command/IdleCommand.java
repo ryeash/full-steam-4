@@ -59,8 +59,8 @@ public class IdleCommand extends UnitCommand {
             }
         }
 
-        // Use gameEntities to find nearest enemy unit
-        Unit nearestEnemy = gameEntities.findNearestEnemyUnit(currentPos, unit.getTeamNumber(), visionRange);
+        // Use gameEntities to find nearest enemy unit (with elevation targeting)
+        Unit nearestEnemy = gameEntities.findNearestEnemyUnit(currentPos, unit.getTeamNumber(), visionRange, unit);
 
         // For defensive stance, check if enemy is within leash range of home
         if (nearestEnemy != null && unit.getAiStance() == AIStance.DEFENSIVE && unit.getHomePosition() != null) {
@@ -72,7 +72,7 @@ public class IdleCommand extends UnitCommand {
 
         // If found an enemy unit, engage it
         if (nearestEnemy != null) {
-            unit.issueCommand(new AttackUnitCommand(unit, nearestEnemy, false));
+            unit.issueCommand(new AttackUnitCommand(unit, nearestEnemy, false), gameEntities);
             return;
         }
 
@@ -89,7 +89,7 @@ public class IdleCommand extends UnitCommand {
 
         // If found an enemy building, engage it
         if (nearestEnemyBuilding != null) {
-            unit.issueCommand(new AttackBuildingCommand(unit, nearestEnemyBuilding, false));
+            unit.issueCommand(new AttackBuildingCommand(unit, nearestEnemyBuilding, false), gameEntities);
         }
     }
 

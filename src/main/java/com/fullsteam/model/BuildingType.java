@@ -320,7 +320,7 @@ public enum BuildingType {
             35.0,    // size (radius) - medium building
             4,       // sides (rectangle - hangar shape)
             0x4A5568, // dark blue-gray (hangar color)
-            false,   // cannot produce units directly (aircraft are housed, not produced)
+            true,    // can produce units (produces one bomber per hangar)
             -20,     // power consumption
             350.0    // vision range (moderate)
     );

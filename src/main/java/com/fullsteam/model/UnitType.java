@@ -29,7 +29,8 @@ public enum UnitType {
             0xFFFF00, // yellow
             BuildingType.HEADQUARTERS,
             5,       // upkeep cost
-            300.0    // vision range (moderate)
+            300.0,   // vision range (moderate)
+            Elevation.GROUND // elevation
     ),
 
     // Infantry - basic combat unit
@@ -47,7 +48,8 @@ public enum UnitType {
             0x00FF00, // green
             BuildingType.BARRACKS,
             10,      // upkeep cost
-            350.0    // vision range (standard infantry)
+            350.0,   // vision range (standard infantry),
+            Elevation.GROUND
     ),
 
     // Laser Infantry - advanced infantry with beam weapons
@@ -65,7 +67,8 @@ public enum UnitType {
             0x00FFFF, // cyan (to distinguish from regular infantry)
             BuildingType.BARRACKS,
             12,      // upkeep cost (higher than infantry)
-            360.0    // vision range (slightly better than infantry)
+            360.0,   // vision range (slightly better than infantry),
+            Elevation.GROUND
     ),
 
     // Medic - support unit that heals nearby friendlies
@@ -83,7 +86,8 @@ public enum UnitType {
             0xFFFFFF, // white
             BuildingType.BARRACKS,
             8,       // upkeep cost
-            340.0    // vision range (support unit, moderate)
+            340.0,  // vision range (support unit, moderate),
+            Elevation.GROUND
     ),
 
     // Rocket Soldier - anti-vehicle infantry
@@ -101,7 +105,8 @@ public enum UnitType {
             0xFF8800, // orange
             BuildingType.WEAPONS_DEPOT,
             15,      // upkeep cost
-            370.0    // vision range (good, needs to spot vehicles)
+            370.0,    // vision range (good, needs to spot vehicles),
+            Elevation.GROUND
     ),
 
     // Sniper - long-range precision unit
@@ -119,7 +124,8 @@ public enum UnitType {
             0x8B4513, // brown
             BuildingType.WEAPONS_DEPOT,
             12,      // upkeep cost
-            500.0    // vision range (excellent, sniper needs vision)
+            500.0,    // vision range (excellent, sniper needs vision),
+            Elevation.GROUND
     ),
 
     // Engineer - repairs buildings and vehicles
@@ -137,7 +143,8 @@ public enum UnitType {
             0x00CED1, // dark turquoise (distinct from yellow worker)
             BuildingType.WEAPONS_DEPOT,
             10,      // upkeep cost
-            330.0    // vision range (support unit)
+            330.0,    // vision range (support unit),
+            Elevation.GROUND
     ),
 
     // Miner - destroys obstacles to clear paths
@@ -155,7 +162,8 @@ public enum UnitType {
             0x8B4513, // brown (like dirt/stone)
             BuildingType.HEADQUARTERS,
             8,       // upkeep cost
-            320.0    // vision range (utility unit)
+            320.0,    // vision range (utility unit),
+            Elevation.GROUND
     ),
 
     // Jeep - fast light vehicle
@@ -173,7 +181,8 @@ public enum UnitType {
             0x00FFFF, // cyan
             BuildingType.FACTORY,
             20,      // upkeep cost
-            450.0    // vision range (scout vehicle, excellent vision)
+            450.0,    // vision range (scout vehicle, excellent vision),
+            Elevation.GROUND
     ),
 
     // Tank - heavy armored vehicle
@@ -191,7 +200,8 @@ public enum UnitType {
             0x8888FF, // light blue
             BuildingType.FACTORY,
             30,      // upkeep cost
-            400.0    // vision range (good, main battle tank)
+            400.0,    // vision range (good, main battle tank),
+            Elevation.GROUND
     ),
 
     // Artillery - long range siege unit
@@ -209,7 +219,8 @@ public enum UnitType {
             0xFF00FF, // magenta
             BuildingType.ADVANCED_FACTORY,
             40,      // upkeep cost
-            420.0    // vision range (good, needs to spot targets)
+            420.0,    // vision range (good, needs to spot targets),
+            Elevation.GROUND
     ),
 
     // GIGANTONAUT - Super heavy artillery
@@ -227,7 +238,8 @@ public enum UnitType {
             0x8B0000, // dark red
             BuildingType.ADVANCED_FACTORY,
             60,      // upkeep cost (VERY HIGH!)
-            200.0    // poor vision, needs a spotter to hit distant targets
+            200.0,    // poor vision, needs a spotter to hit distant targets
+            Elevation.GROUND
     ),
 
     // CRAWLER - Mobile fortress with 4 turrets (THE STAR UNIT!)
@@ -245,7 +257,8 @@ public enum UnitType {
             0x4A4A4A, // dark gray
             BuildingType.ADVANCED_FACTORY,
             80,      // upkeep cost (HIGHEST!)
-            480.0    // vision range (excellent, mobile fortress)
+            480.0,    // vision range (excellent, mobile fortress),
+            Elevation.GROUND
     ),
 
     // Cloak Tank - invisible until attacking or detected
@@ -263,7 +276,8 @@ public enum UnitType {
             0x2F4F4F, // dark slate gray
             BuildingType.ADVANCED_FACTORY,
             45,      // upkeep cost
-            380.0    // vision range (moderate, cloak unit)
+            380.0,    // vision range (moderate, cloak unit),
+            Elevation.GROUND
     ),
 
     // Mammoth Tank - dual-cannon heavy assault
@@ -281,7 +295,8 @@ public enum UnitType {
             0x556B2F, // dark olive green
             BuildingType.ADVANCED_FACTORY,
             60,      // upkeep cost
-            430.0    // vision range (good, heavy assault)
+            430.0,    // vision range (good, heavy assault),
+            Elevation.GROUND
     ),
 
     // ===== HERO UNITS =====
@@ -301,7 +316,8 @@ public enum UnitType {
             0xDC143C, // crimson (raider red)
             BuildingType.ADVANCED_FACTORY,
             45,      // upkeep cost
-            520.0    // vision range (hero scout, exceptional vision)
+            520.0,    // vision range (hero scout, exceptional vision),
+            Elevation.GROUND
     ),
 
     // COLOSSUS - Synthesis hero unit, massive walker
@@ -319,7 +335,8 @@ public enum UnitType {
             0x4B0082, // indigo (synthesis purple)
             BuildingType.ADVANCED_FACTORY,
             75,      // upkeep cost (VERY HIGH!)
-            490.0    // vision range (hero unit, excellent vision)
+            490.0,    // vision range (hero unit, excellent vision),
+            Elevation.GROUND
     ),
 
     // ===== TECH ALLIANCE BEAM WEAPON UNITS =====
@@ -339,7 +356,8 @@ public enum UnitType {
             0x00FF7F, // spring green (plasma color)
             BuildingType.BARRACKS,
             11,      // upkeep cost
-            355.0    // vision range (standard beam infantry)
+            355.0,    // vision range (standard beam infantry),
+            Elevation.GROUND
     ),
 
     // ION_RANGER - Long-range beam sniper
@@ -357,7 +375,8 @@ public enum UnitType {
             0x9370DB, // medium purple (ion beam)
             BuildingType.WEAPONS_DEPOT,
             14,      // upkeep cost
-            510.0    // vision range (excellent, beam sniper)
+            500.0,    // vision range (excellent, beam sniper),
+            Elevation.GROUND
     ),
 
     // PHOTON_SCOUT - Fast beam vehicle
@@ -375,7 +394,8 @@ public enum UnitType {
             0x7FFF00, // chartreuse (bright energy)
             BuildingType.FACTORY,
             22,      // upkeep cost
-            460.0    // vision range (excellent, scout vehicle)
+            460.0,    // vision range (excellent, scout vehicle),
+            Elevation.GROUND
     ),
 
     // BEAM_TANK - Heavy beam vehicle
@@ -393,7 +413,8 @@ public enum UnitType {
             0x00FA9A, // medium spring green
             BuildingType.FACTORY,
             32,      // upkeep cost
-            410.0    // vision range (good, beam tank)
+            410.0,    // vision range (good, beam tank),
+            Elevation.GROUND
     ),
 
     // PULSE_ARTILLERY - Long-range beam artillery
@@ -411,7 +432,8 @@ public enum UnitType {
             0xFFD700, // gold (energy pulse)
             BuildingType.ADVANCED_FACTORY,
             42,      // upkeep cost
-            430.0    // vision range (good, beam artillery)
+            430.0,    // vision range (good, beam artillery),
+            Elevation.GROUND
     ),
 
     // PHOTON_TITAN - Hero unit, massive beam platform
@@ -429,7 +451,8 @@ public enum UnitType {
             0x00FF00, // bright green (pure energy)
             BuildingType.ADVANCED_FACTORY,
             65,      // upkeep cost (VERY HIGH!)
-            480.0    // vision range (hero unit, excellent vision)
+            480.0,    // vision range (hero unit, excellent vision),
+            Elevation.GROUND
     ),
 
     // ANDROID - Autonomous combat unit produced by Android Factory
@@ -448,7 +471,8 @@ public enum UnitType {
             0x00CED1, // dark turquoise (Synthesis faction color)
             BuildingType.ANDROID_FACTORY,
             0,       // upkeep cost (ZERO!)
-            340.0    // vision range (moderate, autonomous unit)
+            340.0,    // vision range (moderate, autonomous unit),
+            Elevation.GROUND
     ),
 
     // ===== AIR UNITS =====
@@ -469,9 +493,10 @@ public enum UnitType {
             0x87CEEB, // light sky blue (air unit color)
             BuildingType.AIRFIELD,
             15,      // upkeep cost
-            600.0    // vision range (EXCELLENT - scout unit!)
+            600.0,   // vision range (EXCELLENT - scout unit!)
+            Elevation.LOW // VTOL - can hover, vulnerable to rockets
     ),
-    
+
     // BOMBER - Sortie-based heavy bomber aircraft
     // Housed in Hangar, executes bombing runs on command, then returns to base
     // NOT controllable like regular units - sortie-based only
@@ -489,7 +514,8 @@ public enum UnitType {
             0x2F4F4F, // dark slate gray (bomber color)
             BuildingType.HANGAR, // Housed in hangar, not produced at airfield
             50,      // upkeep cost (HIGH - strategic bomber)
-            400.0    // vision range (good but not scout-level)
+            400.0,   // vision range (good but not scout-level)
+            Elevation.HIGH // Fixed-wing - requires AA weapons
     );
 
     private final String displayName;
@@ -512,6 +538,14 @@ public enum UnitType {
      * Gigantonaut: terrible vision (0.5x attack range)
      */
     private final double visionRange; // vision radius for fog of war
+
+    /**
+     * -- GETTER --
+     * Get elevation level for this unit type.
+     * Determines which weapons can target this unit.
+     * GROUND = standard units, LOW = VTOLs, HIGH = fixed-wing aircraft
+     */
+    private final Elevation elevation;
 
     /**
      * Create physics fixtures for this unit type
@@ -681,7 +715,7 @@ public enum UnitType {
             case SCOUT_DRONE -> {
                 // Central hub (small diamond)
                 Convex hub = Geometry.createPolygonalCircle(4, size * 0.4);
-                
+
                 // Four rotor arms extending from center
                 // Front-left rotor arm
                 Vector2[] armFL = new Vector2[]{
@@ -691,7 +725,7 @@ public enum UnitType {
                         new Vector2(-size * 0.35, size * 0.05)
                 };
                 Convex rotorArmFL = Geometry.createPolygon(armFL);
-                
+
                 // Front-right rotor arm
                 Vector2[] armFR = new Vector2[]{
                         new Vector2(size * 0.2, size * 0.2),
@@ -700,7 +734,7 @@ public enum UnitType {
                         new Vector2(size * 0.7, size * 0.7)
                 };
                 Convex rotorArmFR = Geometry.createPolygon(armFR);
-                
+
                 // Rear-left rotor arm
                 Vector2[] armRL = new Vector2[]{
                         new Vector2(-size * 0.2, -size * 0.2),
@@ -709,7 +743,7 @@ public enum UnitType {
                         new Vector2(-size * 0.7, -size * 0.7)
                 };
                 Convex rotorArmRL = Geometry.createPolygon(armRL);
-                
+
                 // Rear-right rotor arm
                 Vector2[] armRR = new Vector2[]{
                         new Vector2(size * 0.2, -size * 0.2),
@@ -718,10 +752,10 @@ public enum UnitType {
                         new Vector2(size * 0.35, -size * 0.05)
                 };
                 Convex rotorArmRR = Geometry.createPolygon(armRR);
-                
+
                 yield List.of(hub, rotorArmFL, rotorArmFR, rotorArmRL, rotorArmRR);
             }
-            
+
             // Bomber - Heavy aircraft with fuselage and wings
             case BOMBER -> {
                 // Main fuselage (elongated hexagon - aircraft body)
@@ -734,7 +768,7 @@ public enum UnitType {
                         new Vector2(size * 0.3, -size * 0.35)          // Bottom-front
                 };
                 Convex body = Geometry.createPolygon(fuselage);
-                
+
                 // Left wing (swept back)
                 Vector2[] leftWing = new Vector2[]{
                         new Vector2(-size * 0.2, size * 0.4),          // Inner front
@@ -743,7 +777,7 @@ public enum UnitType {
                         new Vector2(-size * 0.35, size * 0.3)          // Inner rear
                 };
                 Convex wingLeft = Geometry.createPolygon(leftWing);
-                
+
                 // Right wing (swept back, mirrored)
                 Vector2[] rightWing = new Vector2[]{
                         new Vector2(-size * 0.2, -size * 0.4),         // Inner front
@@ -752,7 +786,7 @@ public enum UnitType {
                         new Vector2(-size * 0.6, -size * 0.95)         // Outer tip
                 };
                 Convex wingRight = Geometry.createPolygon(rightWing);
-                
+
                 yield List.of(body, wingLeft, wingRight);
             }
 
@@ -1221,8 +1255,8 @@ public enum UnitType {
                 };
                 Convex engine = Geometry.createPolygon(powerCore);
 
-                yield List.of(chassis, blade, wingUpper, wingLower, bladeUS, bladeLS, 
-                             finU, finL, engine);
+                yield List.of(chassis, blade, wingUpper, wingLower, bladeUS, bladeLS,
+                        finU, finL, engine);
             }
 
             // Photon Titan - massive crystalline energy platform with nested prism arrays
@@ -1455,14 +1489,15 @@ public enum UnitType {
                 Convex reactor = Geometry.createPolygon(backPower);
 
                 yield List.of(chassis, torso, lowerCore, legLU, legRU, legLL, legRL,
-                             armFL, armFR, strutL, strutR, reactor);
+                        armFL, armFR, strutL, strutR, reactor);
             }
         };
     }
 
     UnitType(String displayName, int resourceCost, int buildTimeSeconds, double maxHealth,
              double movementSpeed, double damage, double attackRate, double attackRange,
-             double size, int sides, int color, BuildingType producedBy, int upkeepCost, double visionRange) {
+             double size, int sides, int color, BuildingType producedBy, int upkeepCost, double visionRange,
+             Elevation elevation) {
         this.displayName = displayName;
         this.resourceCost = resourceCost;
         this.buildTimeSeconds = buildTimeSeconds;
@@ -1477,6 +1512,7 @@ public enum UnitType {
         this.producedBy = producedBy;
         this.upkeepCost = upkeepCost;
         this.visionRange = visionRange;
+        this.elevation = elevation;
     }
 
     /**
@@ -1589,7 +1625,7 @@ public enum UnitType {
     public boolean isAirUnit() {
         return this == SCOUT_DRONE || this == BOMBER;
     }
-    
+
     /**
      * Check if this is a sortie-based unit (not player-controllable, executes missions and returns to base)
      */

@@ -21,14 +21,23 @@ public abstract class UnitCommand {
     
     /**
      * Game entities - provides access to all units, buildings, obstacles, etc.
-     * Set by RTSGameManager each frame for AI and decision-making
+     * Initialized via init() method when command is issued.
      */
-    @Setter
     protected GameEntities gameEntities;
     
     public UnitCommand(Unit unit, boolean isPlayerOrder) {
         this.unit = unit;
         this.isPlayerOrder = isPlayerOrder;
+    }
+
+    /**
+     * Initialize this command with game entities context.
+     * Called by Unit.issueCommand() immediately after construction.
+     *
+     * @param gameEntities Reference to all game entities
+     */
+    public void init(GameEntities gameEntities) {
+        this.gameEntities = gameEntities;
     }
     
     /**

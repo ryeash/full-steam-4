@@ -37,8 +37,9 @@ public class ProjectileWeapon extends Weapon {
                             double linearDamping,
                             double projectileSize,
                             Ordinance ordinanceType,
-                            Set<BulletEffect> bulletEffects) {
-        super(damage, range, attackRate);
+                            Set<BulletEffect> bulletEffects,
+                            ElevationTargeting elevationTargeting) {
+        super(damage, range, attackRate, elevationTargeting);
         this.projectileSpeed = projectileSpeed;
         this.linearDamping = linearDamping;
         this.projectileSize = projectileSize;
@@ -71,7 +72,8 @@ public class ProjectileWeapon extends Weapon {
                 linearDamping,
                 bulletEffects,
                 ordinanceType,
-                projectileSize
+                projectileSize,
+                elevationTargeting
         );
         
         return List.of(projectile);
@@ -87,7 +89,8 @@ public class ProjectileWeapon extends Weapon {
                 linearDamping,
                 projectileSize,
                 ordinanceType,
-                Set.copyOf(bulletEffects)
+                Set.copyOf(bulletEffects),
+                elevationTargeting
         );
     }
 
@@ -101,7 +104,8 @@ public class ProjectileWeapon extends Weapon {
                 linearDamping,
                 projectileSize,
                 ordinanceType,
-                Set.copyOf(bulletEffects)
+                Set.copyOf(bulletEffects),
+                elevationTargeting
         );
     }
 }

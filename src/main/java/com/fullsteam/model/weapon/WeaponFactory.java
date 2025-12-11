@@ -17,6 +17,25 @@ import java.util.Set;
 public class WeaponFactory {
 
     /**
+     * Determine the elevation targeting capability for a unit's weapon.
+     * This defines the strategic rock-paper-scissors of the elevation system:
+     * - Most ground units can only hit GROUND targets
+     * - Rocket soldiers/turrets can hit GROUND + LOW (basic anti-air)
+     * - Specialized AA weapons (future) can hit ALL elevations
+     * - Air units can only hit GROUND targets (no air-to-air combat for now)
+     */
+    private static ElevationTargeting getElevationTargetingForUnit(UnitType unitType) {
+        return switch (unitType) {
+            // Rocket weapons can hit low-altitude aircraft (VTOLs like Scout Drone)
+            case ROCKET_SOLDIER -> ElevationTargeting.GROUND_AND_LOW;
+            
+            // All other units can only hit ground targets
+            // This includes air units themselves (no air-to-air combat)
+            default -> ElevationTargeting.GROUND_ONLY;
+        };
+    }
+
+    /**
      * Get the weapon for a specific unit type.
      * Uses the unit type's base stats (damage, range, attack rate) from UnitType enum.
      */
@@ -24,6 +43,7 @@ public class WeaponFactory {
         double damage = unitType.getDamage();
         double range = unitType.getAttackRange();
         double attackRate = unitType.getAttackRate();
+        ElevationTargeting elevationTargeting = getElevationTargetingForUnit(unitType);
 
         return switch (unitType) {
             case WORKER -> new ProjectileWeapon(
@@ -32,7 +52,8 @@ public class WeaponFactory {
                     0.5,  // linear damping
                     1.5,  // size (tiny)
                     Ordinance.BULLET,
-                    Set.of()
+                    Set.of(),
+                    elevationTargeting
             );
 
             case INFANTRY -> new ProjectileWeapon(
@@ -41,7 +62,8 @@ public class WeaponFactory {
                     0.3,  // linear damping
                     2.0,  // size (baseline)
                     Ordinance.BULLET,
-                    Set.of()
+                    Set.of(),
+                    elevationTargeting
             );
 
             case ROCKET_SOLDIER -> new ProjectileWeapon(
@@ -50,7 +72,8 @@ public class WeaponFactory {
                     0.1,  // linear damping
                     3.0,  // size (larger rocket)
                     Ordinance.ROCKET,
-                    Set.of(BulletEffect.EXPLOSIVE)
+                    Set.of(BulletEffect.EXPLOSIVE),
+                    elevationTargeting
             );
 
             case SNIPER -> new ProjectileWeapon(
@@ -59,7 +82,8 @@ public class WeaponFactory {
                     0.1,  // linear damping
                     2.5,  // size
                     Ordinance.BULLET,
-                    Set.of()
+                    Set.of(),
+                    elevationTargeting
             );
 
             case JEEP -> new ProjectileWeapon(
@@ -68,7 +92,8 @@ public class WeaponFactory {
                     0.2,  // linear damping
                     2.5,  // size
                     Ordinance.BULLET,
-                    Set.of()
+                    Set.of(),
+                    elevationTargeting
             );
 
             case TANK -> new ProjectileWeapon(
@@ -77,7 +102,8 @@ public class WeaponFactory {
                     0.05, // linear damping
                     4.0,  // size (noticeably larger)
                     Ordinance.GRENADE,
-                    Set.of(BulletEffect.EXPLOSIVE)
+                    Set.of(BulletEffect.EXPLOSIVE),
+                    elevationTargeting
             );
 
             case CLOAK_TANK -> new ProjectileWeapon(
@@ -86,7 +112,8 @@ public class WeaponFactory {
                     0.05, // linear damping
                     4.0,  // size
                     Ordinance.GRENADE,
-                    Set.of(BulletEffect.EXPLOSIVE)
+                    Set.of(BulletEffect.EXPLOSIVE),
+                    elevationTargeting
             );
 
             case MAMMOTH_TANK -> new ProjectileWeapon(
@@ -95,7 +122,8 @@ public class WeaponFactory {
                     0.03, // linear damping (heavy!)
                     6.0,  // size (BIG shells!)
                     Ordinance.SHELL,
-                    Set.of(BulletEffect.EXPLOSIVE)
+                    Set.of(BulletEffect.EXPLOSIVE),
+                    elevationTargeting
             );
 
             case ARTILLERY -> new ProjectileWeapon(
@@ -104,7 +132,8 @@ public class WeaponFactory {
                     0.02, // linear damping
                     5.0,  // size (large artillery shells)
                     Ordinance.GRENADE,
-                    Set.of(BulletEffect.EXPLOSIVE)
+                    Set.of(BulletEffect.EXPLOSIVE),
+                    elevationTargeting
             );
 
             case GIGANTONAUT -> new ProjectileWeapon(
@@ -113,7 +142,8 @@ public class WeaponFactory {
                     0.01, // linear damping (very little)
                     8.0,  // size (MASSIVE! largest in game)
                     Ordinance.SHELL,
-                    Set.of(BulletEffect.EXPLOSIVE)
+                    Set.of(BulletEffect.EXPLOSIVE),
+                    elevationTargeting
             );
 
             case CRAWLER -> new ProjectileWeapon(
@@ -122,7 +152,8 @@ public class WeaponFactory {
                     0.2,  // linear damping
                     5.0,  // size (large turret shells)
                     Ordinance.SHELL,
-                    Set.of(BulletEffect.EXPLOSIVE)
+                    Set.of(BulletEffect.EXPLOSIVE),
+                    elevationTargeting
             );
 
             case ANDROID -> new ProjectileWeapon(
@@ -131,7 +162,8 @@ public class WeaponFactory {
                     0.25, // linear damping
                     2.2,  // size
                     Ordinance.BULLET,
-                    Set.of()
+                    Set.of(),
+                    elevationTargeting
             );
 
             // ===== HERO UNITS =====
@@ -142,7 +174,8 @@ public class WeaponFactory {
                     0.15, // linear damping
                     3.0,  // size (hero weapon)
                     Ordinance.BULLET,
-                    Set.of() // Elite raider bullets
+                    Set.of(), // Elite raider bullets
+                    elevationTargeting
             );
 
             case COLOSSUS -> new MultiProjectileWeapon(
@@ -153,7 +186,8 @@ public class WeaponFactory {
                     Ordinance.SHELL,
                     Set.of(BulletEffect.EXPLOSIVE),
                     3,    // projectile count (3 parallel shots)
-                    25.0  // spread distance (parallel barrels)
+                    25.0, // spread distance (parallel barrels)
+                    elevationTargeting
             );
 
             // ===== BEAM WEAPONS =====
@@ -164,7 +198,8 @@ public class WeaponFactory {
                     0.3, // duration (150ms)
                     Beam.BeamType.LASER,
                     Ordinance.LASER,
-                    Set.of()
+                    Set.of(),
+                    elevationTargeting
             );
 
             case PLASMA_TROOPER -> new BeamWeapon(
@@ -173,7 +208,8 @@ public class WeaponFactory {
                     0.4,  // duration
                     Beam.BeamType.PLASMA,
                     Ordinance.LASER,
-                    Set.of()
+                    Set.of(),
+                    elevationTargeting
             );
 
             case ION_RANGER -> new BeamWeapon(
@@ -182,7 +218,8 @@ public class WeaponFactory {
                     0.36, // duration
                     Beam.BeamType.ION,
                     Ordinance.LASER,
-                    Set.of()
+                    Set.of(),
+                    elevationTargeting
             );
 
             case PHOTON_SCOUT -> new BeamWeapon(
@@ -191,7 +228,8 @@ public class WeaponFactory {
                     0.3, // duration
                     Beam.BeamType.LASER,
                     Ordinance.LASER,
-                    Set.of()
+                    Set.of(),
+                    elevationTargeting
             );
 
             case BEAM_TANK -> new BeamWeapon(
@@ -200,7 +238,8 @@ public class WeaponFactory {
                     0.4,  // duration
                     Beam.BeamType.LASER,
                     Ordinance.LASER,
-                    Set.of()
+                    Set.of(),
+                    elevationTargeting
             );
 
             case PULSE_ARTILLERY -> new BeamWeapon(
@@ -209,7 +248,8 @@ public class WeaponFactory {
                     0.7, // duration
                     Beam.BeamType.PLASMA,
                     Ordinance.LASER,
-                    Set.of(BulletEffect.ELECTRIC) // Area denial
+                    Set.of(BulletEffect.ELECTRIC), // Area denial
+                    elevationTargeting
             );
 
             case PHOTON_TITAN -> new BeamWeapon(
@@ -218,7 +258,8 @@ public class WeaponFactory {
                     1.0,  // duration
                     Beam.BeamType.LASER,
                     Ordinance.LASER,
-                    Set.of()
+                    Set.of(),
+                    elevationTargeting
             );
 
             // ===== NON-COMBAT UNITS =====
@@ -231,7 +272,8 @@ public class WeaponFactory {
                     0.3,  // default linear damping
                     2.0,  // default size
                     Ordinance.BULLET,
-                    Set.of()
+                    Set.of(),
+                    elevationTargeting
             );
         };
     }
@@ -252,13 +294,15 @@ public class WeaponFactory {
                 0.2,   // linear damping
                 3.5,   // size (medium-sized projectiles)
                 Ordinance.BULLET,
-                Set.of()
+                Set.of(),
+                ElevationTargeting.GROUND_ONLY // Basic turret - ground only
         );
     }
 
     /**
      * Get the weapon for rocket turret building (ROCKET_TURRET).
      * High damage, long range, slower fire rate, explosive.
+     * Can target low-altitude aircraft (anti-air capable).
      */
     public static Weapon getRocketTurretWeapon() {
         return new ProjectileWeapon(
@@ -269,7 +313,8 @@ public class WeaponFactory {
                 0.05,  // linear damping (low - rockets maintain speed)
                 5.0,   // size (large rockets)
                 Ordinance.ROCKET,
-                Set.of(BulletEffect.EXPLOSIVE)
+                Set.of(BulletEffect.EXPLOSIVE),
+                ElevationTargeting.GROUND_AND_LOW // Anti-air capable!
         );
     }
 
@@ -286,7 +331,8 @@ public class WeaponFactory {
                 0.4,   // duration (visible beam)
                 Beam.BeamType.LASER,
                 Ordinance.LASER,
-                Set.of()
+                Set.of(),
+                ElevationTargeting.GROUND_ONLY // Lasers - ground only for now
         );
     }
 
@@ -302,7 +348,8 @@ public class WeaponFactory {
                 0.3,   // duration (visible for 0.3 seconds)
                 Beam.BeamType.LASER,
                 Ordinance.LASER,
-                Set.of()
+                Set.of(),
+                ElevationTargeting.GROUND_ONLY // Photon Spire - ground only
         );
     }
 
@@ -319,7 +366,8 @@ public class WeaponFactory {
                 0.2,   // linear damping
                 5.0,   // size (large turret shells)
                 Ordinance.SHELL,
-                Set.of(BulletEffect.EXPLOSIVE)
+                Set.of(BulletEffect.EXPLOSIVE),
+                ElevationTargeting.GROUND_ONLY // Crawler turrets - ground only
         );
     }
 }

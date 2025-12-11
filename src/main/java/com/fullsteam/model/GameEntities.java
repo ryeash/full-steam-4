@@ -97,6 +97,30 @@ public class GameEntities {
                 .min(Comparator.comparingDouble(u -> u.getPosition().distance(position)))
                 .orElse(null);
     }
+    
+    /**
+     * Find nearest enemy unit to a position that can be targeted by the attacker's weapon.
+     * Respects cloak detection and elevation targeting.
+     */
+    public Unit findNearestEnemyUnit(Vector2 position, int teamNumber, double maxRange, Unit attacker) {
+        if (attacker == null) {
+            return findNearestEnemyUnit(position, teamNumber, maxRange); // Fall back to non-elevation version
+        }
+        
+        return units.values().stream()
+                .filter(u -> u.isActive() && u.getTeamNumber() != teamNumber)
+                .filter(u -> attacker.canTargetElevation(u)) // Check elevation targeting
+                .filter(u -> {
+                    double distance = u.getPosition().distance(position);
+                    // Cloaked units can only be detected within cloak detection range
+                    if (u.isCloaked()) {
+                        return distance <= Math.min(maxRange, Unit.getCloakDetectionRange());
+                    }
+                    return distance <= maxRange;
+                })
+                .min(Comparator.comparingDouble(u -> u.getPosition().distance(position)))
+                .orElse(null);
+    }
 
     /**
      * Find nearest enemy building to a position

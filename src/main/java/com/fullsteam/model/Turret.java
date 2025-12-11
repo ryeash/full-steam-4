@@ -84,6 +84,11 @@ public class Turret {
                 continue;
             }
 
+            // Check if weapon can target this unit's elevation
+            if (!Unit.canWeaponTargetUnit(weapon, enemyUnit)) {
+                continue; // Weapon cannot hit this elevation level
+            }
+
             double distance = turretWorldPos.distance(enemyUnit.getPosition());
             
             // Cloaked units can only be targeted within cloak detection range

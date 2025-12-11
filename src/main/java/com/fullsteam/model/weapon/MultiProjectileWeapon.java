@@ -44,8 +44,9 @@ public class MultiProjectileWeapon extends Weapon {
                                  Ordinance ordinanceType,
                                  Set<BulletEffect> bulletEffects,
                                  int projectileCount,
-                                 double spreadDistance) {
-        super(damage, range, attackRate);
+                                 double spreadDistance,
+                                 ElevationTargeting elevationTargeting) {
+        super(damage, range, attackRate, elevationTargeting);
         this.projectileSpeed = projectileSpeed;
         this.linearDamping = linearDamping;
         this.projectileSize = projectileSize;
@@ -70,8 +71,9 @@ public class MultiProjectileWeapon extends Weapon {
                                  Set<BulletEffect> bulletEffects,
                                  int projectileCount,
                                  double spreadAngle,
-                                 boolean isAngularSpread) {
-        super(damage, range, attackRate);
+                                 boolean isAngularSpread,
+                                 ElevationTargeting elevationTargeting) {
+        super(damage, range, attackRate, elevationTargeting);
         this.projectileSpeed = projectileSpeed;
         this.linearDamping = linearDamping;
         this.projectileSize = projectileSize;
@@ -122,7 +124,8 @@ public class MultiProjectileWeapon extends Weapon {
                         linearDamping,
                         bulletEffects,
                         ordinanceType,
-                        projectileSize
+                        projectileSize,
+                        elevationTargeting
                 );
                 ordinances.add(projectile);
             }
@@ -160,7 +163,8 @@ public class MultiProjectileWeapon extends Weapon {
                         linearDamping,
                         bulletEffects,
                         ordinanceType,
-                        projectileSize
+                        projectileSize,
+                        elevationTargeting
                 );
                 ordinances.add(projectile);
             }
@@ -178,7 +182,8 @@ public class MultiProjectileWeapon extends Weapon {
                     linearDamping,
                     bulletEffects,
                     ordinanceType,
-                    projectileSize
+                    projectileSize,
+                    elevationTargeting
             );
             ordinances.add(projectile);
         }
@@ -198,7 +203,8 @@ public class MultiProjectileWeapon extends Weapon {
                 ordinanceType,
                 Set.copyOf(bulletEffects),
                 projectileCount,
-                spreadDistance
+                spreadDistance,
+                elevationTargeting
         );
         copy.spreadAngle = this.spreadAngle;
         return copy;
@@ -216,7 +222,8 @@ public class MultiProjectileWeapon extends Weapon {
                 ordinanceType,
                 Set.copyOf(bulletEffects),
                 projectileCount,
-                spreadDistance
+                spreadDistance,
+                elevationTargeting
         );
         copy.spreadAngle = this.spreadAngle;
         return copy;

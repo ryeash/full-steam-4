@@ -1457,6 +1457,19 @@ class RTSEngine {
             buildingContainer.productionBar.visible = false;
         }
         
+        // Update hangar production progress (for HANGAR buildings)
+        if (buildingData.type === 'HANGAR' && buildingData.hangarProducing && buildingData.hangarProductionPercent > 0) {
+            if (buildingContainer.productionBar) {
+                buildingContainer.productionBar.visible = true;
+                const productionOffset = buildingContainer.productionBarOffset || 40;
+                buildingContainer.productionBar.clear();
+                buildingContainer.productionBar.rect(-40, -productionOffset, 80 * buildingData.hangarProductionPercent, 5);
+                buildingContainer.productionBar.fill(0x00BFFF); // Deep sky blue for production
+            }
+        } else if (buildingData.type === 'HANGAR' && buildingContainer.productionBar) {
+            buildingContainer.productionBar.visible = false;
+        }
+        
         // Update production queue count (next to progress bar)
         if (buildingData.productionQueueSize > 0 || buildingData.productionPercent > 0) {
             if (!buildingContainer.queueText) {
@@ -1574,6 +1587,20 @@ class RTSEngine {
                 buildingContainer.garrisonLabel.visible = true;
             } else {
                 buildingContainer.garrisonLabel.visible = false;
+            }
+        }
+        
+        // Update hangar label (for hangars)
+        if (buildingContainer.hangarLabel) {
+            if (buildingData.hangarOccupied !== undefined && buildingData.hangarCapacity !== undefined) {
+                // Show aircraft status with sortie indicator
+                const occupied = buildingData.hangarOccupied || 0;
+                const capacity = buildingData.hangarCapacity || 1;
+                const onSortie = buildingData.hangarOnSortie ? ' ✈' : '';
+                buildingContainer.hangarLabel.text = `[${occupied}/${capacity}]${onSortie}`;
+                buildingContainer.hangarLabel.visible = true;
+            } else {
+                buildingContainer.hangarLabel.visible = false;
             }
         }
         
@@ -1745,6 +1772,22 @@ class RTSEngine {
             garrisonLabel.visible = false;
             container.addChild(garrisonLabel);
             container.garrisonLabel = garrisonLabel;
+        }
+        
+        // Create hangar indicator (for hangars)
+        if (buildingData.type === 'HANGAR') {
+            const hangarLabel = new PIXI.Text('', {
+                fontFamily: 'Arial',
+                fontSize: 14,
+                fill: 0xFFFFFF,
+                stroke: { color: 0x000000, width: 2 }
+            });
+            hangarLabel.anchor.set(0.5, 0.5);
+            hangarLabel.scale.y = -1; // Flip vertically
+            hangarLabel.y = typeInfo.size + 25; // Below building
+            hangarLabel.visible = false;
+            container.addChild(hangarLabel);
+            container.hangarLabel = hangarLabel;
         }
         
         return container;
@@ -4475,6 +4518,12 @@ class RTSEngine {
                 { type: 'CRAWLER', name: '🦂 Crawler', cost: 1500 },
                 { type: 'CLOAK_TANK', name: '👻 Cloak Tank', cost: 800 },
                 { type: 'MAMMOTH_TANK', name: '🦣 Mammoth Tank', cost: 1200 }
+            ],
+            'AIRFIELD': [
+                { type: 'SCOUT_DRONE', name: '🚁 Scout Drone', cost: 300, upkeep: 2 }
+            ],
+            'HANGAR': [
+                { type: 'BOMBER', name: '✈️ Bomber', cost: 600, upkeep: 4 }
             ]
         };
         
@@ -4510,7 +4559,10 @@ class RTSEngine {
             'ION_RANGER': '🔫 Ion Ranger',
             'PHOTON_SCOUT': '✨ Photon Scout',
             'BEAM_TANK': '💠 Beam Tank',
-            'PULSE_ARTILLERY': '🌟 Pulse Artillery'
+            'PULSE_ARTILLERY': '🌟 Pulse Artillery',
+            // Air units
+            'SCOUT_DRONE': '🚁 Scout Drone',
+            'BOMBER': '✈️ Bomber'
         };
         return names[unitType] || unitType;
     }
@@ -4801,46 +4853,79 @@ class RTSEngine {
      * @param {object} buildingData - Hangar building data from server
      */
     updateHangarPanel(buildingData) {
-        // This would integrate with the existing building panel system
-        // For now, add visual indicator to hangar building when selected
-        if (this.selectedBuilding === buildingData.id) {
-            const panel = document.getElementById('unit-info-panel');
-            if (panel && buildingData.buildingType === 'HANGAR') {
-                // Show hangar status
-                const hangarComponent = buildingData.components?.find(c => c.type === 'HANGAR');
-                if (hangarComponent) {
-                    const statusHtml = `
-                        <div class="hangar-status" style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.5); border-radius: 5px;">
-                            <div style="font-weight: bold; color: #00CED1; margin-bottom: 8px;">🛩️ Hangar Status</div>
-                            <div style="margin: 5px 0;">
-                                <span style="color: #AAA;">Housed Unit:</span>
-                                <span style="color: #FFF; margin-left: 10px;">${hangarComponent.housedUnitType || 'Empty'}</span>
-                            </div>
-                            <div style="margin: 5px 0;">
-                                <span style="color: #AAA;">Status:</span>
-                                <span style="color: ${hangarComponent.isDeployed ? '#FF6600' : '#00FF00'}; margin-left: 10px;">
-                                    ${hangarComponent.isDeployed ? 'ON MISSION' : 'READY'}
-                                </span>
-                            </div>
-                            ${!hangarComponent.isDeployed && hangarComponent.housedUnitType ? `
-                                <button onclick="window.rtsEngine.enterSortieTargetingMode(${buildingData.id})" 
-                                        style="width: 100%; margin-top: 10px; padding: 8px; background: #FF6600; border: 2px solid #FF8833; border-radius: 4px; color: white; cursor: pointer; font-weight: bold;">
-                                    📍 LAUNCH SORTIE
-                                </button>
-                            ` : ''}
-                        </div>
-                    `;
-                    
-                    // Append to panel (would need to integrate with existing panel update logic)
-                    const existingStatus = panel.querySelector('.hangar-status');
-                    if (existingStatus) {
-                        existingStatus.outerHTML = statusHtml;
-                    } else {
-                        panel.insertAdjacentHTML('beforeend', statusHtml);
-                    }
-                }
-            }
+        const panel = document.getElementById('unit-info-panel');
+        if (!panel) return;
+        
+        // Remove existing hangar status if present
+        const existingStatus = panel.querySelector('.hangar-status');
+        if (existingStatus) {
+            existingStatus.remove();
         }
+        
+        // Create hangar status section
+        const hangarStatusDiv = document.createElement('div');
+        hangarStatusDiv.className = 'hangar-status';
+        hangarStatusDiv.style.marginTop = '15px';
+        hangarStatusDiv.style.padding = '10px';
+        hangarStatusDiv.style.background = 'rgba(0,0,0,0.5)';
+        hangarStatusDiv.style.borderRadius = '5px';
+        
+        // Title
+        const title = document.createElement('div');
+        title.style.fontWeight = 'bold';
+        title.style.color = '#00CED1';
+        title.style.marginBottom = '8px';
+        title.textContent = '🛩️ Hangar Status';
+        hangarStatusDiv.appendChild(title);
+        
+        // Aircraft status
+        const aircraftStatus = document.createElement('div');
+        aircraftStatus.className = 'unit-stat';
+        const hasAircraft = buildingData.hangarOccupied > 0;
+        const aircraftText = hasAircraft ? 'Bomber' : 'Empty';
+        aircraftStatus.innerHTML = `<span>Housed Unit:</span><span>${aircraftText}</span>`;
+        hangarStatusDiv.appendChild(aircraftStatus);
+        
+        // Mission status (if aircraft exists)
+        if (hasAircraft) {
+            const missionStatus = document.createElement('div');
+            missionStatus.className = 'unit-stat';
+            const onSortie = buildingData.hangarOnSortie || false;
+            const statusText = onSortie ? 'ON SORTIE' : 'READY';
+            const statusColor = onSortie ? '#FF6600' : '#00FF00';
+            missionStatus.innerHTML = `<span>Status:</span><span style="color: ${statusColor}">${statusText}</span>`;
+            hangarStatusDiv.appendChild(missionStatus);
+            
+            // Aircraft health (if housed and not on sortie)
+            if (!onSortie && buildingData.hangarAircraftHealth !== undefined) {
+                const healthStatus = document.createElement('div');
+                healthStatus.className = 'unit-stat';
+                healthStatus.innerHTML = `<span>Aircraft HP:</span><span>${Math.floor(buildingData.hangarAircraftHealth)}/${buildingData.hangarAircraftMaxHealth}</span>`;
+                hangarStatusDiv.appendChild(healthStatus);
+            }
+            
+            // Sortie button (only if ready - not on sortie)
+            if (!onSortie) {
+                const sortieButton = document.createElement('button');
+                sortieButton.className = 'build-button';
+                sortieButton.textContent = '📍 LAUNCH SORTIE';
+                sortieButton.style.marginTop = '10px';
+                sortieButton.style.width = '100%';
+                sortieButton.style.background = '#FF6600';
+                sortieButton.style.border = '2px solid #FF8833';
+                sortieButton.onclick = () => this.enterSortieTargetingMode(buildingData.id);
+                hangarStatusDiv.appendChild(sortieButton);
+            }
+        } else if (buildingData.hangarProducing) {
+            // Show production status
+            const productionStatus = document.createElement('div');
+            productionStatus.className = 'unit-stat';
+            const progress = Math.floor((buildingData.hangarProductionPercent || 0) * 100);
+            productionStatus.innerHTML = `<span>Production:</span><span>${progress}%</span>`;
+            hangarStatusDiv.appendChild(productionStatus);
+        }
+        
+        panel.appendChild(hangarStatusDiv);
     }
 }
 

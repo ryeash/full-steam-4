@@ -1,6 +1,7 @@
 package com.fullsteam.model;
 
 import com.fullsteam.games.IdGenerator;
+import com.fullsteam.model.weapon.ElevationTargeting;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.dynamics.Body;
@@ -56,6 +57,7 @@ public class Beam extends AbstractOrdinance {
      * @param beamType      Visual beam type
      * @param width         Beam width
      * @param duration      Visual duration
+     * @param elevationTargeting Which elevations this beam can hit
      */
     public Beam(Vector2 start,
                 Vector2 end,
@@ -67,10 +69,11 @@ public class Beam extends AbstractOrdinance {
                 Ordinance ordinanceType,
                 BeamType beamType,
                 double width,
-                double duration) {
+                double duration,
+                ElevationTargeting elevationTargeting) {
         super(IdGenerator.nextEntityId(),
                 createBeamBody(start, end, width),
-                ownerId, ownerTeam, start, damage, bulletEffects, ordinanceType, width);
+                ownerId, ownerTeam, start, damage, bulletEffects, ordinanceType, width, elevationTargeting);
 
         this.startPosition = start.copy();
         this.endPosition = end.copy();

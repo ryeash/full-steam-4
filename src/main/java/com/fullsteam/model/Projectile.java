@@ -1,6 +1,7 @@
 package com.fullsteam.model;
 
 import com.fullsteam.games.IdGenerator;
+import com.fullsteam.model.weapon.ElevationTargeting;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.dynamics.Body;
@@ -23,9 +24,9 @@ public class Projectile extends AbstractOrdinance {
     public Projectile(Vector2 origin, Vector2 velocity,
                       double damage, double maxRange, int ownerId, int ownerTeam,
                       double linearDamping, Set<BulletEffect> bulletEffects,
-                      Ordinance ordinance, double size) {
+                      Ordinance ordinance, double size, ElevationTargeting elevationTargeting) {
         super(IdGenerator.nextEntityId(), createProjectileBody(size), ownerId, ownerTeam,
-                origin, damage, bulletEffects, ordinance, size);
+                origin, damage, bulletEffects, ordinance, size, elevationTargeting);
 
         this.maxRange = maxRange;
         body.translate(origin);

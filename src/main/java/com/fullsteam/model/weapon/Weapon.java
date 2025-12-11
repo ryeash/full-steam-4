@@ -28,14 +28,16 @@ public abstract class Weapon {
     protected double damage;
     protected double range;
     protected double attackRate; // Attacks per second
+    protected ElevationTargeting elevationTargeting; // Which elevations this weapon can target
 
     // Fire rate tracking
     protected long lastFireTime = 0; // Timestamp of last fire (milliseconds)
 
-    public Weapon(double damage, double range, double attackRate) {
+    public Weapon(double damage, double range, double attackRate, ElevationTargeting elevationTargeting) {
         this.damage = damage;
         this.range = range;
         this.attackRate = attackRate;
+        this.elevationTargeting = elevationTargeting;
     }
 
     /**

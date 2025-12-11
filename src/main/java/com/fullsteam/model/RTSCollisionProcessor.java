@@ -127,7 +127,22 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
     }
 
     /**
-     * Create explosion effect at hit position
+     * Create explosion effect at hit position.
+     * 
+     * Note: For anti-aircraft weapons, you can create FLAK_EXPLOSION effects instead:
+     * <pre>
+     * // Example: Flak cannon burst (damages all elevations)
+     * FieldEffect flak = new FieldEffect(
+     *     projectile.getOwnerId(),
+     *     FieldEffectType.FLAK_EXPLOSION,
+     *     position,
+     *     projectile.getOrdinance().getSize() * 12,  // Smaller radius than ground explosions
+     *     projectile.getDamage() * 0.6,              // Flak damage
+     *     FieldEffectType.FLAK_EXPLOSION.getDefaultDuration(),
+     *     projectile.getOwnerTeam()
+     * );
+     * gameEntities.add(flak);
+     * </pre>
      */
     private void createExplosionEffect(Vector2 position, Projectile projectile) {
         FieldEffect effect = new FieldEffect(
@@ -548,6 +563,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 if (!unit.isActive()) {
                     return false;
                 }
+                
+                // Check if projectile can target this unit's elevation
+                if (!projectile.getElevationTargeting().canTarget(unit.getUnitType().getElevation())) {
+                    return false; // Projectile passes through units at untargetable elevations
+                }
 
                 // Check if already hit this unit (for piercing projectiles)
                 if (projectile.getAffectedPlayers().contains(unit.getId())) {
@@ -668,6 +688,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
                 if (!unit.isActive()) {
                     return false;
+                }
+                
+                // Check if beam can target this unit's elevation
+                if (!beam.getElevationTargeting().canTarget(unit.getUnitType().getElevation())) {
+                    return false; // Beam passes through units at untargetable elevations
                 }
 
                 // Check if already damaged this unit

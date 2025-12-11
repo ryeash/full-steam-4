@@ -213,6 +213,11 @@ public class GarrisonComponent extends AbstractBuildingComponent {
                 continue;
             }
 
+            // Check if garrisoned unit's weapon can target this elevation
+            if (!garrisonedUnit.canTargetElevation(enemy)) {
+                continue; // Weapon cannot hit this elevation level
+            }
+
             double distance = bunkerPos.distance(enemy.getPosition());
             
             // Cloaked units can only be detected within cloak detection range

@@ -51,11 +51,12 @@ public interface IBuildingComponent {
 
     /**
      * Apply research modifiers for this building components.
+     * Components that are affected by research should override this method.
      *
      * @param modifier the cumulative modifiers for the building owner
      */
     default void applyResearchModifiers(ResearchModifier modifier) {
-        // TODO: ensure this is properly working for all components
+        // Default: do nothing (override if needed)
     }
 }
 

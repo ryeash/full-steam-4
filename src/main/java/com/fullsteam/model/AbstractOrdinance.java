@@ -1,5 +1,6 @@
 package com.fullsteam.model;
 
+import com.fullsteam.model.weapon.ElevationTargeting;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.dynamics.Body;
@@ -25,11 +26,13 @@ public abstract class AbstractOrdinance extends GameEntity {
     protected double size; // Visual size
     protected boolean active = true;
     protected Set<Integer> affectedEntities = new HashSet<>(); // For piercing/multi-hit tracking
+    protected ElevationTargeting elevationTargeting; // Which elevations this ordinance can hit
 
     public AbstractOrdinance(int id, Body body, int ownerId, int ownerTeam,
                              Vector2 origin, double damage,
                              Set<BulletEffect> bulletEffects,
-                             Ordinance ordinanceType, double size) {
+                             Ordinance ordinanceType, double size,
+                             ElevationTargeting elevationTargeting) {
         super(id, body, 0);
         this.id = id;
         this.ownerId = ownerId;
@@ -39,6 +42,7 @@ public abstract class AbstractOrdinance extends GameEntity {
         this.bulletEffects = bulletEffects != null ? new HashSet<>(bulletEffects) : new HashSet<>();
         this.ordinanceType = ordinanceType;
         this.size = size;
+        this.elevationTargeting = elevationTargeting != null ? elevationTargeting : ElevationTargeting.GROUND_ONLY;
     }
 
     /**

@@ -104,6 +104,7 @@ public class DefenseComponent extends AbstractBuildingComponent {
             double distance = turretPos.distance(unit.getPosition());
             boolean targetable = unit.isActive()
                     && unit.getTeamNumber() != turret.getTeamNumber()
+                    && Unit.canWeaponTargetUnit(weapon, unit) // Check elevation targeting
                     && (!unit.isCloaked() || (unit.isCloaked() && distance < Unit.getCloakDetectionRange()));
             if (targetable && distance <= weapon.getRange() && distance < nearestDistance) {
                 nearestEnemy = unit;

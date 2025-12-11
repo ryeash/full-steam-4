@@ -118,6 +118,11 @@ public class FieldEffect extends GameEntity {
             if (unit.getId() == ownerId) {
                 return false;
             }
+            
+            // Check elevation targeting - can this field effect damage units at this elevation?
+            if (!type.canAffectElevation(unit.getUnitType().getElevation())) {
+                return false;
+            }
 
             // FFA mode (team 0): Can damage all other units (already checked not self above)
             // Team mode (team > 0): Can only damage units on different teams
@@ -128,10 +133,15 @@ public class FieldEffect extends GameEntity {
             return false;
         }
 
-        // Team-based damage rules for buildings
+        // Team-based damage rules for buildings (buildings are always at ground level)
         if (entity instanceof Building building) {
             // Can't damage buildings owned by the same player
             if (building.getOwnerId() == ownerId) {
+                return false;
+            }
+            
+            // Check if field effect can damage ground-level targets
+            if (!type.canAffectElevation(Elevation.GROUND)) {
                 return false;
             }
 
