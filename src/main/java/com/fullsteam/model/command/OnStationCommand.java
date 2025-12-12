@@ -74,7 +74,7 @@ public class OnStationCommand extends UnitCommand {
             return false; // Switch to attack command
         }
 
-        return true; // Continue patrolling
+        return true;
     }
 
     @Override
@@ -120,7 +120,7 @@ public class OnStationCommand extends UnitCommand {
 
             // Only engage air units
             Elevation targetElevation = other.getUnitType().getElevation();
-            if (targetElevation == Elevation.GROUND) {
+            if (!unit.canTargetElevation(other)) {
                 continue;
             }
 

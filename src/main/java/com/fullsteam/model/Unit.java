@@ -1153,6 +1153,19 @@ public class Unit extends GameEntity {
     }
     
     /**
+     * Check if this unit's weapon can target buildings (which are always at GROUND elevation).
+     * This is important for anti-air units which cannot hit ground targets.
+     * 
+     * @return true if this unit's weapon can hit GROUND elevation targets (buildings)
+     */
+    public boolean canTargetBuildings() {
+        if (weapon == null) {
+            return false;
+        }
+        return weapon.getElevationTargeting().canTarget(Elevation.GROUND);
+    }
+    
+    /**
      * Check if a given weapon can target a unit at its elevation.
      * Static helper for use by buildings/turrets.
      * 
@@ -1165,6 +1178,20 @@ public class Unit extends GameEntity {
             return false;
         }
         return weapon.getElevationTargeting().canTarget(target.getUnitType().getElevation());
+    }
+    
+    /**
+     * Check if a given weapon can target buildings (which are always at GROUND elevation).
+     * Static helper for use by buildings/turrets.
+     * 
+     * @param weapon The weapon attempting to target
+     * @return true if the weapon can hit GROUND elevation targets (buildings)
+     */
+    public static boolean canWeaponTargetBuildings(Weapon weapon) {
+        if (weapon == null) {
+            return false;
+        }
+        return weapon.getElevationTargeting().canTarget(Elevation.GROUND);
     }
 
     /**

@@ -110,6 +110,23 @@ class RTSEngine {
         
         // Create containers
         this.gameContainer = new PIXI.Container();
+        this.gameContainer.sortableChildren = true; // Enable z-index sorting
+        
+        /**
+         * Z-Index Rendering Order (from back to front):
+         * -2: World bounds (background)
+         * -1: Obstacles and resource deposits
+         *  0: Buildings and wall segments
+         *  1: Ground units
+         * 1.5: Field effects (explosions, fire, etc.)
+         *  2: Low altitude air units (Scout Drone)
+         *  3: High altitude air units (Bomber, Interceptor)
+         *  4: Projectiles (bullets, missiles)
+         *  5: Beams (laser weapons)
+         * 100: Fog of war overlay
+         * 101: Selection box
+         */
+        
         this.fogContainer = new PIXI.Container(); // Fog of war overlay
         this.selectionBoxGraphics = new PIXI.Graphics(); // Selection box
         this.uiContainer = new PIXI.Container();
@@ -125,8 +142,13 @@ class RTSEngine {
         
         // Add world bounds first (bottom layer), then fog and selection box
         this.gameContainer.addChild(this.worldBoundsGraphics);
+        this.worldBoundsGraphics.zIndex = -2; // Bottom layer - background
+        
         this.gameContainer.addChild(this.fogContainer);
+        this.fogContainer.zIndex = 100; // Top layer - fog of war
+        
         this.gameContainer.addChild(this.selectionBoxGraphics);
+        this.selectionBoxGraphics.zIndex = 101; // Top layer - selection box
         
         // Handle resize
         window.addEventListener('resize', () => this.handleResize());
@@ -640,6 +662,19 @@ class RTSEngine {
             unitContainer = this.createUnitGraphics(unitData);
             this.units.set(unitData.id, unitContainer);
             this.gameContainer.addChild(unitContainer);
+            
+            // Set z-index based on elevation (air units should render above buildings)
+            // Buildings have default z-index of 0
+            // Ground units: z-index 1
+            // Low altitude units: z-index 2
+            // High altitude units: z-index 3
+            if (unitData.elevation === 'HIGH') {
+                unitContainer.zIndex = 3;
+            } else if (unitData.elevation === 'LOW') {
+                unitContainer.zIndex = 2;
+            } else {
+                unitContainer.zIndex = 1; // GROUND units
+            }
         }
         
         // Update position
@@ -1586,6 +1621,9 @@ class RTSEngine {
             buildingContainer = this.createBuildingGraphics(buildingData);
             this.buildings.set(buildingData.id, buildingContainer);
             this.gameContainer.addChild(buildingContainer);
+            
+            // Buildings should render below all units
+            buildingContainer.zIndex = 0;
         }
         
         // Update position
@@ -2052,6 +2090,9 @@ class RTSEngine {
             depositContainer = this.createResourceDepositGraphics(depositData);
             this.resourceDeposits.set(depositData.id, depositContainer);
             this.gameContainer.addChild(depositContainer);
+            
+            // Resource deposits render at same layer as obstacles (below buildings)
+            depositContainer.zIndex = -1;
         }
         
         // Update position
@@ -2082,6 +2123,9 @@ class RTSEngine {
             obstacleContainer = this.createObstacleGraphics(obstacleData);
             this.obstacles.set(obstacleData.id, obstacleContainer);
             this.gameContainer.addChild(obstacleContainer);
+            
+            // Obstacles render below buildings
+            obstacleContainer.zIndex = -1;
         }
         
         // Update position
@@ -2116,6 +2160,9 @@ class RTSEngine {
             segmentContainer = this.createWallSegmentGraphics(segmentData);
             this.wallSegments.set(segmentData.id, segmentContainer);
             this.gameContainer.addChild(segmentContainer);
+            
+            // Wall segments render at same layer as buildings
+            segmentContainer.zIndex = 0;
         }
         
         // Update position and rotation
@@ -2252,6 +2299,9 @@ class RTSEngine {
             projectileContainer = this.createProjectileGraphics(projectileData);
             this.projectiles.set(projectileData.id, projectileContainer);
             this.gameContainer.addChild(projectileContainer);
+            
+            // Projectiles render above units (z-index 4)
+            projectileContainer.zIndex = 4;
         }
         
         // Update position and rotation
@@ -2464,6 +2514,9 @@ class RTSEngine {
             beamGraphics = this.createBeamGraphics(beamData);
             this.beams.set(beamData.id, beamGraphics);
             this.gameContainer.addChild(beamGraphics);
+            
+            // Beams render above projectiles (z-index 5)
+            beamGraphics.zIndex = 5;
         } else {
             // Update existing beam (fade out over time)
             const fadeProgress = beamData.elapsed / beamData.duration;
@@ -4881,6 +4934,9 @@ class RTSEngine {
             
             this.fieldEffects.set(effectData.id, effectContainer);
             this.gameContainer.addChild(effectContainer);
+            
+            // Field effects render above ground units but below aircraft (z-index 1.5)
+            effectContainer.zIndex = 1.5;
         }
         
         // Update effect visuals based on type and progress

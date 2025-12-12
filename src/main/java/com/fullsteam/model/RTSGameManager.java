@@ -533,6 +533,7 @@ public class RTSGameManager {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected())
                         .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
+                        .filter(u -> u.canTargetBuildings()) // Check if weapon can hit GROUND elevation (buildings)
                         .forEach(u -> u.issueCommand(new AttackBuildingCommand(u, target, true), gameEntities));
             }
         }
@@ -543,6 +544,7 @@ public class RTSGameManager {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected())
                         .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
+                        .filter(u -> u.canTargetBuildings()) // Wall segments are GROUND elevation like buildings
                         .forEach(u -> u.issueCommand(new AttackWallSegmentCommand(u, target, true), gameEntities));
             }
         }

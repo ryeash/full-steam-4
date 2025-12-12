@@ -87,8 +87,8 @@ public class IdleCommand extends UnitCommand {
             }
         }
 
-        // If found an enemy building, engage it
-        if (nearestEnemyBuilding != null) {
+        // If found an enemy building and weapon can target it, engage it
+        if (nearestEnemyBuilding != null && unit.canTargetBuildings()) {
             unit.issueCommand(new AttackBuildingCommand(unit, nearestEnemyBuilding, false), gameEntities);
         }
     }

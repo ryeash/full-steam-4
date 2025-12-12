@@ -121,6 +121,11 @@ public class Turret {
                 continue;
             }
 
+            // Check if weapon can target buildings (GROUND elevation)
+            if (!Unit.canWeaponTargetBuildings(weapon)) {
+                continue; // Weapon cannot hit ground targets (e.g., FLAK_TANK with LOW_AND_HIGH targeting)
+            }
+
             double distance = turretWorldPos.distance(building.getPosition());
             if (distance <= range && distance < nearestBuildingDistance) {
                 nearestEnemyBuilding = building;
