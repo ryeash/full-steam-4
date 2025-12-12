@@ -204,6 +204,25 @@ public enum UnitType {
             Elevation.GROUND
     ),
 
+    // Flak Tank - early-game anti-air vehicle
+    FLAK_TANK(
+            "Flak Tank",
+            350,     // resource cost (cheaper than tank, more than jeep)
+            12,      // build time (seconds)
+            280,     // max health (lighter than main tank)
+            90.0,    // movement speed (faster than tank, slower than jeep)
+            30,      // damage (moderate direct hit damage)
+            1.5,     // attack rate (decent fire rate)
+            300,     // attack range (longer than tank for AA role)
+            24.0,    // size (radius)
+            6,       // sides (hexagon)
+            0xA0A0A0, // gray (flak color)
+            BuildingType.FACTORY,
+            25,      // upkeep cost
+            420.0,    // vision range (good, needs to spot aircraft),
+            Elevation.GROUND
+    ),
+
     // Artillery - long range siege unit
     ARTILLERY(
             "Artillery",
@@ -277,25 +296,6 @@ public enum UnitType {
             BuildingType.ADVANCED_FACTORY,
             45,      // upkeep cost
             380.0,    // vision range (moderate, cloak unit),
-            Elevation.GROUND
-    ),
-
-    // Mammoth Tank - dual-cannon heavy assault
-    MAMMOTH_TANK(
-            "Mammoth Tank",
-            1200,    // resource cost
-            35,      // build time (seconds)
-            1800,    // max health
-            50.0,    // movement speed (very slow)
-            80,      // damage (high)
-            0.8,     // attack rate (slow but powerful)
-            230,     // attack range
-            40.0,    // size (radius) (large)
-            6,       // sides (hexagon)
-            0x556B2F, // dark olive green
-            BuildingType.ADVANCED_FACTORY,
-            60,      // upkeep cost
-            430.0,    // vision range (good, heavy assault),
             Elevation.GROUND
     ),
 
@@ -497,6 +497,27 @@ public enum UnitType {
             Elevation.LOW // VTOL - can hover, vulnerable to rockets
     ),
 
+    // HELICOPTER - Attack helicopter with dual rockets
+    // Low-altitude VTOL gunship, controllable like standard units
+    // Fires dual rockets, slower than scout drone but more powerful
+    HELICOPTER(
+            "Attack Helicopter",
+            350,     // resource cost (moderate)
+            18,      // build time (seconds)
+            150,     // max health (fragile but more durable than scout)
+            150.0,   // movement speed (slower than scout, faster than tanks)
+            35,      // damage per rocket (dual rockets = 70 total per volley)
+            1.8,     // attack rate (decent fire rate)
+            220,     // attack range (good range for air-to-ground)
+            16.0,    // size (radius) - medium aircraft
+            5,       // sides (pentagon shape)
+            0x8B4513, // saddle brown (military helicopter color)
+            BuildingType.AIRFIELD,
+            25,      // upkeep cost (moderate)
+            450.0,   // vision range (good, attack aircraft)
+            Elevation.LOW // VTOL - can hover, vulnerable to rockets
+    ),
+
     // BOMBER - Sortie-based heavy bomber aircraft
     // Housed in Hangar, executes bombing runs on command, then returns to base
     // NOT controllable like regular units - sortie-based only
@@ -516,6 +537,27 @@ public enum UnitType {
             50,      // upkeep cost (HIGH - strategic bomber)
             400.0,   // vision range (good but not scout-level)
             Elevation.HIGH // Fixed-wing - requires AA weapons
+    ),
+
+    // INTERCEPTOR - Sortie-based fighter aircraft
+    // Housed in Hangar, auto-deploys to intercept enemy aircraft (SCRAMBLE)
+    // Can be sent to patrol areas (ON_STATION), limited fuel and ammo
+    INTERCEPTOR(
+            "Interceptor",
+            600,     // resource cost (expensive)
+            45,      // build time (seconds)
+            200,     // max health (moderate durability)
+            250.0,   // movement speed (FASTEST air unit)
+            45,      // damage per seeking rocket
+            2.0,     // attack rate (fast for air-to-air)
+            300,     // attack range (long-range seeking missiles)
+            14.0,    // size (radius) - sleek fighter
+            3,       // sides (triangle - delta wing)
+            0xFF4500, // orange-red (fighter jet color)
+            BuildingType.HANGAR, // Housed in hangar
+            40,      // upkeep cost (high)
+            500.0,   // vision range (excellent, interceptor)
+            Elevation.HIGH // Fixed-wing - high-altitude fighter
     );
 
     private final String displayName;
@@ -790,6 +832,93 @@ public enum UnitType {
                 yield List.of(body, wingLeft, wingRight);
             }
 
+            // Helicopter - Attack helicopter with main fuselage, tail boom, and rotor
+            case HELICOPTER -> {
+                // Main fuselage (bulbous cockpit/body)
+                Vector2[] fuselage = new Vector2[]{
+                        new Vector2(size * 0.7, 0),                    // Nose (front)
+                        new Vector2(size * 0.4, size * 0.4),           // Top-front
+                        new Vector2(-size * 0.2, size * 0.45),         // Top-mid
+                        new Vector2(-size * 0.5, size * 0.25),         // Top-rear
+                        new Vector2(-size * 0.5, -size * 0.25),        // Bottom-rear
+                        new Vector2(-size * 0.2, -size * 0.45),        // Bottom-mid
+                        new Vector2(size * 0.4, -size * 0.4)           // Bottom-front
+                };
+                Convex body = Geometry.createPolygon(fuselage);
+
+                // Tail boom (thin elongated section extending back)
+                Vector2[] tailBoom = new Vector2[]{
+                        new Vector2(-size * 0.4, size * 0.15),
+                        new Vector2(-size * 0.95, size * 0.12),
+                        new Vector2(-size * 0.95, -size * 0.12),
+                        new Vector2(-size * 0.4, -size * 0.15)
+                };
+                Convex tail = Geometry.createPolygon(tailBoom);
+
+                // Left landing skid
+                Vector2[] leftSkid = new Vector2[]{
+                        new Vector2(size * 0.3, size * 0.5),
+                        new Vector2(-size * 0.3, size * 0.6),
+                        new Vector2(-size * 0.35, size * 0.5),
+                        new Vector2(size * 0.25, size * 0.4)
+                };
+                Convex skidLeft = Geometry.createPolygon(leftSkid);
+
+                // Right landing skid
+                Vector2[] rightSkid = new Vector2[]{
+                        new Vector2(size * 0.3, -size * 0.5),
+                        new Vector2(size * 0.25, -size * 0.4),
+                        new Vector2(-size * 0.35, -size * 0.5),
+                        new Vector2(-size * 0.3, -size * 0.6)
+                };
+                Convex skidRight = Geometry.createPolygon(rightSkid);
+
+                yield List.of(body, tail, skidLeft, skidRight);
+            }
+
+            // Interceptor - Sleek delta-wing fighter jet
+            case INTERCEPTOR -> {
+                // Main fuselage (streamlined triangle body)
+                Vector2[] fuselage = new Vector2[]{
+                        new Vector2(size * 0.95, 0),                   // Nose (front, sharp point)
+                        new Vector2(size * 0.2, size * 0.25),          // Top-mid
+                        new Vector2(-size * 0.8, size * 0.2),          // Top-rear
+                        new Vector2(-size * 0.95, 0),                  // Tail (rear center)
+                        new Vector2(-size * 0.8, -size * 0.2),         // Bottom-rear
+                        new Vector2(size * 0.2, -size * 0.25)          // Bottom-mid
+                };
+                Convex body = Geometry.createPolygon(fuselage);
+
+                // Left delta wing (swept-back triangular)
+                Vector2[] leftWing = new Vector2[]{
+                        new Vector2(size * 0.3, size * 0.3),           // Inner front
+                        new Vector2(-size * 0.4, size * 0.95),         // Outer tip
+                        new Vector2(-size * 0.7, size * 0.75),         // Outer rear
+                        new Vector2(-size * 0.3, size * 0.25)          // Inner rear
+                };
+                Convex wingLeft = Geometry.createPolygon(leftWing);
+
+                // Right delta wing (swept-back triangular, mirrored)
+                Vector2[] rightWing = new Vector2[]{
+                        new Vector2(size * 0.3, -size * 0.3),          // Inner front
+                        new Vector2(-size * 0.3, -size * 0.25),        // Inner rear
+                        new Vector2(-size * 0.7, -size * 0.75),        // Outer rear
+                        new Vector2(-size * 0.4, -size * 0.95)         // Outer tip
+                };
+                Convex wingRight = Geometry.createPolygon(rightWing);
+
+                // Tail fins (vertical stabilizers)
+                Vector2[] tailFin = new Vector2[]{
+                        new Vector2(-size * 0.6, 0),
+                        new Vector2(-size * 0.85, size * 0.15),
+                        new Vector2(-size * 0.95, 0),
+                        new Vector2(-size * 0.85, -size * 0.15)
+                };
+                Convex fin = Geometry.createPolygon(tailFin);
+
+                yield List.of(body, wingLeft, wingRight, fin);
+            }
+
             // Jeep - fast light vehicle with angular chassis and armor plating
             case JEEP -> {
                 // Main chassis: elongated hexagon (streamlined body)
@@ -869,6 +998,51 @@ public enum UnitType {
                 Convex collector = Geometry.createPolygon(rearCollector);
 
                 yield List.of(mainChassis, frontArray, deflectorTop, deflectorBottom, collector);
+            }
+
+            // Flak Tank - anti-aircraft vehicle with flak cannon and stabilizers
+            case FLAK_TANK -> {
+                // Main hull: hexagonal platform
+                Vector2[] hull = new Vector2[]{
+                        new Vector2(-size * 0.85, -size * 0.35),
+                        new Vector2(-size * 0.35, -size * 0.75),
+                        new Vector2(size * 0.35, -size * 0.75),
+                        new Vector2(size * 0.85, -size * 0.35),
+                        new Vector2(size * 0.85, size * 0.35),
+                        new Vector2(size * 0.35, size * 0.75),
+                        new Vector2(-size * 0.35, size * 0.75),
+                        new Vector2(-size * 0.85, size * 0.35)
+                };
+                Convex mainHull = Geometry.createPolygon(hull);
+
+                // Flak cannon mount (elevated turret platform)
+                Vector2[] cannon = new Vector2[]{
+                        new Vector2(-size * 0.2, -size * 0.5),
+                        new Vector2(size * 0.4, -size * 0.55),
+                        new Vector2(size * 0.7, -size * 0.25),
+                        new Vector2(size * 0.7, size * 0.25),
+                        new Vector2(size * 0.4, size * 0.55),
+                        new Vector2(-size * 0.2, size * 0.5)
+                };
+                Convex cannonMount = Geometry.createPolygon(cannon);
+
+                // Left stabilizer (for recoil absorption)
+                Vector2[] leftStab = new Vector2[]{
+                        new Vector2(-size * 0.4, -size * 0.8),
+                        new Vector2(size * 0.0, -size * 0.9),
+                        new Vector2(size * 0.2, -size * 0.75)
+                };
+                Convex stabLeft = Geometry.createPolygon(leftStab);
+
+                // Right stabilizer (for recoil absorption)
+                Vector2[] rightStab = new Vector2[]{
+                        new Vector2(-size * 0.4, size * 0.8),
+                        new Vector2(size * 0.2, size * 0.75),
+                        new Vector2(size * 0.0, size * 0.9)
+                };
+                Convex stabRight = Geometry.createPolygon(rightStab);
+
+                yield List.of(mainHull, cannonMount, stabLeft, stabRight);
             }
 
             // Tank - main battle tank with turret platform and armor plating
@@ -998,23 +1172,6 @@ public enum UnitType {
                         new Vector2(0, -size * 0.7),          // Left point (narrow)
                         new Vector2(size, 0),           // Front point (sleek, pointing right)
                         new Vector2(0, size * 0.7)            // Right point (narrow)
-                };
-                yield List.of(Geometry.createPolygon(vertices));
-            }
-
-            // Mammoth Tank - massive wide rectangle (dual-cannon heavy assault)
-            case MAMMOTH_TANK -> {
-                // Wide, imposing rectangle with angled front
-                // Pointing right (positive X direction)
-                Vector2[] vertices = new Vector2[]{
-                        new Vector2(-size * 0.9, -size * 0.8),// Back left
-                        new Vector2(-size * 0.6, -size * 1.1),// Left side back
-                        new Vector2(size * 0.6, -size * 1.1), // Left side front
-                        new Vector2(size * 1.1, -size * 0.8), // Front left (angled, pointing right)
-                        new Vector2(size * 1.1, size * 0.8),  // Front right (angled)
-                        new Vector2(size * 0.6, size * 1.1),  // Right side front
-                        new Vector2(-size * 0.6, size * 1.1), // Right side back
-                        new Vector2(-size * 0.9, size * 0.8)  // Back right
                 };
                 yield List.of(Geometry.createPolygon(vertices));
             }
@@ -1184,16 +1341,6 @@ public enum UnitType {
                 };
                 Convex chassis = Geometry.createPolygon(mainBody);
 
-                // Forward blade (piercing spear tip)
-                Vector2[] forwardBlade = new Vector2[]{
-                        new Vector2(size, -size * 0.3),
-                        new Vector2(size * 1.5, -size * 0.15),
-                        new Vector2(size * 1.6, 0),
-                        new Vector2(size * 1.5, size * 0.15),
-                        new Vector2(size, size * 0.3)
-                };
-                Convex blade = Geometry.createPolygon(forwardBlade);
-
                 // Upper wing blade (aggressive swept-back design)
                 Vector2[] upperWing = new Vector2[]{
                         new Vector2(-size * 0.5, -size * 0.7),
@@ -1255,8 +1402,7 @@ public enum UnitType {
                 };
                 Convex engine = Geometry.createPolygon(powerCore);
 
-                yield List.of(chassis, blade, wingUpper, wingLower, bladeUS, bladeLS,
-                        finU, finL, engine);
+                yield List.of(chassis, wingUpper, wingLower, bladeUS, bladeLS, finU, finL, engine);
             }
 
             // Photon Titan - massive crystalline energy platform with nested prism arrays
@@ -1623,14 +1769,14 @@ public enum UnitType {
      * Check if this is an air unit (can fly over obstacles, different rendering)
      */
     public boolean isAirUnit() {
-        return this == SCOUT_DRONE || this == BOMBER;
+        return this == SCOUT_DRONE || this == HELICOPTER || this == BOMBER || this == INTERCEPTOR;
     }
 
     /**
      * Check if this is a sortie-based unit (not player-controllable, executes missions and returns to base)
      */
     public boolean isSortieBased() {
-        return this == BOMBER;
+        return this == BOMBER || this == INTERCEPTOR;
     }
 }
 

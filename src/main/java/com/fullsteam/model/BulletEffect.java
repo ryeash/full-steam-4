@@ -8,9 +8,11 @@ public enum BulletEffect {
     PIERCING,
     INCENDIARY,
     BOUNCING,
+    SEEKING,     // Homing/heat-seeking projectiles (e.g., interceptor missiles)
     TOXIC,
     FREEZING,
-    ELECTRIC
+    ELECTRIC,
+    FLAK         // Anti-aircraft flak explosion (targets air units only)
 }
 
 

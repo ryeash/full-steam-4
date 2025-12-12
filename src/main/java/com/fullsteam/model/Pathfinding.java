@@ -15,6 +15,7 @@ public class Pathfinding {
     
     /**
      * Find a path from start to goal, avoiding obstacles and buildings
+     * @param isAirborne Whether the unit is airborne (flying units ignore obstacles)
      */
     public static List<Vector2> findPath(
             Vector2 start, 
@@ -23,8 +24,14 @@ public class Pathfinding {
             Collection<Building> buildings,
             double unitRadius,
             double worldWidth,
-            double worldHeight
+            double worldHeight,
+            boolean isAirborne
     ) {
+        // Flying units: always use direct path (ignore obstacles)
+        if (isAirborne) {
+            return Arrays.asList(start, goal);
+        }
+        
         // Quick check: if goal is in direct line of sight, return direct path
         if (isDirectPathClear(start, goal, obstacles, buildings, unitRadius)) {
             return Arrays.asList(start, goal);

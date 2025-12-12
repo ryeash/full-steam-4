@@ -55,6 +55,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
             createExplosionEffect(hitPosition, projectile);
         }
 
+        // Create flak explosion for flak projectiles
+        if (createsFlakExplosion(projectile)) {
+            createFlakExplosionEffect(hitPosition, projectile);
+        }
+
         // Create electric field for electric projectiles (area denial)
         if (hasElectricEffect(projectile)) {
             createElectricFieldEffect(hitPosition, projectile);
@@ -77,6 +82,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         // Create explosion for explosive projectiles
         if (isExplosiveProjectile(projectile)) {
             createExplosionEffect(hitPosition, projectile);
+        }
+
+        // Create flak explosion for flak projectiles
+        if (createsFlakExplosion(projectile)) {
+            createFlakExplosionEffect(hitPosition, projectile);
         }
 
         // Create electric field for electric projectiles (area denial)
@@ -103,6 +113,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
             createExplosionEffect(hitPosition, projectile);
         }
 
+        // Create flak explosion for flak projectiles
+        if (createsFlakExplosion(projectile)) {
+            createFlakExplosionEffect(hitPosition, projectile);
+        }
+
         // Create electric field for electric projectiles (area denial)
         if (hasElectricEffect(projectile)) {
             createElectricFieldEffect(hitPosition, projectile);
@@ -120,10 +135,22 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
      * Check if projectile creates explosions
      */
     private boolean isExplosiveProjectile(Projectile projectile) {
+        // Check for FLAK bullet effect (handled separately)
+        if (projectile.getBulletEffects().contains(BulletEffect.FLAK)) {
+            return false; // FLAK is handled by createFlakExplosion()
+        }
+        
         Ordinance ordinance = projectile.getOrdinance();
         return ordinance == Ordinance.ROCKET ||
                 ordinance == Ordinance.GRENADE ||
                 ordinance == Ordinance.SHELL;
+    }
+
+    /**
+     * Check if projectile creates flak explosions (anti-air bursts)
+     */
+    private boolean createsFlakExplosion(Projectile projectile) {
+        return projectile.getBulletEffects().contains(BulletEffect.FLAK);
     }
 
     /**
@@ -152,6 +179,23 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 projectile.getOrdinance().getSize() * 15,
                 projectile.getDamage() * 0.5,
                 FieldEffectType.EXPLOSION.getDefaultDuration(),
+                projectile.getOwnerTeam()
+        );
+        gameEntities.add(effect);
+    }
+
+    /**
+     * Create flak explosion effect at hit position (anti-air burst).
+     * Flak explosions only damage aircraft (LOW and HIGH elevations).
+     */
+    private void createFlakExplosionEffect(Vector2 position, Projectile projectile) {
+        FieldEffect effect = new FieldEffect(
+                projectile.getOwnerId(),
+                FieldEffectType.FLAK_EXPLOSION,
+                position,
+                projectile.getOrdinance().getSize() * 12,  // Smaller radius than ground explosions
+                projectile.getDamage() * 0.6,              // 60% of projectile damage as AOE
+                FieldEffectType.FLAK_EXPLOSION.getDefaultDuration(),
                 projectile.getOwnerTeam()
         );
         gameEntities.add(effect);
@@ -640,6 +684,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 // Create explosion if it's an explosive projectile
                 if (isExplosiveProjectile(projectile)) {
                     createExplosionEffect(hitPosition, projectile);
+                }
+
+                // Create flak explosion for flak projectiles
+                if (createsFlakExplosion(projectile)) {
+                    createFlakExplosionEffect(hitPosition, projectile);
                 }
 
                 // Create electric field for electric projectiles (area denial)

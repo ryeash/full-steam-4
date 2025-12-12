@@ -14,6 +14,7 @@ import com.fullsteam.model.command.GarrisonBunkerCommand;
 import com.fullsteam.model.command.HarvestCommand;
 import com.fullsteam.model.command.MineCommand;
 import com.fullsteam.model.command.MoveCommand;
+import com.fullsteam.model.command.OnStationCommand;
 import com.fullsteam.model.command.SortieCommand;
 import com.fullsteam.model.component.AndroidComponent;
 import com.fullsteam.model.component.AndroidFactoryComponent;
@@ -249,28 +250,9 @@ public class RTSGameManager {
                     }
                 }
 
-                // Check if worker is at refinery to deposit resources
-                unit.getComponent(HarvestComponent.class)
-                        .filter(HarvestComponent::hasResources)
-                        .ifPresent(harvestComp -> {
-                            if (unit.getCurrentCommand() instanceof HarvestCommand harvestCmd) {
-                                if (harvestCmd.isReturningResources()) {
-                                    Building refinery = harvestCmd.getTargetRefinery();
-                                    if (refinery != null && refinery.isActive()) {
-                                        double distance = unit.getPosition().distance(refinery.getPosition());
-                                        if (distance <= refinery.getBuildingType().getSize() + unit.getUnitType().getSize() + 10) {
-                                            // Deposit resources to player's faction
-                                            PlayerFaction faction = playerFactions.get(unit.getOwnerId());
-                                            if (faction != null) {
-                                                int depositAmount = (int) Math.round(harvestComp.getCarriedResources());
-                                                faction.addResources(ResourceType.CREDITS, depositAmount);
-                                                log.debug("Player {} deposited {} resources", unit.getOwnerId(), depositAmount);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        });
+                // Resource deposit is handled by Unit.returnResourcesToRefinery() 
+                // which is called from HarvestCommand.update()
+                // No need to duplicate the logic here
 
                 // Help miners find headquarters when returning for pickaxe repair
                 if (unit.getCurrentCommand() instanceof MineCommand mineCmd) {
@@ -364,7 +346,8 @@ public class RTSGameManager {
                             buildings.values(),
                             unit.getUnitType().getSize(),
                             gameConfig.getWorldWidth(),
-                            gameConfig.getWorldHeight()
+                            gameConfig.getWorldHeight(),
+                            unit.getUnitType().getElevation().isAirborne()
                     );
                     unit.setPath(path);
                 }
@@ -485,6 +468,7 @@ public class RTSGameManager {
             Vector2 destination = input.getMoveOrder();
             units.values().stream()
                     .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                    .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
                     .forEach(u -> {
                         // Calculate path using A* pathfinding
                         List<Vector2> path = Pathfinding.findPath(
@@ -494,7 +478,8 @@ public class RTSGameManager {
                                 buildings.values(),
                                 u.getUnitType().getSize(),
                                 gameConfig.getWorldWidth(),
-                                gameConfig.getWorldHeight()
+                                gameConfig.getWorldHeight(),
+                                u.getUnitType().getElevation().isAirborne()
                         );
 
                         // Use command pattern
@@ -512,6 +497,7 @@ public class RTSGameManager {
             Vector2 destination = input.getAttackMoveOrder();
             units.values().stream()
                     .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                    .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
                     .forEach(u -> {
                         // Calculate path using A* pathfinding
                         List<Vector2> path = Pathfinding.findPath(
@@ -521,7 +507,8 @@ public class RTSGameManager {
                                 buildings.values(),
                                 u.getUnitType().getSize(),
                                 gameConfig.getWorldWidth(),
-                                gameConfig.getWorldHeight()
+                                gameConfig.getWorldHeight(),
+                                u.getUnitType().getElevation().isAirborne()
                         );
                         AttackMoveCommand cmd = new AttackMoveCommand(u, destination, true);
                         cmd.setPath(path);
@@ -535,6 +522,7 @@ public class RTSGameManager {
             if (target != null) {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                        .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
                         .forEach(u -> u.issueCommand(new AttackUnitCommand(u, target, true), gameEntities));
             }
         }
@@ -544,6 +532,7 @@ public class RTSGameManager {
             if (target != null) {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                        .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
                         .forEach(u -> u.issueCommand(new AttackBuildingCommand(u, target, true), gameEntities));
             }
         }
@@ -553,6 +542,7 @@ public class RTSGameManager {
             if (target != null) {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                        .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
                         .forEach(u -> u.issueCommand(new AttackWallSegmentCommand(u, target, true), gameEntities));
             }
         }
@@ -562,6 +552,7 @@ public class RTSGameManager {
             Vector2 targetPosition = input.getForceAttackOrder();
             units.values().stream()
                     .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().canAttack())
+                    .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
                     .forEach(u -> {
                         // Issue force attack order first (sets all the flags correctly)
                         u.issueCommand(new AttackGroundCommand(u, targetPosition, true), gameEntities);
@@ -574,7 +565,8 @@ public class RTSGameManager {
                                 buildings.values(),
                                 u.getUnitType().getSize(),
                                 gameConfig.getWorldWidth(),
-                                gameConfig.getWorldHeight()
+                                gameConfig.getWorldHeight(),
+                                u.getUnitType().getElevation().isAirborne()
                         );
                         u.setPath(path, true);
                     });
@@ -617,6 +609,7 @@ public class RTSGameManager {
         if (input.getSetStance() != null) {
             units.values().stream()
                     .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                    .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
                     .forEach(u -> u.setAiStance(input.getSetStance()));
         }
 
@@ -631,6 +624,7 @@ public class RTSGameManager {
                 if (targetUnit != null && targetUnit.isActive()) {
                     units.values().stream()
                             .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                            .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
                             .forEach(unit -> {
                                 if (unit.getUnitType().hasSpecialAbility() &&
                                         unit.getUnitType().getSpecialAbility().isRequiresTarget()) {
@@ -654,6 +648,7 @@ public class RTSGameManager {
                 if (targetBuilding != null && targetBuilding.isActive()) {
                     units.values().stream()
                             .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                            .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
                             .forEach(unit -> {
                                 if (unit.getUnitType().hasSpecialAbility() &&
                                         unit.getUnitType().getSpecialAbility().isRequiresTarget()) {
@@ -673,6 +668,7 @@ public class RTSGameManager {
                 // Non-targeted ability (toggle like deploy)
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                        .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
                         .forEach(unit -> {
                             if (unit.getUnitType().hasSpecialAbility()) {
                                 boolean activated = unit.activateSpecialAbility();
@@ -734,7 +730,7 @@ public class RTSGameManager {
             }
         }
 
-        // Handle sortie orders (bomber aircraft)
+        // Handle sortie orders (aircraft from hangars)
         if (input.getSortieHangarId() != null && input.getSortieTargetLocation() != null) {
             Building hangar = buildings.get(input.getSortieHangarId());
             if (hangar != null && hangar.getBuildingType() == BuildingType.HANGAR &&
@@ -743,21 +739,50 @@ public class RTSGameManager {
                 // Get the hangar component
                 HangarComponent hangarComponent = hangar.getComponent(HangarComponent.class).orElse(null);
                 if (hangarComponent != null && hangarComponent.isReadyForSortie()) {
-                    // Launch bomber from hangar (adds to world)
+                    // Launch aircraft from hangar (adds to world)
                     Unit aircraft = hangarComponent.launchBomber();
                     if (aircraft != null) {
-                        // Issue sortie command
-                        aircraft.issueCommand(new SortieCommand(aircraft, input.getSortieTargetLocation(), hangar.getId(), true), gameEntities);
-
-                        log.info("Player {} launched bomber {} from hangar {} to target ({}, {})",
-                                playerId, aircraft.getId(), hangar.getId(),
-                                input.getSortieTargetLocation().x, input.getSortieTargetLocation().y);
-
-                        sendGameEvent(GameEvent.createPlayerEvent(
-                                "✈️ Bomber launched on sortie",
-                                playerId,
-                                GameEvent.EventCategory.INFO
-                        ));
+                        UnitType aircraftType = aircraft.getUnitType();
+                        
+                        // Issue appropriate command based on aircraft type
+                        if (aircraftType == UnitType.BOMBER) {
+                            // Bomber: Execute bombing run at target location
+                            aircraft.issueCommand(new SortieCommand(aircraft, input.getSortieTargetLocation(), hangar.getId(), true), gameEntities);
+                            log.info("Player {} launched bomber {} from hangar {} to target ({}, {})",
+                                    playerId, aircraft.getId(), hangar.getId(),
+                                    input.getSortieTargetLocation().x, input.getSortieTargetLocation().y);
+                            sendGameEvent(GameEvent.createPlayerEvent(
+                                    "✈️ Bomber launched on sortie",
+                                    playerId,
+                                    GameEvent.EventCategory.INFO
+                            ));
+                        } else if (aircraftType == UnitType.INTERCEPTOR) {
+                            // Interceptor: Deploy to patrol station
+                            // Activate the interceptor component to start fuel tracking
+                            aircraft.getComponent(com.fullsteam.model.component.InterceptorComponent.class)
+                                    .ifPresent(interceptorComp -> interceptorComp.deploy(hangar.getId()));
+                            
+                            aircraft.issueCommand(new OnStationCommand(aircraft, input.getSortieTargetLocation(), true), gameEntities);
+                            log.info("Player {} deployed interceptor {} from hangar {} to patrol station ({}, {})",
+                                    playerId, aircraft.getId(), hangar.getId(),
+                                    input.getSortieTargetLocation().x, input.getSortieTargetLocation().y);
+                            sendGameEvent(GameEvent.createPlayerEvent(
+                                    "🛩️ Interceptor deployed on station",
+                                    playerId,
+                                    GameEvent.EventCategory.INFO
+                            ));
+                        } else {
+                            // Generic fallback for future aircraft types
+                            aircraft.issueCommand(new SortieCommand(aircraft, input.getSortieTargetLocation(), hangar.getId(), true), gameEntities);
+                            log.info("Player {} launched {} {} from hangar {} to target ({}, {})",
+                                    playerId, aircraftType.name(), aircraft.getId(), hangar.getId(),
+                                    input.getSortieTargetLocation().x, input.getSortieTargetLocation().y);
+                            sendGameEvent(GameEvent.createPlayerEvent(
+                                    "✈️ Aircraft launched on sortie",
+                                    playerId,
+                                    GameEvent.EventCategory.INFO
+                            ));
+                        }
                     }
                 } else if (hangarComponent != null && !hangarComponent.isReadyForSortie()) {
                     String reason = hangarComponent.getHousedAircraft() == null ? "Hangar is empty" :
@@ -2123,11 +2148,16 @@ public class RTSGameManager {
                 data.put("hangarCapacity", 1); // Always 1 for now
                 data.put("hangarOnSortie", hangarComp.isOnSortie());
                 
-                // If aircraft is housed, send its health for UI display
-                if (hasAircraft && !hangarComp.isOnSortie()) {
-                    Unit aircraft = hangarComp.getHousedAircraft();
-                    data.put("hangarAircraftHealth", aircraft.getHealth());
-                    data.put("hangarAircraftMaxHealth", aircraft.getMaxHealth());
+                // Include aircraft type name for display
+                if (hasAircraft) {
+                    data.put("hangarAircraftType", hangarComp.getHousedAircraft().getUnitType().name());
+                    data.put("hangarAircraftHealth", hangarComp.getHousedAircraft().getHealth());
+                    data.put("hangarAircraftMaxHealth", hangarComp.getHousedAircraft().getMaxHealth());
+                }
+                
+                // Include producing type if currently producing
+                if (hangarComp.isProducingAircraft() && hangarComp.getProducingType() != null) {
+                    data.put("hangarProducingType", hangarComp.getProducingType().name());
                 }
             });
         }

@@ -50,7 +50,8 @@ public class FactionRegistry {
                         Map.entry(BuildingType.FACTORY, List.of(
                                 UnitType.JEEP,
                                 UnitType.TANK,
-                                UnitType.ARTILLERY
+                                UnitType.ARTILLERY,
+                                UnitType.FLAK_TANK
                         )),
                         Map.entry(BuildingType.WEAPONS_DEPOT, List.of(
                                 UnitType.ROCKET_SOLDIER,
@@ -59,21 +60,21 @@ public class FactionRegistry {
                         )),
                         Map.entry(BuildingType.TURRET, List.of()),
                         Map.entry(BuildingType.ROCKET_TURRET, List.of()),
-                        Map.entry(BuildingType.LASER_TURRET, List.of()),
                         Map.entry(BuildingType.BUNKER, List.of()),
                         Map.entry(BuildingType.SHIELD_GENERATOR, List.of()),
                         Map.entry(BuildingType.TECH_CENTER, List.of()),
                         Map.entry(BuildingType.ADVANCED_FACTORY, List.of(
                                 UnitType.GIGANTONAUT,
                                 UnitType.CLOAK_TANK,
-                                UnitType.MAMMOTH_TANK,
                                 UnitType.CRAWLER
                         )),
                         Map.entry(BuildingType.AIRFIELD, List.of(
-                                UnitType.SCOUT_DRONE
+                                UnitType.SCOUT_DRONE,
+                                UnitType.HELICOPTER
                         )),
                         Map.entry(BuildingType.HANGAR, List.of(
-                                UnitType.BOMBER
+                                UnitType.BOMBER,
+                                UnitType.INTERCEPTOR
                         )),
                         Map.entry(BuildingType.BANK, List.of()),
                         Map.entry(BuildingType.COMMAND_CITADEL, List.of())
@@ -109,7 +110,8 @@ public class FactionRegistry {
                         Map.entry(BuildingType.RESEARCH_LAB, List.of()),
                         Map.entry(BuildingType.FACTORY, List.of(
                                 UnitType.JEEP,
-                                UnitType.TANK
+                                UnitType.TANK,
+                                UnitType.FLAK_TANK
                         )),
                         Map.entry(BuildingType.WEAPONS_DEPOT, List.of(
                                 UnitType.ROCKET_SOLDIER,
@@ -118,7 +120,6 @@ public class FactionRegistry {
                         )),
                         Map.entry(BuildingType.TURRET, List.of()),
                         Map.entry(BuildingType.ROCKET_TURRET, List.of()),
-                        Map.entry(BuildingType.LASER_TURRET, List.of()),
                         Map.entry(BuildingType.BUNKER, List.of()),
                         Map.entry(BuildingType.SHIELD_GENERATOR, List.of()),
                         Map.entry(BuildingType.TECH_CENTER, List.of()),
@@ -174,7 +175,8 @@ public class FactionRegistry {
                         Map.entry(BuildingType.RESEARCH_LAB, List.of()),
                         Map.entry(BuildingType.FACTORY, List.of(
                                 UnitType.TANK,
-                                UnitType.ARTILLERY
+                                UnitType.ARTILLERY,
+                                UnitType.FLAK_TANK
                         )),
                         Map.entry(BuildingType.WEAPONS_DEPOT, List.of(
                                 UnitType.ROCKET_SOLDIER,
@@ -182,7 +184,6 @@ public class FactionRegistry {
                                 UnitType.ENGINEER
                         )),
                         Map.entry(BuildingType.TURRET, List.of()),
-                        Map.entry(BuildingType.ROCKET_TURRET, List.of()),
                         Map.entry(BuildingType.LASER_TURRET, List.of()),
                         Map.entry(BuildingType.BUNKER, List.of()),
                         Map.entry(BuildingType.SHIELD_GENERATOR, List.of()),
@@ -190,14 +191,15 @@ public class FactionRegistry {
                         Map.entry(BuildingType.ADVANCED_FACTORY, List.of(
                                 UnitType.GIGANTONAUT,
                                 UnitType.CLOAK_TANK,
-                                UnitType.MAMMOTH_TANK,
                                 UnitType.COLOSSUS
                         )),
                         Map.entry(BuildingType.AIRFIELD, List.of(
-                                UnitType.SCOUT_DRONE
+                                UnitType.SCOUT_DRONE,
+                                UnitType.HELICOPTER
                         )),
                         Map.entry(BuildingType.HANGAR, List.of(
-                                UnitType.BOMBER
+                                UnitType.BOMBER,
+                                UnitType.INTERCEPTOR
                         )),
                         Map.entry(BuildingType.BANK, List.of()),
                         Map.entry(BuildingType.ANDROID_FACTORY, List.of(UnitType.ANDROID))
@@ -236,7 +238,6 @@ public class FactionRegistry {
                                 UnitType.BEAM_TANK
                         )),
                         Map.entry(BuildingType.TURRET, List.of()),
-                        Map.entry(BuildingType.ROCKET_TURRET, List.of()),
                         Map.entry(BuildingType.LASER_TURRET, List.of()),
                         Map.entry(BuildingType.BUNKER, List.of()),
                         Map.entry(BuildingType.WEAPONS_DEPOT, List.of(
@@ -248,10 +249,12 @@ public class FactionRegistry {
                                 UnitType.PHOTON_TITAN
                         )),
                         Map.entry(BuildingType.AIRFIELD, List.of(
-                                UnitType.SCOUT_DRONE
+                                UnitType.SCOUT_DRONE,
+                                UnitType.HELICOPTER
                         )),
                         Map.entry(BuildingType.HANGAR, List.of(
-                                UnitType.BOMBER
+                                UnitType.BOMBER,
+                                UnitType.INTERCEPTOR
                         )),
                         Map.entry(BuildingType.SHIELD_GENERATOR, List.of()),
                         Map.entry(BuildingType.BANK, List.of()),

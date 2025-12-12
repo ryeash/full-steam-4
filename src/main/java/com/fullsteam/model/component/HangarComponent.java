@@ -36,6 +36,11 @@ public class HangarComponent extends AbstractBuildingComponent {
 
     // Whether the aircraft is currently deployed on a sortie
     private boolean isOnSortie;
+    
+    // SCRAMBLE mode - auto-deploy interceptors when enemy aircraft detected
+    @Setter
+    private boolean scrambleEnabled = false;
+    private static final double SCRAMBLE_DETECTION_RANGE = 600.0; // Range to detect enemy aircraft
 
     // Production state
     private boolean producingAircraft = false;
@@ -148,6 +153,11 @@ public class HangarComponent extends AbstractBuildingComponent {
         if (!hasLowPower && housedAircraft != null && !isOnSortie) {
             double repairRate = 2.0; // 2 HP per second when not on low power
             repairAircraft(repairRate * deltaTime);
+        }
+        
+        // SCRAMBLE: Auto-deploy interceptors when enemy aircraft detected
+        if (scrambleEnabled && isReadyForSortie() && housedAircraft.getUnitType() == UnitType.INTERCEPTOR) {
+            checkAndScramble();
         }
     }
 
@@ -298,6 +308,68 @@ public class HangarComponent extends AbstractBuildingComponent {
     @Override
     public void applyResearchModifiers(ResearchModifier modifier) {
         this.modifier = modifier;
+    }
+    
+    /**
+     * Check for nearby enemy aircraft and scramble interceptor if detected.
+     * Only called when SCRAMBLE is enabled and interceptor is ready.
+     */
+    private void checkAndScramble() {
+        Vector2 hangarPos = building.getPosition();
+        int teamNumber = building.getTeamNumber();
+        
+        // Scan for enemy air units within detection range
+        for (Unit enemyUnit : gameEntities.getUnits().values()) {
+            if (enemyUnit.getTeamNumber() == teamNumber || !enemyUnit.isActive()) {
+                continue;
+            }
+            
+            // Only scramble for airborne threats
+            if (!enemyUnit.getUnitType().getElevation().isAirborne()) {
+                continue;
+            }
+            
+            double distance = hangarPos.distance(enemyUnit.getPosition());
+            if (distance <= SCRAMBLE_DETECTION_RANGE) {
+                log.info("SCRAMBLE! Hangar {} detected enemy {} at range {} - launching interceptor", 
+                        building.getId(), enemyUnit.getUnitType().getDisplayName(), (int)distance);
+                
+                // Launch interceptor to attack the detected aircraft
+                launchInterceptorToAttack(enemyUnit);
+                break; // Only launch once per detection
+            }
+        }
+    }
+    
+    /**
+     * Launch the housed interceptor to attack a specific target.
+     */
+    private void launchInterceptorToAttack(Unit target) {
+        if (housedAircraft == null || isOnSortie) {
+            return;
+        }
+        
+        // Add aircraft to world
+        housedAircraft.setGarrisoned(false);
+        housedAircraft.getBody().setEnabled(true);
+        housedAircraft.getBody().translate(building.getPosition().x, building.getPosition().y);
+        gameEntities.getUnits().put(housedAircraft.getId(), housedAircraft);
+        gameEntities.getWorld().addBody(housedAircraft.getBody());
+        
+        // Mark as on sortie
+        isOnSortie = true;
+        
+        // Deploy interceptor component
+        housedAircraft.getComponent(com.fullsteam.model.component.InterceptorComponent.class)
+                .ifPresent(comp -> comp.deploy(building.getId()));
+        
+        // Issue attack command
+        housedAircraft.issueCommand(
+                new com.fullsteam.model.command.AttackUnitCommand(housedAircraft, target, false),
+                gameEntities
+        );
+        
+        log.info("Interceptor {} scrambled to engage {}", housedAircraft.getId(), target.getId());
     }
 }
 

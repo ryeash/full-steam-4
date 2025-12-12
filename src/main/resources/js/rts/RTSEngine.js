@@ -894,6 +894,33 @@ class RTSEngine {
             // 3. SHADOW STAYS CONSTANT (bomber flies at constant altitude)
             // No animation needed for bomber shadow
             
+        } else if (container.isHelicopter) {
+            // HELICOPTER: Bobbing motion (like scout drone), spinning main rotor, spinning tail rotor
+            
+            // 1. BOBBING MOTION (helicopter body moves up/down, shadow stays fixed but changes alpha)
+            const bob = Math.sin(time) * 4; // 4 pixel bob (slightly more than scout drone for larger craft)
+            
+            if (container.rotatingContainer) {
+                // Move the helicopter body up and down
+                container.rotatingContainer.y = bob;
+            }
+            
+            if (container.shadowGraphics) {
+                // Shadow stays at fixed position but changes alpha based on altitude
+                const shadowAlpha = 0.35 - (bob * 0.02);
+                container.shadowGraphics.alpha = Math.max(0.15, shadowAlpha);
+            }
+            
+            // 2. SPIN MAIN ROTOR (top rotor blades)
+            if (container.rotorContainer) {
+                container.rotorContainer.rotation += 0.4; // Fast spinning
+            }
+            
+            // 3. SPIN TAIL ROTOR (smaller rotor at rear)
+            if (container.tailRotor) {
+                container.tailRotor.rotation += 0.6; // Even faster than main rotor
+            }
+            
         } else {
             // SCOUT DRONE: Bobbing motion, spinning rotors, pulsing LEDs
             
@@ -959,7 +986,9 @@ class RTSEngine {
             'PHOTON_TITAN': { sides: 8, size: 38, color: 0x00FF00 }, // Bright green (hero unit)
             // Air units
             'SCOUT_DRONE': { sides: 4, size: 12, color: 0x87CEEB, isAir: true }, // Light sky blue
-            'BOMBER': { sides: 3, size: 25, color: 0x404040, isAir: true, isSortie: true } // Dark gray, larger, triangle (delta wing)
+            'HELICOPTER': { sides: 5, size: 22, color: 0x8B4513, isAir: true }, // Brown/tan, larger than scout drone
+            'BOMBER': { sides: 3, size: 25, color: 0x404040, isAir: true, isSortie: true }, // Dark gray, larger, triangle (delta wing)
+            'INTERCEPTOR': { sides: 3, size: 20, color: 0xFF4500, isAir: true, isSortie: true } // Orange-red, sleek fighter
         };
         return unitTypes[unitType] || { sides: 4, size: 15, color: 0xFFFFFF };
     }
@@ -1056,16 +1085,21 @@ class RTSEngine {
     }
     
     /**
-     * Create special graphics for air units (Scout Drone, Bomber, etc.)
+     * Create special graphics for air units (Scout Drone, Bomber, Helicopter, Interceptor)
      * Features: shadow, rotor/engine animation, glow effects, bobbing motion
      */
     createAirUnitGraphics(unitData, typeInfo) {
         // Route to specific air unit renderer
-        if (unitData.type === 'BOMBER') {
-            return this.createBomberGraphics(unitData, typeInfo);
-        } else {
-            // Default: Scout Drone
-            return this.createScoutDroneGraphics(unitData, typeInfo);
+        switch (unitData.type) {
+            case 'BOMBER':
+                return this.createBomberGraphics(unitData, typeInfo);
+            case 'HELICOPTER':
+                return this.createHelicopterGraphics(unitData, typeInfo);
+            case 'INTERCEPTOR':
+                return this.createInterceptorGraphics(unitData, typeInfo);
+            case 'SCOUT_DRONE':
+            default:
+                return this.createScoutDroneGraphics(unitData, typeInfo);
         }
     }
     
@@ -1270,21 +1304,6 @@ class RTSEngine {
         cockpit.fill({ color: 0x87CEEB, alpha: 0.7 }); // Light blue tinted glass
         rotatingContainer.addChild(cockpit);
         
-        // 6. WING LIGHTS (navigation lights, red/green)
-        const redLight = new PIXI.Graphics();
-        redLight.circle(0, 0, 2);
-        redLight.fill({ color: 0xFF0000, alpha: 0.8 });
-        redLight.position.set(typeInfo.size * 0.2, -typeInfo.size * 0.7); // Left wing tip
-        rotatingContainer.addChild(redLight);
-        
-        const greenLight = new PIXI.Graphics();
-        greenLight.circle(0, 0, 2);
-        greenLight.fill({ color: 0x00FF00, alpha: 0.8 });
-        greenLight.position.set(typeInfo.size * 0.2, typeInfo.size * 0.7); // Right wing tip
-        rotatingContainer.addChild(greenLight);
-        
-        container.wingLights = [redLight, greenLight];
-        
         // 7. SUBTLE GLOW for jet engines
         if (PIXI.GlowFilter) {
             const glow = new PIXI.GlowFilter({
@@ -1316,6 +1335,238 @@ class RTSEngine {
         sortiePath.visible = false;
         container.addChild(sortiePath);
         container.sortiePath = sortiePath;
+        
+        // Store animation state
+        container.animationTime = Math.random() * Math.PI * 2;
+        
+        // Store data
+        container.unitData = unitData;
+        container.typeInfo = typeInfo;
+        
+        return container;
+    }
+    
+    /**
+     * Create graphics for Helicopter (LOW altitude attack helicopter)
+     * Features: spinning rotor, bobbing motion, dual rocket pods, landing skids
+     */
+    createHelicopterGraphics(unitData, typeInfo) {
+        const container = new PIXI.Container();
+        container.isAirUnit = true;
+        container.isHelicopter = true;
+        
+        // 1. SHADOW (drawn first, appears below unit)
+        const shadow = new PIXI.Graphics();
+        const shadowOffset = -32; // Negative Y for shadow below unit (lower than scout drone due to larger size)
+        shadow.ellipse(0, shadowOffset, typeInfo.size * 1.0, typeInfo.size * 0.5);
+        shadow.fill({ color: 0x000000, alpha: 0.35 });
+        container.addChild(shadow);
+        container.shadowGraphics = shadow;
+        
+        // 2. ROTATING CONTAINER for main body + rotors
+        const rotatingContainer = new PIXI.Container();
+        container.addChild(rotatingContainer);
+        container.rotatingContainer = rotatingContainer;
+        
+        // 3. MAIN BODY (helicopter fuselage - pentagon shape)
+        const body = new PIXI.Graphics();
+        
+        // Draw helicopter body using physics vertices if available
+        if (unitData.vertices && unitData.vertices.length > 0) {
+            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
+            
+            if (isMultiFixture) {
+                for (const fixtureVertices of unitData.vertices) {
+                    if (fixtureVertices.length > 0) {
+                        this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
+                    }
+                }
+            } else {
+                this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
+            }
+        } else {
+            // Fallback: pentagon (helicopter shape)
+            this.drawPolygon(body, 5, typeInfo.size, typeInfo.color, unitData.team);
+        }
+        
+        body.alpha = 0.95; // Slightly transparent
+        rotatingContainer.addChild(body);
+        
+        // 4. MAIN ROTOR (top rotor blades)
+        const rotorContainer = new PIXI.Container();
+        rotorContainer.position.set(0, -typeInfo.size * 0.1); // Slightly above center
+        
+        // Two rotor blades crossing
+        const rotor1 = new PIXI.Graphics();
+        rotor1.rect(-typeInfo.size * 1.2, -2, typeInfo.size * 2.4, 4);
+        rotor1.fill({ color: 0x808080, alpha: 0.4 }); // Semi-transparent gray
+        rotorContainer.addChild(rotor1);
+        
+        const rotor2 = new PIXI.Graphics();
+        rotor2.rect(-2, -typeInfo.size * 1.2, 4, typeInfo.size * 2.4);
+        rotor2.fill({ color: 0x808080, alpha: 0.4 });
+        rotorContainer.addChild(rotor2);
+        
+        rotatingContainer.addChild(rotorContainer);
+        container.rotorContainer = rotorContainer;
+        
+        // 5. TAIL ROTOR (small rotor at rear)
+        const tailRotor = new PIXI.Graphics();
+        tailRotor.rect(-6, -1, 12, 2);
+        tailRotor.fill({ color: 0x808080, alpha: 0.3 });
+        tailRotor.position.set(-typeInfo.size * 0.8, 0); // At tail
+        rotatingContainer.addChild(tailRotor);
+        container.tailRotor = tailRotor;
+        
+        // 6. COCKPIT (small lighter section at front)
+        const cockpit = new PIXI.Graphics();
+        cockpit.circle(typeInfo.size * 0.3, 0, typeInfo.size * 0.2);
+        cockpit.fill({ color: 0x87CEEB, alpha: 0.6 }); // Light blue tinted glass
+        rotatingContainer.addChild(cockpit);
+
+        // 8. LANDING SKIDS
+        const leftSkid = new PIXI.Graphics();
+        leftSkid.rect(-typeInfo.size * 0.6, -2, typeInfo.size * 1.2, 3);
+        leftSkid.fill({ color: 0x696969, alpha: 0.8 }); // Dark gray
+        leftSkid.position.set(0, -typeInfo.size * 0.4); // Below left
+        rotatingContainer.addChild(leftSkid);
+        
+        const rightSkid = new PIXI.Graphics();
+        rightSkid.rect(-typeInfo.size * 0.6, -2, typeInfo.size * 1.2, 3);
+        rightSkid.fill({ color: 0x696969, alpha: 0.8 });
+        rightSkid.position.set(0, typeInfo.size * 0.4); // Below right
+        rotatingContainer.addChild(rightSkid);
+
+        // 10. HEALTH BAR
+        const healthBar = new PIXI.Graphics();
+        healthBar.rect(-typeInfo.size * 0.6, -typeInfo.size - 8, typeInfo.size * 1.2, 4);
+        healthBar.fill({ color: 0x00FF00 });
+        container.addChild(healthBar);
+        container.healthBar = healthBar;
+        
+        // 11. SELECTION CIRCLE
+        const selectionCircle = new PIXI.Graphics();
+        selectionCircle.visible = false;
+        selectionCircle.circle(0, 0, typeInfo.size * 1.2);
+        selectionCircle.stroke({ width: 2, color: 0x00FF00 });
+        container.addChild(selectionCircle);
+        container.selectionCircle = selectionCircle;
+        
+        // Store animation state
+        container.animationTime = Math.random() * Math.PI * 2;
+        container.rotorAngle = 0;
+        
+        // Store data
+        container.unitData = unitData;
+        container.typeInfo = typeInfo;
+        
+        return container;
+    }
+    
+    /**
+     * Create graphics for Interceptor (HIGH altitude fighter jet)
+     * Features: delta wing design, afterburner, sleek profile
+     */
+    createInterceptorGraphics(unitData, typeInfo) {
+        const container = new PIXI.Container();
+        container.isAirUnit = true;
+        container.isInterceptor = true;
+        
+        // 1. SHADOW (largest offset for highest altitude)
+        const shadow = new PIXI.Graphics();
+        const shadowOffset = -40; // Highest altitude = largest offset
+        shadow.ellipse(0, shadowOffset, typeInfo.size * 1.3, typeInfo.size * 0.5);
+        shadow.fill({ color: 0x000000, alpha: 0.45 });
+        // Add blur for high altitude effect
+        if (PIXI.BlurFilter) {
+            shadow.filters = [new PIXI.BlurFilter({ strength: 3 })];
+        }
+        container.addChild(shadow);
+        container.shadowGraphics = shadow;
+        
+        // 2. ROTATING CONTAINER for aircraft body
+        const rotatingContainer = new PIXI.Container();
+        container.addChild(rotatingContainer);
+        container.rotatingContainer = rotatingContainer;
+        
+        // 3. MAIN BODY (sleek delta wing fighter - triangle)
+        const body = new PIXI.Graphics();
+        
+        // Draw delta wing shape using physics vertices if available
+        if (unitData.vertices && unitData.vertices.length > 0) {
+            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
+            
+            if (isMultiFixture) {
+                for (const fixtureVertices of unitData.vertices) {
+                    if (fixtureVertices.length > 0) {
+                        this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
+                    }
+                }
+            } else {
+                this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
+            }
+        } else {
+            // Fallback: triangle (delta wing)
+            this.drawPolygon(body, 3, typeInfo.size, typeInfo.color, unitData.team);
+        }
+        
+        body.alpha = 1.0; // Solid metal
+        rotatingContainer.addChild(body);
+        
+        // 4. AFTERBURNER (bright engine exhaust at rear)
+        const afterburnerContainer = new PIXI.Container();
+        afterburnerContainer.position.set(-typeInfo.size * 0.75, 0); // Rear of aircraft
+        
+        // Single powerful engine exhaust
+        const afterburner = new PIXI.Graphics();
+        afterburner.circle(0, 0, 4);
+        afterburner.fill({ color: 0xFF4500, alpha: 0.9 }); // Bright orange-red
+        afterburnerContainer.addChild(afterburner);
+        
+        // Add intense glow for afterburner
+        if (PIXI.GlowFilter) {
+            const glow = new PIXI.GlowFilter({
+                distance: 12,
+                outerStrength: 2.0,
+                color: 0xFF4500,
+                quality: 0.4
+            });
+            afterburnerContainer.filters = [glow];
+        }
+        
+        rotatingContainer.addChild(afterburnerContainer);
+        container.afterburner = afterburner;
+        
+        // 5. COCKPIT (small canopy at front)
+        const cockpit = new PIXI.Graphics();
+        cockpit.moveTo(typeInfo.size * 0.7, 0);
+        cockpit.lineTo(typeInfo.size * 0.5, -typeInfo.size * 0.08);
+        cockpit.lineTo(typeInfo.size * 0.5, typeInfo.size * 0.08);
+        cockpit.closePath();
+        cockpit.fill({ color: 0x87CEEB, alpha: 0.8 }); // Light blue tinted
+        rotatingContainer.addChild(cockpit);
+
+        // 8. HEALTH BAR
+        const healthBar = new PIXI.Graphics();
+        healthBar.rect(-typeInfo.size * 0.6, -typeInfo.size - 8, typeInfo.size * 1.2, 4);
+        healthBar.fill({ color: 0x00FF00 });
+        container.addChild(healthBar);
+        container.healthBar = healthBar;
+        
+        // 9. FUEL/AMMO INDICATOR (for interceptors)
+        const statusBar = new PIXI.Graphics();
+        statusBar.rect(-typeInfo.size * 0.6, -typeInfo.size - 14, typeInfo.size * 1.2, 3);
+        statusBar.fill({ color: 0x00BFFF }); // Blue for fuel
+        container.addChild(statusBar);
+        container.statusBar = statusBar;
+        
+        // 10. SELECTION CIRCLE
+        const selectionCircle = new PIXI.Graphics();
+        selectionCircle.visible = false;
+        selectionCircle.circle(0, 0, typeInfo.size * 1.4);
+        selectionCircle.stroke({ width: 2, color: 0x00FF00 });
+        container.addChild(selectionCircle);
+        container.selectionCircle = selectionCircle;
         
         // Store animation state
         container.animationTime = Math.random() * Math.PI * 2;
@@ -2083,6 +2334,37 @@ class RTSEngine {
                 container.addChild(smokeTrail);
                 container.addChild(shape);
                 container.smokeTrail = smokeTrail;
+                break;
+                
+            case 'FLAK':
+                // Flak Shell: Angular shell with red/orange tracer
+                // Main body (darker gray, angular)
+                shape.rect(-size * 1.2, -size * 0.9, size * 2, size * 1.8);
+                shape.fill(0x505050);
+                
+                // Nose cone (pointed tip)
+                shape.moveTo(size * 0.8, 0);
+                shape.lineTo(size * 0.2, -size * 0.9);
+                shape.lineTo(size * 0.2, size * 0.9);
+                shape.closePath();
+                shape.fill(0x606060);
+                
+                // Tracer glow (orange-red)
+                shape.circle(0, 0, size * 1.3);
+                shape.fill({ color: 0xFF4500, alpha: 0.4 });
+                
+                // Smoke trail (darker than regular shells)
+                const flakSmoke = new PIXI.Graphics();
+                for (let i = 0; i < 5; i++) {
+                    const offset = -size * 1.5 - (i * size * 1.1);
+                    const smokeSize = size * (0.5 + i * 0.15);
+                    const alpha = 0.35 - (i * 0.07);
+                    flakSmoke.circle(offset, 0, smokeSize);
+                    flakSmoke.fill({ color: 0x404040, alpha: alpha });
+                }
+                container.addChild(flakSmoke);
+                container.addChild(shape);
+                container.smokeTrail = flakSmoke;
                 break;
                 
             case 'BULLET':
@@ -4520,10 +4802,12 @@ class RTSEngine {
                 { type: 'MAMMOTH_TANK', name: '🦣 Mammoth Tank', cost: 1200 }
             ],
             'AIRFIELD': [
-                { type: 'SCOUT_DRONE', name: '🚁 Scout Drone', cost: 300, upkeep: 2 }
+                { type: 'SCOUT_DRONE', name: '🚁 Scout Drone', cost: 300, upkeep: 2 },
+                { type: 'HELICOPTER', name: '🚁 Helicopter', cost: 350, upkeep: 25 }
             ],
             'HANGAR': [
-                { type: 'BOMBER', name: '✈️ Bomber', cost: 600, upkeep: 4 }
+                { type: 'BOMBER', name: '✈️ Bomber', cost: 600, upkeep: 4 },
+                { type: 'INTERCEPTOR', name: '🛩️ Interceptor', cost: 600, upkeep: 40 }
             ]
         };
         
@@ -4562,7 +4846,9 @@ class RTSEngine {
             'PULSE_ARTILLERY': '🌟 Pulse Artillery',
             // Air units
             'SCOUT_DRONE': '🚁 Scout Drone',
-            'BOMBER': '✈️ Bomber'
+            'HELICOPTER': '🚁 Helicopter',
+            'BOMBER': '✈️ Bomber',
+            'INTERCEPTOR': '🛩️ Interceptor'
         };
         return names[unitType] || unitType;
     }
@@ -4754,19 +5040,86 @@ class RTSEngine {
             graphics.fill({ color: 0x8B4513, alpha: baseAlpha * 0.4 });
             graphics.circle(0, 0, eyeRadius);
             graphics.stroke({ width: 1, color: 0xD2691E, alpha: baseAlpha * 0.6 });
+        } else if (effectData.type === 'FLAK_EXPLOSION') {
+            // Flak explosion - angular burst pattern with shrapnel (anti-air)
+            const alpha = 1.0 - effectData.progress;
+            const time = Date.now() / 1000;
+            
+            // Main burst (gray-black smoke cloud)
+            graphics.circle(0, 0, effectData.radius);
+            graphics.fill({ color: 0x404040, alpha: alpha * 0.5 });
+            
+            // Inner blast (orange-red)
+            const innerRadius = effectData.radius * (0.6 + effectData.progress * 0.4);
+            graphics.circle(0, 0, innerRadius);
+            graphics.fill({ color: 0xFF4500, alpha: alpha * 0.7 });
+            
+            // Bright flash at center (white-yellow)
+            if (effectData.progress < 0.3) {
+                const flashAlpha = (1.0 - effectData.progress / 0.3) * alpha;
+                graphics.circle(0, 0, effectData.radius * 0.4);
+                graphics.fill({ color: 0xFFFF88, alpha: flashAlpha });
+            }
+            
+            // Shrapnel burst pattern (angular, directional)
+            const numShards = 12;
+            const shardAlpha = alpha * 0.8;
+            
+            for (let i = 0; i < numShards; i++) {
+                const angle = (i / numShards) * Math.PI * 2 + time * 0.5;
+                const shardLength = effectData.radius * (0.7 + effectData.progress * 0.5);
+                const shardWidth = 2;
+                
+                // Start point (near center)
+                const startDist = effectData.radius * 0.2;
+                const startX = Math.cos(angle) * startDist;
+                const startY = Math.sin(angle) * startDist;
+                
+                // End point (expanding outward)
+                const endX = Math.cos(angle) * shardLength;
+                const endY = Math.sin(angle) * shardLength;
+                
+                // Draw angular shard line
+                graphics.moveTo(startX, startY);
+                graphics.lineTo(endX, endY);
+                graphics.stroke({ width: shardWidth, color: 0xFFAA00, alpha: shardAlpha });
+                
+                // Add spark at tip
+                if (effectData.progress < 0.5) {
+                    graphics.circle(endX, endY, 2);
+                    graphics.fill({ color: 0xFFFFFF, alpha: shardAlpha * 0.7 });
+                }
+            }
+            
+            // Secondary smoke rings (darker gray expanding outward)
+            const numRings = 3;
+            for (let i = 0; i < numRings; i++) {
+                const ringProgress = (effectData.progress * 1.5 - i * 0.2);
+                if (ringProgress > 0 && ringProgress < 1) {
+                    const ringRadius = effectData.radius * (0.5 + ringProgress * 0.7);
+                    const ringAlpha = alpha * (1.0 - ringProgress) * 0.4;
+                    graphics.circle(0, 0, ringRadius);
+                    graphics.stroke({ width: 3, color: 0x303030, alpha: ringAlpha });
+                }
+            }
         }
     }
     
     /**
      * Enter sortie targeting mode for a hangar
      * @param {number} hangarId - ID of the hangar issuing the sortie
+     * @param {string} aircraftType - Type of aircraft (BOMBER or INTERCEPTOR)
      */
-    enterSortieTargetingMode(hangarId) {
+    enterSortieTargetingMode(hangarId, aircraftType) {
         this.sortieTargetingMode = true;
         this.sortieHangarId = hangarId;
+        this.sortieAircraftType = aircraftType; // Store for different targeting messages
         
-        // Visual feedback
-        this.showGameEvent('Click target location for bombing run', 'info');
+        // Visual feedback based on aircraft type
+        const message = aircraftType === 'INTERCEPTOR' 
+            ? 'Click location for interceptor patrol station'
+            : 'Click target location for bombing run';
+        this.showGameEvent(message, 'info');
         
         // Change cursor (could be enhanced with custom cursor)
         document.body.style.cursor = 'crosshair';
@@ -4882,7 +5235,15 @@ class RTSEngine {
         const aircraftStatus = document.createElement('div');
         aircraftStatus.className = 'unit-stat';
         const hasAircraft = buildingData.hangarOccupied > 0;
-        const aircraftText = hasAircraft ? 'Bomber' : 'Empty';
+        
+        // Get aircraft type name (from backend) or default to 'Empty'
+        let aircraftText = 'Empty';
+        if (hasAircraft && buildingData.hangarAircraftType) {
+            aircraftText = this.getUnitDisplayName(buildingData.hangarAircraftType);
+        } else if (hasAircraft) {
+            aircraftText = 'Aircraft'; // Fallback if type not provided
+        }
+        
         aircraftStatus.innerHTML = `<span>Housed Unit:</span><span>${aircraftText}</span>`;
         hangarStatusDiv.appendChild(aircraftStatus);
         
@@ -4908,12 +5269,17 @@ class RTSEngine {
             if (!onSortie) {
                 const sortieButton = document.createElement('button');
                 sortieButton.className = 'build-button';
-                sortieButton.textContent = '📍 LAUNCH SORTIE';
+                
+                // Different button text based on aircraft type
+                const aircraftType = buildingData.hangarAircraftType || 'BOMBER';
+                const buttonText = aircraftType === 'INTERCEPTOR' ? '🛩️ DEPLOY ON STATION' : '📍 LAUNCH SORTIE';
+                
+                sortieButton.textContent = buttonText;
                 sortieButton.style.marginTop = '10px';
                 sortieButton.style.width = '100%';
                 sortieButton.style.background = '#FF6600';
                 sortieButton.style.border = '2px solid #FF8833';
-                sortieButton.onclick = () => this.enterSortieTargetingMode(buildingData.id);
+                sortieButton.onclick = () => this.enterSortieTargetingMode(buildingData.id, aircraftType);
                 hangarStatusDiv.appendChild(sortieButton);
             }
         } else if (buildingData.hangarProducing) {
@@ -4921,7 +5287,14 @@ class RTSEngine {
             const productionStatus = document.createElement('div');
             productionStatus.className = 'unit-stat';
             const progress = Math.floor((buildingData.hangarProductionPercent || 0) * 100);
-            productionStatus.innerHTML = `<span>Production:</span><span>${progress}%</span>`;
+            
+            // Show what type is being produced
+            let producingText = 'Aircraft';
+            if (buildingData.hangarProducingType) {
+                producingText = this.getUnitDisplayName(buildingData.hangarProducingType);
+            }
+            
+            productionStatus.innerHTML = `<span>Producing ${producingText}:</span><span>${progress}%</span>`;
             hangarStatusDiv.appendChild(productionStatus);
         }
         

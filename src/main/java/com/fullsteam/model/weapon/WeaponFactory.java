@@ -21,16 +21,23 @@ public class WeaponFactory {
      * This defines the strategic rock-paper-scissors of the elevation system:
      * - Most ground units can only hit GROUND targets
      * - Rocket soldiers/turrets can hit GROUND + LOW (basic anti-air)
-     * - Specialized AA weapons (future) can hit ALL elevations
-     * - Air units can only hit GROUND targets (no air-to-air combat for now)
+     * - Flak Tank can hit LOW + HIGH (specialized anti-air, no ground targets)
+     * - Interceptor can hit ALL elevations (air-to-air combat specialist)
+     * - Other air units can only hit GROUND targets
      */
     private static ElevationTargeting getElevationTargetingForUnit(UnitType unitType) {
         return switch (unitType) {
-            // Rocket weapons can hit low-altitude aircraft (VTOLs like Scout Drone)
+            // Rocket weapons can hit low-altitude aircraft (VTOLs like Scout Drone, Helicopter)
             case ROCKET_SOLDIER -> ElevationTargeting.GROUND_AND_LOW;
-            
+
+            // Flak Tank can ONLY hit aircraft (LOW + HIGH elevations, NOT ground)
+            case FLAK_TANK -> ElevationTargeting.LOW_AND_HIGH;
+
+            // Interceptor can hit all elevations (air-to-air specialist)
+            case INTERCEPTOR -> ElevationTargeting.ALL_ELEVATIONS;
+
             // All other units can only hit ground targets
-            // This includes air units themselves (no air-to-air combat)
+            // This includes most air units (Scout Drone, Helicopter, Bomber - no air-to-air)
             default -> ElevationTargeting.GROUND_ONLY;
         };
     }
@@ -106,22 +113,22 @@ public class WeaponFactory {
                     elevationTargeting
             );
 
+            case FLAK_TANK -> new ProjectileWeapon(
+                    damage, range, attackRate,
+                    550,  // projectile speed (faster than tank shells)
+                    0.08, // linear damping (moderate air resistance)
+                    3.5,  // size (medium flak shells)
+                    Ordinance.FLAK,
+                    Set.of(BulletEffect.FLAK), // Creates FLAK_EXPLOSION field effects
+                    elevationTargeting
+            );
+
             case CLOAK_TANK -> new ProjectileWeapon(
                     damage, range, attackRate,
                     500,  // projectile speed
                     0.05, // linear damping
                     4.0,  // size
                     Ordinance.GRENADE,
-                    Set.of(BulletEffect.EXPLOSIVE),
-                    elevationTargeting
-            );
-
-            case MAMMOTH_TANK -> new ProjectileWeapon(
-                    damage, range, attackRate,
-                    400,  // projectile speed
-                    0.03, // linear damping (heavy!)
-                    6.0,  // size (BIG shells!)
-                    Ordinance.SHELL,
                     Set.of(BulletEffect.EXPLOSIVE),
                     elevationTargeting
             );
@@ -261,6 +268,34 @@ public class WeaponFactory {
                     Set.of(),
                     elevationTargeting
             );
+
+            // ===== AIR UNITS =====
+
+            case HELICOPTER -> new MultiProjectileWeapon(
+                    damage, range, attackRate,
+                    600,  // projectile speed (fast rockets)
+                    0.15, // linear damping
+                    3.5,  // size (medium rockets)
+                    Ordinance.ROCKET,
+                    Set.of(BulletEffect.EXPLOSIVE),
+                    2,    // projectile count (dual rockets)
+                    8.0,  // spread distance (mounted on sides of helicopter)
+                    elevationTargeting
+            );
+
+            case INTERCEPTOR -> new ProjectileWeapon(
+                    damage, range, attackRate,
+                    800,  // projectile speed (very fast seeking missiles)
+                    0.05, // linear damping (minimal, long range)
+                    3.0,  // size (air-to-air missiles)
+                    Ordinance.ROCKET,
+                    Set.of(BulletEffect.SEEKING, BulletEffect.EXPLOSIVE), // Heat-seeking air-to-air missiles
+                    elevationTargeting
+            );
+
+            // Note: SCOUT_DRONE and BOMBER use default weapons (defined in default case)
+            // Scout Drone: Light machine guns (default bullets)
+            // Bomber: Doesn't use weapon system, creates explosions directly via SortieCommand
 
             // ===== NON-COMBAT UNITS =====
 

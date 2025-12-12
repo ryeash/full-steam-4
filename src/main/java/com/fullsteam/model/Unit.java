@@ -9,6 +9,7 @@ import com.fullsteam.model.component.DeployComponent;
 import com.fullsteam.model.component.HangarComponent;
 import com.fullsteam.model.component.HarvestComponent;
 import com.fullsteam.model.component.HealComponent;
+import com.fullsteam.model.component.InterceptorComponent;
 import com.fullsteam.model.component.IUnitComponent;
 import com.fullsteam.model.component.MineComponent;
 import com.fullsteam.model.component.RepairComponent;
@@ -123,6 +124,11 @@ public class Unit extends GameEntity {
             addComponent(new DeployComponent(), gameEntities);
         } else if (ability == SpecialAbility.CLOAK) {
             addComponent(new CloakComponent(), gameEntities);
+        }
+        
+        // Air unit specific components
+        if (unitType == UnitType.INTERCEPTOR) {
+            addComponent(new InterceptorComponent(this), gameEntities);
         }
 
         log.debug("Unit {} initialized with {} components", id, components.size());
@@ -370,13 +376,28 @@ public class Unit extends GameEntity {
         }
 
         // Separation from nearby units
+        // Air units use gentler separation (can get close but slowly drift apart)
+        // Ground units use stronger separation (avoid collisions more aggressively)
+        boolean isAirborne = unitType.getElevation().isAirborne();
         if (nearbyUnits != null && !nearbyUnits.isEmpty()) {
-            separationForce = calculateSeparation(nearbyUnits, unitType.getSize() * 4.0);
+            if (isAirborne) {
+                // Air units: gentle separation, smaller radius, allows close formation
+                separationForce = calculateSeparation(nearbyUnits, unitType.getSize() * 2.0);
+            } else {
+                // Ground units: stronger separation to avoid collisions
+                separationForce = calculateSeparation(nearbyUnits, unitType.getSize() * 4.0);
+            }
         }
 
         // Apply force to physics body
         body.applyForce(seekForce.multiply(body.getMass().getMass() * 60.0));
-        body.applyForce(separationForce.multiply(body.getMass().getMass() * 80.0));
+        
+        // Air units get much weaker separation force (30 vs 80 for ground)
+        if (isAirborne) {
+            body.applyForce(separationForce.multiply(body.getMass().getMass() * 30.0));
+        } else {
+            body.applyForce(separationForce.multiply(body.getMass().getMass() * 80.0));
+        }
 
         // Clamp velocity to max speed
         Vector2 velocity = body.getLinearVelocity();
@@ -519,7 +540,14 @@ public class Unit extends GameEntity {
         getComponent(CloakComponent.class).ifPresent(CloakComponent::onFire);
 
         // Fire the weapon
-        return weapon.fire(getPosition(), targetPos, getId(), teamNumber, body, gameEntities);
+        List<AbstractOrdinance> ordinances = weapon.fire(getPosition(), targetPos, getId(), teamNumber, body, gameEntities);
+        
+        // Notify interceptor component of weapon fire (consumes ammo)
+        if (!ordinances.isEmpty()) {
+            getComponent(InterceptorComponent.class).ifPresent(InterceptorComponent::onWeaponFired);
+        }
+        
+        return ordinances;
     }
 
     /**
