@@ -6,6 +6,7 @@ import com.fullsteam.model.command.UnitCommand;
 import com.fullsteam.model.component.AndroidComponent;
 import com.fullsteam.model.component.CloakComponent;
 import com.fullsteam.model.component.DeployComponent;
+import com.fullsteam.model.component.GunshipComponent;
 import com.fullsteam.model.component.HangarComponent;
 import com.fullsteam.model.component.HarvestComponent;
 import com.fullsteam.model.component.HealComponent;
@@ -28,7 +29,6 @@ import org.dyn4j.geometry.Polygon;
 import org.dyn4j.geometry.Vector2;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -129,6 +129,10 @@ public class Unit extends GameEntity {
         // Air unit specific components
         if (unitType == UnitType.INTERCEPTOR) {
             addComponent(new InterceptorComponent(this), gameEntities);
+        }
+        
+        if (unitType == UnitType.GUNSHIP) {
+            addComponent(new GunshipComponent(), gameEntities);
         }
 
         log.debug("Unit {} initialized with {} components", id, components.size());
@@ -1146,7 +1150,20 @@ public class Unit extends GameEntity {
      * @return true if this unit's weapon can hit the target's elevation
      */
     public boolean canTargetElevation(Unit target) {
-        if (weapon == null || target == null) {
+        if (target == null) {
+            return false;
+        }
+        
+        // Special case: Gunship uses dual weapons managed by GunshipComponent
+        GunshipComponent gunshipComp = getComponent(GunshipComponent.class).orElse(null);
+        if (gunshipComp != null) {
+            // Gunship can target both ground and air
+            Elevation targetElevation = target.getUnitType().getElevation();
+            return targetElevation == Elevation.GROUND || targetElevation.isAirborne();
+        }
+        
+        // Standard weapon check
+        if (weapon == null) {
             return false;
         }
         return weapon.getElevationTargeting().canTarget(target.getUnitType().getElevation());
@@ -1159,6 +1176,14 @@ public class Unit extends GameEntity {
      * @return true if this unit's weapon can hit GROUND elevation targets (buildings)
      */
     public boolean canTargetBuildings() {
+        // Special case: Gunship uses dual weapons managed by GunshipComponent
+        GunshipComponent gunshipComp = getComponent(GunshipComponent.class).orElse(null);
+        if (gunshipComp != null) {
+            // Gunship can target buildings with its ground weapon
+            return true;
+        }
+        
+        // Standard weapon check
         if (weapon == null) {
             return false;
         }

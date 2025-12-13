@@ -60,7 +60,16 @@ public class AttackBuildingCommand extends UnitCommand {
         Vector2 currentPos = unit.getPosition();
         Vector2 targetPos = target.getPosition();
         double distance = currentPos.distance(targetPos);
-        double effectiveRange = unit.getWeapon().getRange() + target.getBuildingType().getSize();
+        
+        // Get weapon range - handle units with component-managed weapons (e.g., Gunship)
+        double weaponRange;
+        if (unit.getWeapon() != null) {
+            weaponRange = unit.getWeapon().getRange();
+        } else {
+            // Fallback to UnitType range for units with component-managed weapons
+            weaponRange = unit.getUnitType().getAttackRange();
+        }
+        double effectiveRange = weaponRange + target.getBuildingType().getSize();
 
         // Movement is handled by AttackBuildingCommand.updateMovement()
         // This method just does the actual combat

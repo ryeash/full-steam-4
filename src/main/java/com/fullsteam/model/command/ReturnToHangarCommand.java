@@ -4,6 +4,7 @@ import com.fullsteam.model.AbstractOrdinance;
 import com.fullsteam.model.Building;
 import com.fullsteam.model.BuildingType;
 import com.fullsteam.model.Unit;
+import com.fullsteam.model.component.GunshipComponent;
 import com.fullsteam.model.component.HangarComponent;
 import com.fullsteam.model.component.InterceptorComponent;
 import lombok.Getter;
@@ -117,6 +118,12 @@ public class ReturnToHangarCommand extends UnitCommand {
         unit.getComponent(InterceptorComponent.class).ifPresent(comp -> {
             comp.refuelAndRearm();
             log.info("Interceptor {} refueled and rearmed", unit.getId());
+        });
+        
+        // Refuel and rearm if this is a gunship
+        unit.getComponent(GunshipComponent.class).ifPresent(comp -> {
+            comp.refuelAndRearm();
+            log.info("Gunship {} refueled and rearmed", unit.getId());
         });
         
         log.info("Aircraft {} successfully housed in hangar {}", unit.getId(), hangarId);

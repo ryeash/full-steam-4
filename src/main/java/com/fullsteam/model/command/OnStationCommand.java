@@ -105,7 +105,15 @@ public class OnStationCommand extends UnitCommand {
      */
     private Unit scanForEnemyAircraft() {
         Vector2 currentPos = unit.getPosition();
-        double attackRange = unit.getWeapon().getRange();
+        
+        // Get attack range - handle units with special weapon systems (e.g., Gunship)
+        double attackRange;
+        if (unit.getWeapon() != null) {
+            attackRange = unit.getWeapon().getRange();
+        } else {
+            // Fallback to UnitType range for units with component-managed weapons
+            attackRange = unit.getUnitType().getAttackRange();
+        }
 
         // Find all enemy air units within range
         Unit nearestHighAltitude = null;
@@ -124,8 +132,9 @@ public class OnStationCommand extends UnitCommand {
                 continue;
             }
 
-            // Check if we can target this elevation
-            if (!Unit.canWeaponTargetUnit(unit.getWeapon(), other)) {
+            // Additional weapon elevation check (for standard weapons)
+            // Skip this check for units with component-managed weapons (e.g., Gunship)
+            if (unit.getWeapon() != null && !Unit.canWeaponTargetUnit(unit.getWeapon(), other)) {
                 continue;
             }
 

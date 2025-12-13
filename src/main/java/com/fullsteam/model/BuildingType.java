@@ -323,6 +323,20 @@ public enum BuildingType {
             true,    // can produce units (produces one bomber per hangar)
             -20,     // power consumption
             350.0    // vision range (moderate)
+    ),
+    
+    // Monument - Storm Wings faction - weather control tower
+    TEMPEST_SPIRE(
+            "Tempest Spire",
+            700,     // resource cost (expensive monument)
+            70,      // build time (seconds)
+            850,     // max health
+            45.0,    // size (radius)
+            8,       // sides (octagon)
+            0x4682B4, // steel blue (storm theme)
+            false,   // cannot produce units
+            -60,     // power consumption
+            600.0    // vision range (excellent, weather tower)
     );
 
     private final String displayName;
@@ -399,7 +413,7 @@ public enum BuildingType {
             case HEADQUARTERS, REFINERY, BARRACKS, POWER_PLANT, BUNKER, WALL -> 1;
             case FACTORY, RESEARCH_LAB, WEAPONS_DEPOT, TURRET, SHIELD_GENERATOR, ROCKET_TURRET -> 2;
             case TECH_CENTER, ADVANCED_FACTORY, BANK, SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE,
-                 COMMAND_CITADEL, LASER_TURRET, AIRFIELD, HANGAR -> 3;
+                 COMMAND_CITADEL, LASER_TURRET, AIRFIELD, HANGAR, TEMPEST_SPIRE -> 3;
         };
     }
 
@@ -525,6 +539,39 @@ public enum BuildingType {
                 entrance.translate(size * 0.65, 0);
                 
                 yield List.of(body, entrance);
+            }
+            
+            // Tempest Spire - weather control tower with antenna arrays
+            case TEMPEST_SPIRE -> {
+                // Central tower (tall octagon)
+                Convex tower = Geometry.createPolygonalCircle(8, size * 0.6);
+                
+                // Weather sensor array (top)
+                Vector2[] sensor = new Vector2[]{
+                        new Vector2(-size * 0.4, -size * 0.7),
+                        new Vector2(size * 0.4, -size * 0.7),
+                        new Vector2(size * 0.5, -size * 0.5),
+                        new Vector2(-size * 0.5, -size * 0.5)
+                };
+                Convex sensorArray = Geometry.createPolygon(sensor);
+                
+                // Left antenna
+                Vector2[] leftAntenna = new Vector2[]{
+                        new Vector2(-size * 0.7, -size * 0.3),
+                        new Vector2(-size * 0.5, -size * 0.5),
+                        new Vector2(-size * 0.4, -size * 0.2)
+                };
+                Convex antennaL = Geometry.createPolygon(leftAntenna);
+                
+                // Right antenna
+                Vector2[] rightAntenna = new Vector2[]{
+                        new Vector2(size * 0.7, -size * 0.3),
+                        new Vector2(size * 0.4, -size * 0.2),
+                        new Vector2(size * 0.5, -size * 0.5)
+                };
+                Convex antennaR = Geometry.createPolygon(rightAntenna);
+                
+                yield List.of(tower, sensorArray, antennaL, antennaR);
             }
         };
     }

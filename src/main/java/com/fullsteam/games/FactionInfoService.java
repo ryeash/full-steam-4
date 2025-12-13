@@ -220,7 +220,7 @@ public class FactionInfoService {
             case TECH_CENTER, ADVANCED_FACTORY, BANK, LASER_TURRET, AIRFIELD, HANGAR -> List.of("POWER_PLANT", "RESEARCH_LAB");
 
             // Monument Buildings - Requires Power Plant + Research Lab (T3)
-            case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL -> List.of("POWER_PLANT", "RESEARCH_LAB");
+            case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL, TEMPEST_SPIRE -> List.of("POWER_PLANT", "RESEARCH_LAB");
         };
     }
 
@@ -260,6 +260,17 @@ public class FactionInfoService {
                 penalties.add("Buildings consume 20% more power");
                 penalties.add("Cannot build: Standard projectile units");
                 break;
+                
+            case STORM_WINGS:
+                bonuses.add("Air units cost 15-30% less");
+                bonuses.add("Air units are 15-25% faster");
+                bonuses.add("Gunship hero unit with dual weapons (MG + Flak)");
+                bonuses.add("Buildings cost 10% less");
+                bonuses.add("10% lower upkeep limit (can field more units)");
+                penalties.add("Ground units cost 10% more");
+                penalties.add("Cannot build: Advanced Factory (no heavy ground units)");
+                penalties.add("Limited ground forces (basic infantry, scout vehicle only)");
+                break;
         }
     }
 
@@ -272,6 +283,7 @@ public class FactionInfoService {
             case NOMADS -> "🏎️";
             case SYNTHESIS -> "⚡";
             case TECH_ALLIANCE -> "🔬";
+            case STORM_WINGS -> "✈️";
         };
     }
 }

@@ -773,6 +773,21 @@ public class RTSGameManager {
                                     playerId,
                                     GameEvent.EventCategory.INFO
                             ));
+                        } else if (aircraftType == UnitType.GUNSHIP) {
+                            // Gunship: Deploy to patrol station (like Interceptor)
+                            // Activate the gunship component to start fuel tracking
+                            aircraft.getComponent(com.fullsteam.model.component.GunshipComponent.class)
+                                    .ifPresent(gunshipComp -> gunshipComp.deploy(hangar.getId()));
+                            
+                            aircraft.issueCommand(new OnStationCommand(aircraft, input.getSortieTargetLocation(), true), gameEntities);
+                            log.info("Player {} deployed gunship {} from hangar {} to patrol station ({}, {})",
+                                    playerId, aircraft.getId(), hangar.getId(),
+                                    input.getSortieTargetLocation().x, input.getSortieTargetLocation().y);
+                            sendGameEvent(GameEvent.createPlayerEvent(
+                                    "🚁 Gunship deployed on station",
+                                    playerId,
+                                    GameEvent.EventCategory.INFO
+                            ));
                         } else {
                             // Generic fallback for future aircraft types
                             aircraft.issueCommand(new SortieCommand(aircraft, input.getSortieTargetLocation(), hangar.getId(), true), gameEntities);
@@ -1841,7 +1856,7 @@ public class RTSGameManager {
                             playerBuildings.contains(BuildingType.RESEARCH_LAB);
 
             // Monument Buildings - Requires Power Plant + Research Lab (T3)
-            case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL ->
+            case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL, TEMPEST_SPIRE ->
                     playerBuildings.contains(BuildingType.POWER_PLANT) &&
                             playerBuildings.contains(BuildingType.RESEARCH_LAB);
 

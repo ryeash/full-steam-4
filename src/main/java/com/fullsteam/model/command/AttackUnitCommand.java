@@ -56,9 +56,6 @@ public class AttackUnitCommand extends UnitCommand {
         Vector2 targetPos = target.getPosition();
         double distance = currentPos.distance(targetPos);
 
-        // Movement is handled by AttackUnitCommand.updateMovement()
-        // This method just does the actual combat
-
         // Check if in range
         if (distance <= unit.getWeapon().getRange() * 0.9) { // 90% of range to account for movement
             // Stop moving when in range

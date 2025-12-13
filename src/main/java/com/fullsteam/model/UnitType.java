@@ -558,6 +558,27 @@ public enum UnitType {
             40,      // upkeep cost (high)
             500.0,   // vision range (excellent, interceptor)
             Elevation.HIGH // Fixed-wing - high-altitude fighter
+    ),
+    
+    // GUNSHIP - Heavy sortie-based attack aircraft with dual weapons
+    // Storm Wings hero unit - can engage both ground and air targets
+    // Heavy MG for ground targets, flak cannons for air targets
+    GUNSHIP(
+            "Gunship",
+            1100,    // resource cost (expensive heavy aircraft, hero unit)
+            50,      // build time (seconds)
+            380,     // max health (durable for sustained combat)
+            160.0,   // movement speed (slower than interceptor, faster than bomber)
+            40,      // damage (primary weapon - heavy MG)
+            2.0,     // attack rate (decent fire rate)
+            280,     // attack range (good engagement range)
+            20.0,    // size (radius) - medium heavy aircraft
+            6,       // sides (hexagon - gunship)
+            0x8B0000, // dark red (intimidating gunship color)
+            BuildingType.HANGAR, // Produced at Hangar (sortie-based)
+            55,      // upkeep cost (high, hero unit)
+            480.0,   // vision range (excellent, attack helicopter)
+            Elevation.HIGH // Fixed-wing sortie aircraft
     );
 
     private final String displayName;
@@ -917,6 +938,75 @@ public enum UnitType {
                 Convex fin = Geometry.createPolygon(tailFin);
 
                 yield List.of(body, wingLeft, wingRight, fin);
+            }
+            
+            // Gunship - Heavy attack aircraft with weapon pods
+            case GUNSHIP -> {
+                // Main fuselage (heavy gunship body) - hexagon, counter-clockwise
+                Vector2[] fuselage = new Vector2[]{
+                        new Vector2(size * 0.85, 0),                   // 1. Nose (rightmost)
+                        new Vector2(size * 0.5, size * 0.5),           // 2. Top-front
+                        new Vector2(-size * 0.6, size * 0.5),          // 3. Top-rear
+                        new Vector2(-size * 0.95, 0),                  // 4. Tail (leftmost)
+                        new Vector2(-size * 0.6, -size * 0.5),         // 5. Bottom-rear
+                        new Vector2(size * 0.5, -size * 0.5)           // 6. Bottom-front
+                };
+                Convex body = Geometry.createPolygon(fuselage);
+                
+                // Left weapon pod (top side) - quad, counter-clockwise
+                // Visualize: This is ABOVE the fuselage (positive Y)
+                // Start from bottom-left (closest to fuselage), go counter-clockwise
+                Vector2[] leftPod = new Vector2[]{
+                        new Vector2(size * 0.35, size * 0.4),          // 1. Inner-front (bottom-left)
+                        new Vector2(size * 0.75, size * 0.5),          // 2. Outer-front (bottom-right)
+                        new Vector2(size * 0.7, size * 0.65),          // 3. Outer-rear (top-right)
+                        new Vector2(size * 0.3, size * 0.55)           // 4. Inner-rear (top-left)
+                };
+                Convex podLeft = Geometry.createPolygon(leftPod);
+                
+                // Right weapon pod (bottom side) - quad, counter-clockwise
+                // Visualize: This is BELOW the fuselage (negative Y)
+                // Start from top-left (closest to fuselage), go counter-clockwise
+                Vector2[] rightPod = new Vector2[]{
+                        new Vector2(size * 0.3, -size * 0.55),         // 1. Inner-rear (top-left)
+                        new Vector2(size * 0.7, -size * 0.65),         // 2. Outer-rear (top-right)
+                        new Vector2(size * 0.75, -size * 0.5),         // 3. Outer-front (bottom-right)
+                        new Vector2(size * 0.35, -size * 0.4)          // 4. Inner-front (bottom-left)
+                };
+                Convex podRight = Geometry.createPolygon(rightPod);
+                
+                // Tail stabilizer - triangle, counter-clockwise
+                // Start from rightmost point, go counter-clockwise (up then down)
+                Vector2[] tail = new Vector2[]{
+                        new Vector2(-size * 0.85, 0),                  // 1. Front point (rightmost)
+                        new Vector2(-size * 1.05, size * 0.2),         // 2. Top point
+                        new Vector2(-size * 1.05, -size * 0.2)         // 3. Bottom point
+                };
+                Convex stabilizer = Geometry.createPolygon(tail);
+                
+                // Left stub wing (top side) - quad, counter-clockwise
+                // Visualize: This is ABOVE the fuselage, further out than weapon pod
+                // Start from bottom-left (closest to fuselage), go counter-clockwise
+                Vector2[] leftWing = new Vector2[]{
+                        new Vector2(-size * 0.1, size * 0.5),          // 1. Inner-front (bottom-left)
+                        new Vector2(size * 0.2, size * 0.65),          // 2. Outer-front (bottom-right)
+                        new Vector2(size * 0.1, size * 0.8),           // 3. Outer-rear (top-right)
+                        new Vector2(-size * 0.2, size * 0.55)          // 4. Inner-rear (top-left)
+                };
+                Convex wingLeft = Geometry.createPolygon(leftWing);
+                
+                // Right stub wing (bottom side) - quad, counter-clockwise
+                // Visualize: This is BELOW the fuselage, further out than weapon pod
+                // Start from top-left (closest to fuselage), go counter-clockwise
+                Vector2[] rightWing = new Vector2[]{
+                        new Vector2(-size * 0.2, -size * 0.55),        // 1. Inner-rear (top-left)
+                        new Vector2(size * 0.1, -size * 0.8),          // 2. Outer-rear (top-right)
+                        new Vector2(size * 0.2, -size * 0.65),         // 3. Outer-front (bottom-right)
+                        new Vector2(-size * 0.1, -size * 0.5)          // 4. Inner-front (bottom-left)
+                };
+                Convex wingRight = Geometry.createPolygon(rightWing);
+                
+                yield List.of(body, podLeft, podRight, stabilizer, wingLeft, wingRight);
             }
 
             // Jeep - fast light vehicle with angular chassis and armor plating
@@ -1769,14 +1859,14 @@ public enum UnitType {
      * Check if this is an air unit (can fly over obstacles, different rendering)
      */
     public boolean isAirUnit() {
-        return this == SCOUT_DRONE || this == HELICOPTER || this == BOMBER || this == INTERCEPTOR;
+        return this == SCOUT_DRONE || this == HELICOPTER || this == BOMBER || this == INTERCEPTOR || this == GUNSHIP;
     }
 
     /**
      * Check if this is a sortie-based unit (not player-controllable, executes missions and returns to base)
      */
     public boolean isSortieBased() {
-        return this == BOMBER || this == INTERCEPTOR;
+        return this == BOMBER || this == INTERCEPTOR || this == GUNSHIP;
     }
 }
 

@@ -296,10 +296,11 @@ public class WeaponFactory {
             // Note: SCOUT_DRONE and BOMBER use default weapons (defined in default case)
             // Scout Drone: Light machine guns (default bullets)
             // Bomber: Doesn't use weapon system, creates explosions directly via SortieCommand
+            // Gunship: Uses dual weapons managed by GunshipComponent (not standard weapon system)
 
             // ===== NON-COMBAT UNITS =====
 
-            case MEDIC, ENGINEER, MINER -> null; // These units don't have weapons
+            case MEDIC, ENGINEER, MINER, GUNSHIP -> null; // These units don't have weapons (or manage their own)
 
             default -> new ProjectileWeapon(
                     damage, range, attackRate,

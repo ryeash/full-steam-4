@@ -50,6 +50,18 @@ public enum Faction {
             "Cutting-edge technology faction specializing in beam weapons and energy systems. " +
             "All units use instant-hit beam weapons with high precision and no projectile travel time.",
             0x00FF00  // Bright green (energy theme)
+    ),
+    
+    /**
+     * STORM_WINGS - Air superiority faction specializing in aerial dominance.
+     * Theme: Limited ground forces, powerful and cost-effective air units.
+     */
+    STORM_WINGS(
+            "Storm Wings",
+            "Elite air force faction with aerial superiority. " +
+            "Air units are cheaper and more powerful, but ground forces are limited. " +
+            "Relies on air dominance to control the battlefield.",
+            0x4682B4  // Steel blue (sky theme)
     );
     
     private final String displayName;
