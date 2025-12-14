@@ -4,11 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.games.GameConstants;
 import com.fullsteam.games.IdGenerator;
-import com.fullsteam.model.command.AttackBuildingCommand;
 import com.fullsteam.model.command.AttackGroundCommand;
 import com.fullsteam.model.command.AttackMoveCommand;
-import com.fullsteam.model.command.AttackUnitCommand;
-import com.fullsteam.model.command.AttackWallSegmentCommand;
+import com.fullsteam.model.command.AttackTargetableCommand;
 import com.fullsteam.model.command.ConstructCommand;
 import com.fullsteam.model.command.GarrisonBunkerCommand;
 import com.fullsteam.model.command.HarvestCommand;
@@ -523,7 +521,7 @@ public class RTSGameManager {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected())
                         .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
-                        .forEach(u -> u.issueCommand(new AttackUnitCommand(u, target, true), gameEntities));
+                        .forEach(u -> u.issueCommand(new AttackTargetableCommand(u, target, true), gameEntities));
             }
         }
 
@@ -534,7 +532,7 @@ public class RTSGameManager {
                         .filter(u -> u.belongsTo(playerId) && u.isSelected())
                         .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
                         .filter(u -> u.canTargetBuildings()) // Check if weapon can hit GROUND elevation (buildings)
-                        .forEach(u -> u.issueCommand(new AttackBuildingCommand(u, target, true), gameEntities));
+                        .forEach(u -> u.issueCommand(new AttackTargetableCommand(u, target, true), gameEntities));
             }
         }
 
@@ -545,7 +543,7 @@ public class RTSGameManager {
                         .filter(u -> u.belongsTo(playerId) && u.isSelected())
                         .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
                         .filter(u -> u.canTargetBuildings()) // Wall segments are GROUND elevation like buildings
-                        .forEach(u -> u.issueCommand(new AttackWallSegmentCommand(u, target, true), gameEntities));
+                        .forEach(u -> u.issueCommand(new AttackTargetableCommand(u, target, true), gameEntities));
             }
         }
 
@@ -1647,6 +1645,44 @@ public class RTSGameManager {
                                         .ifPresent(a -> a.unregisterAndroid(unit.getId()));
                             }
                         });
+                
+                // Unregister sortie aircraft from its hangar (if it's a sortie-based unit)
+                if (unit.getUnitType().isSortieBased()) {
+                    Integer hangarId = null;
+                    
+                    // Check interceptor component for hangar ID
+                    var interceptorComp = unit.getComponent(com.fullsteam.model.component.InterceptorComponent.class);
+                    if (interceptorComp.isPresent() && interceptorComp.get().getHangarId() != null) {
+                        hangarId = interceptorComp.get().getHangarId();
+                    }
+                    
+                    // Check gunship component for hangar ID  
+                    if (hangarId == null) {
+                        var gunshipComp = unit.getComponent(com.fullsteam.model.component.GunshipComponent.class);
+                        if (gunshipComp.isPresent() && gunshipComp.get().getHangarId() != null) {
+                            hangarId = gunshipComp.get().getHangarId();
+                        }
+                    }
+                    
+                    // Check if it's a bomber (via SortieCommand)
+                    if (hangarId == null && unit.getCurrentCommand() instanceof com.fullsteam.model.command.SortieCommand sortieCmd) {
+                        hangarId = sortieCmd.getHomeHangarId();
+                    }
+                    
+                    // Clear aircraft from hangar if we found the hangar ID
+                    if (hangarId != null) {
+                        final Integer finalHangarId = hangarId; // Make final for lambda
+                        Building hangar = buildings.get(finalHangarId);
+                        if (hangar != null && hangar.isActive()) {
+                            hangar.getComponent(com.fullsteam.model.component.HangarComponent.class)
+                                    .ifPresent(hc -> {
+                                        log.info("Sortie aircraft {} destroyed - clearing from hangar {}", 
+                                                unit.getId(), finalHangarId);
+                                        hc.clearAircraft();
+                                    });
+                        }
+                    }
+                }
 
                 // Send unit death notification (throttled to avoid spam)
                 int ownerId = unit.getOwnerId();

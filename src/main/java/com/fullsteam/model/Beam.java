@@ -58,6 +58,7 @@ public class Beam extends AbstractOrdinance {
      * @param width         Beam width
      * @param duration      Visual duration
      * @param elevationTargeting Which elevations this beam can hit
+     * @param currentElevation The elevation this beam is traveling at
      */
     public Beam(Vector2 start,
                 Vector2 end,
@@ -70,10 +71,11 @@ public class Beam extends AbstractOrdinance {
                 BeamType beamType,
                 double width,
                 double duration,
-                ElevationTargeting elevationTargeting) {
+                ElevationTargeting elevationTargeting,
+                Elevation currentElevation) {
         super(IdGenerator.nextEntityId(),
                 createBeamBody(start, end, width),
-                ownerId, ownerTeam, start, damage, bulletEffects, ordinanceType, width, elevationTargeting);
+                ownerId, ownerTeam, start, damage, bulletEffects, ordinanceType, width, elevationTargeting, currentElevation);
 
         this.startPosition = start.copy();
         this.endPosition = end.copy();

@@ -44,10 +44,12 @@ public class ReturnToHangarCommand extends UnitCommand {
             hangar = gameEntities.getBuildings().get(hangarId);
             if (hangar == null) {
                 log.error("Hangar {} not found! Aircraft {} cannot return.", hangarId, unit.getId());
+                unit.setActive(false);
                 return false; // Command failed
             }
             if (hangar.getBuildingType() != BuildingType.HANGAR) {
                 log.error("Building {} is not a hangar! Aircraft {} cannot land.", hangarId, unit.getId());
+                unit.setActive(false);
                 return false;
             }
             initialized = true;

@@ -17,14 +17,11 @@ import java.util.List;
 @Getter
 public class AttackMoveCommand extends UnitCommand {
     private final Vector2 destination;
-    private List<Vector2> path = new ArrayList<>();
-    private int currentPathIndex = 0;
+    // Note: path fields are now inherited from UnitCommand base class
 
-    // Auto-acquired targets (unit will engage while moving)
+    // Auto-acquired target (unit, building, or wall)
     @Setter
-    private Unit autoTargetUnit = null;
-    @Setter
-    private Building autoTargetBuilding = null;
+    private com.fullsteam.model.Targetable autoTarget = null;
 
     public AttackMoveCommand(Unit unit, Vector2 destination, boolean isPlayerOrder) {
         super(unit, isPlayerOrder);
@@ -33,10 +30,11 @@ public class AttackMoveCommand extends UnitCommand {
 
     /**
      * Set the pathfinding path for this attack-move command
+     * (Override base class to maintain compatibility)
      */
+    @Override
     public void setPath(List<Vector2> path) {
-        this.path = new ArrayList<>(path);
-        this.currentPathIndex = 0;
+        super.setPath(path);
     }
 
     @Override
@@ -48,12 +46,9 @@ public class AttackMoveCommand extends UnitCommand {
             return false; // Command complete
         }
 
-        // Clear invalid auto-targets
-        if (autoTargetUnit != null && !autoTargetUnit.isActive()) {
-            autoTargetUnit = null;
-        }
-        if (autoTargetBuilding != null && !autoTargetBuilding.isActive()) {
-            autoTargetBuilding = null;
+        // Clear invalid auto-target
+        if (autoTarget != null && !autoTarget.isActive()) {
+            autoTarget = null;
         }
 
         return true; // Still moving
@@ -63,18 +58,16 @@ public class AttackMoveCommand extends UnitCommand {
     public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
         Vector2 currentPos = unit.getPosition();
 
-        // If we have an auto-target (unit or building), move towards it
-        Vector2 targetPos = null;
-        double effectiveRange = unit.getUnitType().getAttackRange();
-        
-        if (autoTargetUnit != null && autoTargetUnit.isActive()) {
-            targetPos = autoTargetUnit.getPosition();
-        } else if (autoTargetBuilding != null && autoTargetBuilding.isActive()) {
-            targetPos = autoTargetBuilding.getPosition();
-            effectiveRange += autoTargetBuilding.getBuildingType().getSize();
-        }
-        
-        if (targetPos != null) {
+        // If we have an auto-target, move towards it
+        if (autoTarget != null && autoTarget.isActive()) {
+            Vector2 targetPos = autoTarget.getPosition();
+            
+            // Get weapon range
+            double weaponRange = unit.getWeapon() != null ? 
+                                 unit.getWeapon().getRange() : 
+                                 unit.getUnitType().getAttackRange();
+            double effectiveRange = weaponRange + autoTarget.getTargetSize();
+            
             double distance = currentPos.distance(targetPos);
 
             // Move into range if too far
@@ -117,44 +110,43 @@ public class AttackMoveCommand extends UnitCommand {
 
     @Override
     public List<AbstractOrdinance> updateCombat(double deltaTime) {
-        Vector2 currentPos = unit.getPosition();
-        
-        // Prioritize unit targets over building targets
-        if (autoTargetUnit != null && autoTargetUnit.isActive()) {
-            Vector2 targetPos = autoTargetUnit.getPosition();
-            double distance = currentPos.distance(targetPos);
-
-            // Check if in range
-            if (distance <= unit.getWeapon().getRange() * 0.9) { // 90% of range to account for movement
-                // Face target
-                Vector2 direction = targetPos.copy().subtract(currentPos);
-                unit.setRotation(Math.atan2(direction.y, direction.x));
-
-                // Attack if cooldown is ready
-                // Use predictive aiming for moving targets
-                Vector2 interceptPos = unit.calculateInterceptPoint(autoTargetUnit);
-                return unit.fireAt(interceptPos, gameEntities);
-            }
-        } else if (autoTargetBuilding != null && autoTargetBuilding.isActive()) {
-            Vector2 targetPos = autoTargetBuilding.getPosition();
-            double distance = currentPos.distance(targetPos);
-            double effectiveRange = unit.getWeapon().getRange() + autoTargetBuilding.getBuildingType().getSize();
-
-            // Check if in range
-            if (distance <= effectiveRange * 0.9) {
-                // Face target
-                Vector2 direction = targetPos.copy().subtract(currentPos);
-                unit.setRotation(Math.atan2(direction.y, direction.x));
-
-                // Attack building (stationary target, no prediction needed)
-                return unit.fireAt(targetPos, gameEntities);
-            }
+        if (autoTarget == null || !autoTarget.isActive()) {
+            return List.of();
         }
+
+        Vector2 currentPos = unit.getPosition();
+        Vector2 targetPos = autoTarget.getPosition();
+        double distance = currentPos.distance(targetPos);
+
+        // Get weapon range
+        double weaponRange = unit.getWeapon() != null ? 
+                             unit.getWeapon().getRange() : 
+                             unit.getUnitType().getAttackRange();
+        double effectiveRange = weaponRange + autoTarget.getTargetSize();
+
+        // Check if in range
+        if (distance <= effectiveRange * 0.9) {
+            // Face target
+            Vector2 direction = targetPos.copy().subtract(currentPos);
+            unit.setRotation(Math.atan2(direction.y, direction.x));
+
+            // Use predictive aiming for moving targets (units)
+            Vector2 aimPosition;
+            if (autoTarget instanceof Unit targetUnit) {
+                aimPosition = unit.calculateInterceptPoint(targetUnit);
+            } else {
+                // Stationary targets (buildings, walls)
+                aimPosition = targetPos;
+            }
+            
+            return unit.fireAt(aimPosition, gameEntities);
+        }
+        
         return List.of();
     }
 
     /**
-     * Scan for enemies and auto-acquire target (units first, then buildings)
+     * Scan for enemies and auto-acquire target (uses unified Targetable finder)
      * Called by RTSGameManager during enemy scanning
      */
     public boolean scanForEnemies(Collection<Unit> allUnits, Collection<Building> allBuildings) {
@@ -165,59 +157,14 @@ public class AttackMoveCommand extends UnitCommand {
         Vector2 currentPos = unit.getPosition();
         double visionRange = unit.getUnitType().getAttackRange() * 1.5;
 
-        // Find nearest enemy unit in vision range (prioritize units over buildings)
-        Unit nearestEnemyUnit = null;
-        double nearestUnitDistance = Double.MAX_VALUE;
+        // Use unified targetable finder - automatically handles units, buildings, walls
+        // and respects elevation targeting and cloak detection
+        com.fullsteam.model.Targetable nearestEnemy = gameEntities.findNearestEnemyTargetable(
+                currentPos, unit.getTeamNumber(), visionRange, unit);
 
-        for (Unit other : allUnits) {
-            if (other.getTeamNumber() != unit.getTeamNumber() && other.isActive()) {
-                // Check if this unit's weapon can target the other unit's elevation
-                if (!unit.canTargetElevation(other)) {
-                    continue; // Cannot target this elevation
-                }
-                
-                double distance = currentPos.distance(other.getPosition());
-                
-                // Cloaked units can only be detected within cloak detection range
-                if (other.isCloaked() && distance > Unit.getCloakDetectionRange()) {
-                    continue;
-                }
-                
-                if (distance < visionRange && distance < nearestUnitDistance) {
-                    nearestUnitDistance = distance;
-                    nearestEnemyUnit = other;
-                }
-            }
-        }
-
-        // If found an enemy unit, target it (units have priority)
-        if (nearestEnemyUnit != null) {
-            autoTargetUnit = nearestEnemyUnit;
-            autoTargetBuilding = null; // Clear building target
+        if (nearestEnemy != null) {
+            autoTarget = nearestEnemy;
             return true;
-        }
-
-        // If no enemy units found, look for enemy buildings
-        if (unit.canTargetBuildings()) {
-            Building nearestEnemyBuilding = null;
-            double nearestBuildingDistance = Double.MAX_VALUE;
-
-            for (Building building : allBuildings) {
-                if (building.getTeamNumber() != unit.getTeamNumber() && building.isActive()) {
-                    double distance = currentPos.distance(building.getPosition());
-                    
-                    if (distance < visionRange && distance < nearestBuildingDistance) {
-                        nearestBuildingDistance = distance;
-                        nearestEnemyBuilding = building;
-                    }
-                }
-            }
-
-            if (nearestEnemyBuilding != null) {
-                autoTargetBuilding = nearestEnemyBuilding;
-                autoTargetUnit = null; // Clear unit target
-                return true;
-            }
         }
 
         return false;
@@ -225,13 +172,9 @@ public class AttackMoveCommand extends UnitCommand {
 
     @Override
     public Vector2 getTargetPosition() {
-        // If engaging unit, target position is the unit
-        if (autoTargetUnit != null && autoTargetUnit.isActive()) {
-            return autoTargetUnit.getPosition();
-        }
-        // If engaging building, target position is the building
-        if (autoTargetBuilding != null && autoTargetBuilding.isActive()) {
-            return autoTargetBuilding.getPosition();
+        // If engaging a target, return its position
+        if (autoTarget != null && autoTarget.isActive()) {
+            return autoTarget.getPosition();
         }
         // Otherwise, target is the destination
         return destination;
@@ -244,13 +187,9 @@ public class AttackMoveCommand extends UnitCommand {
 
     @Override
     public String getDescription() {
-        if (autoTargetUnit != null && autoTargetUnit.isActive()) {
-            return String.format("Attack-move to (%.1f, %.1f) - engaging unit %d",
-                    destination.x, destination.y, autoTargetUnit.getId());
-        }
-        if (autoTargetBuilding != null && autoTargetBuilding.isActive()) {
-            return String.format("Attack-move to (%.1f, %.1f) - engaging building %d",
-                    destination.x, destination.y, autoTargetBuilding.getId());
+        if (autoTarget != null && autoTarget.isActive()) {
+            return String.format("Attack-move to (%.1f, %.1f) - engaging %s %d",
+                    destination.x, destination.y, autoTarget.getTargetType(), autoTarget.getId());
         }
         return String.format("Attack-move to (%.1f, %.1f)", destination.x, destination.y);
     }

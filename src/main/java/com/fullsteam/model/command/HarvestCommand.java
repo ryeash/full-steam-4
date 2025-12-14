@@ -64,7 +64,14 @@ public class HarvestCommand extends UnitCommand {
             double distance = currentPos.distance(refineryPos);
             
             if (distance > 50.0) {
-                unit.applySteeringForces(refineryPos, nearbyUnits, deltaTime);
+                // Compute path if needed (refinery doesn't move)
+                if (path.isEmpty() || lastPathTarget == null || 
+                    lastPathTarget.distance(refineryPos) > 10.0) { // Check if target changed
+                    computePathTo(refineryPos);
+                }
+                
+                // Follow path to refinery
+                followPathTo(refineryPos, nearbyUnits, 50.0);
             } else {
                 unit.getBody().setLinearVelocity(0, 0);
             }
@@ -74,7 +81,14 @@ public class HarvestCommand extends UnitCommand {
             double distance = currentPos.distance(depositPos);
             
             if (distance > 50.0) {
-                unit.applySteeringForces(depositPos, nearbyUnits, deltaTime);
+                // Compute path if needed (deposit doesn't move)
+                if (path.isEmpty() || lastPathTarget == null || 
+                    lastPathTarget.distance(depositPos) > 10.0) { // Check if target changed
+                    computePathTo(depositPos);
+                }
+                
+                // Follow path to deposit
+                followPathTo(depositPos, nearbyUnits, 50.0);
             } else {
                 unit.getBody().setLinearVelocity(0, 0);
             }

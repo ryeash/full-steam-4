@@ -1,9 +1,10 @@
 package com.fullsteam.model.command;
 
 import com.fullsteam.model.AIStance;
-import com.fullsteam.model.Building;
 import com.fullsteam.model.Unit;
 import org.dyn4j.geometry.Vector2;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -12,6 +13,8 @@ import java.util.List;
  * Idle combat units will scan for enemies based on their AI stance
  */
 public class IdleCommand extends UnitCommand {
+
+    private static final Logger log = LoggerFactory.getLogger(IdleCommand.class);
 
     private int scanCounter = 0; // Scan every N updates
 
@@ -50,6 +53,12 @@ public class IdleCommand extends UnitCommand {
         Vector2 currentPos = unit.getPosition();
         double visionRange = unit.getUnitType().getVisionRange(); // Vision range (varies by unit type)
 
+        // Debug logging for flak tanks
+        if (unit.getUnitType() == com.fullsteam.model.UnitType.FLAK_TANK) {
+            log.info("Flak Tank {} scanning for enemies (vision range: {}, position: ({}, {}))",
+                    unit.getId(), visionRange, currentPos.x, currentPos.y);
+        }
+
         // Check for defensive leash (don't chase too far from home)
         if (unit.getAiStance() == AIStance.DEFENSIVE && unit.getHomePosition() != null) {
             double distanceFromHome = currentPos.distance(unit.getHomePosition());
@@ -59,8 +68,22 @@ public class IdleCommand extends UnitCommand {
             }
         }
 
-        // Use gameEntities to find nearest enemy unit (with elevation targeting)
-        Unit nearestEnemy = gameEntities.findNearestEnemyUnit(currentPos, unit.getTeamNumber(), visionRange, unit);
+        // Use unified targetable finder - automatically handles units, buildings, walls
+        // and respects elevation targeting and cloak detection
+        com.fullsteam.model.Targetable nearestEnemy = gameEntities.findNearestEnemyTargetable(
+                currentPos, unit.getTeamNumber(), visionRange, unit);
+
+        // Debug logging for flak tanks
+        if (unit.getUnitType() == com.fullsteam.model.UnitType.FLAK_TANK) {
+            if (nearestEnemy != null) {
+                log.info("Flak Tank {} found target: {} {} (elevation: {}, distance: {})",
+                        unit.getId(), nearestEnemy.getTargetType(), nearestEnemy.getId(),
+                        nearestEnemy.getElevation(),
+                        currentPos.distance(nearestEnemy.getPosition()));
+            } else {
+                log.info("Flak Tank {} found no targetable enemies in range", unit.getId());
+            }
+        }
 
         // For defensive stance, check if enemy is within leash range of home
         if (nearestEnemy != null && unit.getAiStance() == AIStance.DEFENSIVE && unit.getHomePosition() != null) {
@@ -70,26 +93,9 @@ public class IdleCommand extends UnitCommand {
             }
         }
 
-        // If found an enemy unit, engage it
+        // If found an enemy, engage it with unified attack command
         if (nearestEnemy != null) {
-            unit.issueCommand(new AttackUnitCommand(unit, nearestEnemy, false), gameEntities);
-            return;
-        }
-
-        // Use gameEntities to find nearest enemy building (lower priority than units)
-        Building nearestEnemyBuilding = gameEntities.findNearestEnemyBuilding(currentPos, unit.getTeamNumber(), visionRange);
-
-        // For defensive stance, check if building is within leash range of home
-        if (nearestEnemyBuilding != null && unit.getAiStance() == AIStance.DEFENSIVE && unit.getHomePosition() != null) {
-            double buildingDistanceFromHome = nearestEnemyBuilding.getPosition().distance(unit.getHomePosition());
-            if (buildingDistanceFromHome > 300.0) { // DEFENSIVE_LEASH_RANGE
-                nearestEnemyBuilding = null; // Ignore this building
-            }
-        }
-
-        // If found an enemy building and weapon can target it, engage it
-        if (nearestEnemyBuilding != null && unit.canTargetBuildings()) {
-            unit.issueCommand(new AttackBuildingCommand(unit, nearestEnemyBuilding, false), gameEntities);
+            unit.issueCommand(new AttackTargetableCommand(unit, nearestEnemy, false), gameEntities);
         }
     }
 

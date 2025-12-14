@@ -16,7 +16,7 @@ import org.dyn4j.geometry.Vector2;
 @Slf4j
 @Getter
 @Setter
-public class WallSegment {
+public class WallSegment implements Targetable {
     private final int id;
     private final int ownerId;
     private final int teamNumber;
@@ -100,11 +100,12 @@ public class WallSegment {
     }
 
     /**
-     * Take damage and return true if destroyed
+     * Take damage (implements Targetable interface)
      */
-    public boolean takeDamage(double amount) {
+    @Override
+    public void takeDamage(double amount) {
         if (!active) {
-            return true;
+            return;
         }
 
         health -= amount;
@@ -113,10 +114,16 @@ public class WallSegment {
             health = 0;
             active = false;
             log.debug("Wall segment {} destroyed", id);
-            return true;
         }
-
-        return false;
+    }
+    
+    /**
+     * Take damage and return true if destroyed (legacy method for backwards compatibility)
+     */
+    public boolean takeDamageAndCheckDestroyed(double amount) {
+        boolean wasActive = active;
+        takeDamage(amount);
+        return wasActive && !active; // Returns true if it was just destroyed
     }
 
     /**
@@ -132,5 +139,25 @@ public class WallSegment {
     public boolean hasDestroyedPost() {
         return !post1.isActive() || !post2.isActive();
     }
+    
+    // ==================== Targetable Interface Implementation ====================
+    
+    @Override
+    public Elevation getElevation() {
+        return Elevation.GROUND; // Walls are always at ground level
+    }
+    
+    @Override
+    public double getTargetSize() {
+        return 10.0; // Wall segment "thickness" for targeting
+    }
+    
+    @Override
+    public double getMaxHealth() {
+        return maxHealth;
+    }
+    
+    // Note: getId(), getTeamNumber(), getPosition(), isActive(), takeDamage(), 
+    // getHealth() are already implemented above
 }
 

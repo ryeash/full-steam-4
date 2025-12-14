@@ -852,7 +852,7 @@ class RTSEngine {
                     
                     // Turret barrel (pointing right by default)
                     const barrel = new PIXI.Graphics();
-                    const barrelLength = typeInfo.size * 0.5;
+                    const barrelLength = typeInfo.size * 0.3; // Shortened from 0.5 to 0.3
                     const barrelWidth = 3;
                     barrel.rect(0, -barrelWidth / 2, barrelLength, barrelWidth);
                     barrel.fill(0x404040);

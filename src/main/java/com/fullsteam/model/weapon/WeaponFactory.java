@@ -33,8 +33,8 @@ public class WeaponFactory {
             // Flak Tank can ONLY hit aircraft (LOW + HIGH elevations, NOT ground)
             case FLAK_TANK -> ElevationTargeting.LOW_AND_HIGH;
 
-            // Interceptor can hit all elevations (air-to-air specialist)
-            case INTERCEPTOR -> ElevationTargeting.ALL_ELEVATIONS;
+            // Interceptor can hit all air units (air-to-air specialist)
+            case INTERCEPTOR -> ElevationTargeting.LOW_AND_HIGH;
 
             // All other units can only hit ground targets
             // This includes most air units (Scout Drone, Helicopter, Bomber - no air-to-air)

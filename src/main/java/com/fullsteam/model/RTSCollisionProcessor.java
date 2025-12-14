@@ -44,8 +44,10 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         // Mark unit as affected to prevent multiple hits from same projectile
         projectile.getAffectedPlayers().add(unit.getId());
 
-        // Apply damage
-        boolean died = unit.takeDamage(projectile.getDamage());
+        // Apply damage and check if died
+        boolean wasActive = unit.isActive();
+        unit.takeDamage(projectile.getDamage());
+        boolean died = wasActive && !unit.isActive();
 
         log.debug("Projectile {} hit unit {} for {} damage (died: {})",
                 projectile.getId(), unit.getId(), projectile.getDamage(), died);
@@ -73,8 +75,10 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         // Mark building as affected
         projectile.getAffectedPlayers().add(building.getId());
 
-        // Apply damage
-        boolean destroyed = building.takeDamage(projectile.getDamage());
+        // Apply damage and check if destroyed
+        boolean wasActive = building.isActive();
+        building.takeDamage(projectile.getDamage());
+        boolean destroyed = wasActive && !building.isActive();
 
         log.debug("Projectile {} hit building {} for {} damage (destroyed: {})",
                 projectile.getId(), building.getId(), projectile.getDamage(), destroyed);
@@ -102,8 +106,8 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         // Mark segment as affected
         projectile.getAffectedPlayers().add(segment.getId());
 
-        // Apply damage
-        boolean destroyed = segment.takeDamage(projectile.getDamage());
+        // Apply damage and check if destroyed
+        boolean destroyed = segment.takeDamageAndCheckDestroyed(projectile.getDamage());
 
         log.debug("Projectile {} hit wall segment {} for {} damage (destroyed: {})",
                 projectile.getId(), segment.getId(), projectile.getDamage(), destroyed);
@@ -631,6 +635,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
             // Check if projectile hits a building
             if (other instanceof Building building) {
+                // Buildings are at GROUND elevation - only hit if projectile is also at GROUND
+                if (projectile.getCurrentElevation() != Elevation.GROUND) {
+                    return false; // Projectile at higher elevation passes over buildings
+                }
+                
                 if (building.getTeamNumber() == projectile.getOwnerTeam()) {
                     return false; // Pass through friendly buildings (no physics or damage)
                 }
@@ -654,6 +663,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
             // Check if projectile hits a wall segment
             if (other instanceof WallSegment segment) {
+                // Walls are at GROUND elevation - only hit if projectile is also at GROUND
+                if (projectile.getCurrentElevation() != Elevation.GROUND) {
+                    return false; // Projectile at higher elevation passes over walls
+                }
+                
                 if (segment.getTeamNumber() == projectile.getOwnerTeam()) {
                     return false; // Pass through friendly walls (no physics or damage)
                 }
@@ -677,6 +691,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
             // Check if projectile hits an obstacle
             if (other instanceof Obstacle) {
+                // Obstacles are at GROUND elevation - only hit if projectile is also at GROUND
+                if (projectile.getCurrentElevation() != Elevation.GROUND) {
+                    return false; // Projectile at higher elevation passes over obstacles
+                }
+                
                 // Obstacles destroy projectiles
                 log.debug("Projectile {} hit obstacle at ({}, {})",
                         projectile.getId(), hitPosition.x, hitPosition.y);
@@ -698,6 +717,36 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
                 projectile.setActive(false);
                 return true; // Allow physics collision with obstacles
+            }
+            
+            // Check if projectile hits a resource deposit
+            if (other instanceof ResourceDeposit) {
+                // Resource deposits are at GROUND elevation - only hit if projectile is also at GROUND
+                if (projectile.getCurrentElevation() != Elevation.GROUND) {
+                    return false; // Projectile at higher elevation passes over deposits
+                }
+                
+                // Resource nodes destroy projectiles (terminate, not bounce)
+                log.debug("Projectile {} hit resource deposit at ({}, {})",
+                        projectile.getId(), hitPosition.x, hitPosition.y);
+
+                // Create explosion if it's an explosive projectile
+                if (isExplosiveProjectile(projectile)) {
+                    createExplosionEffect(hitPosition, projectile);
+                }
+
+                // Create flak explosion for flak projectiles
+                if (createsFlakExplosion(projectile)) {
+                    createFlakExplosionEffect(hitPosition, projectile);
+                }
+
+                // Create electric field for electric projectiles (area denial)
+                if (hasElectricEffect(projectile)) {
+                    createElectricFieldEffect(hitPosition, projectile);
+                }
+
+                projectile.setActive(false);
+                return false; // No physics collision (terminate without bouncing)
             }
         }
 
@@ -758,6 +807,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
             // Check if beam hits a building
             if (other instanceof Building building) {
+                // Buildings are at GROUND elevation - only hit if beam is also at GROUND
+                if (beam.getCurrentElevation() != Elevation.GROUND) {
+                    return false; // Beam at higher elevation passes over buildings
+                }
+                
                 // Skip friendly fire
                 if (building.getTeamNumber() == beam.getOwnerTeam()) {
                     return false;
@@ -779,6 +833,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
             // Check if beam hits a wall segment
             if (other instanceof WallSegment segment) {
+                // Walls are at GROUND elevation - only hit if beam is also at GROUND
+                if (beam.getCurrentElevation() != Elevation.GROUND) {
+                    return false; // Beam at higher elevation passes over walls
+                }
+                
                 // Skip friendly fire
                 if (segment.getTeamNumber() == beam.getOwnerTeam()) {
                     return false;
@@ -800,6 +859,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
             // Check if beam hits an obstacle
             if (other instanceof Obstacle obstacle) {
+                // Obstacles are at GROUND elevation - only hit if beam is also at GROUND
+                if (beam.getCurrentElevation() != Elevation.GROUND) {
+                    return false; // Beam at higher elevation passes over obstacles
+                }
+                
                 if (!obstacle.isActive()) {
                     return false;
                 }
@@ -821,6 +885,31 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                         beam.getId(), hitPosition.x, hitPosition.y);
 
                 return false; // No physics collision (sensor)
+            }
+            
+            // Check if beam hits a resource deposit
+            if (other instanceof ResourceDeposit deposit) {
+                // Resource deposits are at GROUND elevation - only hit if beam is also at GROUND
+                if (beam.getCurrentElevation() != Elevation.GROUND) {
+                    return false; // Beam at higher elevation passes over deposits
+                }
+                
+                if (!deposit.isActive()) {
+                    return false;
+                }
+
+                // Check if already processed this resource deposit
+                if (beam.getAffectedPlayers().contains(deposit.getId())) {
+                    return false;
+                }
+
+                // Mark as affected to terminate the beam
+                beam.getAffectedPlayers().add(deposit.getId());
+
+                log.debug("Beam {} hit resource deposit at ({}, {})",
+                        beam.getId(), hitPosition.x, hitPosition.y);
+
+                return false; // No physics collision (sensor, but terminates beam)
             }
         }
 

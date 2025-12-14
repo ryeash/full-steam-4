@@ -61,13 +61,25 @@ public abstract class GameEntity {
         // default no-op
     }
 
-    public boolean takeDamage(double damage) {
-        boolean wasActive = active;
+    /**
+     * Apply damage to this entity (implements Targetable interface).
+     * Entities become inactive when health drops to or below zero.
+     */
+    public void takeDamage(double damage) {
         health -= damage;
         if (health <= 0) {
             active = false;
         }
-        return wasActive && !active; // Return true if entity became inactive
+    }
+    
+    /**
+     * Helper method to apply damage and check if the entity was destroyed.
+     * @return true if the entity became inactive as a result of this damage
+     */
+    public boolean takeDamageAndCheckDestroyed(double damage) {
+        boolean wasActive = active;
+        takeDamage(damage);
+        return wasActive && !active;
     }
 
     public boolean isExpired() {

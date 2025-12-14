@@ -32,7 +32,7 @@ import java.util.Optional;
 @Slf4j
 @Getter
 @Setter
-public class Building extends GameEntity {
+public class Building extends GameEntity implements Targetable {
     private final BuildingType buildingType;
     private final int ownerId; // Player who owns this building
     private final int teamNumber;
@@ -145,6 +145,47 @@ public class Building extends GameEntity {
 
         // initialize each building component
         components.values().forEach(c -> c.init(gameEntities, this));
+    }
+    
+    // ============================================================================
+    // Targetable Interface Implementation
+    // ============================================================================
+    
+    // getId(), getTeamNumber(), getPosition(), isActive(), getHealth(), getMaxHealth()
+    // are inherited from GameEntity
+    
+    /**
+     * Override takeDamage to also reduce construction progress for buildings
+     */
+    @Override
+    public void takeDamage(double damage) {
+        if (!active) {
+            return;
+        }
+        
+        health -= damage;
+        constructionProgress -= damage; // Damage also reduces construction progress
+        
+        if (health <= 0) {
+            health = 0;
+            active = false;
+        }
+    }
+    
+    /**
+     * Implements Targetable - buildings are always at GROUND elevation
+     */
+    @Override
+    public Elevation getElevation() {
+        return Elevation.GROUND;
+    }
+    
+    /**
+     * Implements Targetable - returns the building's size as target size
+     */
+    @Override
+    public double getTargetSize() {
+        return buildingType.getSize();
     }
 
     private static Body createBuildingBody(double x, double y, BuildingType buildingType) {
@@ -429,4 +470,5 @@ public class Building extends GameEntity {
         }
     }
 }
+
 

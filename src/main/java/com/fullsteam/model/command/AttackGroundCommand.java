@@ -34,7 +34,13 @@ public class AttackGroundCommand extends UnitCommand {
 
         // Move into range if too far
         if (distance > attackRange * 0.9) {
-            unit.applySteeringForces(groundTarget, nearbyUnits, deltaTime);
+            // Compute path if needed (ground target is static)
+            if (path.isEmpty() || lastPathTarget == null) {
+                computePathTo(groundTarget);
+            }
+            
+            // Follow path to ground target
+            followPathTo(groundTarget, nearbyUnits, attackRange * 0.9);
         } else {
             // In range, stop moving
             unit.getBody().setLinearVelocity(0, 0);

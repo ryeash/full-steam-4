@@ -40,7 +40,7 @@ import java.util.Optional;
 @Slf4j
 @Getter
 @Setter
-public class Unit extends GameEntity {
+public class Unit extends GameEntity implements Targetable {
     private final UnitType unitType;
     private final int ownerId; // Player who owns this unit
     private final int teamNumber;
@@ -136,6 +136,29 @@ public class Unit extends GameEntity {
         }
 
         log.debug("Unit {} initialized with {} components", id, components.size());
+    }
+    
+    // ============================================================================
+    // Targetable Interface Implementation
+    // ============================================================================
+    
+    // takeDamage(), getHealth(), getMaxHealth(), getId(), getTeamNumber(), 
+    // getPosition(), isActive() are inherited from GameEntity
+    
+    /**
+     * Implements Targetable - returns the unit's elevation level
+     */
+    @Override
+    public Elevation getElevation() {
+        return unitType.getElevation();
+    }
+    
+    /**
+     * Implements Targetable - returns the unit's collision radius as target size
+     */
+    @Override
+    public double getTargetSize() {
+        return unitType.getSize();
     }
 
     private static Body createUnitBody(double x, double y, UnitType unitType) {

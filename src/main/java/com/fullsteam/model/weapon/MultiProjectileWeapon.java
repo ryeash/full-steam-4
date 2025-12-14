@@ -93,6 +93,9 @@ public class MultiProjectileWeapon extends Weapon {
                                                        GameEntities gameEntities) {
         List<AbstractOrdinance> ordinances = new ArrayList<>();
 
+        // Determine the elevation for these projectiles based on what we're targeting
+        com.fullsteam.model.Elevation ordinanceElevation = determineOrdinanceElevation(targetPosition, gameEntities);
+
         // Calculate direction to target
         Vector2 direction = targetPosition.copy().subtract(position);
         direction.normalize();
@@ -125,7 +128,8 @@ public class MultiProjectileWeapon extends Weapon {
                         bulletEffects,
                         ordinanceType,
                         projectileSize,
-                        elevationTargeting
+                        elevationTargeting,
+                        ordinanceElevation
                 );
                 ordinances.add(projectile);
             }
@@ -164,7 +168,8 @@ public class MultiProjectileWeapon extends Weapon {
                         bulletEffects,
                         ordinanceType,
                         projectileSize,
-                        elevationTargeting
+                        elevationTargeting,
+                        ordinanceElevation
                 );
                 ordinances.add(projectile);
             }
@@ -183,12 +188,39 @@ public class MultiProjectileWeapon extends Weapon {
                     bulletEffects,
                     ordinanceType,
                     projectileSize,
-                    elevationTargeting
+                    elevationTargeting,
+                    ordinanceElevation
             );
             ordinances.add(projectile);
         }
 
         return ordinances;
+    }
+    
+    /**
+     * Determine what elevation the ordinances should fly at based on the target position.
+     * This allows projectiles fired at aircraft to fly at aircraft elevation and not collide with ground obstacles.
+     */
+    private com.fullsteam.model.Elevation determineOrdinanceElevation(Vector2 targetPosition, GameEntities gameEntities) {
+        // Check if we're targeting an airborne unit
+        double searchRadius = 50.0; // Search for units near the target position
+        
+        for (com.fullsteam.model.Unit unit : gameEntities.getUnits().values()) {
+            if (!unit.isActive()) continue;
+            
+            double distance = unit.getPosition().distance(targetPosition);
+            if (distance < searchRadius) {
+                // Found a unit near target - use its elevation
+                com.fullsteam.model.Elevation targetElevation = unit.getUnitType().getElevation();
+                if (targetElevation.isAirborne() && elevationTargeting.canTarget(targetElevation)) {
+                    // Targeting an airborne unit - projectiles fly at that elevation
+                    return targetElevation;
+                }
+            }
+        }
+        
+        // Default to GROUND elevation (for hitting ground units, buildings, obstacles)
+        return com.fullsteam.model.Elevation.GROUND;
     }
 
     @Override

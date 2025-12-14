@@ -10,7 +10,7 @@ import java.util.*;
  * A* pathfinding implementation for RTS units
  */
 public class Pathfinding {
-    private static final double GRID_SIZE = 50.0; // Grid cell size for pathfinding
+    private static final double GRID_SIZE = 35.0; // Grid cell size for pathfinding
     private static final int MAX_PATH_LENGTH = 100; // Maximum path nodes to prevent infinite loops
     
     /**

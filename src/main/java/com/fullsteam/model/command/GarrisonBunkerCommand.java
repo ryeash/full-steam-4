@@ -55,7 +55,13 @@ public class GarrisonBunkerCommand extends UnitCommand {
 
         // Move to bunker if too far
         if (distance > garrisonRange) {
-            unit.applySteeringForces(bunkerPos, nearbyUnits, deltaTime);
+            // Compute path if needed (bunker doesn't move)
+            if (path.isEmpty() || lastPathTarget == null) {
+                computePathTo(bunkerPos);
+            }
+            
+            // Follow path to bunker
+            followPathTo(bunkerPos, nearbyUnits, garrisonRange);
         } else {
             // In range, stop moving
             unit.getBody().setLinearVelocity(0, 0);

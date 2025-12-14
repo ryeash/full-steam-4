@@ -47,7 +47,14 @@ public class ConstructCommand extends UnitCommand {
         
         // Move to building if too far
         if (distance > constructionRange) {
-            unit.applySteeringForces(buildingPos, nearbyUnits, deltaTime);
+            // Compute path if needed (target has moved or no path exists)
+            if (path.isEmpty() || lastPathTarget == null || 
+                lastPathTarget.distance(buildingPos) > 30.0) {
+                computePathTo(buildingPos);
+            }
+            
+            // Follow path to building
+            followPathTo(buildingPos, nearbyUnits, constructionRange);
         } else {
             // In range, stop moving
             unit.getBody().setLinearVelocity(0, 0);

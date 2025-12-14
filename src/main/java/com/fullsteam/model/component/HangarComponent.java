@@ -197,11 +197,21 @@ public class HangarComponent extends AbstractBuildingComponent {
      */
     public Unit launchBomber() {
         if (housedAircraft == null) {
-            log.warn("Hangar {} has no bomber to launch", building.getId());
+            log.warn("Hangar {} has no aircraft to launch", building.getId());
             return null;
         }
         if (isOnSortie) {
-            log.warn("Bomber in Hangar {} is already deployed", building.getId());
+            log.warn("Aircraft {} in Hangar {} is already deployed (isOnSortie=true)", 
+                    housedAircraft.getId(), building.getId());
+            return null;
+        }
+        
+        // Validate the aircraft is not already in the game world (sanity check)
+        if (gameEntities.getUnits().containsKey(housedAircraft.getId())) {
+            log.error("CRITICAL: Aircraft {} already exists in game world but hangar {} thinks it's housed! " +
+                    "This indicates state corruption. Force clearing hangar state.", 
+                    housedAircraft.getId(), building.getId());
+            forceResetState();
             return null;
         }
         
@@ -212,7 +222,8 @@ public class HangarComponent extends AbstractBuildingComponent {
         gameEntities.getWorld().addBody(housedAircraft.getBody());
         
         this.isOnSortie = true;
-        log.info("Hangar {} launched bomber {} for sortie", building.getId(), housedAircraft.getId());
+        log.info("Hangar {} launched aircraft {} (type: {}) for sortie", 
+                building.getId(), housedAircraft.getId(), housedAircraft.getUnitType().getDisplayName());
         return housedAircraft;
     }
 
@@ -242,11 +253,17 @@ public class HangarComponent extends AbstractBuildingComponent {
      * @param returnedUnit The unit that returned (for health tracking)
      */
     public void returnFromSortie(Unit returnedUnit) {
+        log.info("Hangar {} returnFromSortie called - isOnSortie: {}, housedAircraft: {}, returnedUnit: {}",
+                building.getId(), isOnSortie, 
+                (housedAircraft != null ? housedAircraft.getId() : "null"),
+                (returnedUnit != null ? returnedUnit.getId() : "null"));
+        
         if (!isOnSortie) {
             log.warn("Hangar {} received return but no sortie was active", building.getId());
             return;
         }
 
+        // Verify this is the correct aircraft for this hangar
         if (returnedUnit != null && housedAircraft != null && returnedUnit.getId() == housedAircraft.getId()) {
             // Update housed aircraft with current health
             this.housedAircraft = returnedUnit;
@@ -257,13 +274,21 @@ public class HangarComponent extends AbstractBuildingComponent {
             gameEntities.getUnits().remove(returnedUnit.getId());
             gameEntities.getWorld().removeBody(returnedUnit.getBody());
             
-            log.info("Hangar {} bomber returned from sortie with {} health", building.getId(), returnedUnit.getHealth());
-        } else {
-            // Aircraft was destroyed during sortie
-            log.warn("Hangar {} bomber was destroyed during sortie - can produce new one", building.getId());
+            // Clear sortie flag only after successful housing
+            this.isOnSortie = false;
+            log.info("Hangar {} aircraft {} successfully returned from sortie with {} health", 
+                    building.getId(), returnedUnit.getId(), returnedUnit.getHealth());
+        } else if (returnedUnit == null || housedAircraft == null) {
+            // Aircraft was destroyed during sortie or hangar state is invalid
+            log.warn("Hangar {} aircraft was destroyed during sortie - clearing hangar state", building.getId());
             this.housedAircraft = null;
+            this.isOnSortie = false;
+        } else {
+            // ID mismatch - wrong aircraft trying to return to this hangar!
+            log.error("Hangar {} received wrong aircraft (expected {}, got {}) - IGNORING return attempt", 
+                    building.getId(), housedAircraft.getId(), returnedUnit.getId());
+            // DO NOT clear isOnSortie - our aircraft is still out there!
         }
-        this.isOnSortie = false;
     }
 
     /**
@@ -287,9 +312,21 @@ public class HangarComponent extends AbstractBuildingComponent {
      * Remove the aircraft from the hangar (e.g., if destroyed or scrapped)
      */
     public void clearAircraft() {
-        log.info("Hangar {} bomber cleared - can produce new one", building.getId());
+        log.info("Hangar {} aircraft cleared - can produce new one", building.getId());
         this.housedAircraft = null;
         this.isOnSortie = false;
+    }
+    
+    /**
+     * Force reset the hangar state (emergency use only - for fixing stuck hangars).
+     * This should only be called when the hangar state is known to be corrupted.
+     */
+    public void forceResetState() {
+        log.warn("Hangar {} FORCE RESET - clearing all state", building.getId());
+        this.isOnSortie = false;
+        if (housedAircraft != null) {
+            log.warn("Hangar {} had housed aircraft {} - now cleared", building.getId(), housedAircraft.getId());
+        }
     }
 
     @Override
@@ -363,9 +400,9 @@ public class HangarComponent extends AbstractBuildingComponent {
         housedAircraft.getComponent(com.fullsteam.model.component.InterceptorComponent.class)
                 .ifPresent(comp -> comp.deploy(building.getId()));
         
-        // Issue attack command
+        // Issue attack command with unified targetable system
         housedAircraft.issueCommand(
-                new com.fullsteam.model.command.AttackUnitCommand(housedAircraft, target, false),
+                new com.fullsteam.model.command.AttackTargetableCommand(housedAircraft, target, false),
                 gameEntities
         );
         

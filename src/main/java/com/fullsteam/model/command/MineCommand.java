@@ -65,7 +65,14 @@ public class MineCommand extends UnitCommand {
             double distance = currentPos.distance(hqPos);
             
             if (distance > 50.0) {
-                unit.applySteeringForces(hqPos, nearbyUnits, deltaTime);
+                // Compute path if needed (HQ doesn't move)
+                if (path.isEmpty() || lastPathTarget == null || 
+                    lastPathTarget.distance(hqPos) > 10.0) { // Check if target changed
+                    computePathTo(hqPos);
+                }
+                
+                // Follow path to HQ
+                followPathTo(hqPos, nearbyUnits, 50.0);
             } else {
                 unit.getBody().setLinearVelocity(0, 0);
             }
@@ -76,7 +83,14 @@ public class MineCommand extends UnitCommand {
             double miningRange = obstacle.getSize() + 10.0;
             
             if (distance > miningRange) {
-                unit.applySteeringForces(obstaclePos, nearbyUnits, deltaTime);
+                // Compute path if needed (obstacle doesn't move)
+                if (path.isEmpty() || lastPathTarget == null || 
+                    lastPathTarget.distance(obstaclePos) > 10.0) { // Check if target changed
+                    computePathTo(obstaclePos);
+                }
+                
+                // Follow path to obstacle
+                followPathTo(obstaclePos, nearbyUnits, miningRange);
             } else {
                 unit.getBody().setLinearVelocity(0, 0);
             }

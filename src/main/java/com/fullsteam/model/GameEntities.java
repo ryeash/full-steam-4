@@ -132,6 +132,79 @@ public class GameEntities {
                 .min(Comparator.comparingDouble(b -> b.getPosition().distance(position)))
                 .orElse(null);
     }
+    
+    /**
+     * Find the nearest enemy targetable entity (unit, building, or wall).
+     * This is a unified method that searches across all targetable types.
+     * Useful for weapon systems that can target anything.
+     * 
+     * @param position Position to search from
+     * @param teamNumber Team number of the attacker
+     * @param maxRange Maximum search range
+     * @param attacker The attacking unit (for elevation targeting checks), can be null
+     * @return The nearest enemy targetable, or null if none found
+     */
+    public Targetable findNearestEnemyTargetable(Vector2 position, int teamNumber, double maxRange, Unit attacker) {
+        Targetable nearestTarget = null;
+        double nearestDistance = maxRange;
+        
+        // Search units
+        for (Unit unit : units.values()) {
+            if (!unit.isActive() || unit.getTeamNumber() == teamNumber) continue;
+            
+            // Check elevation targeting if attacker is specified
+            if (attacker != null && !attacker.canTargetElevation(unit)) continue;
+            
+            // Check cloak detection
+            double distance = unit.getPosition().distance(position);
+            if (unit.isCloaked() && distance > Unit.getCloakDetectionRange()) continue;
+            
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearestTarget = unit;
+            }
+        }
+        
+        // Search buildings (only if attacker can target ground)
+        if (attacker == null || attacker.canTargetBuildings()) {
+            for (Building building : buildings.values()) {
+                if (!building.isActive() || building.getTeamNumber() == teamNumber) continue;
+                
+                double distance = building.getPosition().distance(position);
+                if (distance < nearestDistance) {
+                    nearestDistance = distance;
+                    nearestTarget = building;
+                }
+            }
+        }
+        
+        // Search wall segments (only if attacker can target ground)
+        if (attacker == null || attacker.canTargetBuildings()) {
+            for (WallSegment wall : wallSegments.values()) {
+                if (!wall.isActive() || wall.getTeamNumber() == teamNumber) continue;
+                
+                double distance = wall.getPosition().distance(position);
+                if (distance < nearestDistance) {
+                    nearestDistance = distance;
+                    nearestTarget = wall;
+                }
+            }
+        }
+        
+        return nearestTarget;
+    }
+    
+    /**
+     * Find the nearest enemy targetable entity (simplified version without elevation checks).
+     * 
+     * @param position Position to search from
+     * @param teamNumber Team number of the attacker
+     * @param maxRange Maximum search range
+     * @return The nearest enemy targetable, or null if none found
+     */
+    public Targetable findNearestEnemyTargetable(Vector2 position, int teamNumber, double maxRange) {
+        return findNearestEnemyTargetable(position, teamNumber, maxRange, null);
+    }
 
     private void createBeamFieldEffects(Beam beam) {
         for (BulletEffect bulletEffect : beam.getBulletEffects()) {

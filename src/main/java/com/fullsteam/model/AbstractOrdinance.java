@@ -27,12 +27,22 @@ public abstract class AbstractOrdinance extends GameEntity {
     protected boolean active = true;
     protected Set<Integer> affectedEntities = new HashSet<>(); // For piercing/multi-hit tracking
     protected ElevationTargeting elevationTargeting; // Which elevations this ordinance can hit
+    
+    /**
+     * The elevation this ordinance is flying at.
+     * This determines which objects it can collide with:
+     * - GROUND ordinance hits ground units, buildings, obstacles, walls
+     * - LOW ordinance hits low-altitude aircraft only
+     * - HIGH ordinance hits high-altitude aircraft only
+     */
+    protected Elevation currentElevation;
 
     public AbstractOrdinance(int id, Body body, int ownerId, int ownerTeam,
                              Vector2 origin, double damage,
                              Set<BulletEffect> bulletEffects,
                              Ordinance ordinanceType, double size,
-                             ElevationTargeting elevationTargeting) {
+                             ElevationTargeting elevationTargeting,
+                             Elevation currentElevation) {
         super(id, body, 0);
         this.id = id;
         this.ownerId = ownerId;
@@ -43,6 +53,7 @@ public abstract class AbstractOrdinance extends GameEntity {
         this.ordinanceType = ordinanceType;
         this.size = size;
         this.elevationTargeting = elevationTargeting != null ? elevationTargeting : ElevationTargeting.GROUND_ONLY;
+        this.currentElevation = currentElevation != null ? currentElevation : Elevation.GROUND;
     }
 
     /**

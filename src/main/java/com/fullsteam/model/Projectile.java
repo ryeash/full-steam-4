@@ -24,9 +24,10 @@ public class Projectile extends AbstractOrdinance {
     public Projectile(Vector2 origin, Vector2 velocity,
                       double damage, double maxRange, int ownerId, int ownerTeam,
                       double linearDamping, Set<BulletEffect> bulletEffects,
-                      Ordinance ordinance, double size, ElevationTargeting elevationTargeting) {
+                      Ordinance ordinance, double size, ElevationTargeting elevationTargeting,
+                      Elevation currentElevation) {
         super(IdGenerator.nextEntityId(), createProjectileBody(size), ownerId, ownerTeam,
-                origin, damage, bulletEffects, ordinance, size, elevationTargeting);
+                origin, damage, bulletEffects, ordinance, size, elevationTargeting, currentElevation);
 
         this.maxRange = maxRange;
         body.translate(origin);

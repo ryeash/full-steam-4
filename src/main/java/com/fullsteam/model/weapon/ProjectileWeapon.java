@@ -2,9 +2,11 @@ package com.fullsteam.model.weapon;
 
 import com.fullsteam.model.AbstractOrdinance;
 import com.fullsteam.model.BulletEffect;
+import com.fullsteam.model.Elevation;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Ordinance;
 import com.fullsteam.model.Projectile;
+import com.fullsteam.model.Unit;
 import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.Setter;
@@ -61,6 +63,10 @@ public class ProjectileWeapon extends Weapon {
         // Calculate velocity
         Vector2 velocity = direction.multiply(projectileSpeed);
 
+        // Determine the elevation for this projectile based on what we're targeting
+        // Check what's at the target position to determine proper elevation
+        Elevation ordinanceElevation = determineOrdinanceElevation(targetPosition, gameEntities);
+
         // Create and return projectile in a list (single projectile for standard weapons)
         Projectile projectile = new Projectile(
                 position,
@@ -73,10 +79,37 @@ public class ProjectileWeapon extends Weapon {
                 bulletEffects,
                 ordinanceType,
                 projectileSize,
-                elevationTargeting
+                elevationTargeting,
+                ordinanceElevation
         );
         
         return List.of(projectile);
+    }
+    
+    /**
+     * Determine what elevation the ordinance should fly at based on the target position.
+     * This allows projectiles fired at aircraft to fly at aircraft elevation and not collide with ground obstacles.
+     */
+    private Elevation determineOrdinanceElevation(Vector2 targetPosition, GameEntities gameEntities) {
+        // Check if we're targeting an airborne unit
+        double searchRadius = 50.0; // Search for units near the target position
+        
+        for (Unit unit : gameEntities.getUnits().values()) {
+            if (!unit.isActive()) continue;
+            
+            double distance = unit.getPosition().distance(targetPosition);
+            if (distance < searchRadius) {
+                // Found a unit near target - use its elevation
+                Elevation targetElevation = unit.getUnitType().getElevation();
+                if (targetElevation.isAirborne() && elevationTargeting.canTarget(targetElevation)) {
+                    // Targeting an airborne unit - projectile flies at that elevation
+                    return targetElevation;
+                }
+            }
+        }
+        
+        // Default to GROUND elevation (for hitting ground units, buildings, obstacles)
+        return Elevation.GROUND;
     }
 
     @Override
