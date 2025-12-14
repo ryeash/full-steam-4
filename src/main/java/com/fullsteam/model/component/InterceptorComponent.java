@@ -52,7 +52,7 @@ public class InterceptorComponent extends AbstractUnitComponent {
 
     @Override
     public void update(GameEntities gameEntities) {
-        if (!onSortie) {
+        if (!onSortie || unit.getCurrentCommand() instanceof ReturnToHangarCommand) {
             return; // Not deployed, no fuel consumption
         }
 

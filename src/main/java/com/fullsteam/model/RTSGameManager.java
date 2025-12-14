@@ -18,7 +18,6 @@ import com.fullsteam.model.component.AndroidComponent;
 import com.fullsteam.model.component.AndroidFactoryComponent;
 import com.fullsteam.model.component.DeployComponent;
 import com.fullsteam.model.component.HangarComponent;
-import com.fullsteam.model.component.HarvestComponent;
 import com.fullsteam.model.component.IBuildingComponent;
 import com.fullsteam.model.component.MineComponent;
 import com.fullsteam.model.component.ShieldComponent;
@@ -740,13 +739,14 @@ public class RTSGameManager {
                 HangarComponent hangarComponent = hangar.getComponent(HangarComponent.class).orElse(null);
                 if (hangarComponent != null && hangarComponent.isReadyForSortie()) {
                     // Launch aircraft from hangar (adds to world)
-                    Unit aircraft = hangarComponent.launchBomber();
+                    Unit aircraft = hangarComponent.launchAircraft();
                     if (aircraft != null) {
                         UnitType aircraftType = aircraft.getUnitType();
                         
                         // Issue appropriate command based on aircraft type
                         if (aircraftType == UnitType.BOMBER) {
                             // Bomber: Execute bombing run at target location
+                            aircraft.setActive(true);
                             aircraft.issueCommand(new SortieCommand(aircraft, input.getSortieTargetLocation(), hangar.getId(), true), gameEntities);
                             log.info("Player {} launched bomber {} from hangar {} to target ({}, {})",
                                     playerId, aircraft.getId(), hangar.getId(),

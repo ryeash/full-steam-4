@@ -1,7 +1,6 @@
 package com.fullsteam.model.component;
 
 import com.fullsteam.games.IdGenerator;
-import com.fullsteam.model.Building;
 import com.fullsteam.model.PlayerFaction;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.UnitType;
@@ -195,7 +194,7 @@ public class HangarComponent extends AbstractBuildingComponent {
      *
      * @return The launched bomber unit, or null if no bomber available
      */
-    public Unit launchBomber() {
+    public Unit launchAircraft() {
         if (housedAircraft == null) {
             log.warn("Hangar {} has no aircraft to launch", building.getId());
             return null;
@@ -226,27 +225,6 @@ public class HangarComponent extends AbstractBuildingComponent {
                 building.getId(), housedAircraft.getId(), housedAircraft.getUnitType().getDisplayName());
         return housedAircraft;
     }
-
-    /**
-     * Mark the aircraft as deployed on a sortie
-     *
-     * @param unitId The ID of the spawned unit
-     */
-    public void deployOnSortie(int unitId) {
-        if (housedAircraft == null) {
-            log.error("Cannot deploy from empty hangar {}", building.getId());
-            return;
-        }
-
-        if (isOnSortie) {
-            log.warn("Hangar {} already has aircraft deployed on sortie", building.getId());
-            return;
-        }
-
-        this.isOnSortie = true;
-        log.info("Hangar {} deployed bomber {} on sortie", building.getId(), unitId);
-    }
-
     /**
      * Aircraft has returned from sortie
      *
@@ -323,10 +301,15 @@ public class HangarComponent extends AbstractBuildingComponent {
      */
     public void forceResetState() {
         log.warn("Hangar {} FORCE RESET - clearing all state", building.getId());
-        this.isOnSortie = false;
         if (housedAircraft != null) {
             log.warn("Hangar {} had housed aircraft {} - now cleared", building.getId(), housedAircraft.getId());
+            // Mark the aircraft as inactive to prevent it from being used
+            if (housedAircraft.isActive()) {
+                housedAircraft.setActive(false);
+            }
         }
+        this.housedAircraft = null;
+        this.isOnSortie = false;
     }
 
     @Override

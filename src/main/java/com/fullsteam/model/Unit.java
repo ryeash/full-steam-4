@@ -283,6 +283,11 @@ public class Unit extends GameEntity implements Targetable {
      * Handle bomber returning from sortie - update hangar and despawn
      */
     private void handleSortieCompletion(SortieCommand sortieCmd, GameEntities gameEntities) {
+        // Despawn the bomber unit FIRST to prevent race conditions
+        // This must happen before returnFromSortie() to prevent the unit from being
+        // launched again before it's properly housed
+        this.setActive(false);
+        
         int hangarId = sortieCmd.getHomeHangarId();
         Building hangar = gameEntities.getBuildings().get(hangarId);
 
@@ -290,12 +295,9 @@ public class Unit extends GameEntity implements Targetable {
             // Return to hangar component
             HangarComponent hangarComponent = hangar.getComponent(HangarComponent.class).orElse(null);
             if (hangarComponent != null) {
-                hangarComponent.returnFromSortie(this); // Updates aircraft health
+                hangarComponent.returnFromSortie(this); // Updates aircraft health and removes from world
             }
         }
-
-        // Despawn the bomber unit
-        this.setActive(false);
     }
 
     /**
@@ -477,15 +479,20 @@ public class Unit extends GameEntity implements Targetable {
     }
 
     /**
-     * Check if this unit can currently attack
-     * Crawlers can only attack when deployed
+     * Check if this unit can currently attack.
+     * Some units (Crawler, Flak Tank) require deployment before they can fire.
      */
     public boolean canCurrentlyAttack() {
         if (!unitType.canAttack()) {
             return false;
         }
-        // Crawler can only attack when deployed (turrets do the work)
-        return unitType != UnitType.CRAWLER || specialAbilityActive;
+        
+        // Units with DEPLOY ability can only attack when deployed
+        if (unitType.getSpecialAbility() == SpecialAbility.DEPLOY) {
+            return specialAbilityActive; // Must be deployed to attack
+        }
+        
+        return true; // All other combat units can attack normally
     }
 
     /**

@@ -2,6 +2,7 @@ package com.fullsteam.model;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.dyn4j.dynamics.Body;
 import org.dyn4j.geometry.Vector2;
 import org.dyn4j.world.World;
@@ -16,6 +17,7 @@ import java.util.function.Consumer;
  * Provides convenient access to units, buildings, obstacles, etc.
  * Used by commands and AI to make intelligent decisions.
  */
+@Slf4j
 @Getter
 public class GameEntities {
     private final GameConfig gameConfig;
@@ -148,21 +150,52 @@ public class GameEntities {
         Targetable nearestTarget = null;
         double nearestDistance = maxRange;
         
+        // Debug logging for flak tanks
+        boolean isFlakTank = attacker != null && attacker.getUnitType() == UnitType.FLAK_TANK;
+        if (isFlakTank) {
+            log.info("Flak Tank {} searching for targets (maxRange: {}, canTargetBuildings: {})",
+                    attacker.getId(), maxRange, attacker.canTargetBuildings());
+        }
+        
         // Search units
+        int unitsChecked = 0;
+        int unitsSkippedElevation = 0;
+        int unitsSkippedCloaked = 0;
         for (Unit unit : units.values()) {
             if (!unit.isActive() || unit.getTeamNumber() == teamNumber) continue;
             
+            unitsChecked++;
+            
             // Check elevation targeting if attacker is specified
-            if (attacker != null && !attacker.canTargetElevation(unit)) continue;
+            if (attacker != null && !attacker.canTargetElevation(unit)) {
+                unitsSkippedElevation++;
+                if (isFlakTank) {
+                    log.info("  Skipped unit {} - elevation mismatch (target elevation: {})",
+                            unit.getId(), unit.getUnitType().getElevation());
+                }
+                continue;
+            }
             
             // Check cloak detection
             double distance = unit.getPosition().distance(position);
-            if (unit.isCloaked() && distance > Unit.getCloakDetectionRange()) continue;
+            if (unit.isCloaked() && distance > Unit.getCloakDetectionRange()) {
+                unitsSkippedCloaked++;
+                continue;
+            }
             
             if (distance < nearestDistance) {
                 nearestDistance = distance;
                 nearestTarget = unit;
+                if (isFlakTank) {
+                    log.info("  Found potential target unit {} at distance {} (elevation: {})",
+                            unit.getId(), distance, unit.getUnitType().getElevation());
+                }
             }
+        }
+        
+        if (isFlakTank) {
+            log.info("  Units: checked={}, skippedElevation={}, skippedCloaked={}", 
+                    unitsChecked, unitsSkippedElevation, unitsSkippedCloaked);
         }
         
         // Search buildings (only if attacker can target ground)
@@ -189,6 +222,12 @@ public class GameEntities {
                     nearestTarget = wall;
                 }
             }
+        }
+        
+        if (isFlakTank) {
+            log.info("  Final result: {} ({})", 
+                    nearestTarget != null ? nearestTarget.getTargetType() + " " + nearestTarget.getId() : "null",
+                    nearestTarget != null ? "distance: " + nearestDistance : "none found");
         }
         
         return nearestTarget;
