@@ -115,7 +115,9 @@ public class BeamWeapon extends Weapon {
         double searchRadius = 50.0; // Search for units near the target position
 
         for (Unit unit : gameEntities.getUnits().values()) {
-            if (!unit.isActive()) continue;
+            if (!unit.isActive()) {
+                continue;
+            }
 
             double distance = unit.getPosition().distance(targetPosition);
             if (distance < searchRadius) {

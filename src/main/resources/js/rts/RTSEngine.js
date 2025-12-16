@@ -663,15 +663,16 @@ class RTSEngine {
             this.units.set(unitData.id, unitContainer);
             this.gameContainer.addChild(unitContainer);
             
-            // Set z-index based on elevation (air units should render above buildings)
+            // Set z-index based on elevation (air units should render above buildings and projectiles)
             // Buildings have default z-index of 0
             // Ground units: z-index 1
-            // Low altitude units: z-index 2
-            // High altitude units: z-index 3
+            // Projectiles: z-index 4
+            // Low altitude units: z-index 5
+            // High altitude units: z-index 6
             if (unitData.elevation === 'HIGH') {
-                unitContainer.zIndex = 3;
+                unitContainer.zIndex = 6;
             } else if (unitData.elevation === 'LOW') {
-                unitContainer.zIndex = 2;
+                unitContainer.zIndex = 5;
             } else {
                 unitContainer.zIndex = 1; // GROUND units
             }
@@ -1924,6 +1925,7 @@ class RTSEngine {
             'PHOTON_SPIRE': { sides: 6, size: 48, color: 0x00FF00, rotation: Math.PI / 6 },
             'ANDROID_FACTORY': { sides: 8, size: 55, color: 0x4B0082, rotation: Math.PI / 8 },
             'COMMAND_CITADEL': { sides: 8, size: 55, color: 0x4169E1, rotation: 0 },
+            'TEMPEST_SPIRE': { sides: 8, size: 45, color: 0x4682B4, rotation: 0 },
             // Air unit production
             'AIRFIELD': { sides: 8, size: 60, color: 0x708090, rotation: 0 },
             'HANGAR': { sides: 4, size: 35, color: 0x4A5568, rotation: 0 }
@@ -2002,7 +2004,8 @@ class RTSEngine {
             'QUANTUM_NEXUS': '◈',
             'SANDSTORM_GENERATOR': '☁',
             'ANDROID_FACTORY': 'A',
-            'COMMAND_CITADEL': 'CC'
+            'COMMAND_CITADEL': 'CC',
+            'TEMPEST_SPIRE': '⛈'
         };
         const label = new PIXI.Text(labelMap[buildingData.type] || '?', {
             fontFamily: 'Arial',
@@ -2650,6 +2653,28 @@ class RTSEngine {
                     decorations.rect(-typeInfo.size * 0.3, i * typeInfo.size * 0.15, typeInfo.size * 0.6, typeInfo.size * 0.08);
                     decorations.fill({ color: 0x000000, alpha: 0.2 });
                 }
+                break;
+                
+            case 'TEMPEST_SPIRE':
+                // Add weather sensor array (top antenna)
+                decorations.rect(-typeInfo.size * 0.4, -typeInfo.size * 0.7, typeInfo.size * 0.8, typeInfo.size * 0.15);
+                decorations.fill({ color: 0x000000, alpha: 0.3 });
+                
+                // Add left antenna (diagonal line)
+                decorations.moveTo(-typeInfo.size * 0.6, -typeInfo.size * 0.3);
+                decorations.lineTo(-typeInfo.size * 0.45, -typeInfo.size * 0.5);
+                decorations.stroke({ width: 3, color: 0x000000, alpha: 0.3 });
+                
+                // Add right antenna (diagonal line)
+                decorations.moveTo(typeInfo.size * 0.6, -typeInfo.size * 0.3);
+                decorations.lineTo(typeInfo.size * 0.45, -typeInfo.size * 0.5);
+                decorations.stroke({ width: 3, color: 0x000000, alpha: 0.3 });
+                
+                // Add radar dishes (small circles at antenna ends)
+                decorations.circle(-typeInfo.size * 0.6, -typeInfo.size * 0.3, typeInfo.size * 0.08);
+                decorations.fill({ color: 0x000000, alpha: 0.4 });
+                decorations.circle(typeInfo.size * 0.6, -typeInfo.size * 0.3, typeInfo.size * 0.08);
+                decorations.fill({ color: 0x000000, alpha: 0.4 });
                 break;
         }
         
@@ -3815,7 +3840,7 @@ class RTSEngine {
         // 3. Building is a monument (has aura info), OR
         // 4. Building is a hangar (has sortie UI)
         const isBunker = buildingData.type === 'BUNKER';
-        const isMonument = ['PHOTON_SPIRE', 'QUANTUM_NEXUS', 'SANDSTORM_GENERATOR'].includes(buildingData.type);
+        const isMonument = ['PHOTON_SPIRE', 'QUANTUM_NEXUS', 'SANDSTORM_GENERATOR', 'ANDROID_FACTORY', 'COMMAND_CITADEL', 'TEMPEST_SPIRE'].includes(buildingData.type);
         const isHangar = buildingData.type === 'HANGAR' || buildingData.buildingType === 'HANGAR';
         const shouldShowUI = (buildingData.canProduceUnits && !buildingData.underConstruction) || isBunker || isMonument || isHangar;
         
@@ -3894,7 +3919,8 @@ class RTSEngine {
         const monumentInfo = {
             'PHOTON_SPIRE': { name: 'Beam Amplifier', effect: '+35% beam damage', radius: 250 },
             'QUANTUM_NEXUS': { name: 'Quantum Shield', effect: '+25% max health', radius: 280 },
-            'SANDSTORM_GENERATOR': { name: 'Sandstorm', effect: '15 damage/sec to enemies', radius: 300 }
+            'SANDSTORM_GENERATOR': { name: 'Sandstorm', effect: '15 damage/sec to enemies', radius: 300 },
+            'TEMPEST_SPIRE': { name: 'Anti-Air Defense', effect: 'Long-range flak cannon', radius: 550 }
         };
         
         if (monumentInfo[buildingData.type]) {
@@ -4760,7 +4786,8 @@ class RTSEngine {
             'QUANTUM_NEXUS': '⚛️',
             'PHOTON_SPIRE': '💎',
             'ANDROID_FACTORY': '🤖',
-            'COMMAND_CITADEL': '🏰'
+            'COMMAND_CITADEL': '🏰',
+            'TEMPEST_SPIRE': '⛈️'
         };
         return icons[buildingType] || '🏢';
     }
@@ -4792,7 +4819,8 @@ class RTSEngine {
             'QUANTUM_NEXUS': 'Quantum Nexus',
             'PHOTON_SPIRE': 'Photon Spire',
             'ANDROID_FACTORY': 'Android Factory',
-            'COMMAND_CITADEL': 'Command Citadel'
+            'COMMAND_CITADEL': 'Command Citadel',
+            'TEMPEST_SPIRE': 'Tempest Spire'
         };
         return names[buildingType] || buildingType.replace(/_/g, ' ');
     }

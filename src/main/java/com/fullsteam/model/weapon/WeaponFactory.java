@@ -388,6 +388,24 @@ public class WeaponFactory {
                 ElevationTargeting.GROUND_ONLY // Photon Spire - ground only
         );
     }
+    
+    /**
+     * Get the weapon for Tempest Spire (Storm Wings monument).
+     * Heavy anti-aircraft flak cannon for air superiority.
+     */
+    public static Weapon getTempestSpireWeapon() {
+        return new ProjectileWeapon(
+                120.0, // damage (heavy anti-air)
+                450.0, // range (very long - weather radar targeting)
+                0.5,   // attack rate (2 shots per second - rapid flak)
+                500.0, // projectile speed (fast flak)
+                0.2,   // damping
+                6.0,   // size (large flak burst)
+                Ordinance.FLAK,
+                Set.of(BulletEffect.FLAK, BulletEffect.EXPLOSIVE),
+                ElevationTargeting.LOW_AND_HIGH // Anti-air only (LOW and HIGH altitude)
+        );
+    }
 
     /**
      * Get the weapon for Crawler turrets (when deployed).

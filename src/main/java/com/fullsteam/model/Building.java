@@ -130,6 +130,12 @@ public class Building extends GameEntity implements Targetable {
         if (buildingType == BuildingType.SANDSTORM_GENERATOR) {
             addComponent(new SandstormComponent());
         }
+        
+        // Tempest Spire (Storm Wings monument) - Anti-air defense tower
+        if (buildingType == BuildingType.TEMPEST_SPIRE) {
+            addComponent(new DefenseComponent(WeaponFactory.getTempestSpireWeapon()));
+            log.debug("Building {} ({}) initialized with DefenseComponent (anti-air)", id, buildingType.getDisplayName());
+        }
 
         if (buildingType == BuildingType.BUNKER) {
             addComponent(new GarrisonComponent(6));
@@ -361,7 +367,8 @@ public class Building extends GameEntity implements Targetable {
         return buildingType == BuildingType.PHOTON_SPIRE ||
                 buildingType == BuildingType.ANDROID_FACTORY ||
                 buildingType == BuildingType.SANDSTORM_GENERATOR ||
-                buildingType == BuildingType.COMMAND_CITADEL;
+                buildingType == BuildingType.COMMAND_CITADEL ||
+                buildingType == BuildingType.TEMPEST_SPIRE;
     }
 
     /**

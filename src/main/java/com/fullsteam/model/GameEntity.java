@@ -104,5 +104,39 @@ public abstract class GameEntity {
         long remainingTime = expires - System.currentTimeMillis();
         return Math.max(0, Math.min(1, (double) remainingTime / totalDuration));
     }
+
+    /**
+     * Clamp entity position to world boundaries.
+     * This is especially important for air units which can fly over boundary obstacles.
+     * 
+     * @param worldWidth The width of the world
+     * @param worldHeight The height of the world
+     */
+    public void clampToBounds(double worldWidth, double worldHeight) {
+        if (body == null) {
+            return;
+        }
+
+        Vector2 worldCenter = body.getWorldCenter();
+        double halfWidth = worldWidth / 2.0;
+        double halfHeight = worldHeight / 2.0;
+
+        // Calculate clamped position
+        double clampedX = Math.max(-halfWidth, Math.min(halfWidth, worldCenter.x));
+        double clampedY = Math.max(-halfHeight, Math.min(halfHeight, worldCenter.y));
+
+        // Only update if position changed
+        if (clampedX != worldCenter.x || clampedY != worldCenter.y) {
+            // Calculate the offset between world center and transform translation
+            Vector2 translation = body.getTransform().getTranslation();
+            Vector2 offset = translation.difference(worldCenter);
+            
+            // Set new translation that will result in the clamped world center
+            body.getTransform().setTranslation(clampedX + offset.x, clampedY + offset.y);
+            
+            // Stop velocity when hitting boundary to prevent pushing against edge
+            body.setLinearVelocity(0, 0);
+        }
+    }
 }
 

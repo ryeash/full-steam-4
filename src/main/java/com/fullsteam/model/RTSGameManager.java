@@ -391,6 +391,11 @@ public class RTSGameManager {
                 Projectile projectile = entry.getValue();
                 projectile.update(gameEntities);
 
+                // Enforce world boundaries for projectiles (especially air-to-air missiles)
+                if (projectile.isActive()) {
+                    projectile.clampToBounds(gameConfig.getWorldWidth(), gameConfig.getWorldHeight());
+                }
+
                 // Create explosion if projectile reached max range and is explosive
                 if (!projectile.isActive() && isExplosiveProjectile(projectile)) {
                     createExplosionAtProjectile(projectile);
@@ -408,6 +413,13 @@ public class RTSGameManager {
 
             // Update physics world (handles collisions via CollisionListener)
             world.updatev(deltaTime);
+
+            // Enforce world boundaries for all units (especially air units that can fly over obstacles)
+            units.values().forEach(unit -> {
+                if (unit.isActive() && !unit.isGarrisoned()) {
+                    unit.clampToBounds(gameConfig.getWorldWidth(), gameConfig.getWorldHeight());
+                }
+            });
 
             // Process field effects (explosions, etc.)
             processFieldEffects(deltaTime);
