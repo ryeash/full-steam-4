@@ -1,7 +1,7 @@
 package com.fullsteam.model.command;
 
 import com.fullsteam.model.Building;
-import com.fullsteam.model.ResourceDeposit;
+import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Unit;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,11 +10,11 @@ import org.dyn4j.geometry.Vector2;
 import java.util.List;
 
 /**
- * Command to harvest resources from a deposit and return them to a refinery
+ * Command to harvest resources from a harvestable obstacle and return them to a refinery
  */
 @Getter
 public class HarvestCommand extends UnitCommand {
-    private final ResourceDeposit deposit;
+    private final Obstacle obstacle;
 
     @Setter
     private boolean returningResources = false;
@@ -22,15 +22,15 @@ public class HarvestCommand extends UnitCommand {
     @Setter
     private Building targetRefinery = null;
 
-    public HarvestCommand(Unit unit, ResourceDeposit deposit, boolean isPlayerOrder) {
+    public HarvestCommand(Unit unit, Obstacle obstacle, boolean isPlayerOrder) {
         super(unit, isPlayerOrder);
-        this.deposit = deposit;
+        this.obstacle = obstacle;
     }
 
     @Override
     public boolean update(double deltaTime) {
-        // Command fails if deposit is depleted
-        if (deposit == null || !deposit.isActive()) {
+        // Command fails if obstacle is depleted or not harvestable
+        if (obstacle == null || !obstacle.isActive() || !obstacle.isHarvestable()) {
             return false;
         }
 
@@ -43,9 +43,9 @@ public class HarvestCommand extends UnitCommand {
                 targetRefinery = null;
             }
         } else {
-            boolean shouldReturn = unit.harvestResources(deposit, deltaTime);
+            boolean shouldReturn = unit.harvestResourcesFromObstacle(obstacle, deltaTime);
             if (shouldReturn) {
-                // Full or deposit depleted, switch to returning
+                // Full or obstacle depleted, switch to returning
                 returningResources = true;
                 // RTSGameManager will set targetRefinery
             }
@@ -75,20 +75,20 @@ public class HarvestCommand extends UnitCommand {
             } else {
                 unit.getBody().setLinearVelocity(0, 0);
             }
-        } else if (deposit != null && deposit.isActive()) {
-            // Moving to deposit
-            Vector2 depositPos = deposit.getPosition();
-            double distance = currentPos.distance(depositPos);
+        } else if (obstacle != null && obstacle.isActive()) {
+            // Moving to obstacle
+            Vector2 obstaclePos = obstacle.getPosition();
+            double distance = currentPos.distance(obstaclePos);
 
             if (distance > 50.0) {
-                // Compute path if needed (deposit doesn't move)
+                // Compute path if needed (obstacle doesn't move)
                 if (path.isEmpty() || lastPathTarget == null ||
-                        lastPathTarget.distance(depositPos) > 10.0) { // Check if target changed
-                    computePathTo(depositPos);
+                        lastPathTarget.distance(obstaclePos) > 10.0) { // Check if target changed
+                    computePathTo(obstaclePos);
                 }
 
-                // Follow path to deposit
-                followPathTo(depositPos, nearbyUnits, 50.0);
+                // Follow path to obstacle
+                followPathTo(obstaclePos, nearbyUnits, 50.0);
             } else {
                 unit.getBody().setLinearVelocity(0, 0);
             }
@@ -100,7 +100,7 @@ public class HarvestCommand extends UnitCommand {
         if (returningResources && targetRefinery != null) {
             return targetRefinery.getPosition();
         }
-        return deposit != null ? deposit.getPosition() : null;
+        return obstacle != null ? obstacle.getPosition() : null;
     }
 
     @Override
@@ -118,9 +118,9 @@ public class HarvestCommand extends UnitCommand {
             return String.format("Returning resources to refinery %d",
                     targetRefinery != null ? targetRefinery.getId() : -1);
         }
-        return String.format("Harvesting deposit %d (%s)",
-                deposit != null ? deposit.getId() : -1,
-                deposit != null ? deposit.getResourceType().name() : "null");
+        return String.format("Harvesting obstacle %d (%s)",
+                obstacle != null ? obstacle.getId() : -1,
+                obstacle != null && obstacle.getResourceType() != null ? obstacle.getResourceType().name() : "null");
     }
 }
 

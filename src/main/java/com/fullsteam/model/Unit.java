@@ -12,7 +12,6 @@ import com.fullsteam.model.component.HarvestComponent;
 import com.fullsteam.model.component.HealComponent;
 import com.fullsteam.model.component.IUnitComponent;
 import com.fullsteam.model.component.InterceptorComponent;
-import com.fullsteam.model.component.MineComponent;
 import com.fullsteam.model.component.RepairComponent;
 import com.fullsteam.model.research.ResearchModifier;
 import com.fullsteam.model.weapon.ProjectileWeapon;
@@ -102,9 +101,7 @@ public class Unit extends GameEntity implements Targetable {
             addComponent(new HarvestComponent(), gameEntities);
         }
 
-        if (unitType.canMine()) {
-            addComponent(new MineComponent(), gameEntities);
-        }
+        // Mining removed - workers now harvest resources from obstacles
 
         if (unitType == UnitType.ANDROID) {
             addComponent(new AndroidComponent(), gameEntities);
@@ -584,13 +581,15 @@ public class Unit extends GameEntity implements Targetable {
         return ordinances;
     }
 
+    // harvestResources(ResourceDeposit) removed - use harvestResourcesFromObstacle(Obstacle) instead
+    
     /**
-     * Harvest resources from deposit
+     * Harvest resources from harvestable obstacle
      * Called by HarvestCommand
      *
      * @return true if should switch to returning resources
      */
-    public boolean harvestResources(ResourceDeposit deposit, double deltaTime) {
+    public boolean harvestResourcesFromObstacle(Obstacle obstacle, double deltaTime) {
         HarvestComponent harvestComp = getComponent(HarvestComponent.class).orElse(null);
         if (harvestComp == null) {
             log.warn("Unit {} attempted to harvest but has no HarvestComponent", id);
@@ -599,13 +598,18 @@ public class Unit extends GameEntity implements Targetable {
 
         // Check if in range
         Vector2 currentPos = getPosition();
-        Vector2 depositPos = deposit.getPosition();
-        double distance = currentPos.distance(depositPos);
+        Vector2 obstaclePos = obstacle.getPosition();
+        double distance = currentPos.distance(obstaclePos);
 
-        if (distance <= deposit.getHarvestRange() + unitType.getSize()) {
+        if (distance <= obstacle.getHarvestRange() + unitType.getSize()) {
             // In range - stop and harvest
             body.setLinearVelocity(0, 0);
-            return harvestComp.harvestFrom(deposit);
+            
+            // Face the obstacle
+            Vector2 direction = obstaclePos.copy().subtract(currentPos);
+            setRotation(Math.atan2(direction.y, direction.x));
+            
+            return harvestComp.harvestFromObstacle(obstacle);
         }
 
         return false; // Continue harvesting
@@ -677,74 +681,7 @@ public class Unit extends GameEntity implements Targetable {
         }
     }
 
-    /**
-     * Mine an obstacle to destroy it
-     * Called by MineCommand
-     *
-     * @return true if should switch to returning for repair
-     */
-    public boolean mineObstacle(Obstacle obstacle, double deltaTime) {
-        MineComponent mineComp = getComponent(MineComponent.class).orElse(null);
-        if (mineComp == null) {
-            log.warn("Unit {} attempted to mine but has no MineComponent", id);
-            return false;
-        }
-
-        // Check if in range
-        Vector2 currentPos = getPosition();
-        Vector2 obstaclePos = obstacle.getPosition();
-        double distance = currentPos.distance(obstaclePos);
-        double miningRange = obstacle.getBoundingRadius() + unitType.getSize() + 5;
-
-        if (distance <= miningRange) {
-            // In range - stop and mine
-            body.setLinearVelocity(0, 0);
-
-            // Face the obstacle
-            Vector2 direction = obstaclePos.copy().subtract(currentPos);
-            setRotation(Math.atan2(direction.y, direction.x));
-
-            return mineComp.mineObstacle(obstacle);
-        }
-
-        return false; // Continue mining
-    }
-
-    /**
-     * Return to headquarters to repair pickaxe
-     * Called by MineCommand
-     *
-     * @return true if repair is complete and should return to mining
-     */
-    public boolean returnForPickaxeRepair(Building headquarters, double deltaTime) {
-        if (headquarters == null || !headquarters.isActive()) {
-            // Just wait, don't move yet
-            body.setLinearVelocity(0, 0);
-            return false;
-        }
-
-        // Movement is handled by MineCommand.updateMovement()
-        // This method just does the actual repair work
-
-        // Check if we're close enough to headquarters to repair
-        Vector2 currentPos = getPosition();
-        Vector2 hqPos = headquarters.getPosition();
-        double distance = currentPos.distance(hqPos);
-
-        // If close enough (within ~100 units), start repairing
-        if (distance < 100.0) {
-            // Stop and repair pickaxe
-            body.setLinearVelocity(0, 0);
-
-            // Delegate to MineComponent
-            MineComponent mineComp = getComponent(MineComponent.class).orElse(null);
-            if (mineComp != null) {
-                return mineComp.repairPickaxe(headquarters);
-            }
-        }
-
-        return false; // Continue repairing
-    }
+    // Mining removed - workers now harvest resources from obstacles instead
 
     /**
      * Issue a new command to this unit (replaces current command)

@@ -25,13 +25,10 @@ public class RTSWorld {
     // Start positions for each team (90-degree symmetry)
     private final List<Vector2> teamStartPoints;
 
-    // Resource deposits (90-degree symmetric placement)
-    private final List<ResourceDepositSpawn> resourceSpawns;
-
     // Obstacles (90-degree symmetric placement)
+    // Some obstacles are harvestable and contain resources
     private final List<ObstacleSpawn> obstacleSpawns;
 
-    private final List<ResourceDeposit> resourceDeposits = new LinkedList<>();
     private final List<Obstacle> obstacles = new LinkedList<>();
 
     // World bounds
@@ -56,7 +53,6 @@ public class RTSWorld {
 
         // Generate symmetric world layout
         this.teamStartPoints = generateTeamStartPoints();
-        this.resourceSpawns = generateResourceSpawns();
         this.obstacleSpawns = generateObstacleSpawns();
     }
 
@@ -106,72 +102,6 @@ public class RTSWorld {
         return startPoints;
     }
 
-    /**
-     * Generate resource deposit spawns with 90-degree symmetry.
-     * Creates a base pattern in one quadrant and mirrors it to others.
-     */
-    private List<ResourceDepositSpawn> generateResourceSpawns() {
-        List<ResourceDepositSpawn> spawns = new ArrayList<>();
-
-        // Generate base pattern in first quadrant (or half for 2 teams)
-        List<ResourceDepositSpawn> basePattern = generateBaseResourcePattern();
-
-        // Mirror pattern based on team count
-        if (teamCount == 2) {
-            // 180-degree symmetry for 2 teams
-            spawns.addAll(basePattern);
-            spawns.addAll(mirror180(basePattern));
-        } else if (teamCount == 4) {
-            // 90-degree rotational symmetry for 4 teams
-            spawns.addAll(basePattern);
-            spawns.addAll(rotate90(basePattern));
-            spawns.addAll(rotate180(basePattern));
-            spawns.addAll(rotate270(basePattern));
-        } else {
-            // For other team counts, just use base pattern
-            spawns.addAll(basePattern);
-        }
-
-        return spawns;
-    }
-
-    /**
-     * Generate base resource pattern in one quadrant/section.
-     */
-    private List<ResourceDepositSpawn> generateBaseResourcePattern() {
-        List<ResourceDepositSpawn> pattern = new ArrayList<>();
-
-        // Define the working area (one quadrant for 4 teams, one half for 2 teams)
-        double workWidth = width / 2.0;
-        double workHeight = height / 2.0;
-
-        // Place 2-3 resource deposits in this section
-        int depositsInSection = 2 + ThreadLocalRandom.current().nextInt(2);
-
-        for (int i = 0; i < depositsInSection; i++) {
-            // Random position within the working area, avoiding edges
-            double margin = 100; // Stay away from edges
-            double x = margin + ThreadLocalRandom.current().nextDouble() * (workWidth - 2 * margin);
-            double y = margin + ThreadLocalRandom.current().nextDouble() * (workHeight - 2 * margin);
-
-            // For 4 teams, place in first quadrant (positive x, positive y)
-            // For 2 teams, place in bottom half (any x, negative y)
-            if (teamCount != 4) {
-                x = x - workWidth / 2.0; // Center around 0
-                y = -y; // Place in bottom half
-            }
-
-            int resources = 5000 + ThreadLocalRandom.current().nextInt(5000); // 5000-10000 resources
-            pattern.add(new ResourceDepositSpawn(new Vector2(x, y), resources));
-        }
-
-        // Add one central resource deposit (shared/contested)
-        if (pattern.isEmpty() || ThreadLocalRandom.current().nextDouble() < 0.5) {
-            pattern.add(new ResourceDepositSpawn(new Vector2(0, 0), 10000));
-        }
-
-        return pattern;
-    }
 
     /**
      * Generate obstacle spawns with 90-degree symmetry.
@@ -344,54 +274,6 @@ public class RTSWorld {
 
     // ===== Symmetry transformation methods =====
 
-    /**
-     * Mirror resource deposits 180 degrees (for 2-team symmetry)
-     */
-    private List<ResourceDepositSpawn> mirror180(List<ResourceDepositSpawn> pattern) {
-        List<ResourceDepositSpawn> mirrored = new ArrayList<>();
-        for (ResourceDepositSpawn spawn : pattern) {
-            Vector2 pos = spawn.getPosition();
-            mirrored.add(new ResourceDepositSpawn(
-                    new Vector2(-pos.x, -pos.y),
-                    spawn.getResources()
-            ));
-        }
-        return mirrored;
-    }
-
-    /**
-     * Rotate resource deposits 90 degrees clockwise
-     */
-    private List<ResourceDepositSpawn> rotate90(List<ResourceDepositSpawn> pattern) {
-        List<ResourceDepositSpawn> rotated = new ArrayList<>();
-        for (ResourceDepositSpawn spawn : pattern) {
-            Vector2 pos = spawn.getPosition();
-            // 90-degree clockwise: (x, y) -> (y, -x)
-            rotated.add(new ResourceDepositSpawn(new Vector2(pos.y, -pos.x), spawn.getResources()));
-        }
-        return rotated;
-    }
-
-    /**
-     * Rotate resource deposits 180 degrees
-     */
-    private List<ResourceDepositSpawn> rotate180(List<ResourceDepositSpawn> pattern) {
-        return mirror180(pattern);
-    }
-
-    /**
-     * Rotate resource deposits 270 degrees clockwise (90 counter-clockwise)
-     */
-    private List<ResourceDepositSpawn> rotate270(List<ResourceDepositSpawn> pattern) {
-        List<ResourceDepositSpawn> rotated = new ArrayList<>();
-        for (ResourceDepositSpawn spawn : pattern) {
-            Vector2 pos = spawn.getPosition();
-            // 270-degree clockwise: (x, y) -> (-y, x)
-            rotated.add(new ResourceDepositSpawn(new Vector2(-pos.y, pos.x), spawn.getResources()));
-        }
-        return rotated;
-    }
-
     private List<ObstacleSpawn> mirror180Obstacles(List<ObstacleSpawn> pattern) {
         List<ObstacleSpawn> mirrored = new ArrayList<>();
         for (ObstacleSpawn spawn : pattern) {
@@ -445,19 +327,6 @@ public class RTSWorld {
         return new Vector2(0, 0); // Fallback to center
     }
 
-    /**
-     * Represents a resource deposit spawn location
-     */
-    @Getter
-    public static class ResourceDepositSpawn {
-        private final Vector2 position;
-        private final int resources;
-
-        public ResourceDepositSpawn(Vector2 position, int resources) {
-            this.position = position;
-            this.resources = resources;
-        }
-    }
 
     /**
      * Represents an obstacle spawn location with shape information
@@ -592,21 +461,6 @@ public class RTSWorld {
         return vertices;
     }
 
-    /**
-     * Place resource deposits from RTSWorld symmetric layout
-     */
-    public void placeResourceDeposits() {
-        for (RTSWorld.ResourceDepositSpawn spawn : getResourceSpawns()) {
-            ResourceDeposit deposit = new ResourceDeposit(
-                    IdGenerator.nextEntityId(),
-                    ResourceType.CREDITS,
-                    spawn.getPosition().x,
-                    spawn.getPosition().y,
-                    spawn.getResources()
-            );
-            resourceDeposits.add(deposit);
-        }
-    }
 
     /**
      * Place obstacles from RTSWorld symmetric layout
@@ -617,8 +471,18 @@ public class RTSWorld {
         for (RTSWorld.ObstacleSpawn spawn : getObstacleSpawns()) {
             Obstacle obstacle;
 
-            // 40% chance of being destructible (mineable)
-            boolean destructible = random.nextDouble() < 0.4;
+            // 50% chance of being harvestable (contains resources)
+            // 30% chance of being destructible (can be destroyed but no resources)
+            // 20% chance of being indestructible
+            double roll = random.nextDouble();
+            boolean harvestable = roll < 0.5;
+            boolean destructible = !harvestable && roll < 0.8; // 30% of remaining 50%
+            
+            // Harvestable obstacles contain resources
+            int resources = 0;
+            if (harvestable) {
+                resources = 5000 + random.nextInt(5000); // 5000-10000 resources per obstacle
+            }
 
             // Create obstacle based on shape type
             if (spawn.getShape() == Obstacle.Shape.IRREGULAR_POLYGON) {
@@ -628,7 +492,10 @@ public class RTSWorld {
                         spawn.getPosition().x,
                         spawn.getPosition().y,
                         spawn.getVertices(),
-                        destructible
+                        destructible,
+                        harvestable,
+                        harvestable ? ResourceType.CREDITS : null,
+                        resources
                 );
             } else if (spawn.getShape() == Obstacle.Shape.POLYGON) {
                 // Regular polygon obstacle
@@ -638,7 +505,10 @@ public class RTSWorld {
                         spawn.getPosition().y,
                         spawn.getSize(),
                         spawn.getSides(),
-                        destructible
+                        destructible,
+                        harvestable,
+                        harvestable ? ResourceType.CREDITS : null,
+                        resources
                 );
             } else {
                 // Circle obstacle (default)
@@ -647,7 +517,10 @@ public class RTSWorld {
                         spawn.getPosition().x,
                         spawn.getPosition().y,
                         spawn.getSize(),
-                        destructible
+                        destructible,
+                        harvestable,
+                        harvestable ? ResourceType.CREDITS : null,
+                        resources
                 );
             }
             obstacles.add(obstacle);

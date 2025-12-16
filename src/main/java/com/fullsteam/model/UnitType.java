@@ -147,25 +147,6 @@ public enum UnitType {
             Elevation.GROUND
     ),
 
-    // Miner - destroys obstacles to clear paths
-    MINER(
-            "Miner",
-            100,     // resource cost
-            10,      // build time (seconds)
-            90,      // max health
-            95.0,    // movement speed (slower than worker)
-            0,       // damage (cannot attack)
-            0.0,     // attack rate
-            0,       // attack range
-            14.0,    // size (radius)
-            8,       // sides (octagon)
-            0x8B4513, // brown (like dirt/stone)
-            BuildingType.HEADQUARTERS,
-            8,       // upkeep cost
-            320.0,    // vision range (utility unit),
-            Elevation.GROUND
-    ),
-
     // Jeep - fast light vehicle
     JEEP(
             "Jeep",
@@ -526,8 +507,8 @@ public enum UnitType {
             800,     // resource cost (EXPENSIVE - strategic asset)
             60,      // build time (seconds)
             250,     // max health (more durable than scout)
-            180.0,   // movement speed (slower than scout drone)
-            100,     // damage (MASSIVE - area effect bombs)
+            220.0,   // movement speed (slower than scout drone)
+            200,     // damage (MASSIVE - area effect bombs)
             0.5,     // attack rate (slow - payload limitation)
             0,       // attack range (N/A - bombs are dropped, not fired)
             18.0,    // size (radius) - larger aircraft
@@ -547,8 +528,8 @@ public enum UnitType {
             600,     // resource cost (expensive)
             45,      // build time (seconds)
             200,     // max health (moderate durability)
-            250.0,   // movement speed (FASTEST air unit)
-            45,      // damage per seeking rocket
+            290.0,   // movement speed (FASTEST air unit)
+            100,      // damage per seeking rocket
             2.0,     // attack rate (fast for air-to-air)
             300,     // attack range (long-range seeking missiles)
             14.0,    // size (radius) - sleek fighter
@@ -568,7 +549,7 @@ public enum UnitType {
             1100,    // resource cost (expensive heavy aircraft, hero unit)
             50,      // build time (seconds)
             380,     // max health (durable for sustained combat)
-            160.0,   // movement speed (slower than interceptor, faster than bomber)
+            160.0,   // slowest sortie air unit
             40,      // damage (primary weapon - heavy MG)
             2.0,     // attack rate (decent fire rate)
             280,     // attack range (good engagement range)
@@ -595,7 +576,6 @@ public enum UnitType {
     private final BuildingType producedBy; // which building produces this unit
     private final int upkeepCost; // supply/upkeep cost
     /**
-     * -- GETTER --
      * Get vision range for this unit type
      * Most units: 1.5x attack range
      * Gigantonaut: terrible vision (0.5x attack range)
@@ -769,7 +749,7 @@ public enum UnitType {
             }
 
             // Worker/Support units - circular for easy navigation
-            case WORKER, MINER, MEDIC, ENGINEER -> List.of(Geometry.createCircle(size));
+            case WORKER, MEDIC, ENGINEER -> List.of(Geometry.createCircle(size));
 
             // Android - diamond/square shape (synthetic unit)
             case ANDROID -> List.of(Geometry.createPolygonalCircle(4, size));
@@ -1775,7 +1755,7 @@ public enum UnitType {
      * Check if this unit can attack
      */
     public boolean canAttack() {
-        return this != WORKER && this != MEDIC && this != ENGINEER && this != MINER;
+        return this != WORKER && this != MEDIC && this != ENGINEER;
     }
 
     /**
@@ -1807,17 +1787,18 @@ public enum UnitType {
     }
 
     /**
-     * Check if this unit can mine obstacles
+     * Check if this unit can mine obstacles (REMOVED - workers now harvest from obstacles)
      */
+    @Deprecated
     public boolean canMine() {
-        return this == MINER;
+        return false; // Mining removed - workers harvest resources from obstacles instead
     }
 
     /**
      * Check if this is a support unit (non-combat)
      */
     public boolean isSupport() {
-        return this == MEDIC || this == ENGINEER || this == MINER;
+        return this == MEDIC || this == ENGINEER;
     }
 
     /**

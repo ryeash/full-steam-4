@@ -7,7 +7,6 @@ import com.fullsteam.model.Elevation;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Ordinance;
-import com.fullsteam.model.ResourceDeposit;
 import com.fullsteam.model.ShieldSensor;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.component.ShieldComponent;
@@ -170,20 +169,8 @@ public class BeamWeapon extends Weapon {
                     closestHit = result;
                 }
             }
-            // Resource deposits are at GROUND elevation - only hit them if beam is also at GROUND
-            else if (result.getBody().getUserData() instanceof ResourceDeposit) {
-                if (beamElevation != Elevation.GROUND) {
-                    continue; // Beam at higher elevation passes over deposits
-                }
-
-                double distance = result.getRaycast().getDistance();
-
-                // Check if this is the closest hit so far
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                    closestHit = result;
-                }
-            }
+            // Resource deposits removed - obstacles now contain harvestable resources
+            // Obstacles are handled in the section above
             // Shields are at GROUND elevation (they protect buildings)
             // Only block beams at GROUND elevation
             else if (result.getBody().getUserData() instanceof ShieldSensor s) {

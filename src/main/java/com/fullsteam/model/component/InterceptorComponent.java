@@ -28,7 +28,7 @@ public class InterceptorComponent extends AbstractUnitComponent {
     private boolean lowFuelWarning = false;
 
     // Ammunition system
-    private static final int MAX_AMMO = 12; // 4 seeking missiles
+    private static final int MAX_AMMO = 6; // 6 seeking missiles
     private int currentAmmo;
     private boolean lowAmmoWarning = false;
 

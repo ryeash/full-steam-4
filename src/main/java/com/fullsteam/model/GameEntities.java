@@ -24,7 +24,6 @@ public class GameEntities {
     private final Map<Integer, PlayerFaction> playerFactions;
     private final Map<Integer, Unit> units;
     private final Map<Integer, Building> buildings;
-    private final Map<Integer, ResourceDeposit> resourceDeposits;
     private final Map<Integer, WallSegment> wallSegments;
     private final Map<Integer, Obstacle> obstacles;
     private final Map<Integer, Projectile> projectiles;
@@ -41,7 +40,6 @@ public class GameEntities {
         this.playerFactions = new ConcurrentSkipListMap<>();
         this.units = new ConcurrentSkipListMap<>();
         this.buildings = new ConcurrentSkipListMap<>();
-        this.resourceDeposits = new ConcurrentSkipListMap<>();
         this.wallSegments = new ConcurrentSkipListMap<>();
         this.obstacles = new ConcurrentSkipListMap<>();
         this.projectiles = new ConcurrentSkipListMap<>();
@@ -59,8 +57,6 @@ public class GameEntities {
             units.put(u.getId(), u);
         } else if (e instanceof Building b) {
             buildings.put(b.getId(), b);
-        } else if (e instanceof ResourceDeposit rd) {
-            resourceDeposits.put(rd.getId(), rd);
         } else if (e instanceof Obstacle o) {
             obstacles.put(o.getId(), o);
         } else if (e instanceof Projectile p) {

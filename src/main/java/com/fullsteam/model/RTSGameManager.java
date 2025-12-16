@@ -10,16 +10,16 @@ import com.fullsteam.model.command.AttackTargetableCommand;
 import com.fullsteam.model.command.ConstructCommand;
 import com.fullsteam.model.command.GarrisonBunkerCommand;
 import com.fullsteam.model.command.HarvestCommand;
-import com.fullsteam.model.command.MineCommand;
 import com.fullsteam.model.command.MoveCommand;
 import com.fullsteam.model.command.OnStationCommand;
 import com.fullsteam.model.command.SortieCommand;
 import com.fullsteam.model.component.AndroidComponent;
 import com.fullsteam.model.component.AndroidFactoryComponent;
 import com.fullsteam.model.component.DeployComponent;
+import com.fullsteam.model.component.GunshipComponent;
 import com.fullsteam.model.component.HangarComponent;
 import com.fullsteam.model.component.IBuildingComponent;
-import com.fullsteam.model.component.MineComponent;
+import com.fullsteam.model.component.InterceptorComponent;
 import com.fullsteam.model.component.ShieldComponent;
 import com.fullsteam.model.factions.Faction;
 import com.fullsteam.model.research.ResearchManager;
@@ -95,7 +95,6 @@ public class RTSGameManager {
     private final Map<Integer, PlayerFaction> playerFactions;
     private final Map<Integer, Unit> units;
     private final Map<Integer, Building> buildings;
-    private final Map<Integer, ResourceDeposit> resourceDeposits;
     private final Map<Integer, Obstacle> obstacles;
     private final Map<Integer, Projectile> projectiles;
     private final Map<Integer, Beam> beams;
@@ -133,7 +132,6 @@ public class RTSGameManager {
         this.playerFactions = gameEntities.getPlayerFactions();
         this.units = gameEntities.getUnits();
         this.buildings = gameEntities.getBuildings();
-        this.resourceDeposits = gameEntities.getResourceDeposits();
         this.obstacles = gameEntities.getObstacles();
         this.projectiles = gameEntities.getProjectiles();
         this.beams = gameEntities.getBeams();
@@ -170,10 +168,8 @@ public class RTSGameManager {
         this.world.setBounds(new AxisAlignedBounds(gameConfig.getWorldWidth(), gameConfig.getWorldHeight()));
 
         // Initialize world entities
-        rtsWorld.placeResourceDeposits();
         rtsWorld.placeObstacles();
         rtsWorld.createWorldBoundaries();
-        rtsWorld.getResourceDeposits().forEach(gameEntities::add);
         rtsWorld.getObstacles().forEach(gameEntities::add);
 
         // Start update loop
@@ -251,25 +247,7 @@ public class RTSGameManager {
                 // which is called from HarvestCommand.update()
                 // No need to duplicate the logic here
 
-                // Help miners find headquarters when returning for pickaxe repair
-                if (unit.getCurrentCommand() instanceof MineCommand mineCmd) {
-
-                    if (mineCmd.isReturningForRepair()) {
-                        Building currentHQ = mineCmd.getTargetHeadquarters();
-
-                        // Re-evaluate HQ if needed
-                        boolean needsReevaluation = currentHQ == null ||
-                                !currentHQ.isActive() ||
-                                currentHQ.isUnderConstruction();
-
-                        if (needsReevaluation) {
-                            Building headquarters = findNearestHeadquarters(unit);
-                            if (headquarters != null && headquarters != currentHQ) {
-                                mineCmd.setTargetHeadquarters(headquarters);
-                            }
-                        }
-                    }
-                }
+                // Mining removed - workers now harvest resources from obstacles
 
                 unit.update(gameEntities);
 
@@ -585,26 +563,18 @@ public class RTSGameManager {
                     playerId, targetPosition.x, targetPosition.y);
         }
 
-        // Handle harvest orders
+        // Handle harvest orders - now targets harvestable obstacles
         if (input.getHarvestOrder() != null) {
-            ResourceDeposit deposit = resourceDeposits.get(input.getHarvestOrder());
-            if (deposit != null) {
+            Obstacle obstacle = obstacles.get(input.getHarvestOrder());
+            if (obstacle != null && obstacle.isHarvestable()) {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().canHarvest())
-                        .forEach(u -> u.issueCommand(new HarvestCommand(u, deposit, true), gameEntities));
+                        .forEach(u -> u.issueCommand(new HarvestCommand(u, obstacle, true), gameEntities));
+                log.info("Player {} ordered workers to harvest obstacle {}", playerId, obstacle.getId());
             }
         }
 
-        // Handle mine orders
-        if (input.getMineOrder() != null) {
-            Obstacle obstacle = obstacles.get(input.getMineOrder());
-            if (obstacle != null && obstacle.isDestructible()) {
-                units.values().stream()
-                        .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().canMine())
-                        .forEach(u -> u.issueCommand(new MineCommand(u, obstacle, true), gameEntities));
-                log.info("Player {} ordered miners to destroy obstacle {}", playerId, obstacle.getId());
-            }
-        }
+        // Mine orders removed - workers now harvest resources from obstacles
 
         // Handle construct orders (resume building construction)
         if (input.getConstructOrder() != null) {
@@ -771,7 +741,7 @@ public class RTSGameManager {
                         } else if (aircraftType == UnitType.INTERCEPTOR) {
                             // Interceptor: Deploy to patrol station
                             // Activate the interceptor component to start fuel tracking
-                            aircraft.getComponent(com.fullsteam.model.component.InterceptorComponent.class)
+                            aircraft.getComponent(InterceptorComponent.class)
                                     .ifPresent(interceptorComp -> interceptorComp.deploy(hangar.getId()));
 
                             aircraft.issueCommand(new OnStationCommand(aircraft, input.getSortieTargetLocation(), true), gameEntities);
@@ -786,7 +756,7 @@ public class RTSGameManager {
                         } else if (aircraftType == UnitType.GUNSHIP) {
                             // Gunship: Deploy to patrol station (like Interceptor)
                             // Activate the gunship component to start fuel tracking
-                            aircraft.getComponent(com.fullsteam.model.component.GunshipComponent.class)
+                            aircraft.getComponent(GunshipComponent.class)
                                     .ifPresent(gunshipComp -> gunshipComp.deploy(hangar.getId()));
 
                             aircraft.issueCommand(new OnStationCommand(aircraft, input.getSortieTargetLocation(), true), gameEntities);
@@ -1277,30 +1247,6 @@ public class RTSGameManager {
     }
 
     /**
-     * Find nearest headquarters for a miner to repair pickaxe
-     */
-    private Building findNearestHeadquarters(Unit miner) {
-        Building nearestHQ = null;
-        double nearestDistance = Double.MAX_VALUE;
-
-        for (Building building : buildings.values()) {
-            if (building.isActive() &&
-                    building.getOwnerId() == miner.getOwnerId() &&
-                    !building.isUnderConstruction() &&
-                    building.getBuildingType() == BuildingType.HEADQUARTERS) {
-
-                double distance = miner.getPosition().distance(building.getPosition());
-                if (distance < nearestDistance) {
-                    nearestDistance = distance;
-                    nearestHQ = building;
-                }
-            }
-        }
-
-        return nearestHQ;
-    }
-
-    /**
      * Check if a projectile is explosive (creates explosions)
      */
     private boolean isExplosiveProjectile(Projectile projectile) {
@@ -1663,21 +1609,21 @@ public class RTSGameManager {
                     Integer hangarId = null;
 
                     // Check interceptor component for hangar ID
-                    var interceptorComp = unit.getComponent(com.fullsteam.model.component.InterceptorComponent.class);
+                    var interceptorComp = unit.getComponent(InterceptorComponent.class);
                     if (interceptorComp.isPresent() && interceptorComp.get().getHangarId() != null) {
                         hangarId = interceptorComp.get().getHangarId();
                     }
 
                     // Check gunship component for hangar ID  
                     if (hangarId == null) {
-                        var gunshipComp = unit.getComponent(com.fullsteam.model.component.GunshipComponent.class);
+                        var gunshipComp = unit.getComponent(GunshipComponent.class);
                         if (gunshipComp.isPresent() && gunshipComp.get().getHangarId() != null) {
                             hangarId = gunshipComp.get().getHangarId();
                         }
                     }
 
                     // Check if it's a bomber (via SortieCommand)
-                    if (hangarId == null && unit.getCurrentCommand() instanceof com.fullsteam.model.command.SortieCommand sortieCmd) {
+                    if (hangarId == null && unit.getCurrentCommand() instanceof SortieCommand sortieCmd) {
                         hangarId = sortieCmd.getHomeHangarId();
                     }
 
@@ -1686,7 +1632,7 @@ public class RTSGameManager {
                         final Integer finalHangarId = hangarId; // Make final for lambda
                         Building hangar = buildings.get(finalHangarId);
                         if (hangar != null && hangar.isActive()) {
-                            hangar.getComponent(com.fullsteam.model.component.HangarComponent.class)
+                            hangar.getComponent(HangarComponent.class)
                                     .ifPresent(hc -> {
                                         log.info("Sortie aircraft {} destroyed - clearing from hangar {}",
                                                 unit.getId(), finalHangarId);
@@ -1828,14 +1774,7 @@ public class RTSGameManager {
             return false;
         });
 
-        resourceDeposits.entrySet().removeIf(entry -> {
-            ResourceDeposit deposit = entry.getValue();
-            if (!deposit.isActive()) {
-                world.removeBody(deposit.getBody());
-                return true;
-            }
-            return false;
-        });
+        // Resource deposits removed - obstacles now contain harvestable resources
 
         // Remove destroyed obstacles
         obstacles.entrySet().removeIf(entry -> {
@@ -1930,7 +1869,6 @@ public class RTSGameManager {
         return collisionProcessor.isValidBuildLocation(
                 location,
                 buildingType,
-                resourceDeposits,
                 gameConfig.getWorldWidth(),
                 gameConfig.getWorldHeight()
         );
@@ -1996,12 +1934,8 @@ public class RTSGameManager {
                 .collect(Collectors.toList());
         state.put("fieldEffects", fieldEffectsList);
 
-        // Resource deposits and obstacles are always visible (map terrain)
-        List<Map<String, Object>> depositsList = resourceDeposits.values().stream()
-                .map(this::serializeResourceDeposit)
-                .collect(Collectors.toList());
-        state.put("resourceDeposits", depositsList);
-
+        // Obstacles are always visible (map terrain)
+        // Some obstacles are harvestable and contain resources
         List<Map<String, Object>> obstaclesList = obstacles.values().stream()
                 .map(this::serializeObstacle)
                 .collect(Collectors.toList());
@@ -2145,9 +2079,7 @@ public class RTSGameManager {
                     }
                 });
 
-        // Serialize pickaxe durability for miners
-        unit.getComponent(MineComponent.class)
-                .ifPresent(mineComp -> data.put("pickaxeDurability", mineComp.getPickaxeDurability()));
+        // Mining removed - workers now harvest resources from obstacles
         return data;
     }
 
@@ -2230,21 +2162,6 @@ public class RTSGameManager {
         return data;
     }
 
-    /**
-     * Serialize a resource deposit for network transmission
-     */
-    private Map<String, Object> serializeResourceDeposit(ResourceDeposit deposit) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("id", deposit.getId());
-        data.put("type", deposit.getResourceType().name());
-        data.put("x", deposit.getPosition().x);
-        data.put("y", deposit.getPosition().y);
-        data.put("size", 40.0); // Radius for rendering and click detection
-        data.put("remaining", deposit.getRemainingResources());
-        data.put("max", deposit.getMaxResources());
-        data.put("percent", deposit.getResourcePercent());
-        return data;
-    }
 
     /**
      * Serialize a faction for network transmission
@@ -2347,6 +2264,15 @@ public class RTSGameManager {
         data.put("destructible", obstacle.isDestructible());
         data.put("health", obstacle.getHealth());
         data.put("maxHealth", obstacle.getMaxHealth());
+        
+        // Include resource information if harvestable
+        data.put("harvestable", obstacle.isHarvestable());
+        if (obstacle.isHarvestable()) {
+            data.put("resourceType", obstacle.getResourceType() != null ? obstacle.getResourceType().name() : null);
+            data.put("remainingResources", obstacle.getRemainingResources());
+            data.put("maxResources", obstacle.getMaxResources());
+            data.put("resourcePercent", obstacle.getResourcePercent());
+        }
 
         // Include vertices for irregular polygons
         if (obstacle.getShape() == Obstacle.Shape.IRREGULAR_POLYGON && obstacle.getVertices() != null) {
@@ -2501,7 +2427,7 @@ public class RTSGameManager {
                 log.info("DEBUG: Successfully parsed faction: {}", selectedFaction);
             } catch (IllegalArgumentException e) {
                 log.warn("DEBUG: Invalid faction '{}', defaulting to TERRAN. Valid values: {}",
-                        factionName, java.util.Arrays.toString(Faction.values()));
+                        factionName, Arrays.toString(Faction.values()));
             }
         } else {
             log.warn("DEBUG: factionName is null, defaulting to TERRAN");

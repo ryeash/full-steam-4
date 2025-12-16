@@ -250,7 +250,6 @@ public class ProductionComponent extends AbstractBuildingComponent {
                 .isValidSpawnPosition(
                         position,
                         unitSize,
-                        gameEntities.getResourceDeposits(),
                         gameEntities.getGameConfig().getWorldWidth(),
                         gameEntities.getGameConfig().getWorldHeight());
     }

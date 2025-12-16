@@ -11,8 +11,7 @@ class RTSEngine {
         // Game entities
         this.units = new Map();
         this.buildings = new Map();
-        this.resourceDeposits = new Map();
-        this.obstacles = new Map();
+        this.obstacles = new Map(); // Some obstacles are harvestable and contain resources
         this.projectiles = new Map();
         this.beams = new Map();
         this.fieldEffects = new Map();
@@ -480,23 +479,7 @@ class RTSEngine {
             });
         }
         
-        // Update resource deposits
-        if (state.resourceDeposits) {
-            const currentDepositIds = new Set(state.resourceDeposits.map(d => d.id));
-            
-            // Remove deposits that no longer exist (depleted)
-            this.resourceDeposits.forEach((depositContainer, id) => {
-                if (!currentDepositIds.has(id)) {
-                    this.gameContainer.removeChild(depositContainer);
-                    this.resourceDeposits.delete(id);
-                }
-            });
-            
-            // Update or create deposits
-            state.resourceDeposits.forEach(depositData => {
-                this.updateResourceDeposit(depositData);
-            });
-        }
+        // Resource deposits removed - obstacles now contain harvestable resources
         
         // Update obstacles
         if (state.obstacles) {
@@ -701,31 +684,6 @@ class RTSEngine {
                 unitContainer.healthBar.rect(-15, -offset, 30 * healthPercent, 3);
                 unitContainer.healthBar.fill(this.getHealthColor(healthPercent));
             }
-        }
-        
-        // Update pickaxe durability bar (for miners)
-        if (unitData.type === 'MINER' && unitData.pickaxeDurability !== undefined) {
-            if (!unitContainer.pickaxeBar) {
-                unitContainer.pickaxeBar = new PIXI.Graphics();
-                unitContainer.addChild(unitContainer.pickaxeBar);
-            }
-            const durabilityPercent = unitData.pickaxeDurability / 100.0;
-            
-            // Hide pickaxe bar if at full durability
-            if (durabilityPercent >= 1.0) {
-                unitContainer.pickaxeBar.visible = false;
-            } else {
-                unitContainer.pickaxeBar.visible = true;
-                const offset = (unitContainer.healthBarOffset || 25) - 5; // Below health bar
-                unitContainer.pickaxeBar.clear();
-                unitContainer.pickaxeBar.rect(-15, -offset, 30 * durabilityPercent, 2);
-                // Color: green when high, yellow when medium, red when low
-                const pickaxeColor = durabilityPercent > 0.5 ? 0x00FF00 : (durabilityPercent > 0.2 ? 0xFFFF00 : 0xFF0000);
-                unitContainer.pickaxeBar.fill(pickaxeColor);
-            }
-        } else if (unitContainer.pickaxeBar) {
-            // Hide pickaxe bar for non-miners
-            unitContainer.pickaxeBar.visible = false;
         }
         
         // Update selection indicator and track selected units
@@ -1002,7 +960,6 @@ class RTSEngine {
             'ROCKET_SOLDIER': { sides: 3, size: 12, color: 0xFF8800 },
             'SNIPER': { sides: 3, size: 12, color: 0x8B4513 },
             'ENGINEER': { sides: 6, size: 13, color: 0x00CED1 }, // Dark turquoise (distinct from yellow worker)
-            'MINER': { sides: 8, size: 14, color: 0x8B4513 },
             'JEEP': { sides: 4, size: 20, color: 0x00FFFF },
             'TANK': { sides: 5, size: 30, color: 0x8888FF },
             'ARTILLERY': { sides: 6, size: 25, color: 0xFF00FF },
@@ -2085,38 +2042,7 @@ class RTSEngine {
         return container;
     }
     
-    updateResourceDeposit(depositData) {
-        let depositContainer = this.resourceDeposits.get(depositData.id);
-        
-        if (!depositContainer) {
-            // Create new deposit
-            depositContainer = this.createResourceDepositGraphics(depositData);
-            this.resourceDeposits.set(depositData.id, depositContainer);
-            this.gameContainer.addChild(depositContainer);
-            
-            // Resource deposits render at same layer as obstacles (below buildings)
-            depositContainer.zIndex = -1;
-        }
-        
-        // Update position
-        depositContainer.position.set(depositData.x, depositData.y);
-        
-        // Store data
-        depositContainer.resourceData = depositData; // Store as resourceData for click detection
-    }
-    
-    createResourceDepositGraphics(depositData) {
-        const container = new PIXI.Container();
-        
-        // Create circle for deposit
-        const shape = new PIXI.Graphics();
-        shape.circle(0, 0, 40);
-        shape.fill(0x00FF00); // Green for resources
-        shape.stroke({ width: 2, color: 0xFFFFFF });
-        container.addChild(shape);
-        
-        return container;
-    }
+    // Resource deposits removed - obstacles now contain harvestable resources
     
     updateObstacle(obstacleData) {
         let obstacleContainer = this.obstacles.get(obstacleData.id);
@@ -2226,9 +2152,13 @@ class RTSEngine {
         const container = new PIXI.Container();
         const shape = new PIXI.Graphics();
         
-        // Different colors for destructible vs indestructible obstacles
+        // Different colors for harvestable, destructible, and indestructible obstacles
         let fillColor, strokeColor;
-        if (obstacleData.destructible) {
+        if (obstacleData.harvestable) {
+            // Harvestable obstacles: greenish/gold color (contains resources)
+            fillColor = 0x9ACD32; // Yellow-green (resource-rich)
+            strokeColor = 0x6B8E23; // Olive green
+        } else if (obstacleData.destructible) {
             // Destructible obstacles: brownish/tan color (like rocks that can be broken)
             fillColor = 0x8B7355; // Medium brown
             strokeColor = 0x654321; // Darker brown
@@ -3344,26 +3274,9 @@ class RTSEngine {
             }
         });
         
-        // Check if clicking on a resource deposit
-        let targetResource = null;
-        minDist = 100;
-        
-        this.resourceDeposits.forEach((container, id) => {
-            const resourceData = container.resourceData;
-            if (resourceData) {
-                const dist = Math.sqrt(
-                    Math.pow(resourceData.x - worldPos.x, 2) + 
-                    Math.pow(resourceData.y - worldPos.y, 2)
-                );
-                if (dist < minDist && dist < resourceData.size + 10) {
-                    minDist = dist;
-                    targetResource = resourceData;
-                }
-            }
-        });
-        
-        // Check if clicking on an obstacle
+        // Check if clicking on an obstacle (some are harvestable)
         let targetObstacle = null;
+        let targetHarvestableObstacle = null;
         minDist = 100;
         
         this.obstacles.forEach((container, id) => {
@@ -3376,6 +3289,10 @@ class RTSEngine {
                 if (dist < minDist && dist < obstacleData.size + 10) {
                     minDist = dist;
                     targetObstacle = obstacleData;
+                    // Track if this obstacle is harvestable
+                    if (obstacleData.harvestable) {
+                        targetHarvestableObstacle = obstacleData;
+                    }
                 }
             }
         });
@@ -3411,17 +3328,12 @@ class RTSEngine {
                 // Move near friendly wall
                 this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
             }
-        } else if (targetResource) {
-            // Harvest resource (for workers)
-            this.sendInput({ harvestOrder: targetResource.id });
+        } else if (targetHarvestableObstacle) {
+            // Harvest resources from harvestable obstacle (for workers)
+            this.sendInput({ harvestOrder: targetHarvestableObstacle.id });
         } else if (targetObstacle) {
-            // Mine obstacle (for miners) - only if destructible
-            if (targetObstacle.destructible) {
-                this.sendInput({ mineOrder: targetObstacle.id });
-            } else {
-                // Can't mine indestructible obstacles, just move
-                this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
-            }
+            // Can't harvest or mine this obstacle, just move near it
+            this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
         } else {
             // Just move to location
             this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
@@ -3600,22 +3512,8 @@ class RTSEngine {
             }
         }
         
-        // Check if too close to resource deposits (except for refineries)
-        if (buildingType !== 'REFINERY') {
-            for (const [id, container] of this.resourceDeposits) {
-                const resource = container.resourceData;
-                if (resource) {
-                    const dist = Math.sqrt(
-                        Math.pow(resource.x - worldPos.x, 2) + 
-                        Math.pow(resource.y - worldPos.y, 2)
-                    );
-                    const minDist = size + resource.size + 50; // Increased buffer to prevent overlap
-                    if (dist < minDist) {
-                        return false;
-                    }
-                }
-            }
-        }
+        // Resource deposits removed - obstacles now contain harvestable resources
+        // Obstacle proximity is already checked above
         
         // Check world bounds
         const halfWidth = this.worldBounds.width / 2;
@@ -4859,8 +4757,7 @@ class RTSEngine {
         // Fallback to hardcoded data if faction data not loaded
         const unitsByBuilding = {
             'HEADQUARTERS': [
-                { type: 'WORKER', name: '👷 Worker', cost: 50 },
-                { type: 'MINER', name: '⛏️ Miner', cost: 100 }
+                { type: 'WORKER', name: '👷 Worker', cost: 50 }
             ],
             'BARRACKS': [
                 { type: 'INFANTRY', name: '🪖 Infantry', cost: 75 },
@@ -4901,7 +4798,6 @@ class RTSEngine {
     getUnitDisplayName(unitType) {
         const names = {
             'WORKER': '👷 Worker',
-            'MINER': '⛏️ Miner',
             'INFANTRY': '🪖 Infantry',
             'LASER_INFANTRY': '⚡ Laser Infantry',
             'MEDIC': '⚕️ Medic',
@@ -4929,7 +4825,8 @@ class RTSEngine {
             'SCOUT_DRONE': '🚁 Scout Drone',
             'HELICOPTER': '🚁 Helicopter',
             'BOMBER': '✈️ Bomber',
-            'INTERCEPTOR': '🛩️ Interceptor'
+            'INTERCEPTOR': '🛩️ Interceptor',
+            'GUNSHIP': '👾 Gunship'
         };
         return names[unitType] || unitType;
     }

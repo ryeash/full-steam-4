@@ -2,8 +2,8 @@ package com.fullsteam.model.component;
 
 import com.fullsteam.model.Building;
 import com.fullsteam.model.BuildingType;
+import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.PlayerFaction;
-import com.fullsteam.model.ResourceDeposit;
 import com.fullsteam.model.ResourceType;
 import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
@@ -32,22 +32,30 @@ public class HarvestComponent extends AbstractUnitComponent {
         // This method is here for future enhancements (e.g., auto-return when full)
     }
 
+    // harvestFrom(ResourceDeposit) removed - use harvestFromObstacle(Obstacle) instead
+    
     /**
-     * Harvest from a resource deposit.
+     * Harvest from a harvestable obstacle.
      *
-     * @param deposit The deposit to harvest from
-     * @return true if harvest is complete (full or deposit depleted), false to continue
+     * @param obstacle The obstacle to harvest from
+     * @return true if harvest is complete (full or obstacle depleted), false to continue
      */
-    public boolean harvestFrom(ResourceDeposit deposit) {
+    public boolean harvestFromObstacle(Obstacle obstacle) {
         if (carriedResources >= maxCarriedResources) {
             return true; // Full, should return to refinery
         }
+        
+        if (!obstacle.isHarvestable()) {
+            log.warn("Unit {} attempted to harvest from non-harvestable obstacle {}", 
+                    unit.getId(), obstacle.getId());
+            return true; // Can't harvest, stop trying
+        }
 
         double harvestAmount = HARVEST_RATE * getDeltaTime();
-        double actualHarvested = deposit.harvest(harvestAmount);
+        double actualHarvested = obstacle.harvest(harvestAmount);
         carriedResources += actualHarvested;
 
-        // Return true if full or deposit is depleted
+        // Return true if full or obstacle is depleted
         return carriedResources >= maxCarriedResources || actualHarvested == 0;
     }
 

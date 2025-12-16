@@ -45,7 +45,7 @@ public class GunshipComponent extends AbstractUnitComponent {
         this.groundWeapon = new ProjectileWeapon(
                 20,    // damage
                 280,   // range
-                4.0,   // attack rate (rapid fire MG)
+                8.0,   // attack rate (rapid fire MG)
                 600,   // projectile speed
                 0.3,   // damping
                 2.5,   // size

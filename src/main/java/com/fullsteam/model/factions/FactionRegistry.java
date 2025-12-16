@@ -37,8 +37,7 @@ public class FactionRegistry {
         FactionTechTree techTree = FactionTechTree.builder()
                 .buildingsAndUnits(Map.ofEntries(
                         Map.entry(BuildingType.HEADQUARTERS, List.of(
-                                UnitType.WORKER,
-                                UnitType.MINER
+                                UnitType.WORKER
                         )),
                         Map.entry(BuildingType.POWER_PLANT, List.of()),
                         Map.entry(BuildingType.BARRACKS, List.of(
@@ -98,8 +97,7 @@ public class FactionRegistry {
         FactionTechTree techTree = FactionTechTree.builder()
                 .buildingsAndUnits(Map.ofEntries(
                         Map.entry(BuildingType.HEADQUARTERS, List.of(
-                                UnitType.WORKER,
-                                UnitType.MINER
+                                UnitType.WORKER
                         )),
                         Map.entry(BuildingType.POWER_PLANT, List.of()),
                         Map.entry(BuildingType.BARRACKS, List.of(
@@ -167,8 +165,7 @@ public class FactionRegistry {
         FactionTechTree techTree = FactionTechTree.builder()
                 .buildingsAndUnits(Map.ofEntries(
                         Map.entry(BuildingType.HEADQUARTERS, List.of(
-                                UnitType.WORKER,
-                                UnitType.MINER
+                                UnitType.WORKER
                         )),
                         Map.entry(BuildingType.POWER_PLANT, List.of()),
                         Map.entry(BuildingType.REFINERY, List.of()),
@@ -225,8 +222,7 @@ public class FactionRegistry {
         FactionTechTree techTree = FactionTechTree.builder()
                 .buildingsAndUnits(Map.ofEntries(
                         Map.entry(BuildingType.HEADQUARTERS, List.of(
-                                UnitType.WORKER,
-                                UnitType.MINER
+                                UnitType.WORKER
                         )),
                         Map.entry(BuildingType.POWER_PLANT, List.of()),
                         Map.entry(BuildingType.REFINERY, List.of()),
@@ -284,8 +280,7 @@ public class FactionRegistry {
         FactionTechTree techTree = FactionTechTree.builder()
                 .buildingsAndUnits(Map.ofEntries(
                         Map.entry(BuildingType.HEADQUARTERS, List.of(
-                                UnitType.WORKER,
-                                UnitType.MINER
+                                UnitType.WORKER
                         )),
                         Map.entry(BuildingType.POWER_PLANT, List.of()),
                         Map.entry(BuildingType.REFINERY, List.of()),

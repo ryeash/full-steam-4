@@ -260,7 +260,6 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
     public boolean isValidBuildLocation(
             Vector2 location,
             BuildingType buildingType,
-            Map<Integer, ResourceDeposit> resourceDeposits,
             double worldWidth,
             double worldHeight
     ) {
@@ -302,18 +301,8 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
             }
         }
 
-        // Check if too close to resource deposits (except for refineries)
-        if (buildingType != BuildingType.REFINERY) {
-            for (ResourceDeposit deposit : resourceDeposits.values()) {
-                double dist = location.distance(deposit.getPosition());
-                double depositSize = 40.0; // Resource deposit radius
-                double minDist = size + depositSize + 50; // Increased buffer to prevent overlap
-                if (dist < minDist) {
-                    log.debug("Build location too close to resource deposit (dist: {}, minDist: {})", dist, minDist);
-                    return false;
-                }
-            }
-        }
+        // Resource deposits removed - obstacles now contain harvestable resources
+        // Obstacle proximity is already checked above
 
         // Check world bounds
         double halfWidth = worldWidth / 2.0;
@@ -421,7 +410,6 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
     public boolean isValidSpawnPosition(
             Vector2 position,
             double unitSize,
-            Map<Integer, ResourceDeposit> resourceDeposits,
             double worldWidth,
             double worldHeight
     ) {
@@ -485,18 +473,8 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
             }
         }
 
-        // Check distance to resource deposits (don't spawn on resources)
-        for (ResourceDeposit deposit : resourceDeposits.values()) {
-            if (!deposit.isActive()) {
-                continue;
-            }
-
-            double distance = position.distance(deposit.getPosition());
-            double minDistance = unitSize + 40 + 5; // Resource deposit radius + buffer
-            if (distance < minDistance) {
-                return false; // Too close to resource deposit
-            }
-        }
+        // Resource deposits removed - obstacles now contain harvestable resources
+        // Obstacle proximity is already checked above
 
         return true; // Position is valid
     }
@@ -719,35 +697,8 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 return true; // Allow physics collision with obstacles
             }
 
-            // Check if projectile hits a resource deposit
-            if (other instanceof ResourceDeposit) {
-                // Resource deposits are at GROUND elevation - only hit if projectile is also at GROUND
-                if (projectile.getCurrentElevation() != Elevation.GROUND) {
-                    return false; // Projectile at higher elevation passes over deposits
-                }
-
-                // Resource nodes destroy projectiles (terminate, not bounce)
-                log.debug("Projectile {} hit resource deposit at ({}, {})",
-                        projectile.getId(), hitPosition.x, hitPosition.y);
-
-                // Create explosion if it's an explosive projectile
-                if (isExplosiveProjectile(projectile)) {
-                    createExplosionEffect(hitPosition, projectile);
-                }
-
-                // Create flak explosion for flak projectiles
-                if (createsFlakExplosion(projectile)) {
-                    createFlakExplosionEffect(hitPosition, projectile);
-                }
-
-                // Create electric field for electric projectiles (area denial)
-                if (hasElectricEffect(projectile)) {
-                    createElectricFieldEffect(hitPosition, projectile);
-                }
-
-                projectile.setActive(false);
-                return false; // No physics collision (terminate without bouncing)
-            }
+            // Resource deposits removed - obstacles now contain harvestable resources
+            // Obstacles are handled in the section above
         }
 
         // Handle beam collisions (beams are sensors, so they detect but don't physically collide)
@@ -887,30 +838,8 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 return false; // No physics collision (sensor)
             }
 
-            // Check if beam hits a resource deposit
-            if (other instanceof ResourceDeposit deposit) {
-                // Resource deposits are at GROUND elevation - only hit if beam is also at GROUND
-                if (beam.getCurrentElevation() != Elevation.GROUND) {
-                    return false; // Beam at higher elevation passes over deposits
-                }
-
-                if (!deposit.isActive()) {
-                    return false;
-                }
-
-                // Check if already processed this resource deposit
-                if (beam.getAffectedPlayers().contains(deposit.getId())) {
-                    return false;
-                }
-
-                // Mark as affected to terminate the beam
-                beam.getAffectedPlayers().add(deposit.getId());
-
-                log.debug("Beam {} hit resource deposit at ({}, {})",
-                        beam.getId(), hitPosition.x, hitPosition.y);
-
-                return false; // No physics collision (sensor, but terminates beam)
-            }
+            // Resource deposits removed - obstacles now contain harvestable resources
+            // Obstacles are handled in the section above
         }
 
         // Handle field effect collisions (explosions, electric fields, etc.)

@@ -13,7 +13,7 @@ import java.util.List;
  */
 @Getter
 public enum BuildingType {
-    // Main base - produces workers and miners, required to win
+    // Main base - produces workers, required to win
     HEADQUARTERS(
             "Headquarters",
             0,       // free (starting building)
@@ -362,13 +362,6 @@ public enum BuildingType {
         this.canProduceUnits = canProduceUnits;
         this.powerValue = powerValue;
         this.visionRange = visionRange;
-    }
-
-    /**
-     * Check if this building is defensive (turret)
-     */
-    public boolean isDefensive() {
-        return this == TURRET || this == ROCKET_TURRET || this == LASER_TURRET;
     }
 
     /**

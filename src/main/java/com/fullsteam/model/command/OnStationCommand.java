@@ -1,7 +1,9 @@
 package com.fullsteam.model.command;
 
 import com.fullsteam.model.AbstractOrdinance;
+import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Unit;
+import com.fullsteam.model.component.GunshipComponent;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.dyn4j.geometry.Vector2;
@@ -32,7 +34,7 @@ public class OnStationCommand extends UnitCommand {
     private int currentWaypointIndex = 0;
 
     // Target tracking for combat
-    private com.fullsteam.model.Targetable currentTarget = null;
+    private Targetable currentTarget = null;
     private boolean isEngaging = false;
 
     public OnStationCommand(Unit unit, Vector2 stationLocation, boolean isPlayerOrder) {
@@ -72,7 +74,7 @@ public class OnStationCommand extends UnitCommand {
 
         // Gunships handle their own targeting via GunshipComponent
         // Only interceptors need manual target tracking
-        boolean isGunship = unit.getComponent(com.fullsteam.model.component.GunshipComponent.class).isPresent();
+        boolean isGunship = unit.getComponent(GunshipComponent.class).isPresent();
 
         if (!isGunship) {
             // Check if current target is still valid
@@ -105,7 +107,7 @@ public class OnStationCommand extends UnitCommand {
     @Override
     public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
         // Gunships just patrol - they don't chase targets (engage while moving)
-        boolean isGunship = unit.getComponent(com.fullsteam.model.component.GunshipComponent.class).isPresent();
+        boolean isGunship = unit.getComponent(GunshipComponent.class).isPresent();
 
         if (!isGunship && isEngaging && currentTarget != null) {
             // Interceptors: Chase the target
@@ -159,7 +161,7 @@ public class OnStationCommand extends UnitCommand {
     public List<AbstractOrdinance> updateCombat(double deltaTime) {
         // Gunships handle their own combat via GunshipComponent.attackEnemies()
         // They have dual weapons (ground + air) that fire automatically
-        if (unit.getComponent(com.fullsteam.model.component.GunshipComponent.class).isPresent()) {
+        if (unit.getComponent(GunshipComponent.class).isPresent()) {
             return List.of(); // Component handles everything
         }
 
@@ -200,7 +202,7 @@ public class OnStationCommand extends UnitCommand {
     @Override
     public String getDescription() {
         // Only show engaging status for interceptors (gunships engage automatically while patrolling)
-        boolean isGunship = unit.getComponent(com.fullsteam.model.component.GunshipComponent.class).isPresent();
+        boolean isGunship = unit.getComponent(GunshipComponent.class).isPresent();
 
         if (!isGunship && isEngaging && currentTarget != null) {
             return String.format("Engaging Target (%.0f, %.0f)",

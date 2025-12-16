@@ -11,7 +11,6 @@ import com.fullsteam.model.research.ResearchModifier;
  * <p>
  * Examples:
  * - HarvestComponent: Handle resource gathering (Workers)
- * - MineComponent: Handle obstacle destruction (Miners)
  * - DeployComponent: Handle multi-turret deployment (Crawler)
  * - CloakComponent: Handle stealth mechanics (Cloak Tank)
  * - HealComponent: Handle healing abilities (Medic)
