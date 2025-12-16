@@ -36,7 +36,7 @@ public class Obstacle extends GameEntity {
     @Setter
     private double remainingResources;
     private final double maxResources;
-    private static final double HARVEST_RANGE = 50.0;
+    private static final double HARVEST_RANGE = 30.0;
 
     // Circle constructor
     public Obstacle(int id, double x, double y, double radius) {

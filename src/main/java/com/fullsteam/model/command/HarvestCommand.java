@@ -79,8 +79,11 @@ public class HarvestCommand extends UnitCommand {
             // Moving to obstacle
             Vector2 obstaclePos = obstacle.getPosition();
             double distance = currentPos.distance(obstaclePos);
+            
+            // Calculate effective harvest range: harvest range + obstacle size (to reach edge, not center)
+            double effectiveHarvestRange = obstacle.getHarvestRange() + obstacle.getSize();
 
-            if (distance > 50.0) {
+            if (distance > effectiveHarvestRange) {
                 // Compute path if needed (obstacle doesn't move)
                 if (path.isEmpty() || lastPathTarget == null ||
                         lastPathTarget.distance(obstaclePos) > 10.0) { // Check if target changed
@@ -88,7 +91,7 @@ public class HarvestCommand extends UnitCommand {
                 }
 
                 // Follow path to obstacle
-                followPathTo(obstaclePos, nearbyUnits, 50.0);
+                followPathTo(obstaclePos, nearbyUnits, effectiveHarvestRange);
             } else {
                 unit.getBody().setLinearVelocity(0, 0);
             }

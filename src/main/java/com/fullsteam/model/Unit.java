@@ -600,8 +600,11 @@ public class Unit extends GameEntity implements Targetable {
         Vector2 currentPos = getPosition();
         Vector2 obstaclePos = obstacle.getPosition();
         double distance = currentPos.distance(obstaclePos);
+        
+        // Calculate effective harvest range: harvest range + obstacle size (to reach edge, not center)
+        double effectiveHarvestRange = obstacle.getHarvestRange() + obstacle.getSize() + unitType.getSize();
 
-        if (distance <= obstacle.getHarvestRange() + unitType.getSize()) {
+        if (distance <= effectiveHarvestRange) {
             // In range - stop and harvest
             body.setLinearVelocity(0, 0);
             
