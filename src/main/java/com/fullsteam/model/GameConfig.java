@@ -42,7 +42,7 @@ public class GameConfig {
     @Min(100)
     @Max(1000)
     private int startingResources = 500;
-    
+
     // Faction selection for debug games (optional, defaults to TERRAN)
     private String faction;
 }

@@ -1,7 +1,6 @@
 package com.fullsteam.model.component;
 
 import com.fullsteam.model.Building;
-import com.fullsteam.model.BuildingType;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 @Getter
 @Setter
 public class AndroidComponent extends AbstractUnitComponent {
-    
+
     private Integer androidFactoryId = null;
 
     @Override

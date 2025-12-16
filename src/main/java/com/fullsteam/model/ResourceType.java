@@ -9,10 +9,10 @@ import lombok.Getter;
 @Getter
 public enum ResourceType {
     CREDITS("Credits", 0x00FF00); // Green color
-    
+
     private final String displayName;
     private final int color;
-    
+
     ResourceType(String displayName, int color) {
         this.displayName = displayName;
         this.color = color;

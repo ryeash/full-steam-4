@@ -104,7 +104,7 @@ public class MultiProjectileWeapon extends Weapon {
         if (spreadDistance > 0) {
             // Calculate perpendicular vector for spreading
             Vector2 perpendicular = new Vector2(-direction.y, direction.x);
-            
+
             // Calculate starting offset for centered spread
             double totalWidth = (projectileCount - 1) * spreadDistance;
             double startOffset = -totalWidth / 2.0;
@@ -144,7 +144,7 @@ public class MultiProjectileWeapon extends Weapon {
             for (int i = 0; i < projectileCount; i++) {
                 // Calculate angle for this projectile
                 double angle = startAngle + (i * angleStep);
-                
+
                 // Rotate the direction vector by the angle
                 double cos = Math.cos(angle);
                 double sin = Math.sin(angle);
@@ -196,7 +196,7 @@ public class MultiProjectileWeapon extends Weapon {
 
         return ordinances;
     }
-    
+
     /**
      * Determine what elevation the ordinances should fly at based on the target position.
      * This allows projectiles fired at aircraft to fly at aircraft elevation and not collide with ground obstacles.
@@ -204,10 +204,10 @@ public class MultiProjectileWeapon extends Weapon {
     private com.fullsteam.model.Elevation determineOrdinanceElevation(Vector2 targetPosition, GameEntities gameEntities) {
         // Check if we're targeting an airborne unit
         double searchRadius = 50.0; // Search for units near the target position
-        
+
         for (com.fullsteam.model.Unit unit : gameEntities.getUnits().values()) {
             if (!unit.isActive()) continue;
-            
+
             double distance = unit.getPosition().distance(targetPosition);
             if (distance < searchRadius) {
                 // Found a unit near target - use its elevation
@@ -218,7 +218,7 @@ public class MultiProjectileWeapon extends Weapon {
                 }
             }
         }
-        
+
         // Default to GROUND elevation (for hitting ground units, buildings, obstacles)
         return com.fullsteam.model.Elevation.GROUND;
     }

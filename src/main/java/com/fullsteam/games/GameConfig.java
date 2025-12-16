@@ -59,7 +59,7 @@ public class GameConfig {
     @NotNull
     @Builder.Default
     private ObstacleDensity obstacleDensity = ObstacleDensity.MEDIUM;
-    
+
     // Faction selection (optional, for tracking in matchmaking)
     private String faction;  // Can be null, defaults to TERRAN if not specified
 }

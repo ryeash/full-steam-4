@@ -27,7 +27,7 @@ public abstract class AbstractOrdinance extends GameEntity {
     protected boolean active = true;
     protected Set<Integer> affectedEntities = new HashSet<>(); // For piercing/multi-hit tracking
     protected ElevationTargeting elevationTargeting; // Which elevations this ordinance can hit
-    
+
     /**
      * The elevation this ordinance is flying at.
      * This determines which objects it can collide with:

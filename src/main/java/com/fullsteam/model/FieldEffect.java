@@ -118,7 +118,7 @@ public class FieldEffect extends GameEntity {
             if (unit.getId() == ownerId) {
                 return false;
             }
-            
+
             // Check elevation targeting - can this field effect damage units at this elevation?
             if (!type.canAffectElevation(unit.getUnitType().getElevation())) {
                 return false;
@@ -139,7 +139,7 @@ public class FieldEffect extends GameEntity {
             if (building.getOwnerId() == ownerId) {
                 return false;
             }
-            
+
             // Check if field effect can damage ground-level targets
             if (!type.canAffectElevation(Elevation.GROUND)) {
                 return false;

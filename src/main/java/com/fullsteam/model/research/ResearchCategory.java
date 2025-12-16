@@ -13,11 +13,11 @@ public enum ResearchCategory {
     MOBILITY("Mobility", "Movement speed upgrades", 0x44FF44),
     ECONOMY("Economy", "Resource gathering and production upgrades", 0xFFAA00),
     SPECIAL("Special", "Unique abilities and vision upgrades", 0xFF44FF);
-    
+
     private final String displayName;
     private final String description;
     private final int color;
-    
+
     ResearchCategory(String displayName, String description, int color) {
         this.displayName = displayName;
         this.description = description;

@@ -38,7 +38,7 @@ public class AttackGroundCommand extends UnitCommand {
             if (path.isEmpty() || lastPathTarget == null) {
                 computePathTo(groundTarget);
             }
-            
+
             // Follow path to ground target
             followPathTo(groundTarget, nearbyUnits, attackRange * 0.9);
         } else {

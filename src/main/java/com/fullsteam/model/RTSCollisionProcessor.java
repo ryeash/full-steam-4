@@ -143,7 +143,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         if (projectile.getBulletEffects().contains(BulletEffect.FLAK)) {
             return false; // FLAK is handled by createFlakExplosion()
         }
-        
+
         Ordinance ordinance = projectile.getOrdinance();
         return ordinance == Ordinance.ROCKET ||
                 ordinance == Ordinance.GRENADE ||
@@ -159,7 +159,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
     /**
      * Create explosion effect at hit position.
-     * 
+     * <p>
      * Note: For anti-aircraft weapons, you can create FLAK_EXPLOSION effects instead:
      * <pre>
      * // Example: Flak cannon burst (damages all elevations)
@@ -323,13 +323,13 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
             log.debug("Build location outside world bounds");
             return false;
         }
-        
+
         // Check proximity requirements (e.g., Hangar must be near Airfield)
         BuildingType proximityRequirement = buildingType.getProximityRequirement();
         if (proximityRequirement != null) {
             double requiredRange = buildingType.getProximityRange();
             boolean foundNearbyRequirement = false;
-            
+
             for (Building building : buildings.values()) {
                 if (building.getBuildingType() == proximityRequirement && building.isActive()) {
                     double dist = location.distance(building.getPosition());
@@ -339,7 +339,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                     }
                 }
             }
-            
+
             if (!foundNearbyRequirement) {
                 log.debug("Build location does not meet proximity requirement: {} must be within {} pixels of {}",
                         buildingType, requiredRange, proximityRequirement);
@@ -349,14 +349,14 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
         return true;
     }
-    
+
     /**
      * Check if a support building can support another dependent building
      * For example, check if an Airfield has capacity for another Hangar
-     * 
-     * @param location Location where the new building will be placed
+     *
+     * @param location     Location where the new building will be placed
      * @param buildingType Type of building being placed
-     * @param playerId Owner of the building
+     * @param playerId     Owner of the building
      * @return true if support capacity is available, false if at capacity
      */
     public boolean hasSupportCapacity(Vector2 location, BuildingType buildingType, int playerId) {
@@ -364,22 +364,22 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         if (proximityRequirement == null) {
             return true; // No proximity requirement = no support capacity check needed
         }
-        
+
         int supportCapacity = proximityRequirement.getSupportCapacity();
         if (supportCapacity == 0) {
             return true; // No capacity limit
         }
-        
+
         double requiredRange = buildingType.getProximityRange();
-        
+
         // Find the nearest support building within range
         Building nearestSupport = null;
         double nearestDist = Double.MAX_VALUE;
-        
+
         for (Building building : buildings.values()) {
-            if (building.getBuildingType() == proximityRequirement && 
-                building.isActive() && 
-                building.getOwnerId() == playerId) { // Must belong to same player
+            if (building.getBuildingType() == proximityRequirement &&
+                    building.isActive() &&
+                    building.getOwnerId() == playerId) { // Must belong to same player
                 double dist = location.distance(building.getPosition());
                 if (dist <= requiredRange && dist < nearestDist) {
                     nearestSupport = building;
@@ -387,30 +387,30 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 }
             }
         }
-        
+
         if (nearestSupport == null) {
             return false; // No support building nearby
         }
-        
+
         // Count how many dependent buildings this support building already has
         int currentDependents = 0;
         for (Building building : buildings.values()) {
-            if (building.getBuildingType() == buildingType && 
-                building.isActive() && 
-                building.getOwnerId() == playerId) {
+            if (building.getBuildingType() == buildingType &&
+                    building.isActive() &&
+                    building.getOwnerId() == playerId) {
                 double dist = building.getPosition().distance(nearestSupport.getPosition());
                 if (dist <= requiredRange) {
                     currentDependents++;
                 }
             }
         }
-        
+
         boolean hasCapacity = currentDependents < supportCapacity;
         if (!hasCapacity) {
             log.debug("Support building {} at capacity: {}/{} dependent buildings",
                     proximityRequirement, currentDependents, supportCapacity);
         }
-        
+
         return hasCapacity;
     }
 
@@ -537,7 +537,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
         Object obj1 = body1.getUserData();
         Object obj2 = body2.getUserData();
-        
+
         // Check if either object is null (this can happen if body wasn't properly initialized)
         if (obj1 == null || obj2 == null) {
             log.warn("Collision detected with null user data: obj1={}, obj2={}", obj1, obj2);
@@ -611,7 +611,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 if (!unit.isActive()) {
                     return false;
                 }
-                
+
                 // Check if projectile can target this unit's elevation
                 if (!projectile.getElevationTargeting().canTarget(unit.getUnitType().getElevation())) {
                     return false; // Projectile passes through units at untargetable elevations
@@ -639,7 +639,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 if (projectile.getCurrentElevation() != Elevation.GROUND) {
                     return false; // Projectile at higher elevation passes over buildings
                 }
-                
+
                 if (building.getTeamNumber() == projectile.getOwnerTeam()) {
                     return false; // Pass through friendly buildings (no physics or damage)
                 }
@@ -667,7 +667,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 if (projectile.getCurrentElevation() != Elevation.GROUND) {
                     return false; // Projectile at higher elevation passes over walls
                 }
-                
+
                 if (segment.getTeamNumber() == projectile.getOwnerTeam()) {
                     return false; // Pass through friendly walls (no physics or damage)
                 }
@@ -695,7 +695,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 if (projectile.getCurrentElevation() != Elevation.GROUND) {
                     return false; // Projectile at higher elevation passes over obstacles
                 }
-                
+
                 // Obstacles destroy projectiles
                 log.debug("Projectile {} hit obstacle at ({}, {})",
                         projectile.getId(), hitPosition.x, hitPosition.y);
@@ -718,14 +718,14 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 projectile.setActive(false);
                 return true; // Allow physics collision with obstacles
             }
-            
+
             // Check if projectile hits a resource deposit
             if (other instanceof ResourceDeposit) {
                 // Resource deposits are at GROUND elevation - only hit if projectile is also at GROUND
                 if (projectile.getCurrentElevation() != Elevation.GROUND) {
                     return false; // Projectile at higher elevation passes over deposits
                 }
-                
+
                 // Resource nodes destroy projectiles (terminate, not bounce)
                 log.debug("Projectile {} hit resource deposit at ({}, {})",
                         projectile.getId(), hitPosition.x, hitPosition.y);
@@ -754,7 +754,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         if (body1IsBeam || body2IsBeam) {
             Beam beam = body1IsBeam ? (Beam) obj1 : (Beam) obj2;
             Object other = body1IsBeam ? obj2 : obj1;
-            
+
             String otherType = other != null ? other.getClass().getSimpleName() : "null";
             if (other instanceof GameEntity ge) {
                 otherType += " (ID=" + ge.getId() + ")";
@@ -787,7 +787,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 if (!unit.isActive()) {
                     return false;
                 }
-                
+
                 // Check if beam can target this unit's elevation
                 if (!beam.getElevationTargeting().canTarget(unit.getUnitType().getElevation())) {
                     return false; // Beam passes through units at untargetable elevations
@@ -811,7 +811,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 if (beam.getCurrentElevation() != Elevation.GROUND) {
                     return false; // Beam at higher elevation passes over buildings
                 }
-                
+
                 // Skip friendly fire
                 if (building.getTeamNumber() == beam.getOwnerTeam()) {
                     return false;
@@ -837,7 +837,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 if (beam.getCurrentElevation() != Elevation.GROUND) {
                     return false; // Beam at higher elevation passes over walls
                 }
-                
+
                 // Skip friendly fire
                 if (segment.getTeamNumber() == beam.getOwnerTeam()) {
                     return false;
@@ -863,7 +863,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 if (beam.getCurrentElevation() != Elevation.GROUND) {
                     return false; // Beam at higher elevation passes over obstacles
                 }
-                
+
                 if (!obstacle.isActive()) {
                     return false;
                 }
@@ -886,14 +886,14 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
                 return false; // No physics collision (sensor)
             }
-            
+
             // Check if beam hits a resource deposit
             if (other instanceof ResourceDeposit deposit) {
                 // Resource deposits are at GROUND elevation - only hit if beam is also at GROUND
                 if (beam.getCurrentElevation() != Elevation.GROUND) {
                     return false; // Beam at higher elevation passes over deposits
                 }
-                
+
                 if (!deposit.isActive()) {
                     return false;
                 }

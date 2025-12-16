@@ -80,8 +80,8 @@ public class Building extends GameEntity implements Targetable {
         // Add ProductionComponent to buildings that can produce units (except Android Factory and Hangar)
         // Android Factory uses AndroidFactoryComponent for autonomous production
         // Hangar uses HangarComponent for bomber production (one bomber per hangar)
-        if (buildingType.isCanProduceUnits() 
-                && buildingType != BuildingType.ANDROID_FACTORY 
+        if (buildingType.isCanProduceUnits()
+                && buildingType != BuildingType.ANDROID_FACTORY
                 && buildingType != BuildingType.HANGAR) {
             addComponent(new ProductionComponent(null));
             log.debug("Building {} ({}) initialized with ProductionComponent", id, buildingType.getDisplayName());
@@ -134,7 +134,7 @@ public class Building extends GameEntity implements Targetable {
         if (buildingType == BuildingType.BUNKER) {
             addComponent(new GarrisonComponent(6));
         }
-        
+
         if (buildingType == BuildingType.HANGAR) {
             addComponent(new HangarComponent());
             log.debug("Building {} ({}) initialized with HangarComponent", id, buildingType.getDisplayName());
@@ -146,14 +146,14 @@ public class Building extends GameEntity implements Targetable {
         // initialize each building component
         components.values().forEach(c -> c.init(gameEntities, this));
     }
-    
+
     // ============================================================================
     // Targetable Interface Implementation
     // ============================================================================
-    
+
     // getId(), getTeamNumber(), getPosition(), isActive(), getHealth(), getMaxHealth()
     // are inherited from GameEntity
-    
+
     /**
      * Override takeDamage to also reduce construction progress for buildings
      */
@@ -162,16 +162,16 @@ public class Building extends GameEntity implements Targetable {
         if (!active) {
             return;
         }
-        
+
         health -= damage;
         constructionProgress -= damage; // Damage also reduces construction progress
-        
+
         if (health <= 0) {
             health = 0;
             active = false;
         }
     }
-    
+
     /**
      * Implements Targetable - buildings are always at GROUND elevation
      */
@@ -179,7 +179,7 @@ public class Building extends GameEntity implements Targetable {
     public Elevation getElevation() {
         return Elevation.GROUND;
     }
-    
+
     /**
      * Implements Targetable - returns the building's size as target size
      */

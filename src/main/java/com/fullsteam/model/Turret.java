@@ -90,12 +90,12 @@ public class Turret {
             }
 
             double distance = turretWorldPos.distance(enemyUnit.getPosition());
-            
+
             // Cloaked units can only be targeted within cloak detection range
             if (enemyUnit.isCloaked() && distance > Unit.getCloakDetectionRange()) {
                 continue;
             }
-            
+
             if (distance <= range && distance < nearestUnitDistance) {
                 nearestEnemyUnit = enemyUnit;
                 nearestUnitDistance = distance;
@@ -188,7 +188,7 @@ public class Turret {
         );
 
         if (!ordinances.isEmpty()) {
-            log.debug("Turret {} fired {} ordinance(s) at target (distance: {})", 
+            log.debug("Turret {} fired {} ordinance(s) at target (distance: {})",
                     index, ordinances.size(), distance);
         }
 

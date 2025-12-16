@@ -101,17 +101,17 @@ public class RTSLobby {
     /**
      * Join or create a matchmaking game
      *
-     * @param gameId Optional - if provided, join this specific game
-     * @param biome The map biome
+     * @param gameId          Optional - if provided, join this specific game
+     * @param biome           The map biome
      * @param obstacleDensity The obstacle density
-     * @param faction The player's selected faction
-     * @param maxPlayers Optional - if creating a new game, the max players (default 2)
+     * @param faction         The player's selected faction
+     * @param maxPlayers      Optional - if creating a new game, the max players (default 2)
      * @return Map containing gameId and sessionToken
      */
-    public synchronized Map<String, String> joinMatchmaking(String gameId, String biome, String obstacleDensity, 
+    public synchronized Map<String, String> joinMatchmaking(String gameId, String biome, String obstacleDensity,
                                                             String faction, Integer maxPlayers) {
         Map<String, String> map = new HashMap<>();
-        
+
         // If gameId is specified, join that specific game
         if (gameId != null && !gameId.isEmpty()) {
             MatchmakingGame specificGame = matchmakingGames.get(gameId);
@@ -131,11 +131,11 @@ public class RTSLobby {
                 throw new IllegalArgumentException("Game not found or is full");
             }
         }
-        
+
         // Otherwise, try to find an existing game waiting for players with matching settings
         // (For now, we skip auto-matching and just create a new game)
         // In future, we could match based on biome/density/playerCount
-        
+
         // Parse biome (default to GRASSLAND if not provided or invalid)
         Biome selectedBiome = Biome.GRASSLAND;
         if (biome != null) {
@@ -155,10 +155,10 @@ public class RTSLobby {
                 log.warn("Invalid obstacle density '{}', defaulting to MEDIUM", obstacleDensity);
             }
         }
-        
+
         // Determine max players (default to 2 if not specified, max 4)
         int players = (maxPlayers != null && maxPlayers >= 2 && maxPlayers <= 4) ? maxPlayers : 2;
-        
+
         // Determine world size based on player count
         int worldSize = calculateWorldSize(players);
 
@@ -182,7 +182,7 @@ public class RTSLobby {
         map.put("sessionToken", sessionToken);
         return map;
     }
-    
+
     /**
      * Calculate appropriate world size based on player count
      */

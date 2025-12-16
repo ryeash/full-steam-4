@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * Unified command to attack any targetable entity (unit, building, wall segment).
  * Replaces AttackUnitCommand, AttackBuildingCommand, and AttackWallSegmentCommand.
- * 
+ * <p>
  * This command handles:
  * - Pathfinding to the target
  * - Range checking (accounts for target size)
@@ -43,7 +43,7 @@ public class AttackTargetableCommand extends UnitCommand {
         Vector2 currentPos = unit.getPosition();
         Vector2 targetPos = target.getPosition();
         double distance = currentPos.distance(targetPos);
-        
+
         // Get weapon range - handle units with component-managed weapons (e.g., Gunship)
         double weaponRange;
         if (unit.getWeapon() != null) {
@@ -52,7 +52,7 @@ public class AttackTargetableCommand extends UnitCommand {
             // Fallback to UnitType range for units with component-managed weapons
             weaponRange = unit.getUnitType().getAttackRange();
         }
-        
+
         // Account for target size (larger targets can be hit from slightly further away)
         double effectiveRange = weaponRange + target.getTargetSize();
 
@@ -60,11 +60,11 @@ public class AttackTargetableCommand extends UnitCommand {
         if (distance > effectiveRange * 0.9) {
             // Recompute path periodically as target moves
             // Static targets (buildings, walls) won't need frequent recomputation
-            if (path.isEmpty() || lastPathTarget == null || 
-                lastPathTarget.distance(targetPos) > 50.0) { // Target moved significantly
+            if (path.isEmpty() || lastPathTarget == null ||
+                    lastPathTarget.distance(targetPos) > 50.0) { // Target moved significantly
                 computePathTo(targetPos);
             }
-            
+
             // Follow path to target
             followPathTo(targetPos, nearbyUnits, effectiveRange * 0.9);
         } else {
@@ -82,7 +82,7 @@ public class AttackTargetableCommand extends UnitCommand {
         Vector2 currentPos = unit.getPosition();
         Vector2 targetPos = target.getPosition();
         double distance = currentPos.distance(targetPos);
-        
+
         // Get weapon range
         double weaponRange;
         if (unit.getWeapon() != null) {
@@ -110,7 +110,7 @@ public class AttackTargetableCommand extends UnitCommand {
                 // Stationary targets (buildings, walls) - aim directly
                 aimPosition = targetPos;
             }
-            
+
             return unit.fireAt(aimPosition, gameEntities);
         }
 
@@ -129,9 +129,9 @@ public class AttackTargetableCommand extends UnitCommand {
         }
 
         double distance = unit.getPosition().distance(target.getPosition());
-        double weaponRange = unit.getWeapon() != null ? 
-                             unit.getWeapon().getRange() : 
-                             unit.getUnitType().getAttackRange();
+        double weaponRange = unit.getWeapon() != null ?
+                unit.getWeapon().getRange() :
+                unit.getUnitType().getAttackRange();
         double effectiveRange = weaponRange + target.getTargetSize();
         return distance > effectiveRange * 0.9;
     }

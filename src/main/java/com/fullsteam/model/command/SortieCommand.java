@@ -112,7 +112,7 @@ public class SortieCommand extends UnitCommand {
     public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
         Building homeHangar = gameEntities.getBuildings().get(homeHangarId);
         if (homeHangar == null) return;
-        
+
         switch (currentPhase) {
             case OUTBOUND:
                 // Fly straight towards target
@@ -141,22 +141,22 @@ public class SortieCommand extends UnitCommand {
                 break;
         }
     }
-    
+
     /**
      * Simple straight-line movement towards a target position.
      */
     private void moveTowardsTarget(Vector2 target) {
         Vector2 currentPos = unit.getPosition();
         Vector2 direction = target.copy().subtract(currentPos);
-        
+
         if (direction.getMagnitude() > 1.0) {
             // Normalize and apply speed
             direction = direction.getNormalized();
             double speed = unit.getUnitType().getMovementSpeed();
-            
+
             // Set velocity directly towards target
             unit.getBody().setLinearVelocity(direction.product(speed));
-            
+
             // Face the direction of travel
             unit.setRotation(Math.atan2(direction.y, direction.x));
         }

@@ -118,7 +118,7 @@ public class GameController {
             String biome = config != null ? config.get("biome") : null;
             String obstacleDensity = config != null ? config.get("obstacleDensity") : null;
             String faction = config != null ? config.get("faction") : null;
-            
+
             // Parse maxPlayers if provided
             Integer maxPlayers = null;
             if (config != null && config.containsKey("maxPlayers")) {

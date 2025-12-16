@@ -82,10 +82,10 @@ public class ProjectileWeapon extends Weapon {
                 elevationTargeting,
                 ordinanceElevation
         );
-        
+
         return List.of(projectile);
     }
-    
+
     /**
      * Determine what elevation the ordinance should fly at based on the target position.
      * This allows projectiles fired at aircraft to fly at aircraft elevation and not collide with ground obstacles.
@@ -93,10 +93,10 @@ public class ProjectileWeapon extends Weapon {
     private Elevation determineOrdinanceElevation(Vector2 targetPosition, GameEntities gameEntities) {
         // Check if we're targeting an airborne unit
         double searchRadius = 50.0; // Search for units near the target position
-        
+
         for (Unit unit : gameEntities.getUnits().values()) {
             if (!unit.isActive()) continue;
-            
+
             double distance = unit.getPosition().distance(targetPosition);
             if (distance < searchRadius) {
                 // Found a unit near target - use its elevation
@@ -107,7 +107,7 @@ public class ProjectileWeapon extends Weapon {
                 }
             }
         }
-        
+
         // Default to GROUND elevation (for hitting ground units, buildings, obstacles)
         return Elevation.GROUND;
     }

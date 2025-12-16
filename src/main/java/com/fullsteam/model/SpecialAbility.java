@@ -14,7 +14,7 @@ public enum SpecialAbility {
             false,
             0
     ),
-    
+
     // Crawler's deploy mode - immobile, +50% range/damage
     DEPLOY(
             "Deploy",
@@ -22,7 +22,7 @@ public enum SpecialAbility {
             false, // doesn't require target
             2000   // 2 second cooldown
     ),
-    
+
     // Medic's heal ability
     HEAL(
             "Heal",
@@ -30,7 +30,7 @@ public enum SpecialAbility {
             true,  // requires target
             500    // 0.5 second cooldown
     ),
-    
+
     // Engineer's repair ability
     REPAIR(
             "Repair",
@@ -38,7 +38,7 @@ public enum SpecialAbility {
             true,  // requires target
             500    // 0.5 second cooldown
     ),
-    
+
     // Cloak Tank's cloaking device
     CLOAK(
             "Cloak",
@@ -46,12 +46,12 @@ public enum SpecialAbility {
             false, // doesn't require target
             3000   // 3 second cooldown
     );
-    
+
     private final String displayName;
     private final boolean isToggle; // Can be turned on/off
     private final boolean requiresTarget; // Needs a target unit/building
     private final long cooldownMs; // Cooldown in milliseconds
-    
+
     SpecialAbility(String displayName, boolean isToggle, boolean requiresTarget, long cooldownMs) {
         this.displayName = displayName;
         this.isToggle = isToggle;

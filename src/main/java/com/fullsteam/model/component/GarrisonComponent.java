@@ -189,7 +189,7 @@ public class GarrisonComponent extends AbstractBuildingComponent {
                     garrisonedUnit.getBody(),
                     gameEntities
             );
-            
+
             for (AbstractOrdinance ordinance : ordinances) {
                 gameEntities.add(ordinance);
             }
@@ -219,12 +219,12 @@ public class GarrisonComponent extends AbstractBuildingComponent {
             }
 
             double distance = bunkerPos.distance(enemy.getPosition());
-            
+
             // Cloaked units can only be detected within cloak detection range
             if (enemy.isCloaked() && distance > Unit.getCloakDetectionRange()) {
                 continue;
             }
-            
+
             if (distance <= attackRange && distance < closestDistance) {
                 closestEnemy = enemy;
                 closestDistance = distance;

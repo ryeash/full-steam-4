@@ -71,9 +71,10 @@ public abstract class GameEntity {
             active = false;
         }
     }
-    
+
     /**
      * Helper method to apply damage and check if the entity was destroyed.
+     *
      * @return true if the entity became inactive as a result of this damage
      */
     public boolean takeDamageAndCheckDestroyed(double damage) {

@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.geometry.Vector2;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -61,13 +60,13 @@ public class AttackMoveCommand extends UnitCommand {
         // If we have an auto-target, move towards it
         if (autoTarget != null && autoTarget.isActive()) {
             Vector2 targetPos = autoTarget.getPosition();
-            
+
             // Get weapon range
-            double weaponRange = unit.getWeapon() != null ? 
-                                 unit.getWeapon().getRange() : 
-                                 unit.getUnitType().getAttackRange();
+            double weaponRange = unit.getWeapon() != null ?
+                    unit.getWeapon().getRange() :
+                    unit.getUnitType().getAttackRange();
             double effectiveRange = weaponRange + autoTarget.getTargetSize();
-            
+
             double distance = currentPos.distance(targetPos);
 
             // Move into range if too far
@@ -119,9 +118,9 @@ public class AttackMoveCommand extends UnitCommand {
         double distance = currentPos.distance(targetPos);
 
         // Get weapon range
-        double weaponRange = unit.getWeapon() != null ? 
-                             unit.getWeapon().getRange() : 
-                             unit.getUnitType().getAttackRange();
+        double weaponRange = unit.getWeapon() != null ?
+                unit.getWeapon().getRange() :
+                unit.getUnitType().getAttackRange();
         double effectiveRange = weaponRange + autoTarget.getTargetSize();
 
         // Check if in range
@@ -138,10 +137,10 @@ public class AttackMoveCommand extends UnitCommand {
                 // Stationary targets (buildings, walls)
                 aimPosition = targetPos;
             }
-            
+
             return unit.fireAt(aimPosition, gameEntities);
         }
-        
+
         return List.of();
     }
 

@@ -742,7 +742,7 @@ public class RTSGameManager {
                     Unit aircraft = hangarComponent.launchAircraft();
                     if (aircraft != null) {
                         UnitType aircraftType = aircraft.getUnitType();
-                        
+
                         // Issue appropriate command based on aircraft type
                         if (aircraftType == UnitType.BOMBER) {
                             // Bomber: Execute bombing run at target location
@@ -761,7 +761,7 @@ public class RTSGameManager {
                             // Activate the interceptor component to start fuel tracking
                             aircraft.getComponent(com.fullsteam.model.component.InterceptorComponent.class)
                                     .ifPresent(interceptorComp -> interceptorComp.deploy(hangar.getId()));
-                            
+
                             aircraft.issueCommand(new OnStationCommand(aircraft, input.getSortieTargetLocation(), true), gameEntities);
                             log.info("Player {} deployed interceptor {} from hangar {} to patrol station ({}, {})",
                                     playerId, aircraft.getId(), hangar.getId(),
@@ -776,7 +776,7 @@ public class RTSGameManager {
                             // Activate the gunship component to start fuel tracking
                             aircraft.getComponent(com.fullsteam.model.component.GunshipComponent.class)
                                     .ifPresent(gunshipComp -> gunshipComp.deploy(hangar.getId()));
-                            
+
                             aircraft.issueCommand(new OnStationCommand(aircraft, input.getSortieTargetLocation(), true), gameEntities);
                             log.info("Player {} deployed gunship {} from hangar {} to patrol station ({}, {})",
                                     playerId, aircraft.getId(), hangar.getId(),
@@ -1645,17 +1645,17 @@ public class RTSGameManager {
                                         .ifPresent(a -> a.unregisterAndroid(unit.getId()));
                             }
                         });
-                
+
                 // Unregister sortie aircraft from its hangar (if it's a sortie-based unit)
                 if (unit.getUnitType().isSortieBased()) {
                     Integer hangarId = null;
-                    
+
                     // Check interceptor component for hangar ID
                     var interceptorComp = unit.getComponent(com.fullsteam.model.component.InterceptorComponent.class);
                     if (interceptorComp.isPresent() && interceptorComp.get().getHangarId() != null) {
                         hangarId = interceptorComp.get().getHangarId();
                     }
-                    
+
                     // Check gunship component for hangar ID  
                     if (hangarId == null) {
                         var gunshipComp = unit.getComponent(com.fullsteam.model.component.GunshipComponent.class);
@@ -1663,12 +1663,12 @@ public class RTSGameManager {
                             hangarId = gunshipComp.get().getHangarId();
                         }
                     }
-                    
+
                     // Check if it's a bomber (via SortieCommand)
                     if (hangarId == null && unit.getCurrentCommand() instanceof com.fullsteam.model.command.SortieCommand sortieCmd) {
                         hangarId = sortieCmd.getHomeHangarId();
                     }
-                    
+
                     // Clear aircraft from hangar if we found the hangar ID
                     if (hangarId != null) {
                         final Integer finalHangarId = hangarId; // Make final for lambda
@@ -1676,7 +1676,7 @@ public class RTSGameManager {
                         if (hangar != null && hangar.isActive()) {
                             hangar.getComponent(com.fullsteam.model.component.HangarComponent.class)
                                     .ifPresent(hc -> {
-                                        log.info("Sortie aircraft {} destroyed - clearing from hangar {}", 
+                                        log.info("Sortie aircraft {} destroyed - clearing from hangar {}",
                                                 unit.getId(), finalHangarId);
                                         hc.clearAircraft();
                                     });
@@ -2194,20 +2194,20 @@ public class RTSGameManager {
                 // Production state
                 data.put("hangarProducing", hangarComp.isProducingAircraft());
                 data.put("hangarProductionPercent", hangarComp.getProductionProgressPercent());
-                
+
                 // Housed aircraft status
                 boolean hasAircraft = hangarComp.getHousedAircraft() != null;
                 data.put("hangarOccupied", hasAircraft ? 1 : 0);
                 data.put("hangarCapacity", 1); // Always 1 for now
                 data.put("hangarOnSortie", hangarComp.isOnSortie());
-                
+
                 // Include aircraft type name for display
                 if (hasAircraft) {
                     data.put("hangarAircraftType", hangarComp.getHousedAircraft().getUnitType().name());
                     data.put("hangarAircraftHealth", hangarComp.getHousedAircraft().getHealth());
                     data.put("hangarAircraftMaxHealth", hangarComp.getHousedAircraft().getMaxHealth());
                 }
-                
+
                 // Include producing type if currently producing
                 if (hangarComp.isProducingAircraft() && hangarComp.getProducingType() != null) {
                     data.put("hangarProducingType", hangarComp.getProducingType().name());

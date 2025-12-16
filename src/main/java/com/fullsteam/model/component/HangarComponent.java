@@ -35,7 +35,7 @@ public class HangarComponent extends AbstractBuildingComponent {
 
     // Whether the aircraft is currently deployed on a sortie
     private boolean isOnSortie;
-    
+
     // SCRAMBLE mode - auto-deploy interceptors when enemy aircraft detected
     @Setter
     private boolean scrambleEnabled = false;
@@ -46,7 +46,7 @@ public class HangarComponent extends AbstractBuildingComponent {
     private UnitType producingType = null; // Type currently being produced
     private double productionProgress = 0; // seconds
     private ResearchModifier modifier = new ResearchModifier();
-    
+
     @Setter
     private Vector2 rallyPoint;
 
@@ -54,7 +54,7 @@ public class HangarComponent extends AbstractBuildingComponent {
     public boolean isReadyForSortie() {
         return housedAircraft != null && !isOnSortie && housedAircraft.getHealth() > 0;
     }
-    
+
     /**
      * Check if hangar can start producing an aircraft.
      * Requires: no existing aircraft AND not currently producing
@@ -62,9 +62,10 @@ public class HangarComponent extends AbstractBuildingComponent {
     public boolean canProduceAircraft() {
         return housedAircraft == null && !producingAircraft;
     }
-    
+
     /**
      * Start producing an aircraft (called by RTSGameManager when player orders production)
+     *
      * @param unitType The type of aircraft to produce (must be sortie-based)
      * @return true if production started, false if already has aircraft or is producing
      */
@@ -73,19 +74,19 @@ public class HangarComponent extends AbstractBuildingComponent {
             log.warn("Hangar {} cannot start production (already has aircraft or is producing)", building.getId());
             return false;
         }
-        
+
         if (!unitType.isSortieBased()) {
             log.warn("Hangar {} cannot produce non-sortie unit type {}", building.getId(), unitType);
             return false;
         }
-        
+
         producingAircraft = true;
         producingType = unitType;
         productionProgress = 0;
         log.info("Hangar {} started producing {}", building.getId(), unitType.getDisplayName());
         return true;
     }
-    
+
     /**
      * Get production progress (0.0 to 1.0).
      */
@@ -95,11 +96,11 @@ public class HangarComponent extends AbstractBuildingComponent {
         }
         return Math.min(1.0, productionProgress / (producingType.getBuildTimeSeconds() / modifier.getProductionSpeedMultiplier()));
     }
-    
+
     @Override
     public void update(boolean hasLowPower) {
         double deltaTime = gameEntities.getWorld().getTimeStep().getDeltaTime();
-        
+
         // Don't produce while under construction or low power
         if (building.isUnderConstruction() || hasLowPower) {
             if (hasLowPower && producingAircraft) {
@@ -107,16 +108,16 @@ public class HangarComponent extends AbstractBuildingComponent {
             }
             return;
         }
-        
+
         // Update production progress (only if player has ordered production)
         if (producingAircraft && producingType != null) {
             productionProgress += deltaTime;
-            
+
             // Check if production is complete
             if ((productionProgress * modifier.getProductionSpeedMultiplier()) >= producingType.getBuildTimeSeconds()) {
                 // Create the aircraft unit (but keep it housed, not in world)
                 Vector2 hangarPos = building.getPosition();
-                
+
                 Unit aircraft = new Unit(
                         IdGenerator.nextEntityId(),
                         producingType,
@@ -125,35 +126,35 @@ public class HangarComponent extends AbstractBuildingComponent {
                         building.getOwnerId(),
                         building.getTeamNumber()
                 );
-                
+
                 // Initialize components
                 aircraft.initializeComponents(gameEntities);
-                
+
                 // Apply research modifiers
                 PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
                 if (faction != null && faction.getResearchManager() != null) {
                     aircraft.applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
                 }
-                
+
                 // House the aircraft (keeps it out of game world until sortie)
                 houseAircraft(aircraft);
-                
+
                 // Reset production state
                 producingAircraft = false;
                 producingType = null;
                 productionProgress = 0;
-                
-                log.info("Hangar {} completed {} production - aircraft housed and ready for sortie", 
+
+                log.info("Hangar {} completed {} production - aircraft housed and ready for sortie",
                         building.getId(), aircraft.getUnitType().getDisplayName());
             }
         }
-        
+
         // Passive repair over time (slow) when aircraft is housed
         if (!hasLowPower && housedAircraft != null && !isOnSortie) {
             double repairRate = 2.0; // 2 HP per second when not on low power
             repairAircraft(repairRate * deltaTime);
         }
-        
+
         // SCRAMBLE: Auto-deploy interceptors when enemy aircraft detected
         if (scrambleEnabled && isReadyForSortie() && housedAircraft.getUnitType() == UnitType.INTERCEPTOR) {
             checkAndScramble();
@@ -179,7 +180,7 @@ public class HangarComponent extends AbstractBuildingComponent {
 
         this.housedAircraft = aircraft;
         this.isOnSortie = false;
-        
+
         // Don't add to game world yet - bomber stays housed
         aircraft.getBody().setEnabled(false);
         aircraft.setGarrisoned(true);
@@ -200,31 +201,32 @@ public class HangarComponent extends AbstractBuildingComponent {
             return null;
         }
         if (isOnSortie) {
-            log.warn("Aircraft {} in Hangar {} is already deployed (isOnSortie=true)", 
+            log.warn("Aircraft {} in Hangar {} is already deployed (isOnSortie=true)",
                     housedAircraft.getId(), building.getId());
             return null;
         }
-        
+
         // Validate the aircraft is not already in the game world (sanity check)
         if (gameEntities.getUnits().containsKey(housedAircraft.getId())) {
             log.error("CRITICAL: Aircraft {} already exists in game world but hangar {} thinks it's housed! " +
-                    "This indicates state corruption. Force clearing hangar state.", 
+                            "This indicates state corruption. Force clearing hangar state.",
                     housedAircraft.getId(), building.getId());
             forceResetState();
             return null;
         }
-        
+
         // Enable physics and add to game world
         housedAircraft.getBody().setEnabled(true);
         housedAircraft.setGarrisoned(false);
         gameEntities.getUnits().put(housedAircraft.getId(), housedAircraft);
         gameEntities.getWorld().addBody(housedAircraft.getBody());
-        
+
         this.isOnSortie = true;
-        log.info("Hangar {} launched aircraft {} (type: {}) for sortie", 
+        log.info("Hangar {} launched aircraft {} (type: {}) for sortie",
                 building.getId(), housedAircraft.getId(), housedAircraft.getUnitType().getDisplayName());
         return housedAircraft;
     }
+
     /**
      * Aircraft has returned from sortie
      *
@@ -232,10 +234,10 @@ public class HangarComponent extends AbstractBuildingComponent {
      */
     public void returnFromSortie(Unit returnedUnit) {
         log.info("Hangar {} returnFromSortie called - isOnSortie: {}, housedAircraft: {}, returnedUnit: {}",
-                building.getId(), isOnSortie, 
+                building.getId(), isOnSortie,
                 (housedAircraft != null ? housedAircraft.getId() : "null"),
                 (returnedUnit != null ? returnedUnit.getId() : "null"));
-        
+
         if (!isOnSortie) {
             log.warn("Hangar {} received return but no sortie was active", building.getId());
             return;
@@ -245,16 +247,16 @@ public class HangarComponent extends AbstractBuildingComponent {
         if (returnedUnit != null && housedAircraft != null && returnedUnit.getId() == housedAircraft.getId()) {
             // Update housed aircraft with current health
             this.housedAircraft = returnedUnit;
-            
+
             // Remove from game world
             returnedUnit.getBody().setEnabled(false);
             returnedUnit.setGarrisoned(true);
             gameEntities.getUnits().remove(returnedUnit.getId());
             gameEntities.getWorld().removeBody(returnedUnit.getBody());
-            
+
             // Clear sortie flag only after successful housing
             this.isOnSortie = false;
-            log.info("Hangar {} aircraft {} successfully returned from sortie with {} health", 
+            log.info("Hangar {} aircraft {} successfully returned from sortie with {} health",
                     building.getId(), returnedUnit.getId(), returnedUnit.getHealth());
         } else if (returnedUnit == null || housedAircraft == null) {
             // Aircraft was destroyed during sortie or hangar state is invalid
@@ -263,7 +265,7 @@ public class HangarComponent extends AbstractBuildingComponent {
             this.isOnSortie = false;
         } else {
             // ID mismatch - wrong aircraft trying to return to this hangar!
-            log.error("Hangar {} received wrong aircraft (expected {}, got {}) - IGNORING return attempt", 
+            log.error("Hangar {} received wrong aircraft (expected {}, got {}) - IGNORING return attempt",
                     building.getId(), housedAircraft.getId(), returnedUnit.getId());
             // DO NOT clear isOnSortie - our aircraft is still out there!
         }
@@ -294,7 +296,7 @@ public class HangarComponent extends AbstractBuildingComponent {
         this.housedAircraft = null;
         this.isOnSortie = false;
     }
-    
+
     /**
      * Force reset the hangar state (emergency use only - for fixing stuck hangars).
      * This should only be called when the hangar state is known to be corrupted.
@@ -324,12 +326,12 @@ public class HangarComponent extends AbstractBuildingComponent {
             housedAircraft.setActive(false);
         }
     }
-    
+
     @Override
     public void applyResearchModifiers(ResearchModifier modifier) {
         this.modifier = modifier;
     }
-    
+
     /**
      * Check for nearby enemy aircraft and scramble interceptor if detected.
      * Only called when SCRAMBLE is enabled and interceptor is ready.
@@ -337,30 +339,30 @@ public class HangarComponent extends AbstractBuildingComponent {
     private void checkAndScramble() {
         Vector2 hangarPos = building.getPosition();
         int teamNumber = building.getTeamNumber();
-        
+
         // Scan for enemy air units within detection range
         for (Unit enemyUnit : gameEntities.getUnits().values()) {
             if (enemyUnit.getTeamNumber() == teamNumber || !enemyUnit.isActive()) {
                 continue;
             }
-            
+
             // Only scramble for airborne threats
             if (!enemyUnit.getUnitType().getElevation().isAirborne()) {
                 continue;
             }
-            
+
             double distance = hangarPos.distance(enemyUnit.getPosition());
             if (distance <= SCRAMBLE_DETECTION_RANGE) {
-                log.info("SCRAMBLE! Hangar {} detected enemy {} at range {} - launching interceptor", 
-                        building.getId(), enemyUnit.getUnitType().getDisplayName(), (int)distance);
-                
+                log.info("SCRAMBLE! Hangar {} detected enemy {} at range {} - launching interceptor",
+                        building.getId(), enemyUnit.getUnitType().getDisplayName(), (int) distance);
+
                 // Launch interceptor to attack the detected aircraft
                 launchInterceptorToAttack(enemyUnit);
                 break; // Only launch once per detection
             }
         }
     }
-    
+
     /**
      * Launch the housed interceptor to attack a specific target.
      */
@@ -368,27 +370,27 @@ public class HangarComponent extends AbstractBuildingComponent {
         if (housedAircraft == null || isOnSortie) {
             return;
         }
-        
+
         // Add aircraft to world
         housedAircraft.setGarrisoned(false);
         housedAircraft.getBody().setEnabled(true);
         housedAircraft.getBody().translate(building.getPosition().x, building.getPosition().y);
         gameEntities.getUnits().put(housedAircraft.getId(), housedAircraft);
         gameEntities.getWorld().addBody(housedAircraft.getBody());
-        
+
         // Mark as on sortie
         isOnSortie = true;
-        
+
         // Deploy interceptor component
         housedAircraft.getComponent(com.fullsteam.model.component.InterceptorComponent.class)
                 .ifPresent(comp -> comp.deploy(building.getId()));
-        
+
         // Issue attack command with unified targetable system
         housedAircraft.issueCommand(
                 new com.fullsteam.model.command.AttackTargetableCommand(housedAircraft, target, false),
                 gameEntities
         );
-        
+
         log.info("Interceptor {} scrambled to engage {}", housedAircraft.getId(), target.getId());
     }
 }

@@ -214,13 +214,16 @@ public class FactionInfoService {
             case HEADQUARTERS, POWER_PLANT, BARRACKS, REFINERY, BUNKER, WALL -> List.of();
 
             // T2 - Requires Power Plant
-            case RESEARCH_LAB, FACTORY, WEAPONS_DEPOT, TURRET, ROCKET_TURRET, SHIELD_GENERATOR -> List.of("POWER_PLANT");
+            case RESEARCH_LAB, FACTORY, WEAPONS_DEPOT, TURRET, ROCKET_TURRET, SHIELD_GENERATOR ->
+                    List.of("POWER_PLANT");
 
             // T3 - Requires Power Plant + Research Lab
-            case TECH_CENTER, ADVANCED_FACTORY, BANK, LASER_TURRET, AIRFIELD, HANGAR -> List.of("POWER_PLANT", "RESEARCH_LAB");
+            case TECH_CENTER, ADVANCED_FACTORY, BANK, LASER_TURRET, AIRFIELD, HANGAR ->
+                    List.of("POWER_PLANT", "RESEARCH_LAB");
 
             // Monument Buildings - Requires Power Plant + Research Lab (T3)
-            case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL, TEMPEST_SPIRE -> List.of("POWER_PLANT", "RESEARCH_LAB");
+            case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL, TEMPEST_SPIRE ->
+                    List.of("POWER_PLANT", "RESEARCH_LAB");
         };
     }
 
@@ -260,7 +263,7 @@ public class FactionInfoService {
                 penalties.add("Buildings consume 20% more power");
                 penalties.add("Cannot build: Standard projectile units");
                 break;
-                
+
             case STORM_WINGS:
                 bonuses.add("Air units cost 15-30% less");
                 bonuses.add("Air units are 15-25% faster");

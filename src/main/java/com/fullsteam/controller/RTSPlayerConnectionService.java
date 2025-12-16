@@ -47,8 +47,8 @@ public class RTSPlayerConnectionService {
         RTSLobby.MatchmakingGame matchmakingGame = rtsLobby.getMatchmakingGame(gameId);
         String factionName = "TERRAN"; // Default
 
-        log.info("DEBUG: Connecting player - gameId={}, sessionToken={}, matchmakingGame={}", 
-                 gameId, sessionToken, matchmakingGame != null ? "found" : "null");
+        log.info("DEBUG: Connecting player - gameId={}, sessionToken={}, matchmakingGame={}",
+                gameId, sessionToken, matchmakingGame != null ? "found" : "null");
 
         if (matchmakingGame != null && sessionToken != null) {
             // Use session token to get the correct faction
@@ -56,8 +56,8 @@ public class RTSPlayerConnectionService {
             matchmakingGame.markSessionConnected(sessionToken);
             log.info("DEBUG: Retrieved faction {} for session token {}", factionName, sessionToken);
         } else {
-            log.warn("DEBUG: No matchmaking game found for gameId {} or sessionToken is null ({}), defaulting to TERRAN", 
-                     gameId, sessionToken);
+            log.warn("DEBUG: No matchmaking game found for gameId {} or sessionToken is null ({}), defaulting to TERRAN",
+                    gameId, sessionToken);
         }
 
         // Create player session

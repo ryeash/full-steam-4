@@ -276,7 +276,7 @@ public class FactionRegistry {
                 .powerEfficiencyMultiplier(1.2)  // +20% power consumption (high-tech energy weapons)
                 .build();
     }
-    
+
     /**
      * STORM_WINGS - Air superiority faction focused on aircraft dominance
      */
@@ -290,7 +290,7 @@ public class FactionRegistry {
                         Map.entry(BuildingType.POWER_PLANT, List.of()),
                         Map.entry(BuildingType.REFINERY, List.of()),
                         Map.entry(BuildingType.WALL, List.of()),
-                        
+
                         // LIMITED ground forces - only basic units
                         Map.entry(BuildingType.BARRACKS, List.of(
                                 UnitType.INFANTRY  // ONLY basic infantry, no medic
@@ -303,9 +303,9 @@ public class FactionRegistry {
                                 UnitType.ROCKET_SOLDIER,  // Keep for anti-air
                                 UnitType.ENGINEER         // Keep for repairs
                         )),
-                        
+
                         // NO ADVANCED_FACTORY - forces reliance on air power
-                        
+
                         // Strong air presence
                         Map.entry(BuildingType.RESEARCH_LAB, List.of()),
                         Map.entry(BuildingType.TECH_CENTER, List.of()),
@@ -313,7 +313,7 @@ public class FactionRegistry {
                         Map.entry(BuildingType.ROCKET_TURRET, List.of()),
                         Map.entry(BuildingType.BUNKER, List.of()),
                         Map.entry(BuildingType.SHIELD_GENERATOR, List.of()),
-                        
+
                         // AIR SUPERIORITY - all air units available
                         Map.entry(BuildingType.AIRFIELD, List.of(
                                 UnitType.SCOUT_DRONE,
@@ -324,12 +324,12 @@ public class FactionRegistry {
                                 UnitType.INTERCEPTOR,
                                 UnitType.GUNSHIP    // Hero unit!
                         )),
-                        
+
                         Map.entry(BuildingType.BANK, List.of()),
                         Map.entry(BuildingType.TEMPEST_SPIRE, List.of())
                 ))
                 .build();
-        
+
         // Storm Wings-specific air unit bonuses
         Map<UnitType, Double> costModifiers = new HashMap<>();
         costModifiers.put(UnitType.SCOUT_DRONE, 0.7);     // -30% cost
@@ -337,7 +337,7 @@ public class FactionRegistry {
         costModifiers.put(UnitType.BOMBER, 0.85);         // -15% cost
         costModifiers.put(UnitType.INTERCEPTOR, 0.85);    // -15% cost
         costModifiers.put(UnitType.GUNSHIP, 0.9);         // -10% cost (hero)
-        
+
         // Air unit stat bonuses
         Map<UnitType, FactionDefinition.UnitStatModifier> statModifiers = new HashMap<>();
         statModifiers.put(UnitType.SCOUT_DRONE, FactionDefinition.UnitStatModifier.builder()
@@ -353,7 +353,7 @@ public class FactionRegistry {
         statModifiers.put(UnitType.GUNSHIP, FactionDefinition.UnitStatModifier.builder()
                 .healthMultiplier(1.2)   // +20% health (hero durability)
                 .build());
-        
+
         return FactionDefinition.builder()
                 .faction(Faction.STORM_WINGS)
                 .techTree(techTree)

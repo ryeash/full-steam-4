@@ -16,14 +16,14 @@ public class ResourceDeposit extends GameEntity {
     private double remainingResources;
     private final double maxResources;
     private static final double HARVEST_RANGE = 50.0;
-    
+
     public ResourceDeposit(int id, ResourceType resourceType, double x, double y, double initialResources) {
         super(id, createDepositBody(x, y), 1); // Deposits have 1 health (indestructible)
         this.resourceType = resourceType;
         this.remainingResources = initialResources;
         this.maxResources = initialResources;
     }
-    
+
     private static Body createDepositBody(double x, double y) {
         Body body = new Body();
         body.addFixture(Geometry.createCircle(40.0)); // 40 unit radius
@@ -31,9 +31,10 @@ public class ResourceDeposit extends GameEntity {
         body.getTransform().setTranslation(x, y);
         return body;
     }
-    
+
     /**
      * Harvest resources from this deposit
+     *
      * @param amount Amount to harvest
      * @return Actual amount harvested (may be less if deposit is depleted)
      */
@@ -49,14 +50,14 @@ public class ResourceDeposit extends GameEntity {
         }
         return harvested;
     }
-    
+
     /**
      * Get remaining resources as a percentage
      */
     public double getResourcePercent() {
         return (double) remainingResources / maxResources;
     }
-    
+
     /**
      * Get harvest range
      */

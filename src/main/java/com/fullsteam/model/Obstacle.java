@@ -1,4 +1,5 @@
 package com.fullsteam.model;
+
 import lombok.Getter;
 import org.dyn4j.dynamics.Body;
 import org.dyn4j.geometry.Geometry;
@@ -17,21 +18,21 @@ public class Obstacle extends GameEntity {
         POLYGON,
         IRREGULAR_POLYGON  // Custom vertices
     }
-    
+
     private final Shape shape;
     private final double size; // For circles: radius; for rectangles: used as reference
     private final double width; // For rectangles
     private final double height; // For rectangles
     private final int sides; // For polygons
     private final Vector2[] vertices; // For irregular polygons
-    
+
     private final boolean destructible;
-    
+
     // Circle constructor
     public Obstacle(int id, double x, double y, double radius) {
         this(id, x, y, radius, false);
     }
-    
+
     // Circle constructor with destructible option
     public Obstacle(int id, double x, double y, double radius, boolean destructible) {
         super(id, createCircleBody(x, y, radius), destructible ? calculateObstacleHealth(radius) : Double.MAX_VALUE);
@@ -43,12 +44,12 @@ public class Obstacle extends GameEntity {
         this.vertices = null;
         this.destructible = destructible;
     }
-    
+
     // Rectangle constructor
     public Obstacle(int id, double x, double y, double width, double height) {
         this(id, x, y, width, height, false);
     }
-    
+
     // Rectangle constructor with destructible option
     public Obstacle(int id, double x, double y, double width, double height, boolean destructible) {
         super(id, createRectangleBody(x, y, width, height), destructible ? calculateObstacleHealth(Math.max(width, height)) : Double.MAX_VALUE);
@@ -60,12 +61,12 @@ public class Obstacle extends GameEntity {
         this.vertices = null;
         this.destructible = destructible;
     }
-    
+
     // Polygon constructor
     public Obstacle(int id, double x, double y, double radius, int sides) {
         this(id, x, y, radius, sides, false);
     }
-    
+
     // Polygon constructor with destructible option
     public Obstacle(int id, double x, double y, double radius, int sides, boolean destructible) {
         super(id, createPolygonBody(x, y, radius, sides), destructible ? calculateObstacleHealth(radius) : Double.MAX_VALUE);
@@ -77,7 +78,7 @@ public class Obstacle extends GameEntity {
         this.vertices = null;
         this.destructible = destructible;
     }
-    
+
     // Irregular polygon constructor (custom vertices)
     public Obstacle(int id, double x, double y, Vector2[] vertices, boolean destructible) {
         super(id, createIrregularPolygonBody(x, y, vertices), destructible ? calculateObstacleHealth(calculateBoundingRadius(vertices)) : Double.MAX_VALUE);
@@ -89,11 +90,11 @@ public class Obstacle extends GameEntity {
         this.vertices = vertices;
         this.destructible = destructible;
     }
-    
+
     /**
      * Calculate obstacle health based on size
      * Larger obstacles take longer to mine
-     * 
+     * <p>
      * Miner stats: 15 damage/sec, 100 pickaxe durability, 5 wear/sec
      * = 300 HP per trip (20 seconds of mining)
      * Target: 4-6 trips per obstacle = 1200-1800 HP
@@ -105,58 +106,58 @@ public class Obstacle extends GameEntity {
         // Large obstacles (radius 60) = ~1800 HP (6 trips)
         return 1000.0 + (size * 15.0);
     }
-    
+
     private static Body createCircleBody(double x, double y, double radius) {
         Body body = new Body();
         org.dyn4j.dynamics.BodyFixture fixture = body.addFixture(Geometry.createCircle(radius));
-        
+
         // Configure fixture properties
         fixture.setFriction(0.1);      // Low friction
         fixture.setRestitution(0.0);   // No bounce
         fixture.setSensor(false);      // Solid collision (not a sensor)
-        
+
         body.setMass(MassType.INFINITE);
         body.getTransform().setTranslation(x, y);
         return body;
     }
-    
+
     private static Body createRectangleBody(double x, double y, double width, double height) {
         Body body = new Body();
         org.dyn4j.dynamics.BodyFixture fixture = body.addFixture(Geometry.createRectangle(width, height));
-        
+
         // Configure fixture properties
         fixture.setFriction(0.1);      // Low friction
         fixture.setRestitution(0.0);   // No bounce
         fixture.setSensor(false);      // Solid collision (not a sensor)
-        
+
         body.setMass(MassType.INFINITE);
         body.getTransform().setTranslation(x, y);
         return body;
     }
-    
+
     private static Body createPolygonBody(double x, double y, double radius, int sides) {
         Body body = new Body();
         org.dyn4j.dynamics.BodyFixture fixture = body.addFixture(Geometry.createPolygonalCircle(sides, radius));
-        
+
         // Configure fixture properties
         fixture.setFriction(0.1);      // Low friction
         fixture.setRestitution(0.0);   // No bounce
         fixture.setSensor(false);      // Solid collision (not a sensor)
-        
+
         body.setMass(MassType.INFINITE);
         body.getTransform().setTranslation(x, y);
         return body;
     }
-    
+
     private static Body createIrregularPolygonBody(double x, double y, Vector2[] vertices) {
         Body body = new Body();
-        
+
         // Ensure counter-clockwise winding
         Vector2[] ccwVertices = ensureCounterClockwise(vertices);
-        
+
         try {
             org.dyn4j.dynamics.BodyFixture fixture = body.addFixture(Geometry.createPolygon(ccwVertices));
-            
+
             // Configure fixture properties
             fixture.setFriction(0.1);      // Low friction
             fixture.setRestitution(0.0);   // No bounce
@@ -171,12 +172,12 @@ public class Obstacle extends GameEntity {
             fixture.setRestitution(0.0);
             fixture.setSensor(false);
         }
-        
+
         body.setMass(MassType.INFINITE);
         body.getTransform().setTranslation(x, y);
         return body;
     }
-    
+
     /**
      * Ensure vertices are in counter-clockwise order (required by dyn4j)
      */
@@ -188,7 +189,7 @@ public class Obstacle extends GameEntity {
             Vector2 v2 = vertices[(i + 1) % vertices.length];
             signedArea += (v2.x - v1.x) * (v2.y + v1.y);
         }
-        
+
         // If area is positive, vertices are clockwise - reverse them
         if (signedArea > 0) {
             Vector2[] reversed = new Vector2[vertices.length];
@@ -197,10 +198,10 @@ public class Obstacle extends GameEntity {
             }
             return reversed;
         }
-        
+
         return vertices;
     }
-    
+
     /**
      * Calculate bounding radius from vertices
      */
@@ -212,7 +213,7 @@ public class Obstacle extends GameEntity {
         }
         return maxDistance;
     }
-    
+
     /**
      * Get bounding radius for collision checks
      */

@@ -342,7 +342,7 @@ public enum ResearchType {
             new ResearchModifier().setVisionRangeMultiplier(1.25),
             VISION_RANGE_1
     ),
-    
+
     // Parallel Research (2 tiers) - Increases simultaneous research capacity
     PARALLEL_RESEARCH_1(
             "Parallel Research I",

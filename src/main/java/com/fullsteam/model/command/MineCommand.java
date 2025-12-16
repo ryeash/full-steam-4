@@ -16,25 +16,25 @@ import java.util.List;
 @Getter
 public class MineCommand extends UnitCommand {
     private final Obstacle obstacle;
-    
+
     @Setter
     private boolean returningForRepair = false;
-    
+
     @Setter
     private Building targetHeadquarters = null;
-    
+
     public MineCommand(Unit unit, Obstacle obstacle, boolean isPlayerOrder) {
         super(unit, isPlayerOrder);
         this.obstacle = obstacle;
     }
-    
+
     @Override
     public boolean update(double deltaTime) {
         // Command fails if obstacle is destroyed
         if (obstacle == null || !obstacle.isActive()) {
             return false;
         }
-        
+
         // Call the actual work methods
         if (returningForRepair) {
             boolean repairComplete = unit.returnForPickaxeRepair(targetHeadquarters, deltaTime);
@@ -51,26 +51,26 @@ public class MineCommand extends UnitCommand {
                 // RTSGameManager will set targetHeadquarters
             }
         }
-        
+
         return true;
     }
-    
+
     @Override
     public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
         Vector2 currentPos = unit.getPosition();
-        
+
         if (returningForRepair && targetHeadquarters != null) {
             // Moving to headquarters for repair
             Vector2 hqPos = targetHeadquarters.getPosition();
             double distance = currentPos.distance(hqPos);
-            
+
             if (distance > 50.0) {
                 // Compute path if needed (HQ doesn't move)
-                if (path.isEmpty() || lastPathTarget == null || 
-                    lastPathTarget.distance(hqPos) > 10.0) { // Check if target changed
+                if (path.isEmpty() || lastPathTarget == null ||
+                        lastPathTarget.distance(hqPos) > 10.0) { // Check if target changed
                     computePathTo(hqPos);
                 }
-                
+
                 // Follow path to HQ
                 followPathTo(hqPos, nearbyUnits, 50.0);
             } else {
@@ -81,14 +81,14 @@ public class MineCommand extends UnitCommand {
             Vector2 obstaclePos = obstacle.getPosition();
             double distance = currentPos.distance(obstaclePos);
             double miningRange = obstacle.getSize() + 10.0;
-            
+
             if (distance > miningRange) {
                 // Compute path if needed (obstacle doesn't move)
-                if (path.isEmpty() || lastPathTarget == null || 
-                    lastPathTarget.distance(obstaclePos) > 10.0) { // Check if target changed
+                if (path.isEmpty() || lastPathTarget == null ||
+                        lastPathTarget.distance(obstaclePos) > 10.0) { // Check if target changed
                     computePathTo(obstaclePos);
                 }
-                
+
                 // Follow path to obstacle
                 followPathTo(obstaclePos, nearbyUnits, miningRange);
             } else {
@@ -96,7 +96,7 @@ public class MineCommand extends UnitCommand {
             }
         }
     }
-    
+
     @Override
     public Vector2 getTargetPosition() {
         if (returningForRepair && targetHeadquarters != null) {
@@ -104,14 +104,14 @@ public class MineCommand extends UnitCommand {
         }
         return obstacle != null ? obstacle.getPosition() : null;
     }
-    
+
     @Override
     public boolean isMoving() {
         Vector2 targetPos = getTargetPosition();
         if (targetPos == null) return false;
-        
+
         double distance = unit.getPosition().distance(targetPos);
-        
+
         if (returningForRepair) {
             return distance > 50.0;
         } else {
@@ -119,11 +119,11 @@ public class MineCommand extends UnitCommand {
             return distance > miningRange;
         }
     }
-    
+
     @Override
     public String getDescription() {
         if (returningForRepair) {
-            return String.format("Returning to HQ %d for pickaxe repair", 
+            return String.format("Returning to HQ %d for pickaxe repair",
                     targetHeadquarters != null ? targetHeadquarters.getId() : -1);
         }
         return String.format("Mining obstacle %d", obstacle != null ? obstacle.getId() : -1);

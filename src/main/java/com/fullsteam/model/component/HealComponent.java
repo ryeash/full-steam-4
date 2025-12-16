@@ -11,11 +11,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Getter
 public class HealComponent extends AbstractUnitComponent {
-    
+
     private static final double HEAL_AMOUNT = 20.0;      // HP healed per use
     private static final double HEAL_RANGE = 100.0;      // Range for healing
     private static final long HEAL_COOLDOWN_MS = 500;    // 0.5 seconds between heals
-    
+
     private long lastHealTime = 0;
 
     @Override
@@ -64,7 +64,7 @@ public class HealComponent extends AbstractUnitComponent {
         target.setHealth(newHealth);
         lastHealTime = now;
 
-        log.debug("Medic {} healed {} for {} HP (now at {}/{})", 
+        log.debug("Medic {} healed {} for {} HP (now at {}/{})",
                 unit.getId(), target.getId(), HEAL_AMOUNT, (int) newHealth, (int) target.getMaxHealth());
         return true;
     }

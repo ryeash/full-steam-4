@@ -7,7 +7,9 @@ import com.fullsteam.model.Elevation;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Ordinance;
+import com.fullsteam.model.ResourceDeposit;
 import com.fullsteam.model.ShieldSensor;
+import com.fullsteam.model.Unit;
 import com.fullsteam.model.component.ShieldComponent;
 import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
@@ -100,34 +102,34 @@ public class BeamWeapon extends Weapon {
                 elevationTargeting,
                 beamElevation
         );
-        
+
         return List.of(beam);
     }
-    
+
     /**
      * Determine what elevation the ordinance should fly at based on the target position.
      * This allows beams fired at aircraft to fly at aircraft elevation and not collide with ground obstacles.
      */
-    private com.fullsteam.model.Elevation determineOrdinanceElevation(Vector2 targetPosition, GameEntities gameEntities) {
+    private Elevation determineOrdinanceElevation(Vector2 targetPosition, GameEntities gameEntities) {
         // Check if we're targeting an airborne unit
         double searchRadius = 50.0; // Search for units near the target position
-        
-        for (com.fullsteam.model.Unit unit : gameEntities.getUnits().values()) {
+
+        for (Unit unit : gameEntities.getUnits().values()) {
             if (!unit.isActive()) continue;
-            
+
             double distance = unit.getPosition().distance(targetPosition);
             if (distance < searchRadius) {
                 // Found a unit near target - use its elevation
-                com.fullsteam.model.Elevation targetElevation = unit.getUnitType().getElevation();
+                Elevation targetElevation = unit.getUnitType().getElevation();
                 if (targetElevation.isAirborne() && elevationTargeting.canTarget(targetElevation)) {
                     // Targeting an airborne unit - beam fires at that elevation
                     return targetElevation;
                 }
             }
         }
-        
+
         // Default to GROUND elevation (for hitting ground units, buildings, obstacles)
-        return com.fullsteam.model.Elevation.GROUND;
+        return Elevation.GROUND;
     }
 
     /**
@@ -137,7 +139,7 @@ public class BeamWeapon extends Weapon {
      */
     private Vector2 performRaycast(World<Body> world, Vector2 start, Vector2 direction,
                                    double maxRange, Body ignoredBody, int ownerTeam,
-                                   com.fullsteam.model.Elevation beamElevation) {
+                                   Elevation beamElevation) {
         // Create a ray for the raycast
         Ray ray = new Ray(start, direction);
 
@@ -154,10 +156,10 @@ public class BeamWeapon extends Weapon {
         for (RaycastResult<Body, BodyFixture> result : results) {
             // Obstacles are at GROUND elevation - only hit them if beam is also at GROUND
             if (result.getBody().getUserData() instanceof Obstacle) {
-                if (beamElevation != com.fullsteam.model.Elevation.GROUND) {
+                if (beamElevation != Elevation.GROUND) {
                     continue; // Beam at higher elevation passes over obstacles
                 }
-                
+
                 double distance = result.getRaycast().getDistance();
 
                 // Check if this is the closest hit so far
@@ -167,11 +169,11 @@ public class BeamWeapon extends Weapon {
                 }
             }
             // Resource deposits are at GROUND elevation - only hit them if beam is also at GROUND
-            else if (result.getBody().getUserData() instanceof com.fullsteam.model.ResourceDeposit) {
-                if (beamElevation != com.fullsteam.model.Elevation.GROUND) {
+            else if (result.getBody().getUserData() instanceof ResourceDeposit) {
+                if (beamElevation != Elevation.GROUND) {
                     continue; // Beam at higher elevation passes over deposits
                 }
-                
+
                 double distance = result.getRaycast().getDistance();
 
                 // Check if this is the closest hit so far
@@ -183,10 +185,10 @@ public class BeamWeapon extends Weapon {
             // Shields are at GROUND elevation (they protect buildings)
             // Only block beams at GROUND elevation
             else if (result.getBody().getUserData() instanceof ShieldSensor s) {
-                if (beamElevation != com.fullsteam.model.Elevation.GROUND) {
+                if (beamElevation != Elevation.GROUND) {
                     continue; // Beam at higher elevation passes over shields
                 }
-                
+
                 Optional<ShieldComponent> component = s.getBuilding().getComponent(ShieldComponent.class);
                 if (component.isPresent() && !component.get().isPositionInside(start)) {
                     double distance = result.getRaycast().getDistance();

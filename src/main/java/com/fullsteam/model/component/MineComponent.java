@@ -15,13 +15,13 @@ import lombok.extern.slf4j.Slf4j;
 @Getter
 @Setter
 public class MineComponent extends AbstractUnitComponent {
-    
+
     private static final double MAX_PICKAXE_DURABILITY = 100.0;
     private static final double PICKAXE_WEAR_RATE = 5.0;       // Durability lost per second of mining
     private static final double MINING_DAMAGE_RATE = 15.0;     // Damage dealt to obstacle per second
     private static final double REPAIR_RATE = 50.0;            // Durability repaired per second
     private static final double LOW_DURABILITY_THRESHOLD = 30.0; // When to return for repair
-    
+
     private Obstacle targetObstacle = null;
     private double pickaxeDurability = MAX_PICKAXE_DURABILITY;
 
@@ -52,7 +52,7 @@ public class MineComponent extends AbstractUnitComponent {
         double deltaTime = getDeltaTime();
         double damageDealt = MINING_DAMAGE_RATE * deltaTime;
         obstacle.takeDamage(damageDealt);
-        
+
         // Wear down pickaxe
         pickaxeDurability -= PICKAXE_WEAR_RATE * deltaTime;
         pickaxeDurability = Math.max(0, pickaxeDurability);
@@ -66,7 +66,7 @@ public class MineComponent extends AbstractUnitComponent {
 
         // Check if pickaxe is getting low
         if (pickaxeDurability < LOW_DURABILITY_THRESHOLD) {
-            log.debug("Miner {} pickaxe durability low ({}%), returning for repair", 
+            log.debug("Miner {} pickaxe durability low ({}%), returning for repair",
                     unit.getId(), (int) pickaxeDurability);
             return true; // Should return for repair
         }

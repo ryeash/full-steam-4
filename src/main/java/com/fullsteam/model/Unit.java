@@ -10,8 +10,8 @@ import com.fullsteam.model.component.GunshipComponent;
 import com.fullsteam.model.component.HangarComponent;
 import com.fullsteam.model.component.HarvestComponent;
 import com.fullsteam.model.component.HealComponent;
-import com.fullsteam.model.component.InterceptorComponent;
 import com.fullsteam.model.component.IUnitComponent;
+import com.fullsteam.model.component.InterceptorComponent;
 import com.fullsteam.model.component.MineComponent;
 import com.fullsteam.model.component.RepairComponent;
 import com.fullsteam.model.research.ResearchModifier;
@@ -125,26 +125,26 @@ public class Unit extends GameEntity implements Targetable {
         } else if (ability == SpecialAbility.CLOAK) {
             addComponent(new CloakComponent(), gameEntities);
         }
-        
+
         // Air unit specific components
         if (unitType == UnitType.INTERCEPTOR) {
             addComponent(new InterceptorComponent(this), gameEntities);
         }
-        
+
         if (unitType == UnitType.GUNSHIP) {
             addComponent(new GunshipComponent(), gameEntities);
         }
 
         log.debug("Unit {} initialized with {} components", id, components.size());
     }
-    
+
     // ============================================================================
     // Targetable Interface Implementation
     // ============================================================================
-    
+
     // takeDamage(), getHealth(), getMaxHealth(), getId(), getTeamNumber(), 
     // getPosition(), isActive() are inherited from GameEntity
-    
+
     /**
      * Implements Targetable - returns the unit's elevation level
      */
@@ -152,7 +152,7 @@ public class Unit extends GameEntity implements Targetable {
     public Elevation getElevation() {
         return unitType.getElevation();
     }
-    
+
     /**
      * Implements Targetable - returns the unit's collision radius as target size
      */
@@ -287,7 +287,7 @@ public class Unit extends GameEntity implements Targetable {
         // This must happen before returnFromSortie() to prevent the unit from being
         // launched again before it's properly housed
         this.setActive(false);
-        
+
         int hangarId = sortieCmd.getHomeHangarId();
         Building hangar = gameEntities.getBuildings().get(hangarId);
 
@@ -420,7 +420,7 @@ public class Unit extends GameEntity implements Targetable {
 
         // Apply force to physics body
         body.applyForce(seekForce.multiply(body.getMass().getMass() * 60.0));
-        
+
         // Air units get much weaker separation force (30 vs 80 for ground)
         if (isAirborne) {
             body.applyForce(separationForce.multiply(body.getMass().getMass() * 30.0));
@@ -486,12 +486,12 @@ public class Unit extends GameEntity implements Targetable {
         if (!unitType.canAttack()) {
             return false;
         }
-        
+
         // Units with DEPLOY ability can only attack when deployed
         if (unitType.getSpecialAbility() == SpecialAbility.DEPLOY) {
             return specialAbilityActive; // Must be deployed to attack
         }
-        
+
         return true; // All other combat units can attack normally
     }
 
@@ -575,12 +575,12 @@ public class Unit extends GameEntity implements Targetable {
 
         // Fire the weapon
         List<AbstractOrdinance> ordinances = weapon.fire(getPosition(), targetPos, getId(), teamNumber, body, gameEntities);
-        
+
         // Notify interceptor component of weapon fire (consumes ammo)
         if (!ordinances.isEmpty()) {
             getComponent(InterceptorComponent.class).ifPresent(InterceptorComponent::onWeaponFired);
         }
-        
+
         return ordinances;
     }
 
@@ -1175,7 +1175,7 @@ public class Unit extends GameEntity implements Targetable {
 
     /**
      * Check if this unit's weapon can target another unit at its elevation.
-     * 
+     *
      * @param target The potential target unit
      * @return true if this unit's weapon can hit the target's elevation
      */
@@ -1183,7 +1183,7 @@ public class Unit extends GameEntity implements Targetable {
         if (target == null) {
             return false;
         }
-        
+
         // Special case: Gunship uses dual weapons managed by GunshipComponent
         GunshipComponent gunshipComp = getComponent(GunshipComponent.class).orElse(null);
         if (gunshipComp != null) {
@@ -1191,18 +1191,18 @@ public class Unit extends GameEntity implements Targetable {
             Elevation targetElevation = target.getUnitType().getElevation();
             return targetElevation == Elevation.GROUND || targetElevation.isAirborne();
         }
-        
+
         // Standard weapon check
         if (weapon == null) {
             return false;
         }
         return weapon.getElevationTargeting().canTarget(target.getUnitType().getElevation());
     }
-    
+
     /**
      * Check if this unit's weapon can target buildings (which are always at GROUND elevation).
      * This is important for anti-air units which cannot hit ground targets.
-     * 
+     *
      * @return true if this unit's weapon can hit GROUND elevation targets (buildings)
      */
     public boolean canTargetBuildings() {
@@ -1212,18 +1212,18 @@ public class Unit extends GameEntity implements Targetable {
             // Gunship can target buildings with its ground weapon
             return true;
         }
-        
+
         // Standard weapon check
         if (weapon == null) {
             return false;
         }
         return weapon.getElevationTargeting().canTarget(Elevation.GROUND);
     }
-    
+
     /**
      * Check if a given weapon can target a unit at its elevation.
      * Static helper for use by buildings/turrets.
-     * 
+     *
      * @param weapon The weapon attempting to target
      * @param target The potential target unit
      * @return true if the weapon can hit the target's elevation
@@ -1234,11 +1234,11 @@ public class Unit extends GameEntity implements Targetable {
         }
         return weapon.getElevationTargeting().canTarget(target.getUnitType().getElevation());
     }
-    
+
     /**
      * Check if a given weapon can target buildings (which are always at GROUND elevation).
      * Static helper for use by buildings/turrets.
-     * 
+     *
      * @param weapon The weapon attempting to target
      * @return true if the weapon can hit GROUND elevation targets (buildings)
      */

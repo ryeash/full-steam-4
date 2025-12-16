@@ -310,7 +310,7 @@ public enum BuildingType {
             -40,     // power consumption
             420.0    // vision range (good, airfield tower)
     ),
-    
+
     // Aircraft housing - must be built near Airfield, houses sortie-based aircraft
     HANGAR(
             "Hangar",
@@ -324,7 +324,7 @@ public enum BuildingType {
             -20,     // power consumption
             350.0    // vision range (moderate)
     ),
-    
+
     // Monument - Storm Wings faction - weather control tower
     TEMPEST_SPIRE(
             "Tempest Spire",
@@ -370,9 +370,10 @@ public enum BuildingType {
     public boolean isDefensive() {
         return this == TURRET || this == ROCKET_TURRET || this == LASER_TURRET;
     }
-    
+
     /**
      * Check if this building requires proximity to another building type
+     *
      * @return the required building type, or null if no proximity requirement
      */
     public BuildingType getProximityRequirement() {
@@ -381,9 +382,10 @@ public enum BuildingType {
             default -> null;
         };
     }
-    
+
     /**
      * Get the required proximity range for buildings that need to be near another building
+     *
      * @return the maximum distance in pixels, or 0 if no proximity requirement
      */
     public double getProximityRange() {
@@ -392,10 +394,11 @@ public enum BuildingType {
             default -> 0.0;
         };
     }
-    
+
     /**
      * Get the number of support slots this building provides for dependent buildings
      * For example, an Airfield can support N Hangars
+     *
      * @return number of dependent buildings this can support, or 0 if none
      */
     public int getSupportCapacity() {
@@ -516,36 +519,36 @@ public enum BuildingType {
 
             // Command Citadel - octagonal fortress tower
             case COMMAND_CITADEL -> List.of(Geometry.createPolygonalCircle(8, size));
-            
+
             // Airfield - rectangular runway with control tower
             case AIRFIELD -> {
                 // Main runway (large rectangle)
                 Convex runway = Geometry.createRectangle(size * 2.2, size * 1.3);
-                
+
                 // Control tower (small square at the side)
                 Convex tower = Geometry.createSquare(size * 0.4);
                 tower.translate(-size * 0.9, -size * 0.6);
-                
+
                 yield List.of(runway, tower);
             }
-            
+
             // Hangar - rectangular building with angled roof
             case HANGAR -> {
                 // Main hangar body (wide rectangle)
                 Convex body = Geometry.createRectangle(size * 1.8, size * 1.2);
-                
+
                 // Small entrance/door area (rectangle at front)
                 Convex entrance = Geometry.createRectangle(size * 0.5, size * 0.3);
                 entrance.translate(size * 0.65, 0);
-                
+
                 yield List.of(body, entrance);
             }
-            
+
             // Tempest Spire - weather control tower with antenna arrays
             case TEMPEST_SPIRE -> {
                 // Central tower (tall octagon)
                 Convex tower = Geometry.createPolygonalCircle(8, size * 0.6);
-                
+
                 // Weather sensor array (top)
                 Vector2[] sensor = new Vector2[]{
                         new Vector2(-size * 0.4, -size * 0.7),
@@ -554,7 +557,7 @@ public enum BuildingType {
                         new Vector2(-size * 0.5, -size * 0.5)
                 };
                 Convex sensorArray = Geometry.createPolygon(sensor);
-                
+
                 // Left antenna
                 Vector2[] leftAntenna = new Vector2[]{
                         new Vector2(-size * 0.7, -size * 0.3),
@@ -562,7 +565,7 @@ public enum BuildingType {
                         new Vector2(-size * 0.4, -size * 0.2)
                 };
                 Convex antennaL = Geometry.createPolygon(leftAntenna);
-                
+
                 // Right antenna
                 Vector2[] rightAntenna = new Vector2[]{
                         new Vector2(size * 0.7, -size * 0.3),
@@ -570,7 +573,7 @@ public enum BuildingType {
                         new Vector2(size * 0.5, -size * 0.5)
                 };
                 Convex antennaR = Geometry.createPolygon(rightAntenna);
-                
+
                 yield List.of(tower, sensorArray, antennaL, antennaR);
             }
         };

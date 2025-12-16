@@ -559,7 +559,7 @@ public enum UnitType {
             500.0,   // vision range (excellent, interceptor)
             Elevation.HIGH // Fixed-wing - high-altitude fighter
     ),
-    
+
     // GUNSHIP - Heavy sortie-based attack aircraft with dual weapons
     // Storm Wings hero unit - can engage both ground and air targets
     // Heavy MG for ground targets, flak cannons for air targets
@@ -939,7 +939,7 @@ public enum UnitType {
 
                 yield List.of(body, wingLeft, wingRight, fin);
             }
-            
+
             // Gunship - Heavy attack aircraft with weapon pods
             case GUNSHIP -> {
                 // Main fuselage (heavy gunship body) - hexagon, counter-clockwise
@@ -952,7 +952,7 @@ public enum UnitType {
                         new Vector2(size * 0.5, -size * 0.5)           // 6. Bottom-front
                 };
                 Convex body = Geometry.createPolygon(fuselage);
-                
+
                 // Left weapon pod (top side) - quad, counter-clockwise
                 // Visualize: This is ABOVE the fuselage (positive Y)
                 // Start from bottom-left (closest to fuselage), go counter-clockwise
@@ -963,7 +963,7 @@ public enum UnitType {
                         new Vector2(size * 0.3, size * 0.55)           // 4. Inner-rear (top-left)
                 };
                 Convex podLeft = Geometry.createPolygon(leftPod);
-                
+
                 // Right weapon pod (bottom side) - quad, counter-clockwise
                 // Visualize: This is BELOW the fuselage (negative Y)
                 // Start from top-left (closest to fuselage), go counter-clockwise
@@ -974,7 +974,7 @@ public enum UnitType {
                         new Vector2(size * 0.35, -size * 0.4)          // 4. Inner-front (bottom-left)
                 };
                 Convex podRight = Geometry.createPolygon(rightPod);
-                
+
                 // Tail stabilizer - triangle, counter-clockwise
                 // Start from rightmost point, go counter-clockwise (up then down)
                 Vector2[] tail = new Vector2[]{
@@ -983,7 +983,7 @@ public enum UnitType {
                         new Vector2(-size * 1.05, -size * 0.2)         // 3. Bottom point
                 };
                 Convex stabilizer = Geometry.createPolygon(tail);
-                
+
                 // Left stub wing (top side) - quad, counter-clockwise
                 // Visualize: This is ABOVE the fuselage, further out than weapon pod
                 // Start from bottom-left (closest to fuselage), go counter-clockwise
@@ -994,7 +994,7 @@ public enum UnitType {
                         new Vector2(-size * 0.2, size * 0.55)          // 4. Inner-rear (top-left)
                 };
                 Convex wingLeft = Geometry.createPolygon(leftWing);
-                
+
                 // Right stub wing (bottom side) - quad, counter-clockwise
                 // Visualize: This is BELOW the fuselage, further out than weapon pod
                 // Start from top-left (closest to fuselage), go counter-clockwise
@@ -1005,7 +1005,7 @@ public enum UnitType {
                         new Vector2(-size * 0.1, -size * 0.5)          // 4. Inner-front (bottom-left)
                 };
                 Convex wingRight = Geometry.createPolygon(rightWing);
-                
+
                 yield List.of(body, podLeft, podRight, stabilizer, wingLeft, wingRight);
             }
 

@@ -116,7 +116,7 @@ public class WallSegment implements Targetable {
             log.debug("Wall segment {} destroyed", id);
         }
     }
-    
+
     /**
      * Take damage and return true if destroyed (legacy method for backwards compatibility)
      */
@@ -139,24 +139,24 @@ public class WallSegment implements Targetable {
     public boolean hasDestroyedPost() {
         return !post1.isActive() || !post2.isActive();
     }
-    
+
     // ==================== Targetable Interface Implementation ====================
-    
+
     @Override
     public Elevation getElevation() {
         return Elevation.GROUND; // Walls are always at ground level
     }
-    
+
     @Override
     public double getTargetSize() {
         return 10.0; // Wall segment "thickness" for targeting
     }
-    
+
     @Override
     public double getMaxHealth() {
         return maxHealth;
     }
-    
+
     // Note: getId(), getTeamNumber(), getPosition(), isActive(), takeDamage(), 
     // getHealth() are already implemented above
 }

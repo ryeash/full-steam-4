@@ -1,7 +1,6 @@
 package com.fullsteam.model.command;
 
 import com.fullsteam.model.AbstractOrdinance;
-import com.fullsteam.model.Elevation;
 import com.fullsteam.model.Unit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +30,7 @@ public class OnStationCommand extends UnitCommand {
     private boolean onStation = false;
     private final List<Vector2> patrolWaypoints;
     private int currentWaypointIndex = 0;
-    
+
     // Target tracking for combat
     private com.fullsteam.model.Targetable currentTarget = null;
     private boolean isEngaging = false;
@@ -74,7 +73,7 @@ public class OnStationCommand extends UnitCommand {
         // Gunships handle their own targeting via GunshipComponent
         // Only interceptors need manual target tracking
         boolean isGunship = unit.getComponent(com.fullsteam.model.component.GunshipComponent.class).isPresent();
-        
+
         if (!isGunship) {
             // Check if current target is still valid
             if (currentTarget != null && (!currentTarget.isActive() || currentTarget.getTeamNumber() == unit.getTeamNumber())) {
@@ -86,13 +85,13 @@ public class OnStationCommand extends UnitCommand {
             // Scan for new target if we don't have one
             if (currentTarget == null) {
                 // Get attack range for scanning
-                double attackRange = unit.getWeapon() != null ? 
-                                     unit.getWeapon().getRange() : 
-                                     unit.getUnitType().getAttackRange();
-                
+                double attackRange = unit.getWeapon() != null ?
+                        unit.getWeapon().getRange() :
+                        unit.getUnitType().getAttackRange();
+
                 currentTarget = gameEntities.findNearestEnemyTargetable(
                         unit.getPosition(), unit.getTeamNumber(), attackRange, unit);
-                
+
                 if (currentTarget != null) {
                     log.debug("Aircraft {} acquired target {}", unit.getId(), currentTarget.getId());
                     isEngaging = true;
@@ -107,7 +106,7 @@ public class OnStationCommand extends UnitCommand {
     public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
         // Gunships just patrol - they don't chase targets (engage while moving)
         boolean isGunship = unit.getComponent(com.fullsteam.model.component.GunshipComponent.class).isPresent();
-        
+
         if (!isGunship && isEngaging && currentTarget != null) {
             // Interceptors: Chase the target
             moveTowardsTarget(currentTarget.getPosition(), deltaTime);
@@ -163,13 +162,13 @@ public class OnStationCommand extends UnitCommand {
         if (unit.getComponent(com.fullsteam.model.component.GunshipComponent.class).isPresent()) {
             return List.of(); // Component handles everything
         }
-        
+
         // For interceptors and other aircraft: standard combat logic
         if (isEngaging && currentTarget != null && currentTarget.isActive()) {
             Vector2 currentPos = unit.getPosition();
             Vector2 targetPos = currentTarget.getPosition();
             double distance = currentPos.distance(targetPos);
-            
+
             // Get weapon range
             double weaponRange;
             if (unit.getWeapon() != null) {
@@ -177,13 +176,13 @@ public class OnStationCommand extends UnitCommand {
             } else {
                 weaponRange = unit.getUnitType().getAttackRange();
             }
-            
+
             // Fire if in range
             if (distance <= weaponRange) {
                 // Face target
                 Vector2 direction = targetPos.copy().subtract(currentPos);
                 unit.setRotation(Math.atan2(direction.y, direction.x));
-                
+
                 // Use predictive aiming for moving targets (units), direct aim for stationary (buildings, walls)
                 Vector2 aimPosition;
                 if (currentTarget instanceof Unit targetUnit) {
@@ -194,7 +193,7 @@ public class OnStationCommand extends UnitCommand {
                 return unit.fireAt(aimPosition, gameEntities);
             }
         }
-        
+
         return List.of();
     }
 
@@ -202,9 +201,9 @@ public class OnStationCommand extends UnitCommand {
     public String getDescription() {
         // Only show engaging status for interceptors (gunships engage automatically while patrolling)
         boolean isGunship = unit.getComponent(com.fullsteam.model.component.GunshipComponent.class).isPresent();
-        
+
         if (!isGunship && isEngaging && currentTarget != null) {
-            return String.format("Engaging Target (%.0f, %.0f)", 
+            return String.format("Engaging Target (%.0f, %.0f)",
                     currentTarget.getPosition().x, currentTarget.getPosition().y);
         }
         if (onStation) {

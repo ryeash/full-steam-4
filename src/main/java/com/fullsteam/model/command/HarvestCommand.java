@@ -15,25 +15,25 @@ import java.util.List;
 @Getter
 public class HarvestCommand extends UnitCommand {
     private final ResourceDeposit deposit;
-    
+
     @Setter
     private boolean returningResources = false;
-    
+
     @Setter
     private Building targetRefinery = null;
-    
+
     public HarvestCommand(Unit unit, ResourceDeposit deposit, boolean isPlayerOrder) {
         super(unit, isPlayerOrder);
         this.deposit = deposit;
     }
-    
+
     @Override
     public boolean update(double deltaTime) {
         // Command fails if deposit is depleted
         if (deposit == null || !deposit.isActive()) {
             return false;
         }
-        
+
         // Call the actual work methods
         if (returningResources) {
             boolean depositedResources = unit.returnResourcesToRefinery(targetRefinery, deltaTime);
@@ -50,26 +50,26 @@ public class HarvestCommand extends UnitCommand {
                 // RTSGameManager will set targetRefinery
             }
         }
-        
+
         return true;
     }
-    
+
     @Override
     public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
         Vector2 currentPos = unit.getPosition();
-        
+
         if (returningResources && targetRefinery != null) {
             // Moving to refinery
             Vector2 refineryPos = targetRefinery.getPosition();
             double distance = currentPos.distance(refineryPos);
-            
+
             if (distance > 50.0) {
                 // Compute path if needed (refinery doesn't move)
-                if (path.isEmpty() || lastPathTarget == null || 
-                    lastPathTarget.distance(refineryPos) > 10.0) { // Check if target changed
+                if (path.isEmpty() || lastPathTarget == null ||
+                        lastPathTarget.distance(refineryPos) > 10.0) { // Check if target changed
                     computePathTo(refineryPos);
                 }
-                
+
                 // Follow path to refinery
                 followPathTo(refineryPos, nearbyUnits, 50.0);
             } else {
@@ -79,14 +79,14 @@ public class HarvestCommand extends UnitCommand {
             // Moving to deposit
             Vector2 depositPos = deposit.getPosition();
             double distance = currentPos.distance(depositPos);
-            
+
             if (distance > 50.0) {
                 // Compute path if needed (deposit doesn't move)
-                if (path.isEmpty() || lastPathTarget == null || 
-                    lastPathTarget.distance(depositPos) > 10.0) { // Check if target changed
+                if (path.isEmpty() || lastPathTarget == null ||
+                        lastPathTarget.distance(depositPos) > 10.0) { // Check if target changed
                     computePathTo(depositPos);
                 }
-                
+
                 // Follow path to deposit
                 followPathTo(depositPos, nearbyUnits, 50.0);
             } else {
@@ -94,7 +94,7 @@ public class HarvestCommand extends UnitCommand {
             }
         }
     }
-    
+
     @Override
     public Vector2 getTargetPosition() {
         if (returningResources && targetRefinery != null) {
@@ -102,23 +102,23 @@ public class HarvestCommand extends UnitCommand {
         }
         return deposit != null ? deposit.getPosition() : null;
     }
-    
+
     @Override
     public boolean isMoving() {
         Vector2 targetPos = getTargetPosition();
         if (targetPos == null) return false;
-        
+
         double distance = unit.getPosition().distance(targetPos);
         return distance > 50.0;
     }
-    
+
     @Override
     public String getDescription() {
         if (returningResources) {
-            return String.format("Returning resources to refinery %d", 
+            return String.format("Returning resources to refinery %d",
                     targetRefinery != null ? targetRefinery.getId() : -1);
         }
-        return String.format("Harvesting deposit %d (%s)", 
+        return String.format("Harvesting deposit %d (%s)",
                 deposit != null ? deposit.getId() : -1,
                 deposit != null ? deposit.getResourceType().name() : "null");
     }

@@ -12,12 +12,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Getter
 public class RepairComponent extends AbstractUnitComponent {
-    
+
     private static final double REPAIR_AMOUNT_UNIT = 25.0;       // HP repaired per use (units)
     private static final double REPAIR_AMOUNT_BUILDING = 30.0;   // HP repaired per use (buildings)
     private static final double REPAIR_RANGE = 100.0;            // Range for repairing
     private static final long REPAIR_COOLDOWN_MS = 500;          // 0.5 seconds between repairs
-    
+
     private long lastRepairTime = 0;
 
     @Override
@@ -66,7 +66,7 @@ public class RepairComponent extends AbstractUnitComponent {
         target.setHealth(newHealth);
         lastRepairTime = now;
 
-        log.debug("Engineer {} repaired unit {} for {} HP (now at {}/{})", 
+        log.debug("Engineer {} repaired unit {} for {} HP (now at {}/{})",
                 unit.getId(), target.getId(), REPAIR_AMOUNT_UNIT, (int) newHealth, (int) target.getMaxHealth());
         return true;
     }
@@ -112,7 +112,7 @@ public class RepairComponent extends AbstractUnitComponent {
         target.setHealth(newHealth);
         lastRepairTime = now;
 
-        log.debug("Engineer {} repaired building {} for {} HP (now at {}/{})", 
+        log.debug("Engineer {} repaired building {} for {} HP (now at {}/{})",
                 unit.getId(), target.getId(), REPAIR_AMOUNT_BUILDING, (int) newHealth, (int) target.getMaxHealth());
         return true;
     }

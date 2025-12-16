@@ -59,7 +59,7 @@ public class GarrisonBunkerCommand extends UnitCommand {
             if (path.isEmpty() || lastPathTarget == null) {
                 computePathTo(bunkerPos);
             }
-            
+
             // Follow path to bunker
             followPathTo(bunkerPos, nearbyUnits, garrisonRange);
         } else {

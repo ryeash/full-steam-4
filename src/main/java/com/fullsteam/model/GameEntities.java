@@ -99,7 +99,7 @@ public class GameEntities {
                 .min(Comparator.comparingDouble(u -> u.getPosition().distance(position)))
                 .orElse(null);
     }
-    
+
     /**
      * Find nearest enemy unit to a position that can be targeted by the attacker's weapon.
      * Respects cloak detection and elevation targeting.
@@ -108,7 +108,7 @@ public class GameEntities {
         if (attacker == null) {
             return findNearestEnemyUnit(position, teamNumber, maxRange); // Fall back to non-elevation version
         }
-        
+
         return units.values().stream()
                 .filter(u -> u.isActive() && u.getTeamNumber() != teamNumber)
                 .filter(u -> attacker.canTargetElevation(u)) // Check elevation targeting
@@ -134,38 +134,38 @@ public class GameEntities {
                 .min(Comparator.comparingDouble(b -> b.getPosition().distance(position)))
                 .orElse(null);
     }
-    
+
     /**
      * Find the nearest enemy targetable entity (unit, building, or wall).
      * This is a unified method that searches across all targetable types.
      * Useful for weapon systems that can target anything.
-     * 
-     * @param position Position to search from
+     *
+     * @param position   Position to search from
      * @param teamNumber Team number of the attacker
-     * @param maxRange Maximum search range
-     * @param attacker The attacking unit (for elevation targeting checks), can be null
+     * @param maxRange   Maximum search range
+     * @param attacker   The attacking unit (for elevation targeting checks), can be null
      * @return The nearest enemy targetable, or null if none found
      */
     public Targetable findNearestEnemyTargetable(Vector2 position, int teamNumber, double maxRange, Unit attacker) {
         Targetable nearestTarget = null;
         double nearestDistance = maxRange;
-        
+
         // Debug logging for flak tanks
         boolean isFlakTank = attacker != null && attacker.getUnitType() == UnitType.FLAK_TANK;
         if (isFlakTank) {
             log.info("Flak Tank {} searching for targets (maxRange: {}, canTargetBuildings: {})",
                     attacker.getId(), maxRange, attacker.canTargetBuildings());
         }
-        
+
         // Search units
         int unitsChecked = 0;
         int unitsSkippedElevation = 0;
         int unitsSkippedCloaked = 0;
         for (Unit unit : units.values()) {
             if (!unit.isActive() || unit.getTeamNumber() == teamNumber) continue;
-            
+
             unitsChecked++;
-            
+
             // Check elevation targeting if attacker is specified
             if (attacker != null && !attacker.canTargetElevation(unit)) {
                 unitsSkippedElevation++;
@@ -175,14 +175,14 @@ public class GameEntities {
                 }
                 continue;
             }
-            
+
             // Check cloak detection
             double distance = unit.getPosition().distance(position);
             if (unit.isCloaked() && distance > Unit.getCloakDetectionRange()) {
                 unitsSkippedCloaked++;
                 continue;
             }
-            
+
             if (distance < nearestDistance) {
                 nearestDistance = distance;
                 nearestTarget = unit;
@@ -192,17 +192,17 @@ public class GameEntities {
                 }
             }
         }
-        
+
         if (isFlakTank) {
-            log.info("  Units: checked={}, skippedElevation={}, skippedCloaked={}", 
+            log.info("  Units: checked={}, skippedElevation={}, skippedCloaked={}",
                     unitsChecked, unitsSkippedElevation, unitsSkippedCloaked);
         }
-        
+
         // Search buildings (only if attacker can target ground)
         if (attacker == null || attacker.canTargetBuildings()) {
             for (Building building : buildings.values()) {
                 if (!building.isActive() || building.getTeamNumber() == teamNumber) continue;
-                
+
                 double distance = building.getPosition().distance(position);
                 if (distance < nearestDistance) {
                     nearestDistance = distance;
@@ -210,12 +210,12 @@ public class GameEntities {
                 }
             }
         }
-        
+
         // Search wall segments (only if attacker can target ground)
         if (attacker == null || attacker.canTargetBuildings()) {
             for (WallSegment wall : wallSegments.values()) {
                 if (!wall.isActive() || wall.getTeamNumber() == teamNumber) continue;
-                
+
                 double distance = wall.getPosition().distance(position);
                 if (distance < nearestDistance) {
                     nearestDistance = distance;
@@ -223,22 +223,22 @@ public class GameEntities {
                 }
             }
         }
-        
+
         if (isFlakTank) {
-            log.info("  Final result: {} ({})", 
+            log.info("  Final result: {} ({})",
                     nearestTarget != null ? nearestTarget.getTargetType() + " " + nearestTarget.getId() : "null",
                     nearestTarget != null ? "distance: " + nearestDistance : "none found");
         }
-        
+
         return nearestTarget;
     }
-    
+
     /**
      * Find the nearest enemy targetable entity (simplified version without elevation checks).
-     * 
-     * @param position Position to search from
+     *
+     * @param position   Position to search from
      * @param teamNumber Team number of the attacker
-     * @param maxRange Maximum search range
+     * @param maxRange   Maximum search range
      * @return The nearest enemy targetable, or null if none found
      */
     public Targetable findNearestEnemyTargetable(Vector2 position, int teamNumber, double maxRange) {

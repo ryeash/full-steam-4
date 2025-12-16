@@ -15,7 +15,7 @@ public enum Biome {
             ObstacleType.TREE,
             "A lush grassland with scattered trees"
     ),
-    
+
     DESERT(
             "Desert",
             0xA89968,  // Ground color: muted sandy tan (was 0xC2B280)
@@ -23,7 +23,7 @@ public enum Biome {
             ObstacleType.ROCK,
             "A harsh desert with rocky outcrops"
     ),
-    
+
     SNOW(
             "Snow",
             0xC8D4D8,  // Ground color: muted blue-white (was 0xE8F4F8)
@@ -31,7 +31,7 @@ public enum Biome {
             ObstacleType.ICE,
             "A frozen tundra with ice formations"
     ),
-    
+
     VOLCANIC(
             "Volcanic",
             0x2A2A2A,  // Ground color: darker gray (was 0x3A3A3A)
@@ -39,7 +39,7 @@ public enum Biome {
             ObstacleType.LAVA_ROCK,
             "A volcanic wasteland with lava rocks"
     ),
-    
+
     URBAN(
             "Urban",
             0x404040,  // Ground color: muted gray (concrete)
@@ -47,14 +47,14 @@ public enum Biome {
             ObstacleType.RUBBLE,
             "A ruined city with debris and rubble"
     );
-    
+
     private final String displayName;
     private final int groundColor;
     private final int obstacleColor;
     private final ObstacleType obstacleType;
     private final String description;
-    
-    Biome(String displayName, int groundColor, int obstacleColor, 
+
+    Biome(String displayName, int groundColor, int obstacleColor,
           ObstacleType obstacleType, String description) {
         this.displayName = displayName;
         this.groundColor = groundColor;
@@ -62,7 +62,7 @@ public enum Biome {
         this.obstacleType = obstacleType;
         this.description = description;
     }
-    
+
     /**
      * Obstacle types for different biomes
      */

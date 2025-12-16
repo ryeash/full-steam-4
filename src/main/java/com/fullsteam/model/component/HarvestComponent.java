@@ -3,13 +3,12 @@ package com.fullsteam.model.component;
 import com.fullsteam.model.Building;
 import com.fullsteam.model.BuildingType;
 import com.fullsteam.model.PlayerFaction;
+import com.fullsteam.model.ResourceDeposit;
 import com.fullsteam.model.ResourceType;
 import com.fullsteam.model.research.ResearchModifier;
-import com.fullsteam.model.ResourceDeposit;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.dyn4j.geometry.Vector2;
 
 /**
  * Component for units that can harvest resources (Workers).
@@ -19,10 +18,10 @@ import org.dyn4j.geometry.Vector2;
 @Getter
 @Setter
 public class HarvestComponent extends AbstractUnitComponent {
-    
+
     private static final double BASE_MAX_CARRIED_RESOURCES = 100.0;
     private static final double HARVEST_RATE = 10.0; // Resources per second
-    
+
     private double carriedResources = 0;
     private double maxCarriedResources = BASE_MAX_CARRIED_RESOURCES;
     private Building targetRefinery = null;
@@ -69,9 +68,9 @@ public class HarvestComponent extends AbstractUnitComponent {
         }
 
         // Accept both REFINERY and HEADQUARTERS as valid dropoff points
-        if (dropoff.getBuildingType() != BuildingType.REFINERY && 
-            dropoff.getBuildingType() != BuildingType.HEADQUARTERS) {
-            log.warn("Unit {} attempted to deposit to invalid building type {} (building {})", 
+        if (dropoff.getBuildingType() != BuildingType.REFINERY &&
+                dropoff.getBuildingType() != BuildingType.HEADQUARTERS) {
+            log.warn("Unit {} attempted to deposit to invalid building type {} (building {})",
                     unit.getId(), dropoff.getBuildingType(), dropoff.getId());
             return false;
         }
@@ -80,7 +79,7 @@ public class HarvestComponent extends AbstractUnitComponent {
         PlayerFaction faction = gameEntities.getPlayerFactions().get(dropoff.getOwnerId());
         if (faction != null) {
             faction.addResources(ResourceType.CREDITS, (int) carriedResources);
-            log.debug("Unit {} deposited {} resources to {} {}", 
+            log.debug("Unit {} deposited {} resources to {} {}",
                     unit.getId(), (int) carriedResources, dropoff.getBuildingType(), dropoff.getId());
         }
 
@@ -94,13 +93,13 @@ public class HarvestComponent extends AbstractUnitComponent {
      * @param dropoff The building to return resources to (REFINERY or HEADQUARTERS)
      */
     public void setTargetRefinery(Building dropoff) {
-        if (dropoff != null && 
-            (dropoff.getBuildingType() == BuildingType.REFINERY || 
-             dropoff.getBuildingType() == BuildingType.HEADQUARTERS) && 
-            dropoff.isActive()) {
+        if (dropoff != null &&
+                (dropoff.getBuildingType() == BuildingType.REFINERY ||
+                        dropoff.getBuildingType() == BuildingType.HEADQUARTERS) &&
+                dropoff.isActive()) {
             this.targetRefinery = dropoff;
         } else {
-            log.warn("Attempted to set invalid dropoff building for unit {} (type: {})", 
+            log.warn("Attempted to set invalid dropoff building for unit {} (type: {})",
                     unit.getId(), dropoff != null ? dropoff.getBuildingType() : "null");
         }
     }

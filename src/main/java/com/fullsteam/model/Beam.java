@@ -46,19 +46,19 @@ public class Beam extends AbstractOrdinance {
      * Create a beam with pre-calculated raycast results (called by BeamWeapon).
      * The weapon handles raycasting, this constructor just creates the beam entity.
      *
-     * @param start         Starting position
-     * @param end           Ending position (from raycast)
-     * @param maxRange      Maximum beam range
-     * @param ownerId       Owner entity ID
-     * @param ownerTeam     Owner team number
-     * @param damage        Damage dealt
-     * @param bulletEffects Special effects
-     * @param ordinanceType Ordinance type
-     * @param beamType      Visual beam type
-     * @param width         Beam width
-     * @param duration      Visual duration
+     * @param start              Starting position
+     * @param end                Ending position (from raycast)
+     * @param maxRange           Maximum beam range
+     * @param ownerId            Owner entity ID
+     * @param ownerTeam          Owner team number
+     * @param damage             Damage dealt
+     * @param bulletEffects      Special effects
+     * @param ordinanceType      Ordinance type
+     * @param beamType           Visual beam type
+     * @param width              Beam width
+     * @param duration           Visual duration
      * @param elevationTargeting Which elevations this beam can hit
-     * @param currentElevation The elevation this beam is traveling at
+     * @param currentElevation   The elevation this beam is traveling at
      */
     public Beam(Vector2 start,
                 Vector2 end,

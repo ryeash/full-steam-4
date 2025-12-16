@@ -15,12 +15,12 @@ import java.util.List;
 @Slf4j
 @Getter
 public class DeployComponent extends AbstractUnitComponent {
-    
+
     private static final long TOGGLE_COOLDOWN_MS = 2000; // 2 seconds
     private static final double RANGE_MULTIPLIER = 1.5;   // +50% range when deployed
     private static final double DAMAGE_MULTIPLIER = 1.5;   // +50% damage when deployed
     private static final double TURRET_OFFSET_PERCENT = 0.6; // Turret placement at 60% of unit size
-    
+
     private boolean deployed = false;
     private long lastToggleTime = 0;
     private List<Turret> turrets = new ArrayList<>();
@@ -71,11 +71,11 @@ public class DeployComponent extends AbstractUnitComponent {
 
         // Create 4 turrets at corners
         turrets.clear();
-        
+
         double baseRange = unit.getWeapon() != null ? unit.getWeapon().getRange() : unit.getUnitType().getAttackRange();
         double baseDamage = unit.getWeapon() != null ? unit.getWeapon().getDamage() : unit.getUnitType().getDamage();
         double baseRate = unit.getWeapon() != null ? unit.getWeapon().getAttackRate() : unit.getUnitType().getAttackRate();
-        
+
         double enhancedRange = baseRange * RANGE_MULTIPLIER;
         double enhancedDamage = baseDamage * DAMAGE_MULTIPLIER;
         double turretOffset = unit.getUnitType().getSize() * TURRET_OFFSET_PERCENT;
@@ -86,7 +86,7 @@ public class DeployComponent extends AbstractUnitComponent {
         turrets.add(new Turret(2, new Vector2(-turretOffset, -turretOffset), enhancedDamage, enhancedRange, baseRate));   // Bottom-left
         turrets.add(new Turret(3, new Vector2(turretOffset, -turretOffset), enhancedDamage, enhancedRange, baseRate));    // Bottom-right
 
-        log.info("Crawler {} deployed - {} turrets created with {:.1f} range and {:.1f} damage", 
+        log.info("Crawler {} deployed - {} turrets created with {:.1f} range and {:.1f} damage",
                 unit.getId(), turrets.size(), enhancedRange, enhancedDamage);
     }
 
@@ -96,7 +96,7 @@ public class DeployComponent extends AbstractUnitComponent {
     private void undeploy() {
         // Restore movement
         unit.setMovementSpeed(originalMovementSpeed);
-        
+
         // Clear turrets
         turrets.clear();
 
