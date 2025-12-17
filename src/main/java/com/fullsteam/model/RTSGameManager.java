@@ -1903,7 +1903,7 @@ public class RTSGameManager {
         // Serialize visible units (exclude garrisoned units)
         List<Map<String, Object>> unitsList = visibleUnits.stream()
                 .filter(u -> !u.isGarrisoned()) // Don't render garrisoned units
-                .map(this::serializeUnit)
+                .map(u -> serializeUnit(u, teamNumber))
                 .collect(Collectors.toList());
         state.put("units", unitsList);
 
@@ -2034,8 +2034,10 @@ public class RTSGameManager {
 
     /**
      * Serialize a unit for network transmission
+     * @param unit The unit to serialize
+     * @param viewerTeamNumber The team number of the player viewing this unit (for filtering selection state)
      */
-    private Map<String, Object> serializeUnit(Unit unit) {
+    private Map<String, Object> serializeUnit(Unit unit, int viewerTeamNumber) {
         Map<String, Object> data = new HashMap<>();
         data.put("id", unit.getId());
         data.put("type", unit.getUnitType().name());
@@ -2048,7 +2050,8 @@ public class RTSGameManager {
         data.put("team", unit.getTeamNumber());
         data.put("size", unit.getUnitType().getSize());
         data.put("visionRange", unit.getVisionRange()); // Use modified vision range
-        data.put("selected", unit.isSelected());
+        // Only include selection state for units on the viewer's team
+        data.put("selected", unit.isSelected() && unit.getTeamNumber() == viewerTeamNumber);
         data.put("isMoving", unit.isMoving());
         data.put("aiStance", unit.getAiStance().name());
         data.put("specialAbility", unit.getUnitType().getSpecialAbility().name());
