@@ -66,12 +66,9 @@ public class GameEntities {
             createBeamFieldEffects(b);
         } else if (e instanceof FieldEffect fe) {
             fieldEffects.put(fe.getId(), fe);
-        }
-//         TODO: why isn't wall segment a GameEntity?
-//        else if(e instanceof WallSegment ws){
-//            wallSegments.put(ws.getId(), ws);
-//        }
-        else {
+        } else if (e instanceof WallSegment ws) {
+            wallSegments.put(ws.getId(), ws);
+        } else {
             throw new UnsupportedOperationException();
         }
 

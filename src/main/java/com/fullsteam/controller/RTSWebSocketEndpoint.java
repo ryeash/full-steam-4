@@ -43,7 +43,6 @@ public class RTSWebSocketEndpoint {
         // Query parameters are in the URI, not in URI variables (which are path variables)
         String sessionToken = null;
         String uri = session.getRequestURI().toString();
-        log.info("DEBUG: Full WebSocket URI: {}", uri);
 
         // Parse query string manually
         if (uri.contains("?sessionToken=")) {
@@ -55,8 +54,6 @@ public class RTSWebSocketEndpoint {
                 sessionToken = uri.substring(startIndex, endIndex);
             }
         }
-
-        log.info("DEBUG: Extracted session token from query string: {}", sessionToken);
 
         if (!connectionService.connectPlayer(session, gameId, sessionToken)) {
             log.warn("Failed to connect player to RTS game {}, closing session", gameId);

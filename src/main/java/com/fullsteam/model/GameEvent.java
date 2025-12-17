@@ -110,7 +110,6 @@ public class GameEvent {
             ALL,        // All players in the game
             TEAM,       // Specific team(s)
             SPECIFIC,   // Specific player(s)
-            SPECTATORS  // Only spectators
         }
     }
 

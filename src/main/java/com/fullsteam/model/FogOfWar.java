@@ -206,11 +206,79 @@ public class FogOfWar {
     }
 
     /**
+     * Filter wall segments visible to a specific team.
+     * Only returns wall segments within vision range of the team's units/buildings.
+     * Wall segments are player-built structures and should respect fog of war.
+     *
+     * @param gameEntities All the game entities
+     * @param teamNumber   The team to calculate vision for
+     * @return List of wall segments visible to this team
+     */
+    public static List<WallSegment> getVisibleWallSegments(GameEntities gameEntities, int teamNumber) {
+        Collection<Unit> allUnits = gameEntities.getUnits().values();
+        Collection<Building> allBuildings = gameEntities.getBuildings().values();
+        Collection<WallSegment> allWallSegments = gameEntities.getWallSegments().values();
+
+        // Get all vision sources for this team with their specific vision ranges
+        List<VisionSource> visionSources = new ArrayList<>();
+
+        // Add vision from friendly units (use modified vision range from unit, not base type)
+        for (Unit unit : allUnits) {
+            if (unit.isActive() && unit.getTeamNumber() == teamNumber) {
+                visionSources.add(new VisionSource(unit.getPosition(), unit.getVisionRange()));
+            }
+        }
+
+        // Add vision from friendly buildings (only if construction is complete)
+        for (Building building : allBuildings) {
+            if (building.isActive() && building.getTeamNumber() == teamNumber && !building.isUnderConstruction()) {
+                visionSources.add(new VisionSource(building.getPosition(), building.getBuildingType().getVisionRange()));
+            }
+        }
+
+        // If no vision sources, return only own wall segments
+        if (visionSources.isEmpty()) {
+            return allWallSegments.stream()
+                    .filter(w -> w.isActive() && w.getTeamNumber() == teamNumber)
+                    .collect(Collectors.toList());
+        }
+
+        // Filter wall segments based on vision
+        List<WallSegment> visibleWallSegments = new ArrayList<>();
+        for (WallSegment wallSegment : allWallSegments) {
+            if (!wallSegment.isActive()) {
+                continue;
+            }
+
+            // Always show own wall segments
+            if (wallSegment.getTeamNumber() == teamNumber) {
+                visibleWallSegments.add(wallSegment);
+                continue;
+            }
+
+            // Check if enemy wall segment is within vision range of any vision source
+            if (isPositionVisible(wallSegment.getPosition(), visionSources, getVisionRadius(wallSegment))) {
+                visibleWallSegments.add(wallSegment);
+            }
+        }
+
+        return visibleWallSegments;
+    }
+
+    /**
      * Get vision radius for a specific building (for edge detection).
      * Larger buildings are easier to spot.
      */
     private static double getVisionRadius(Building building) {
         return building.getBuildingType().getSize();
+    }
+
+    /**
+     * Get vision radius for a specific wall segment (for edge detection).
+     * Wall segments use their thickness as the vision radius.
+     */
+    private static double getVisionRadius(WallSegment wallSegment) {
+        return wallSegment.getTargetSize(); // Uses the wall thickness (10.0)
     }
 }
 

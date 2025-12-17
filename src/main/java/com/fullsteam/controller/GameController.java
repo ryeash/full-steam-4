@@ -67,15 +67,11 @@ public class GameController {
             // Create a matchmaking game entry for faction tracking (even for debug games)
             String factionName = (gameConfig != null && gameConfig.getFaction() != null)
                     ? gameConfig.getFaction() : "TERRAN";
-            log.info("DEBUG: Creating debug game with faction: {} (gameConfig={}, gameConfig.getFaction()={})",
-                    factionName, gameConfig, gameConfig != null ? gameConfig.getFaction() : "null");
             String sessionToken = rtsLobby.createDebugMatchmakingEntry(game.getGameId(), factionName);
 
             // Add AI player for debug games (when called directly, not through matchmaking)
             game.addAIPlayer();
 
-            log.info("DEBUG: Returning gameId={}, sessionToken={}, faction={}",
-                    game.getGameId(), sessionToken, factionName);
             return Map.of(
                     "gameId", game.getGameId(),
                     "sessionToken", sessionToken,

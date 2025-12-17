@@ -520,7 +520,7 @@ public class RTSGameManager {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected())
                         .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
-                        .filter(u -> u.canTargetBuildings()) // Check if weapon can hit GROUND elevation (buildings)
+                        .filter(Unit::canTargetBuildings) // Check if weapon can hit GROUND elevation (buildings)
                         .forEach(u -> u.issueCommand(new AttackTargetableCommand(u, target, true), gameEntities));
             }
         }
@@ -531,7 +531,7 @@ public class RTSGameManager {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected())
                         .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
-                        .filter(u -> u.canTargetBuildings()) // Wall segments are GROUND elevation like buildings
+                        .filter(Unit::canTargetBuildings) // Wall segments are GROUND elevation like buildings
                         .forEach(u -> u.issueCommand(new AttackTargetableCommand(u, target, true), gameEntities));
             }
         }
@@ -1181,20 +1181,7 @@ public class RTSGameManager {
      * Create a wall segment between two wall posts
      */
     private void createWallSegment(Building post1, Building post2) {
-        int segmentId = IdGenerator.nextEntityId();
-        WallSegment segment = new WallSegment(
-                segmentId,
-                post1,
-                post2,
-                post1.getOwnerId(),
-                post1.getTeamNumber()
-        );
-
-        wallSegments.put(segmentId, segment);
-        world.addBody(segment.getBody());
-
-        log.info("Created wall segment {} connecting posts {} and {}",
-                segmentId, post1.getId(), post2.getId());
+        gameEntities.add(new WallSegment(post1, post2, post1.getOwnerId(), post1.getTeamNumber()));
     }
 
     /**
@@ -1941,9 +1928,9 @@ public class RTSGameManager {
                 .collect(Collectors.toList());
         state.put("obstacles", obstaclesList);
 
-        // Wall segments are always visible (like obstacles)
-        List<Map<String, Object>> wallSegmentsList = wallSegments.values().stream()
-                .filter(WallSegment::isActive)
+        // Wall segments respect fog of war (player-built structures)
+        List<WallSegment> visibleWallSegments = FogOfWar.getVisibleWallSegments(gameEntities, teamNumber);
+        List<Map<String, Object>> wallSegmentsList = visibleWallSegments.stream()
                 .map(this::serializeWallSegment)
                 .collect(Collectors.toList());
         state.put("wallSegments", wallSegmentsList);
@@ -2034,7 +2021,8 @@ public class RTSGameManager {
 
     /**
      * Serialize a unit for network transmission
-     * @param unit The unit to serialize
+     *
+     * @param unit             The unit to serialize
      * @param viewerTeamNumber The team number of the player viewing this unit (for filtering selection state)
      */
     private Map<String, Object> serializeUnit(Unit unit, int viewerTeamNumber) {
@@ -2267,7 +2255,7 @@ public class RTSGameManager {
         data.put("destructible", obstacle.isDestructible());
         data.put("health", obstacle.getHealth());
         data.put("maxHealth", obstacle.getMaxHealth());
-        
+
         // Include resource information if harvestable
         data.put("harvestable", obstacle.isHarvestable());
         if (obstacle.isHarvestable()) {
@@ -2423,17 +2411,15 @@ public class RTSGameManager {
 
         // Parse faction (default to TERRAN if invalid)
         Faction selectedFaction = Faction.TERRAN;
-        log.info("DEBUG: addPlayer called with factionName={}", factionName);
         if (factionName != null) {
             try {
                 selectedFaction = Faction.valueOf(factionName);
-                log.info("DEBUG: Successfully parsed faction: {}", selectedFaction);
             } catch (IllegalArgumentException e) {
-                log.warn("DEBUG: Invalid faction '{}', defaulting to TERRAN. Valid values: {}",
+                log.warn("Invalid faction '{}', defaulting to TERRAN. Valid values: {}",
                         factionName, Arrays.toString(Faction.values()));
             }
         } else {
-            log.warn("DEBUG: factionName is null, defaulting to TERRAN");
+            log.warn("factionName is null, defaulting to TERRAN");
         }
 
         // Create faction with selected faction type
@@ -2444,17 +2430,11 @@ public class RTSGameManager {
                 selectedFaction
         );
         playerFactions.put(playerSession.getPlayerId(), faction);
-
-        log.info("DEBUG: Created PlayerFaction for player {}: faction={}, factionDefinition={}",
-                playerSession.getPlayerId(), faction.getFaction(), faction.getFactionDefinition() != null);
-
         // Create starting base
         Vector2 startPosition = getStartingPosition(teamNumber);
         createStartingBase(playerSession.getPlayerId(), teamNumber, startPosition);
-
         log.info("Player {} joined RTS game {} on team {} with faction {}",
                 playerSession.getPlayerName(), gameId, teamNumber, selectedFaction);
-
         return true;
     }
 
@@ -2638,14 +2618,12 @@ public class RTSGameManager {
                         shouldReceive = true;
                     }
                     break;
-                case SPECTATORS:
-                    // TODO: Implement spectator system
-                    break;
             }
 
             // Check exclusions
-            if (shouldReceive && target.getExcludePlayerIds() != null &&
-                    target.getExcludePlayerIds().contains(playerId)) {
+            if (shouldReceive
+                    && target.getExcludePlayerIds() != null
+                    && target.getExcludePlayerIds().contains(playerId)) {
                 shouldReceive = false;
             }
 
@@ -2691,47 +2669,12 @@ public class RTSGameManager {
     }
 
     /**
-     * Create electric field effect at beam impact point if beam has ELECTRIC bullet effect
-     */
-    private void createBeamElectricField(Beam beam) {
-        // Create electric field if beam has ELECTRIC bullet effect (area denial)
-        if (beam.getBulletEffects().contains(BulletEffect.ELECTRIC)) {
-            Vector2 hitPosition = beam.getEndPosition(); // Where the beam ended (hit or max range)
-            double electricDamage = beam.getDamage() * 0.3; // 30% of beam damage per second
-            double electricRadius = 40.0; // Fixed radius for beam electric fields
-
-            int effectId = IdGenerator.nextEntityId();
-            FieldEffect electricField = new FieldEffect(
-                    beam.getOwnerId(),
-                    FieldEffectType.ELECTRIC,
-                    hitPosition,
-                    electricRadius,
-                    electricDamage,
-                    FieldEffectType.ELECTRIC.getDefaultDuration(),
-                    beam.getOwnerTeam()
-            );
-
-            fieldEffects.put(effectId, electricField);
-            world.addBody(electricField.getBody());
-            log.debug("Created electric field from beam at ({}, {}) with radius {} and {} DPS",
-                    hitPosition.x, hitPosition.y, electricRadius, electricDamage);
-        }
-    }
-
-    /**
      * Shutdown the game
      */
     public void shutdown() {
         shutdown.set(true);
         updateTask.cancel(true);
         log.info("RTS Game {} shut down", gameId);
-    }
-
-    /**
-     * Get player count
-     */
-    public int getPlayerCount() {
-        return playerSessions.size();
     }
 }
 

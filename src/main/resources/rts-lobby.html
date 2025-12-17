@@ -929,9 +929,7 @@
         try {
             const biome = document.getElementById('biome-select').value;
             const obstacleDensity = document.getElementById('density-select').value;
-            
-            console.log('DEBUG: Creating debug game with faction:', selectedFaction);
-            
+
             const requestBody = {
                 maxPlayers: 2,  // 2 players (you + 1 AI)
                 teamCount: 0,   // Free-for-all (no teams)
@@ -941,9 +939,7 @@
                 obstacleDensity: obstacleDensity,
                 faction: selectedFaction
             };
-            
-            console.log('DEBUG: Request body:', JSON.stringify(requestBody));
-            
+
             const response = await fetch('/api/rts/games', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -955,8 +951,6 @@
             }
 
             const result = await response.json();
-            console.log('DEBUG: Server response:', result);
-            console.log('DEBUG: Redirecting to:', `/rts.html?gameId=${result.gameId}&sessionToken=${result.sessionToken}`);
             window.location.href = `/rts.html?gameId=${result.gameId}&sessionToken=${result.sessionToken}`;
         } catch (error) {
             console.error('Error creating debug game:', error);
