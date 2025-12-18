@@ -215,30 +215,6 @@ public class FieldEffect extends GameEntity {
                 : 1.0;
     }
 
-//    /**
-//     * Trigger the mine and create an explosion field effect (for proximity mines)
-//     */
-//    public FieldEffect trigger() {
-//        if (type != FieldEffectType.PROXIMITY_MINE || hasTriggered) {
-//            return null;
-//        }
-//
-//        hasTriggered = true;
-//        active = false;
-//
-//        // Create explosion field effect
-//        return new FieldEffect(
-//                getId() + 10000, // Offset ID to avoid conflicts
-//                ownerId,
-//                FieldEffectType.EXPLOSION,
-//                getPosition(),
-//                explosionRadius,
-//                explosionDamage,
-//                FieldEffectType.EXPLOSION.getDefaultDuration(),
-//                ownerTeam
-//        );
-//    }
-
     /**
      * Check if the mine is armed (for proximity mines)
      */
