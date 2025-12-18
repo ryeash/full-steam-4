@@ -3,7 +3,7 @@ package com.fullsteam.model.component;
 import com.fullsteam.model.AbstractOrdinance;
 import com.fullsteam.model.Building;
 import com.fullsteam.model.GameEntities;
-import com.fullsteam.model.Unit;
+import com.fullsteam.model.Targetable;
 import com.fullsteam.model.research.ResearchModifier;
 import com.fullsteam.model.weapon.Weapon;
 import lombok.Getter;
@@ -17,7 +17,7 @@ import java.util.concurrent.ThreadLocalRandom;
 @Setter
 public class DefenseComponent extends AbstractBuildingComponent {
     private Weapon weapon;
-    private Unit targetUnit = null;
+    private Targetable target = null;
 
     public DefenseComponent(Weapon weapon) {
         this.weapon = weapon;
@@ -36,9 +36,9 @@ public class DefenseComponent extends AbstractBuildingComponent {
         }
         acquireTurretTarget(gameEntities, building);
 
-        if (targetUnit != null && targetUnit.isActive()) {
+        if (target != null && target.isActive()) {
             Vector2 turretPos = building.getPosition();
-            Vector2 targetPos = targetUnit.getPosition();
+            Vector2 targetPos = target.getPosition();
             double distance = turretPos.distance(targetPos);
 
             // Check if target is in range
@@ -48,7 +48,7 @@ public class DefenseComponent extends AbstractBuildingComponent {
                 fireAtTarget(gameEntities, building, turretPos, targetPos);
             } else {
                 // Target out of range
-                targetUnit = null;
+                target = null;
             }
         }
     }
@@ -66,7 +66,7 @@ public class DefenseComponent extends AbstractBuildingComponent {
      * @param targetPos Position of the target
      */
     private void fireAtTarget(GameEntities gameEntities, Building building, Vector2 turretPos, Vector2 targetPos) {
-        if (targetUnit == null || !targetUnit.isActive()) {
+        if (target == null || !target.isActive()) {
             return;
         }
 
@@ -74,6 +74,7 @@ public class DefenseComponent extends AbstractBuildingComponent {
         List<AbstractOrdinance> ordinances = weapon.fire(
                 turretPos,
                 targetPos,
+                target.getElevation(),
                 building.getId(),
                 building.getTeamNumber(),
                 building.getBody(),
@@ -87,31 +88,10 @@ public class DefenseComponent extends AbstractBuildingComponent {
     }
 
     private void acquireTurretTarget(GameEntities gameEntities, Building turret) {
-        if (targetUnit != null
-                && targetUnit.isActive()
-                && !targetUnit.isCloaked()
-                && targetUnit.getPosition().distance(turret.getPosition()) < weapon.getRange()) {
-            // we have an active target, in range, and not cloaked
+        if (target != null && target.isValidTargetFor(weapon, turret.getTeamNumber(), turret.getPosition())) {
             return;
         }
-        Vector2 turretPos = turret.getPosition();
-
-        // Find nearest enemy unit
-        Unit nearestEnemy = null;
-        double nearestDistance = Double.MAX_VALUE;
-
-        for (Unit unit : gameEntities.getUnits().values()) {
-            double distance = turretPos.distance(unit.getPosition());
-            boolean targetable = unit.isActive()
-                    && unit.getTeamNumber() != turret.getTeamNumber()
-                    && Unit.canWeaponTargetUnit(weapon, unit) // Check elevation targeting
-                    && (!unit.isCloaked() || (unit.isCloaked() && distance < Unit.getCloakDetectionRange()));
-            if (targetable && distance <= weapon.getRange() && distance < nearestDistance) {
-                nearestEnemy = unit;
-                nearestDistance = distance;
-            }
-        }
-        targetUnit = nearestEnemy;
+        this.target = gameEntities.findNearestEnemyTargetable(turret.getPosition(), turret.getTeamNumber(), weapon);
     }
 }
 

@@ -1,5 +1,7 @@
 package com.fullsteam.model;
 
+import com.fullsteam.model.weapon.Weapon;
+import org.dyn4j.dynamics.Body;
 import org.dyn4j.geometry.Vector2;
 
 /**
@@ -18,6 +20,11 @@ public interface Targetable {
      * Get the unique ID of this targetable entity
      */
     int getId();
+
+    /**
+     * Get the physics body of the targetable
+     */
+    Body getBody();
 
     /**
      * Get the team number (for friendly fire checks)
@@ -92,6 +99,23 @@ public interface Targetable {
      */
     default boolean isEnemyOf(int teamNumber) {
         return this.getTeamNumber() != teamNumber;
+    }
+
+    /**
+     * Determine if this targetable is valid for the given {@link Weapon} at the given position.
+     *
+     * @param forWeapon      the weapon to evaluate
+     * @param weaponTeam     the team that the weapon belongs to
+     * @param weaponPosition the position of the weapon
+     * @return true if the given weapon can target and hit this targetable
+     */
+    default boolean isValidTargetFor(Weapon forWeapon, int weaponTeam, Vector2 weaponPosition) {
+        double distance = getPosition().distance(weaponPosition);
+        return isActive()
+                && isEnemyOf(weaponTeam)
+                && forWeapon.getElevationTargeting().canTarget(getElevation())
+                && distance < forWeapon.getRange()
+                && (!isCloaked() || (isCloaked() && distance < Unit.getCloakDetectionRange()));
     }
 }
 

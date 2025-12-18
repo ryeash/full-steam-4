@@ -21,10 +21,17 @@ import java.util.Set;
 public class Projectile extends AbstractOrdinance {
     private double maxRange;
 
-    public Projectile(Vector2 origin, Vector2 velocity,
-                      double damage, double maxRange, int ownerId, int ownerTeam,
-                      double linearDamping, Set<BulletEffect> bulletEffects,
-                      Ordinance ordinance, double size, ElevationTargeting elevationTargeting,
+    public Projectile(Vector2 origin,
+                      Vector2 velocity,
+                      double damage,
+                      double maxRange,
+                      int ownerId,
+                      int ownerTeam,
+                      double linearDamping,
+                      Set<BulletEffect> bulletEffects,
+                      Ordinance ordinance,
+                      double size,
+                      ElevationTargeting elevationTargeting,
                       Elevation currentElevation) {
         super(IdGenerator.nextEntityId(), createProjectileBody(size), ownerId, ownerTeam,
                 origin, damage, bulletEffects, ordinance, size, elevationTargeting, currentElevation);
@@ -63,13 +70,6 @@ public class Projectile extends AbstractOrdinance {
     public double getRotation() {
         Vector2 velocity = body.getLinearVelocity();
         return Math.atan2(velocity.y, velocity.x);
-    }
-
-    /**
-     * Compatibility method - delegates to parent's getOrdinanceType()
-     */
-    public Ordinance getOrdinance() {
-        return getOrdinanceType();
     }
 
     /**

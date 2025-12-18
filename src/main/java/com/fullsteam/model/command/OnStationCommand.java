@@ -86,13 +86,7 @@ public class OnStationCommand extends UnitCommand {
 
             // Scan for new target if we don't have one
             if (currentTarget == null) {
-                // Get attack range for scanning
-                double attackRange = unit.getWeapon() != null ?
-                        unit.getWeapon().getRange() :
-                        unit.getUnitType().getAttackRange();
-
-                currentTarget = gameEntities.findNearestEnemyTargetable(
-                        unit.getPosition(), unit.getTeamNumber(), attackRange, unit);
+                currentTarget = gameEntities.findNearestEnemyTargetable(unit);
 
                 if (currentTarget != null) {
                     log.debug("Aircraft {} acquired target {}", unit.getId(), currentTarget.getId());
@@ -192,7 +186,7 @@ public class OnStationCommand extends UnitCommand {
                 } else {
                     aimPosition = targetPos;
                 }
-                return unit.fireAt(aimPosition, gameEntities);
+                return unit.fireAt(aimPosition, currentTarget.getElevation(), gameEntities);
             }
         }
 

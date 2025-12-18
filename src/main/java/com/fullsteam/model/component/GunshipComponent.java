@@ -1,11 +1,10 @@
 package com.fullsteam.model.component;
 
 import com.fullsteam.model.AbstractOrdinance;
-import com.fullsteam.model.Building;
 import com.fullsteam.model.BulletEffect;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Ordinance;
-import com.fullsteam.model.Unit;
+import com.fullsteam.model.Targetable;
 import com.fullsteam.model.command.OnStationCommand;
 import com.fullsteam.model.command.ReturnToHangarCommand;
 import com.fullsteam.model.research.ResearchModifier;
@@ -155,49 +154,6 @@ public class GunshipComponent extends AbstractUnitComponent {
         unit.issueCommand(returnCommand, gameEntities);
     }
 
-    /**
-     * Check if the gunship should return to base.
-     * Returns true if fuel is depleted or out of all ammo.
-     */
-    public boolean shouldReturnToBase() {
-        return currentFuel <= 0 || (currentAmmoGround == 0 && currentAmmoAir == 0);
-    }
-
-    /**
-     * Check if the gunship is low on fuel (< 25%).
-     */
-    public boolean isLowFuel() {
-        return currentFuel <= MAX_FUEL * 0.25;
-    }
-
-    /**
-     * Check if the gunship is low on ground ammo (<= 20 rounds).
-     */
-    public boolean isLowGroundAmmo() {
-        return currentAmmoGround <= 20;
-    }
-
-    /**
-     * Check if the gunship is low on air ammo (<= 5 shells).
-     */
-    public boolean isLowAirAmmo() {
-        return currentAmmoAir <= 5;
-    }
-
-    /**
-     * Get fuel percentage (0-100).
-     */
-    public int getFuelPercent() {
-        return (int) ((currentFuel / MAX_FUEL) * 100);
-    }
-
-    /**
-     * Get remaining flight time in seconds.
-     */
-    public int getRemainingFlightTime() {
-        return (int) Math.max(0, currentFuel);
-    }
-
     @Override
     public void applyResearchModifiers(ResearchModifier modifier) {
         this.airWeapon = airWeapon.copyWithModifiers(modifier);
@@ -205,62 +161,33 @@ public class GunshipComponent extends AbstractUnitComponent {
     }
 
     private void attackEnemies() {
-        Unit airUnit = null;
-        Unit groundUnit = null;
-        for (Unit other : gameEntities.getUnits().values()) {
-            if (!other.isActive() || other.getTeamNumber() == this.unit.getTeamNumber()) {
-                continue;
-            }
-            double targetDistance = unit.getPosition().distance(other.getPosition());
-            if (other.isCloaked() && targetDistance > Unit.getCloakDetectionRange()) {
-                continue;
-            }
-            if (other.getUnitType().getElevation().isAirborne()) {
-                if (airWeapon.getRange() >= targetDistance) {
-                    if (airUnit == null || targetDistance < unit.getPosition().distance(airUnit.getPosition())) {
-                        airUnit = other;
-                    }
-                }
-            } else {
-                if (groundWeapon.getRange() >= targetDistance) {
-                    if (groundUnit == null || targetDistance < unit.getPosition().distance(groundUnit.getPosition())) {
-                        groundUnit = other;
-                    }
-                }
-            }
-        }
-
+        Targetable airUnit = gameEntities.findNearestEnemyTargetable(unit.getPosition(), unit.getTeamNumber(), airWeapon);
         List<AbstractOrdinance> ordinances = new ArrayList<>();
-
         if (airUnit != null) {
-            List<AbstractOrdinance> list = airWeapon.fire(unit.getPosition(), airUnit.getPosition(), unit.getOwnerId(), unit.getTeamNumber(), unit.getBody(), gameEntities);
+            List<AbstractOrdinance> list = airWeapon.fire(
+                    unit.getPosition(),
+                    airUnit.getPosition(),
+                    airUnit.getElevation(),
+                    unit.getOwnerId(),
+                    unit.getTeamNumber(),
+                    unit.getBody(),
+                    gameEntities);
             ordinances.addAll(list);
             currentAmmoAir -= list.size();
         }
+
+        Targetable groundUnit = gameEntities.findNearestEnemyTargetable(unit.getPosition(), unit.getTeamNumber(), groundWeapon);
         if (groundUnit != null) {
-            List<AbstractOrdinance> list = groundWeapon.fire(unit.getPosition(), groundUnit.getPosition(), unit.getOwnerId(), unit.getTeamNumber(), unit.getBody(), gameEntities);
+            List<AbstractOrdinance> list = groundWeapon.fire(
+                    unit.getPosition(),
+                    groundUnit.getPosition(),
+                    groundUnit.getElevation(),
+                    unit.getOwnerId(),
+                    unit.getTeamNumber(),
+                    unit.getBody(),
+                    gameEntities);
             ordinances.addAll(list);
             currentAmmoGround -= list.size();
-        }
-
-        // If no enemy units found, look for enemy buildings
-        if (groundUnit == null && unit.canTargetBuildings()) {
-            Building targetBuilding = null;
-            for (Building building : gameEntities.getBuildings().values()) {
-                if (building.getTeamNumber() != unit.getTeamNumber() && building.isActive()) {
-                    double targetDistance = unit.getPosition().distance(building.getPosition());
-                    if (groundWeapon.getRange() >= targetDistance) {
-                        if (targetBuilding == null || targetDistance < unit.getPosition().distance(targetBuilding.getPosition())) {
-                            targetBuilding = building;
-                        }
-                    }
-                }
-            }
-            if (targetBuilding != null) {
-                List<AbstractOrdinance> list = groundWeapon.fire(unit.getPosition(), targetBuilding.getPosition(), unit.getOwnerId(), unit.getTeamNumber(), unit.getBody(), gameEntities);
-                ordinances.addAll(list);
-                currentAmmoGround -= list.size();
-            }
         }
 
         for (AbstractOrdinance ordinance : ordinances) {

@@ -59,6 +59,15 @@ public enum ElevationTargeting {
             case ALL_ELEVATIONS -> true;
         };
     }
+
+    public Elevation lowestTargetable() {
+        for (Elevation value : Elevation.values()) {
+            if (canTarget(value)) {
+                return value;
+            }
+        }
+        return Elevation.GROUND;
+    }
 }
 
 

@@ -61,6 +61,7 @@ public class BeamWeapon extends Weapon {
     @Override
     protected List<AbstractOrdinance> createOrdinances(Vector2 position,
                                                        Vector2 targetPosition,
+                                                       Elevation targetElevation,
                                                        int ownerId,
                                                        int ownerTeam,
                                                        Body ignoredBody,
@@ -79,11 +80,8 @@ public class BeamWeapon extends Weapon {
         // Use the minimum of weapon range and distance to target
         double effectiveRange = Math.min(range, distanceToTarget);
 
-        // Determine the elevation for this beam based on what we're targeting
-        Elevation beamElevation = determineOrdinanceElevation(targetPosition, gameEntities);
-
         // Perform raycast to find actual beam endpoint (respecting elevation)
-        Vector2 end = performRaycast(world, position, direction, effectiveRange, ignoredBody, ownerTeam, beamElevation);
+        Vector2 end = performRaycast(world, position, direction, effectiveRange, ignoredBody, ownerTeam, targetElevation);
 
         // Create and return beam with raycast results in a list (single beam for standard weapons)
         Beam beam = new Beam(
@@ -99,38 +97,10 @@ public class BeamWeapon extends Weapon {
                 beamWidth,
                 beamDuration,
                 elevationTargeting,
-                beamElevation
+                targetElevation
         );
 
         return List.of(beam);
-    }
-
-    /**
-     * Determine what elevation the ordinance should fly at based on the target position.
-     * This allows beams fired at aircraft to fly at aircraft elevation and not collide with ground obstacles.
-     */
-    private Elevation determineOrdinanceElevation(Vector2 targetPosition, GameEntities gameEntities) {
-        // Check if we're targeting an airborne unit
-        double searchRadius = 50.0; // Search for units near the target position
-
-        for (Unit unit : gameEntities.getUnits().values()) {
-            if (!unit.isActive()) {
-                continue;
-            }
-
-            double distance = unit.getPosition().distance(targetPosition);
-            if (distance < searchRadius) {
-                // Found a unit near target - use its elevation
-                Elevation targetElevation = unit.getUnitType().getElevation();
-                if (targetElevation.isAirborne() && elevationTargeting.canTarget(targetElevation)) {
-                    // Targeting an airborne unit - beam fires at that elevation
-                    return targetElevation;
-                }
-            }
-        }
-
-        // Default to GROUND elevation (for hitting ground units, buildings, obstacles)
-        return Elevation.GROUND;
     }
 
     /**

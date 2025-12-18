@@ -111,7 +111,7 @@ public class AttackTargetableCommand extends UnitCommand {
                 aimPosition = targetPos;
             }
 
-            return unit.fireAt(aimPosition, gameEntities);
+            return unit.fireAt(aimPosition, target.getElevation(), gameEntities);
         }
 
         return List.of();

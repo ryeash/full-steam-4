@@ -2,6 +2,7 @@ package com.fullsteam.model.command;
 
 import com.fullsteam.model.AbstractOrdinance;
 import com.fullsteam.model.Building;
+import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Unit;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,7 +21,7 @@ public class AttackMoveCommand extends UnitCommand {
 
     // Auto-acquired target (unit, building, or wall)
     @Setter
-    private com.fullsteam.model.Targetable autoTarget = null;
+    private Targetable autoTarget = null;
 
     public AttackMoveCommand(Unit unit, Vector2 destination, boolean isPlayerOrder) {
         super(unit, isPlayerOrder);
@@ -138,7 +139,7 @@ public class AttackMoveCommand extends UnitCommand {
                 aimPosition = targetPos;
             }
 
-            return unit.fireAt(aimPosition, gameEntities);
+            return unit.fireAt(aimPosition, autoTarget.getElevation(), gameEntities);
         }
 
         return List.of();
@@ -158,8 +159,8 @@ public class AttackMoveCommand extends UnitCommand {
 
         // Use unified targetable finder - automatically handles units, buildings, walls
         // and respects elevation targeting and cloak detection
-        com.fullsteam.model.Targetable nearestEnemy = gameEntities.findNearestEnemyTargetable(
-                currentPos, unit.getTeamNumber(), visionRange, unit);
+        Targetable nearestEnemy = gameEntities.findNearestEnemyTargetable(
+                unit);
 
         if (nearestEnemy != null) {
             autoTarget = nearestEnemy;

@@ -1,6 +1,7 @@
 package com.fullsteam.model.weapon;
 
 import com.fullsteam.model.AbstractOrdinance;
+import com.fullsteam.model.Elevation;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
@@ -52,21 +53,20 @@ public abstract class Weapon {
      * @param gameEntities   Access to all game entities and the physics world
      * @return List of created ordinance (may be empty if unable to fire)
      */
-    public List<AbstractOrdinance> fire(
-            Vector2 position,
-            Vector2 targetPosition,
-            int ownerId,
-            int ownerTeam,
-            Body ignoredBody,
-            GameEntities gameEntities
-    ) {
+    public List<AbstractOrdinance> fire(Vector2 position,
+                                        Vector2 targetPosition,
+                                        Elevation targetElevation,
+                                        int ownerId,
+                                        int ownerTeam,
+                                        Body ignoredBody,
+                                        GameEntities gameEntities) {
         // Check if weapon is ready to fire
         if (!canFire()) {
             return List.of();
         }
 
         // Fire the weapon (implemented by subclass)
-        List<AbstractOrdinance> ordinances = createOrdinances(position, targetPosition, ownerId, ownerTeam, ignoredBody, gameEntities);
+        List<AbstractOrdinance> ordinances = createOrdinances(position, targetPosition, targetElevation, ownerId, ownerTeam, ignoredBody, gameEntities);
 
         // Record the fire time if successful
         if (!ordinances.isEmpty()) {
@@ -92,6 +92,7 @@ public abstract class Weapon {
     protected abstract List<AbstractOrdinance> createOrdinances(
             Vector2 position,
             Vector2 targetPosition,
+            Elevation targetElevation,
             int ownerId,
             int ownerTeam,
             Body ignoredBody,
@@ -118,73 +119,11 @@ public abstract class Weapon {
     }
 
     /**
-     * Check if this weapon can fire with a custom current time.
-     * Useful for testing or when you already have the current time.
-     *
-     * @param currentTimeMs Current time in milliseconds
-     * @return true if weapon is ready to fire
-     */
-    public boolean canFire(long currentTimeMs) {
-        return (currentTimeMs - lastFireTime) >= getAttackCooldownMs();
-    }
-
-    /**
      * Mark that this weapon has fired (updates lastFireTime).
      * Should be called after successfully firing.
      */
     public void recordFire() {
         this.lastFireTime = System.currentTimeMillis();
-    }
-
-    /**
-     * Mark that this weapon has fired with a custom timestamp.
-     * Useful for testing or when you already have the current time.
-     *
-     * @param currentTimeMs Current time in milliseconds
-     */
-    public void recordFire(long currentTimeMs) {
-        this.lastFireTime = currentTimeMs;
-    }
-
-    /**
-     * Get time remaining until weapon can fire again (in milliseconds).
-     *
-     * @return Milliseconds until ready, or 0 if ready now
-     */
-    public double getCooldownRemaining() {
-        long now = System.currentTimeMillis();
-        double elapsed = now - lastFireTime;
-        double cooldown = getAttackCooldownMs();
-        return Math.max(0, cooldown - elapsed);
-    }
-
-    /**
-     * Reset the fire cooldown (makes weapon immediately ready to fire).
-     * Useful for special abilities or testing.
-     */
-    public void resetCooldown() {
-        this.lastFireTime = 0;
-    }
-
-    /**
-     * Apply a damage multiplier (for research upgrades, buffs, etc.)
-     */
-    public void applyDamageMultiplier(double multiplier) {
-        this.damage *= multiplier;
-    }
-
-    /**
-     * Apply a range multiplier (for research upgrades, buffs, etc.)
-     */
-    public void applyRangeMultiplier(double multiplier) {
-        this.range *= multiplier;
-    }
-
-    /**
-     * Apply an attack rate multiplier (for research upgrades, buffs, etc.)
-     */
-    public void applyAttackRateMultiplier(double multiplier) {
-        this.attackRate *= multiplier;
     }
 
     /**

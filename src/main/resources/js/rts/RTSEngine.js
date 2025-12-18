@@ -4806,6 +4806,7 @@ class RTSEngine {
             'ENGINEER': '🔧 Engineer',
             'JEEP': '🚙 Jeep',
             'TANK': '🛡️ Tank',
+            'FLAK_TANK': '💥 Flak Tank',
             'ARTILLERY': '💣 Artillery',
             'GIGANTONAUT': '🏔️ Gigantonaut',
             'CLOAK_TANK': '👻 Cloak Tank',
@@ -4822,7 +4823,7 @@ class RTSEngine {
             'BEAM_TANK': '💠 Beam Tank',
             'PULSE_ARTILLERY': '🌟 Pulse Artillery',
             // Air units
-            'SCOUT_DRONE': '🚁 Scout Drone',
+            'SCOUT_DRONE': '🪽 Scout Drone',
             'HELICOPTER': '🚁 Helicopter',
             'BOMBER': '✈️ Bomber',
             'INTERCEPTOR': '🛩️ Interceptor',

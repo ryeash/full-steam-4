@@ -6,7 +6,6 @@ import com.fullsteam.model.Elevation;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Ordinance;
 import com.fullsteam.model.Projectile;
-import com.fullsteam.model.Unit;
 import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.Setter;
@@ -52,20 +51,15 @@ public class ProjectileWeapon extends Weapon {
     @Override
     protected List<AbstractOrdinance> createOrdinances(Vector2 position,
                                                        Vector2 targetPosition,
+                                                       Elevation targetElevation,
                                                        int ownerId,
                                                        int ownerTeam,
                                                        Body ignoredBody,
                                                        GameEntities gameEntities) {
-        // Calculate direction to target
-        Vector2 direction = targetPosition.copy().subtract(position);
-        direction.normalize();
-
-        // Calculate velocity
-        Vector2 velocity = direction.multiply(projectileSpeed);
-
-        // Determine the elevation for this projectile based on what we're targeting
-        // Check what's at the target position to determine proper elevation
-        Elevation ordinanceElevation = determineOrdinanceElevation(targetPosition, gameEntities);
+        Vector2 velocity = targetPosition.copy()
+                .subtract(position)
+                .getNormalized()
+                .multiply(projectileSpeed);
 
         // Create and return projectile in a list (single projectile for standard weapons)
         Projectile projectile = new Projectile(
@@ -80,36 +74,10 @@ public class ProjectileWeapon extends Weapon {
                 ordinanceType,
                 projectileSize,
                 elevationTargeting,
-                ordinanceElevation
+                targetElevation
         );
 
         return List.of(projectile);
-    }
-
-    /**
-     * Determine what elevation the ordinance should fly at based on the target position.
-     * This allows projectiles fired at aircraft to fly at aircraft elevation and not collide with ground obstacles.
-     */
-    private Elevation determineOrdinanceElevation(Vector2 targetPosition, GameEntities gameEntities) {
-        // Check if we're targeting an airborne unit
-        double searchRadius = 50.0; // Search for units near the target position
-
-        for (Unit unit : gameEntities.getUnits().values()) {
-            if (!unit.isActive()) continue;
-
-            double distance = unit.getPosition().distance(targetPosition);
-            if (distance < searchRadius) {
-                // Found a unit near target - use its elevation
-                Elevation targetElevation = unit.getUnitType().getElevation();
-                if (targetElevation.isAirborne() && elevationTargeting.canTarget(targetElevation)) {
-                    // Targeting an airborne unit - projectile flies at that elevation
-                    return targetElevation;
-                }
-            }
-        }
-
-        // Default to GROUND elevation (for hitting ground units, buildings, obstacles)
-        return Elevation.GROUND;
     }
 
     @Override

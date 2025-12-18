@@ -71,7 +71,7 @@ public class IdleCommand extends UnitCommand {
         // Use unified targetable finder - automatically handles units, buildings, walls
         // and respects elevation targeting and cloak detection
         com.fullsteam.model.Targetable nearestEnemy = gameEntities.findNearestEnemyTargetable(
-                currentPos, unit.getTeamNumber(), visionRange, unit);
+                unit);
 
         // Debug logging for flak tanks
         if (unit.getUnitType() == com.fullsteam.model.UnitType.FLAK_TANK) {

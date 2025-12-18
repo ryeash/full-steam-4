@@ -49,6 +49,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -120,7 +121,7 @@ public class RTSGameManager {
     private boolean gameStartedWithFullRoster = false;
 
     // Track disconnected players (for victory condition)
-    private final Set<Integer> disconnectedPlayers = ConcurrentHashMap.newKeySet();
+    private final Set<Integer> disconnectedPlayers = new ConcurrentSkipListSet<>();
 
     public RTSGameManager(String gameId, GameConfig gameConfig, ObjectMapper objectMapper) {
         this.gameId = gameId;
@@ -190,7 +191,7 @@ public class RTSGameManager {
     /**
      * Main update loop
      */
-    protected void update() {
+    public void update() {
         if (shutdown.get()) {
             return;
         }
@@ -301,7 +302,7 @@ public class RTSGameManager {
                         .filter(DeployComponent::isDeployed)
                         .ifPresent(deployComp -> {
                             for (Turret turret : deployComp.getTurrets()) {
-                                turret.update(unit, gameEntities, frameCount);
+                                turret.update(unit, gameEntities);
                             }
                         });
 
@@ -374,12 +375,8 @@ public class RTSGameManager {
                     projectile.clampToBounds(gameConfig.getWorldWidth(), gameConfig.getWorldHeight());
                 }
 
-                // Create explosion if projectile reached max range and is explosive
-                if (!projectile.isActive() && isExplosiveProjectile(projectile)) {
-                    createExplosionAtProjectile(projectile);
-                }
-
                 if (!projectile.isActive()) {
+                    collisionProcessor.handleTerminalEffects(projectile);
                     world.removeBody(projectile.getBody());
                     return true;
                 }
@@ -1234,33 +1231,6 @@ public class RTSGameManager {
     }
 
     /**
-     * Check if a projectile is explosive (creates explosions)
-     */
-    private boolean isExplosiveProjectile(Projectile projectile) {
-        Ordinance ordinance = projectile.getOrdinance();
-        return ordinance == Ordinance.ROCKET ||
-                ordinance == Ordinance.GRENADE ||
-                ordinance == Ordinance.SHELL;
-    }
-
-    /**
-     * Create an explosion at a projectile's position (when it reaches max range)
-     */
-    private void createExplosionAtProjectile(Projectile projectile) {
-        FieldEffect effect = new FieldEffect(
-                projectile.getOwnerId(),
-                FieldEffectType.EXPLOSION,
-                projectile.getPosition().copy(),
-                projectile.getOrdinance().getSize() * 15,
-                projectile.getDamage() * 0.5,
-                FieldEffectType.EXPLOSION.getDefaultDuration(),
-                projectile.getOwnerTeam()
-        );
-        gameEntities.getFieldEffects().put(effect.getId(), effect);
-        world.addBody(effect.getBody());
-    }
-
-    /**
      * Process field effect updates and cleanup
      * Damage is now handled by the collision processor using physics-based detection
      */
@@ -1831,7 +1801,7 @@ public class RTSGameManager {
 
             // Monument Buildings - Requires Power Plant + Research Lab (T3)
             case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL, TEMPEST_SPIRE ->
-                    playerBuildings.contains(BuildingType.POWER_PLANT) &&
+                    playerBuildings.contains(com.fullsteam.model.BuildingType.POWER_PLANT) &&
                             playerBuildings.contains(BuildingType.RESEARCH_LAB);
 
             // Headquarters is special (only one, starting building)
@@ -2118,7 +2088,7 @@ public class RTSGameManager {
                 });
 
         // Garrison state (for Bunker)
-        if (building.getBuildingType() == BuildingType.BUNKER) {
+        if (building.getBuildingType() == com.fullsteam.model.BuildingType.BUNKER) {
             data.put("garrisonCount", building.getGarrisonCount());
             data.put("maxGarrisonCapacity", building.getMaxGarrisonCapacity());
         }
@@ -2313,7 +2283,7 @@ public class RTSGameManager {
         data.put("rotation", projectile.getRotation());
         data.put("ownerId", projectile.getOwnerId());
         data.put("team", projectile.getOwnerTeam());
-        data.put("ordinance", projectile.getOrdinance().name());
+        data.put("ordinance", projectile.getOrdinanceType().name());
         data.put("size", projectile.getSize()); // Use actual projectile size
         return data;
     }

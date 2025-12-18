@@ -5,8 +5,6 @@ import com.fullsteam.model.weapon.WeaponFactory;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.geometry.Vector2;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -17,16 +15,12 @@ import java.util.List;
 @Getter
 @Setter
 public class Turret {
-    private static final Logger log = LoggerFactory.getLogger(Turret.class);
+    private final int index;
+    private final Vector2 offset;
+    private final Weapon weapon;
 
-    private final int index; // Turret index (0-3 for Crawler)
-    private final Vector2 offset; // Offset from unit center (relative position)
-    private final Weapon weapon; // The weapon this turret fires
-
-    private Unit targetUnit = null;
-    private Building targetBuilding = null;
-    private double rotation = 0.0; // Turret rotation (independent of unit rotation)
-    private long lastTargetAcquisitionFrame = -999; // Track when we last looked for targets
+    private Targetable target = null;
+    private double rotation = 0.0;
 
     public Turret(int index, Vector2 offset, double damage, double range, double attackRate) {
         this.index = index;
@@ -44,103 +38,18 @@ public class Turret {
     /**
      * Update this turret's targeting and firing logic
      */
-    public void update(Unit parentUnit, GameEntities gameEntities, long frameCount) {
-        Vector2 turretWorldPos = getWorldPosition(parentUnit);
-        double turretRange = weapon.getRange();
-        double attackRate = weapon.getAttackRate();
-
-        // Clear invalid targets
-        if (targetUnit != null && !targetUnit.isActive()) {
-            clearTarget();
-        }
-        if (targetBuilding != null && !targetBuilding.isActive()) {
-            clearTarget();
-        }
-
-        // Acquire new target if needed (stagger by turret index to avoid all turrets checking on same frame)
-        if (!hasTarget() && (frameCount + index * 7L) % 30 == 0) {
-            acquireTarget(parentUnit, turretWorldPos, gameEntities, turretRange, frameCount);
+    public void update(Unit parentUnit, GameEntities gameEntities) {
+        Vector2 worldPosition = getWorldPosition(parentUnit);
+        if (target == null || !target.isValidTargetFor(weapon, parentUnit.getTeamNumber(), worldPosition)) {
+            target = gameEntities.findNearestEnemyTargetable(worldPosition, parentUnit.getTeamNumber(), weapon);
         }
 
         // Fire at target if in range and cooldown ready
-        if (hasTarget() && weapon.canFire()) {
-            List<AbstractOrdinance> ordinances = fireAtTarget(parentUnit, turretWorldPos, gameEntities);
+        if (target != null) {
+            List<AbstractOrdinance> ordinances = fireAtTarget(parentUnit, worldPosition, gameEntities);
             for (AbstractOrdinance ordinance : ordinances) {
                 gameEntities.add(ordinance);
             }
-        }
-    }
-
-    /**
-     * Acquire a target for this turret
-     */
-    private void acquireTarget(Unit parentUnit, Vector2 turretWorldPos, GameEntities gameEntities, double range, long frameCount) {
-        Unit nearestEnemyUnit = null;
-        double nearestUnitDistance = Double.MAX_VALUE;
-
-        // Find nearest enemy unit in range
-        for (Unit enemyUnit : gameEntities.getUnits().values()) {
-            if (!enemyUnit.isActive() || enemyUnit.getTeamNumber() == parentUnit.getTeamNumber()) {
-                continue;
-            }
-
-            // Check if weapon can target this unit's elevation
-            if (!Unit.canWeaponTargetUnit(weapon, enemyUnit)) {
-                continue; // Weapon cannot hit this elevation level
-            }
-
-            double distance = turretWorldPos.distance(enemyUnit.getPosition());
-
-            // Cloaked units can only be targeted within cloak detection range
-            if (enemyUnit.isCloaked() && distance > Unit.getCloakDetectionRange()) {
-                continue;
-            }
-
-            if (distance <= range && distance < nearestUnitDistance) {
-                nearestEnemyUnit = enemyUnit;
-                nearestUnitDistance = distance;
-            }
-        }
-
-        // If found enemy unit, target it
-        if (nearestEnemyUnit != null) {
-            targetUnit = nearestEnemyUnit;
-            targetBuilding = null;
-            lastTargetAcquisitionFrame = frameCount;
-            log.debug("Turret {} acquired unit target {} at distance {}",
-                    index, nearestEnemyUnit.getId(), nearestUnitDistance);
-            return;
-        }
-
-        // Otherwise, find nearest enemy building
-        Building nearestEnemyBuilding = null;
-        double nearestBuildingDistance = Double.MAX_VALUE;
-
-        for (Building building : gameEntities.getBuildings().values()) {
-            if (!building.isActive() || building.getTeamNumber() == parentUnit.getTeamNumber()) {
-                continue;
-            }
-
-            // Check if weapon can target buildings (GROUND elevation)
-            if (!Unit.canWeaponTargetBuildings(weapon)) {
-                continue; // Weapon cannot hit ground targets (e.g., FLAK_TANK with LOW_AND_HIGH targeting)
-            }
-
-            double distance = turretWorldPos.distance(building.getPosition());
-            if (distance <= range && distance < nearestBuildingDistance) {
-                nearestEnemyBuilding = building;
-                nearestBuildingDistance = distance;
-            }
-        }
-
-        if (nearestEnemyBuilding != null) {
-            targetBuilding = nearestEnemyBuilding;
-            targetUnit = null;
-            lastTargetAcquisitionFrame = frameCount;
-            log.debug("Turret {} acquired building target {} at distance {}",
-                    index, nearestEnemyBuilding.getId(), nearestBuildingDistance);
-        } else {
-            log.debug("Turret {} found no targets in range {}", index, range);
         }
     }
 
@@ -149,57 +58,27 @@ public class Turret {
      * Returns the list of ordinances created (may be empty if unable to fire)
      */
     private List<AbstractOrdinance> fireAtTarget(Unit parentUnit, Vector2 turretWorldPos, GameEntities gameEntities) {
-        Vector2 targetPos = null;
-
-        // Use predictive aiming for moving units
-        if (targetUnit != null) {
-            targetPos = calculateInterceptPoint(turretWorldPos, targetUnit);
-        } else if (targetBuilding != null) {
-            targetPos = targetBuilding.getPosition();
-        }
-
-        if (targetPos == null) {
-            return List.of();
-        }
-
-        double distance = turretWorldPos.distance(targetPos);
-        double turretRange = weapon.getRange();
-
-        if (distance > turretRange) {
-            // Target out of range, clear it
-            clearTarget();
-            return List.of();
-        }
-
-        // Calculate turret rotation to face target
+        Vector2 targetPos = calculateInterceptPoint(target.getPosition(), target);
         rotation = Math.atan2(
                 targetPos.y - turretWorldPos.y,
                 targetPos.x - turretWorldPos.x
         );
-
-        // Fire weapon from turret position (weapon handles cooldown tracking)
-        List<AbstractOrdinance> ordinances = weapon.fire(
+        return weapon.fire(
                 turretWorldPos,
                 targetPos,
+                target.getElevation(),
                 parentUnit.getId(),
                 parentUnit.getTeamNumber(),
                 parentUnit.getBody(),
                 gameEntities
         );
-
-        if (!ordinances.isEmpty()) {
-            log.debug("Turret {} fired {} ordinance(s) at target (distance: {})",
-                    index, ordinances.size(), distance);
-        }
-
-        return ordinances;
     }
 
     /**
      * Calculate intercept point for predictive aiming
      * Note: Projectile speed is now managed by the weapon, so we estimate based on typical values
      */
-    private Vector2 calculateInterceptPoint(Vector2 turretPos, Unit target) {
+    private Vector2 calculateInterceptPoint(Vector2 turretPos, Targetable target) {
         Vector2 targetPos = target.getPosition();
         Vector2 targetVelocity = target.getBody().getLinearVelocity();
 
@@ -246,23 +125,6 @@ public class Turret {
 
         // Calculate intercept position
         return targetPos.copy().add(targetVelocity.copy().multiply(interceptTime));
-    }
-
-
-    /**
-     * Clear the current target
-     */
-    public void clearTarget() {
-        this.targetUnit = null;
-        this.targetBuilding = null;
-    }
-
-    /**
-     * Check if turret has a valid target
-     */
-    public boolean hasTarget() {
-        return (targetUnit != null && targetUnit.isActive())
-                || (targetBuilding != null && targetBuilding.isActive());
     }
 }
 

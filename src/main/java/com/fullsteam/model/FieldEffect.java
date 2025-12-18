@@ -185,7 +185,7 @@ public class FieldEffect extends GameEntity {
         }
         return switch (type) {
             // explosions degrade with distance from center
-            case EXPLOSION -> {
+            case FLAK_EXPLOSION, EXPLOSION -> {
                 double distance = getPosition().distance(targetPosition);
                 double intensity = 0.5 + (0.5 * (distance / radius));
                 yield Math.max(0.0, intensity);

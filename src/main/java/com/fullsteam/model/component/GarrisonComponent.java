@@ -1,8 +1,8 @@
 package com.fullsteam.model.component;
 
-import com.fullsteam.model.AbstractOrdinance;
 import com.fullsteam.model.Building;
 import com.fullsteam.model.GameEntities;
+import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Unit;
 import lombok.Getter;
 import lombok.Setter;
@@ -139,99 +139,26 @@ public class GarrisonComponent extends AbstractBuildingComponent {
         if (garrisonedUnits.isEmpty() || gameEntities == null) {
             return;
         }
-
-        Vector2 bunkerPos = building.getPosition();
-
-        // Each garrisoned unit operates independently
         for (Unit garrisonedUnit : garrisonedUnits) {
             // Skip if unit can't attack
-            if (!garrisonedUnit.getUnitType().canAttack()) {
+            if (!garrisonedUnit.getUnitType().canAttack() || garrisonedUnit.getWeapon() == null) {
                 continue;
             }
-
-            // Skip if unit has no weapon
-            if (garrisonedUnit.getWeapon() == null) {
-                continue;
-            }
-
-            // Clear invalid target
-            if (garrisonedUnit.getTargetUnit() != null && !garrisonedUnit.getTargetUnit().isActive()) {
-                garrisonedUnit.setTargetUnit(null);
-            }
-
-            // Acquire target if needed (each unit finds its own target)
-            if (garrisonedUnit.getTargetUnit() == null) {
-                Unit target = findBunkerTargetForUnit(garrisonedUnit, gameEntities);
-                garrisonedUnit.setTargetUnit(target);
-            }
-
-            Unit target = garrisonedUnit.getTargetUnit();
+            Targetable target = gameEntities.findNearestEnemyTargetable(garrisonedUnit);
             if (target == null || !target.isActive()) {
                 continue;
             }
-
-            // Check if target is in range (use garrisoned unit's range)
-            Vector2 targetPos = target.getPosition();
-            double distance = bunkerPos.distance(targetPos);
-            double attackRange = garrisonedUnit.getWeapon().getRange();
-
-            if (distance > attackRange) {
-                garrisonedUnit.setTargetUnit(null); // Target out of range
-                continue;
-            }
-
             // Fire weapon from bunker position (not from garrisoned unit's disabled body position)
-            List<AbstractOrdinance> ordinances = garrisonedUnit.getWeapon().fire(
-                    bunkerPos,
-                    targetPos,
+            garrisonedUnit.getWeapon().fire(
+                    garrisonedUnit.getPosition(),
+                    target.getPosition(),
+                    target.getElevation(),
                     garrisonedUnit.getId(),
                     garrisonedUnit.getTeamNumber(),
                     garrisonedUnit.getBody(),
                     gameEntities
-            );
-
-            for (AbstractOrdinance ordinance : ordinances) {
-                gameEntities.add(ordinance);
-            }
+            ).forEach(gameEntities::add);
         }
-    }
-
-    /**
-     * Find a target for a specific garrisoned unit
-     * Each unit independently scans for enemies in its range
-     */
-    private Unit findBunkerTargetForUnit(Unit garrisonedUnit, GameEntities gameEntities) {
-        Vector2 bunkerPos = garrisonedUnit.getPosition();
-        double attackRange = garrisonedUnit.getUnitType().getAttackRange();
-
-        Unit closestEnemy = null;
-        double closestDistance = Double.MAX_VALUE;
-
-        // Scan for enemies in range
-        for (Unit enemy : gameEntities.getUnits().values()) {
-            if (!enemy.isActive() || enemy.getTeamNumber() == garrisonedUnit.getTeamNumber()) {
-                continue;
-            }
-
-            // Check if garrisoned unit's weapon can target this elevation
-            if (!garrisonedUnit.canTargetElevation(enemy)) {
-                continue; // Weapon cannot hit this elevation level
-            }
-
-            double distance = bunkerPos.distance(enemy.getPosition());
-
-            // Cloaked units can only be detected within cloak detection range
-            if (enemy.isCloaked() && distance > Unit.getCloakDetectionRange()) {
-                continue;
-            }
-
-            if (distance <= attackRange && distance < closestDistance) {
-                closestEnemy = enemy;
-                closestDistance = distance;
-            }
-        }
-
-        return closestEnemy;
     }
 }
 

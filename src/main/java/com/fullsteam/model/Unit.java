@@ -394,9 +394,9 @@ public class Unit extends GameEntity implements Targetable {
 
         // Use arrival behavior when close to final destination
         Vector2 seekForce;
-        boolean isNearDestination = distanceToTarget < 100.0;
+        boolean isNearDestination = distanceToTarget < 25.0;
         if (isNearDestination) {
-            seekForce = calculateArrival(target, 100.0);
+            seekForce = calculateArrival(target, 25.0);
         } else {
             seekForce = calculateSeek(target);
         }
@@ -561,7 +561,7 @@ public class Unit extends GameEntity implements Targetable {
      * @param gameEntities The game entities (provides access to world and all entities)
      * @return List of ordinances created (may be empty if unable to fire)
      */
-    public List<AbstractOrdinance> fireAt(Vector2 targetPos, GameEntities gameEntities) {
+    public List<AbstractOrdinance> fireAt(Vector2 targetPos, Elevation targetElevation, GameEntities gameEntities) {
         // Check if unit has a weapon
         if (weapon == null) {
             return List.of();
@@ -571,7 +571,7 @@ public class Unit extends GameEntity implements Targetable {
         getComponent(CloakComponent.class).ifPresent(CloakComponent::onFire);
 
         // Fire the weapon
-        List<AbstractOrdinance> ordinances = weapon.fire(getPosition(), targetPos, getId(), teamNumber, body, gameEntities);
+        List<AbstractOrdinance> ordinances = weapon.fire(getPosition(), targetPos, targetElevation, getId(), teamNumber, body, gameEntities);
 
         // Notify interceptor component of weapon fire (consumes ammo)
         if (!ordinances.isEmpty()) {
@@ -582,7 +582,7 @@ public class Unit extends GameEntity implements Targetable {
     }
 
     // harvestResources(ResourceDeposit) removed - use harvestResourcesFromObstacle(Obstacle) instead
-    
+
     /**
      * Harvest resources from harvestable obstacle
      * Called by HarvestCommand
@@ -600,18 +600,18 @@ public class Unit extends GameEntity implements Targetable {
         Vector2 currentPos = getPosition();
         Vector2 obstaclePos = obstacle.getPosition();
         double distance = currentPos.distance(obstaclePos);
-        
+
         // Calculate effective harvest range: harvest range + obstacle size (to reach edge, not center)
         double effectiveHarvestRange = obstacle.getHarvestRange() + obstacle.getSize() + unitType.getSize();
 
         if (distance <= effectiveHarvestRange) {
             // In range - stop and harvest
             body.setLinearVelocity(0, 0);
-            
+
             // Face the obstacle
             Vector2 direction = obstaclePos.copy().subtract(currentPos);
             setRotation(Math.atan2(direction.y, direction.x));
-            
+
             return harvestComp.harvestFromObstacle(obstacle);
         }
 

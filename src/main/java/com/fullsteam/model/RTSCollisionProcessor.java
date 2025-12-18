@@ -38,6 +38,19 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
     }
 
     /**
+     * Create an explosion at a projectile's position (when it reaches max range)
+     */
+    public void handleTerminalEffects(AbstractOrdinance projectile) {
+        if (projectile.getBulletEffects().contains(BulletEffect.EXPLOSIVE)) {
+            createExplosionEffect(projectile);
+        } else if (projectile.getBulletEffects().contains(BulletEffect.FLAK)) {
+            createFlakExplosionEffect(projectile);
+        } else if (projectile.getBulletEffects().contains(BulletEffect.ELECTRIC)) {
+            createElectricFieldEffect(projectile);
+        }
+    }
+
+    /**
      * Handle a projectile hitting a unit
      */
     private void handleProjectileUnitHit(Projectile projectile, Unit unit, Vector2 hitPosition) {
@@ -51,27 +64,13 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
         log.debug("Projectile {} hit unit {} for {} damage (died: {})",
                 projectile.getId(), unit.getId(), projectile.getDamage(), died);
-
-        // Create explosion for explosive projectiles
-        if (isExplosiveProjectile(projectile)) {
-            createExplosionEffect(hitPosition, projectile);
-        }
-
-        // Create flak explosion for flak projectiles
-        if (createsFlakExplosion(projectile)) {
-            createFlakExplosionEffect(hitPosition, projectile);
-        }
-
-        // Create electric field for electric projectiles (area denial)
-        if (hasElectricEffect(projectile)) {
-            createElectricFieldEffect(hitPosition, projectile);
-        }
+        handleTerminalEffects(projectile);
     }
 
     /**
      * Handle a projectile hitting a building
      */
-    private void handleProjectileBuildingHit(Projectile projectile, Building building, Vector2 hitPosition) {
+    private void handleProjectileBuildingHit(Projectile projectile, Building building) {
         // Mark building as affected
         projectile.getAffectedPlayers().add(building.getId());
 
@@ -82,21 +81,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
         log.debug("Projectile {} hit building {} for {} damage (destroyed: {})",
                 projectile.getId(), building.getId(), projectile.getDamage(), destroyed);
-
-        // Create explosion for explosive projectiles
-        if (isExplosiveProjectile(projectile)) {
-            createExplosionEffect(hitPosition, projectile);
-        }
-
-        // Create flak explosion for flak projectiles
-        if (createsFlakExplosion(projectile)) {
-            createFlakExplosionEffect(hitPosition, projectile);
-        }
-
-        // Create electric field for electric projectiles (area denial)
-        if (hasElectricEffect(projectile)) {
-            createElectricFieldEffect(hitPosition, projectile);
-        }
+        handleTerminalEffects(projectile);
     }
 
     /**
@@ -111,21 +96,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
         log.debug("Projectile {} hit wall segment {} for {} damage (destroyed: {})",
                 projectile.getId(), segment.getId(), projectile.getDamage(), destroyed);
-
-        // Create explosion for explosive projectiles
-        if (isExplosiveProjectile(projectile)) {
-            createExplosionEffect(hitPosition, projectile);
-        }
-
-        // Create flak explosion for flak projectiles
-        if (createsFlakExplosion(projectile)) {
-            createFlakExplosionEffect(hitPosition, projectile);
-        }
-
-        // Create electric field for electric projectiles (area denial)
-        if (hasElectricEffect(projectile)) {
-            createElectricFieldEffect(hitPosition, projectile);
-        }
+        handleTerminalEffects(projectile);
     }
 
     /**
@@ -144,7 +115,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
             return false; // FLAK is handled by createFlakExplosion()
         }
 
-        Ordinance ordinance = projectile.getOrdinance();
+        Ordinance ordinance = projectile.getOrdinanceType();
         return ordinance == Ordinance.ROCKET ||
                 ordinance == Ordinance.GRENADE ||
                 ordinance == Ordinance.SHELL;
@@ -175,15 +146,18 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
      * gameEntities.add(flak);
      * </pre>
      */
-    private void createExplosionEffect(Vector2 position, Projectile projectile) {
+    public void createExplosionEffect(AbstractOrdinance o) {
+        Vector2 position = o instanceof Beam b
+                ? b.getEndPosition()
+                : o.getPosition();
         FieldEffect effect = new FieldEffect(
-                projectile.getOwnerId(),
+                o.getOwnerId(),
                 FieldEffectType.EXPLOSION,
                 position,
-                projectile.getOrdinance().getSize() * 15,
-                projectile.getDamage() * 0.5,
+                o.getOrdinanceType().getSize() * 15,
+                o.getDamage() * 0.5,
                 FieldEffectType.EXPLOSION.getDefaultDuration(),
-                projectile.getOwnerTeam()
+                o.getOwnerTeam()
         );
         gameEntities.add(effect);
     }
@@ -192,15 +166,18 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
      * Create flak explosion effect at hit position (anti-air burst).
      * Flak explosions only damage aircraft (LOW and HIGH elevations).
      */
-    private void createFlakExplosionEffect(Vector2 position, Projectile projectile) {
+    public void createFlakExplosionEffect(AbstractOrdinance o) {
+        Vector2 position = o instanceof Beam b
+                ? b.getEndPosition()
+                : o.getPosition();
         FieldEffect effect = new FieldEffect(
-                projectile.getOwnerId(),
+                o.getOwnerId(),
                 FieldEffectType.FLAK_EXPLOSION,
                 position,
-                projectile.getOrdinance().getSize() * 12,  // Smaller radius than ground explosions
-                projectile.getDamage() * 0.6,              // 60% of projectile damage as AOE
+                o.getOrdinanceType().getSize() * 12,  // Smaller radius than ground explosions
+                o.getDamage() * 0.6,              // 60% of projectile damage as AOE
                 FieldEffectType.FLAK_EXPLOSION.getDefaultDuration(),
-                projectile.getOwnerTeam()
+                o.getOwnerTeam()
         );
         gameEntities.add(effect);
     }
@@ -215,15 +192,18 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
     /**
      * Create electric field effect at hit position (area denial)
      */
-    private void createElectricFieldEffect(Vector2 position, AbstractOrdinance ordinance) {
+    public void createElectricFieldEffect(AbstractOrdinance o) {
+        Vector2 position = o instanceof Beam b
+                ? b.getEndPosition()
+                : o.getPosition();
         FieldEffect effect = new FieldEffect(
-                ordinance.getOwnerId(),
+                o.getOwnerId(),
                 FieldEffectType.ELECTRIC,
                 position,
-                ordinance.getOrdinanceType().getSize() * 12,
-                ordinance.getDamage() * 0.3,
+                o.getOrdinanceType().getSize() * 12,
+                o.getDamage() * 0.3,
                 FieldEffectType.ELECTRIC.getDefaultDuration(),
-                ordinance.getOwnerTeam()
+                o.getOwnerTeam()
         );
         gameEntities.add(effect);
     }
@@ -632,7 +612,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 }
 
                 // Apply damage
-                handleProjectileBuildingHit(projectile, building, hitPosition);
+                handleProjectileBuildingHit(projectile, building);
 
                 // Buildings always stop projectiles
                 projectile.setActive(false);
@@ -677,21 +657,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 // Obstacles destroy projectiles
                 log.debug("Projectile {} hit obstacle at ({}, {})",
                         projectile.getId(), hitPosition.x, hitPosition.y);
-
-                // Create explosion if it's an explosive projectile
-                if (isExplosiveProjectile(projectile)) {
-                    createExplosionEffect(hitPosition, projectile);
-                }
-
-                // Create flak explosion for flak projectiles
-                if (createsFlakExplosion(projectile)) {
-                    createFlakExplosionEffect(hitPosition, projectile);
-                }
-
-                // Create electric field for electric projectiles (area denial)
-                if (hasElectricEffect(projectile)) {
-                    createElectricFieldEffect(hitPosition, projectile);
-                }
+                handleTerminalEffects(projectile);
 
                 projectile.setActive(false);
                 return true; // Allow physics collision with obstacles
@@ -705,11 +671,6 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         if (body1IsBeam || body2IsBeam) {
             Beam beam = body1IsBeam ? (Beam) obj1 : (Beam) obj2;
             Object other = body1IsBeam ? obj2 : obj1;
-
-            String otherType = other != null ? other.getClass().getSimpleName() : "null";
-            if (other instanceof GameEntity ge) {
-                otherType += " (ID=" + ge.getId() + ")";
-            }
 
             if (!beam.isActive()) {
                 return false; // Ignore inactive beams

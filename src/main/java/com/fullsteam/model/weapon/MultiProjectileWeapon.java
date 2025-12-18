@@ -2,9 +2,11 @@ package com.fullsteam.model.weapon;
 
 import com.fullsteam.model.AbstractOrdinance;
 import com.fullsteam.model.BulletEffect;
+import com.fullsteam.model.Elevation;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Ordinance;
 import com.fullsteam.model.Projectile;
+import com.fullsteam.model.Unit;
 import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.Setter;
@@ -87,14 +89,12 @@ public class MultiProjectileWeapon extends Weapon {
     @Override
     protected List<AbstractOrdinance> createOrdinances(Vector2 position,
                                                        Vector2 targetPosition,
+                                                       Elevation targetElevation,
                                                        int ownerId,
                                                        int ownerTeam,
                                                        Body ignoredBody,
                                                        GameEntities gameEntities) {
         List<AbstractOrdinance> ordinances = new ArrayList<>();
-
-        // Determine the elevation for these projectiles based on what we're targeting
-        com.fullsteam.model.Elevation ordinanceElevation = determineOrdinanceElevation(targetPosition, gameEntities);
 
         // Calculate direction to target
         Vector2 direction = targetPosition.copy().subtract(position);
@@ -129,7 +129,7 @@ public class MultiProjectileWeapon extends Weapon {
                         ordinanceType,
                         projectileSize,
                         elevationTargeting,
-                        ordinanceElevation
+                        targetElevation
                 );
                 ordinances.add(projectile);
             }
@@ -169,7 +169,7 @@ public class MultiProjectileWeapon extends Weapon {
                         ordinanceType,
                         projectileSize,
                         elevationTargeting,
-                        ordinanceElevation
+                        targetElevation
                 );
                 ordinances.add(projectile);
             }
@@ -189,38 +189,12 @@ public class MultiProjectileWeapon extends Weapon {
                     ordinanceType,
                     projectileSize,
                     elevationTargeting,
-                    ordinanceElevation
+                    targetElevation
             );
             ordinances.add(projectile);
         }
 
         return ordinances;
-    }
-
-    /**
-     * Determine what elevation the ordinances should fly at based on the target position.
-     * This allows projectiles fired at aircraft to fly at aircraft elevation and not collide with ground obstacles.
-     */
-    private com.fullsteam.model.Elevation determineOrdinanceElevation(Vector2 targetPosition, GameEntities gameEntities) {
-        // Check if we're targeting an airborne unit
-        double searchRadius = 50.0; // Search for units near the target position
-
-        for (com.fullsteam.model.Unit unit : gameEntities.getUnits().values()) {
-            if (!unit.isActive()) continue;
-
-            double distance = unit.getPosition().distance(targetPosition);
-            if (distance < searchRadius) {
-                // Found a unit near target - use its elevation
-                com.fullsteam.model.Elevation targetElevation = unit.getUnitType().getElevation();
-                if (targetElevation.isAirborne() && elevationTargeting.canTarget(targetElevation)) {
-                    // Targeting an airborne unit - projectiles fly at that elevation
-                    return targetElevation;
-                }
-            }
-        }
-
-        // Default to GROUND elevation (for hitting ground units, buildings, obstacles)
-        return com.fullsteam.model.Elevation.GROUND;
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.fullsteam.model.command;
 
 import com.fullsteam.model.AbstractOrdinance;
+import com.fullsteam.model.Elevation;
 import com.fullsteam.model.Unit;
 import lombok.Getter;
 import org.dyn4j.geometry.Vector2;
@@ -56,15 +57,17 @@ public class AttackGroundCommand extends UnitCommand {
         Vector2 currentPos = unit.getPosition();
         double distance = currentPos.distance(groundTarget);
 
+        Elevation elevation = unit.getWeapon().getElevationTargeting().lowestTargetable();
+
         // Check if in range
-        if (distance <= unit.getWeapon().getRange() * 0.9) {
+        if (distance <= unit.getWeapon().getRange()) {
             // Stop moving when in range
             unit.getBody().setLinearVelocity(0, 0);
 
             // Face target
             Vector2 direction = groundTarget.copy().subtract(currentPos);
             unit.setRotation(Math.atan2(direction.y, direction.x));
-            return unit.fireAt(groundTarget, gameEntities);
+            return unit.fireAt(groundTarget, elevation, gameEntities);
         }
         return List.of();
     }

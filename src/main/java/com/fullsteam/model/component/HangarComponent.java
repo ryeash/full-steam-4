@@ -2,8 +2,10 @@ package com.fullsteam.model.component;
 
 import com.fullsteam.games.IdGenerator;
 import com.fullsteam.model.PlayerFaction;
+import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.UnitType;
+import com.fullsteam.model.command.AttackTargetableCommand;
 import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.Setter;
@@ -150,7 +152,7 @@ public class HangarComponent extends AbstractBuildingComponent {
         }
 
         // Passive repair over time (slow) when aircraft is housed
-        if (!hasLowPower && housedAircraft != null && !isOnSortie) {
+        if (housedAircraft != null && !isOnSortie) {
             double repairRate = 2.0; // 2 HP per second when not on low power
             repairAircraft(repairRate * deltaTime);
         }
@@ -339,34 +341,16 @@ public class HangarComponent extends AbstractBuildingComponent {
     private void checkAndScramble() {
         Vector2 hangarPos = building.getPosition();
         int teamNumber = building.getTeamNumber();
-
-        // Scan for enemy air units within detection range
-        for (Unit enemyUnit : gameEntities.getUnits().values()) {
-            if (enemyUnit.getTeamNumber() == teamNumber || !enemyUnit.isActive()) {
-                continue;
-            }
-
-            // Only scramble for airborne threats
-            if (!enemyUnit.getUnitType().getElevation().isAirborne()) {
-                continue;
-            }
-
-            double distance = hangarPos.distance(enemyUnit.getPosition());
-            if (distance <= SCRAMBLE_DETECTION_RANGE) {
-                log.info("SCRAMBLE! Hangar {} detected enemy {} at range {} - launching interceptor",
-                        building.getId(), enemyUnit.getUnitType().getDisplayName(), (int) distance);
-
-                // Launch interceptor to attack the detected aircraft
-                launchInterceptorToAttack(enemyUnit);
-                break; // Only launch once per detection
-            }
+        Targetable enemyUnit = gameEntities.findNearestEnemyTargetable(hangarPos, teamNumber, housedAircraft.getWeapon());
+        if (enemyUnit != null) {
+            launchInterceptorToAttack(enemyUnit);
         }
     }
 
     /**
      * Launch the housed interceptor to attack a specific target.
      */
-    private void launchInterceptorToAttack(Unit target) {
+    private void launchInterceptorToAttack(Targetable target) {
         if (housedAircraft == null || isOnSortie) {
             return;
         }
@@ -382,12 +366,12 @@ public class HangarComponent extends AbstractBuildingComponent {
         isOnSortie = true;
 
         // Deploy interceptor component
-        housedAircraft.getComponent(com.fullsteam.model.component.InterceptorComponent.class)
+        housedAircraft.getComponent(InterceptorComponent.class)
                 .ifPresent(comp -> comp.deploy(building.getId()));
 
         // Issue attack command with unified targetable system
         housedAircraft.issueCommand(
-                new com.fullsteam.model.command.AttackTargetableCommand(housedAircraft, target, false),
+                new AttackTargetableCommand(housedAircraft, target, false),
                 gameEntities
         );
 

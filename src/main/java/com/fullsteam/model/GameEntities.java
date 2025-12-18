@@ -1,5 +1,6 @@
 package com.fullsteam.model;
 
+import com.fullsteam.model.weapon.Weapon;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -7,10 +8,12 @@ import org.dyn4j.dynamics.Body;
 import org.dyn4j.geometry.Vector2;
 import org.dyn4j.world.World;
 
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * Container for all game entities and the physics world.
@@ -128,6 +131,10 @@ public class GameEntities {
                 .orElse(null);
     }
 
+    public Targetable findNearestEnemyTargetable(Unit attacker) {
+        return findNearestEnemyTargetable(attacker.getPosition(), attacker.getTeamNumber(), attacker.getWeapon());
+    }
+
     /**
      * Find the nearest enemy targetable entity (unit, building, or wall).
      * This is a unified method that searches across all targetable types.
@@ -135,95 +142,14 @@ public class GameEntities {
      *
      * @param position   Position to search from
      * @param teamNumber Team number of the attacker
-     * @param maxRange   Maximum search range
-     * @param attacker   The attacking unit (for elevation targeting checks), can be null
      * @return The nearest enemy targetable, or null if none found
      */
-    public Targetable findNearestEnemyTargetable(Vector2 position, int teamNumber, double maxRange, Unit attacker) {
-        Targetable nearestTarget = null;
-        double nearestDistance = maxRange;
-
-        // Debug logging for flak tanks
-        boolean isFlakTank = attacker != null && attacker.getUnitType() == UnitType.FLAK_TANK;
-        if (isFlakTank) {
-            log.info("Flak Tank {} searching for targets (maxRange: {}, canTargetBuildings: {})",
-                    attacker.getId(), maxRange, attacker.canTargetBuildings());
-        }
-
-        // Search units
-        int unitsChecked = 0;
-        int unitsSkippedElevation = 0;
-        int unitsSkippedCloaked = 0;
-        for (Unit unit : units.values()) {
-            if (!unit.isActive() || unit.getTeamNumber() == teamNumber) continue;
-
-            unitsChecked++;
-
-            // Check elevation targeting if attacker is specified
-            if (attacker != null && !attacker.canTargetElevation(unit)) {
-                unitsSkippedElevation++;
-                if (isFlakTank) {
-                    log.info("  Skipped unit {} - elevation mismatch (target elevation: {})",
-                            unit.getId(), unit.getUnitType().getElevation());
-                }
-                continue;
-            }
-
-            // Check cloak detection
-            double distance = unit.getPosition().distance(position);
-            if (unit.isCloaked() && distance > Unit.getCloakDetectionRange()) {
-                unitsSkippedCloaked++;
-                continue;
-            }
-
-            if (distance < nearestDistance) {
-                nearestDistance = distance;
-                nearestTarget = unit;
-                if (isFlakTank) {
-                    log.info("  Found potential target unit {} at distance {} (elevation: {})",
-                            unit.getId(), distance, unit.getUnitType().getElevation());
-                }
-            }
-        }
-
-        if (isFlakTank) {
-            log.info("  Units: checked={}, skippedElevation={}, skippedCloaked={}",
-                    unitsChecked, unitsSkippedElevation, unitsSkippedCloaked);
-        }
-
-        // Search buildings (only if attacker can target ground)
-        if (attacker == null || attacker.canTargetBuildings()) {
-            for (Building building : buildings.values()) {
-                if (!building.isActive() || building.getTeamNumber() == teamNumber) continue;
-
-                double distance = building.getPosition().distance(position);
-                if (distance < nearestDistance) {
-                    nearestDistance = distance;
-                    nearestTarget = building;
-                }
-            }
-        }
-
-        // Search wall segments (only if attacker can target ground)
-        if (attacker == null || attacker.canTargetBuildings()) {
-            for (WallSegment wall : wallSegments.values()) {
-                if (!wall.isActive() || wall.getTeamNumber() == teamNumber) continue;
-
-                double distance = wall.getPosition().distance(position);
-                if (distance < nearestDistance) {
-                    nearestDistance = distance;
-                    nearestTarget = wall;
-                }
-            }
-        }
-
-        if (isFlakTank) {
-            log.info("  Final result: {} ({})",
-                    nearestTarget != null ? nearestTarget.getTargetType() + " " + nearestTarget.getId() : "null",
-                    nearestTarget != null ? "distance: " + nearestDistance : "none found");
-        }
-
-        return nearestTarget;
+    public Targetable findNearestEnemyTargetable(Vector2 position, int teamNumber, Weapon weapon) {
+        return Stream.of(units.values(), buildings.values(), wallSegments.values())
+                .flatMap(Collection::stream)
+                .filter(u -> u.isValidTargetFor(weapon, teamNumber, position))
+                .min(Comparator.comparingDouble(u -> u.getPosition().distance(position)))
+                .orElse(null);
     }
 
     /**
@@ -231,11 +157,10 @@ public class GameEntities {
      *
      * @param position   Position to search from
      * @param teamNumber Team number of the attacker
-     * @param maxRange   Maximum search range
      * @return The nearest enemy targetable, or null if none found
      */
-    public Targetable findNearestEnemyTargetable(Vector2 position, int teamNumber, double maxRange) {
-        return findNearestEnemyTargetable(position, teamNumber, maxRange, null);
+    public Targetable findNearestEnemyTargetable(Vector2 position, int teamNumber) {
+        return findNearestEnemyTargetable(position, teamNumber, null);
     }
 
     private void createBeamFieldEffects(Beam beam) {
