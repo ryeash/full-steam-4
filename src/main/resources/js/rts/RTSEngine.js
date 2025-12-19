@@ -915,6 +915,22 @@ class RTSEngine {
                 container.tailRotor.rotation += 0.6; // Even faster than main rotor
             }
             
+        } else if (container.isGunship) {
+            // GUNSHIP: Smooth flight with gentle bobbing, pulsing jet exhaust (like bomber but with slight bob)
+            
+            // 1. GENTLE BOBBING MOTION (subtle for fixed-wing jet at low altitude)
+            const bob = Math.sin(time * 0.8) * 3; // 3 pixel bob, slow frequency
+            
+            if (container.rotatingContainer) {
+                // Move the gunship body up and down gently
+                container.rotatingContainer.y = bob;
+            }
+            
+            if (container.shadowGraphics) {
+                // Shadow stays at fixed position but changes alpha based on altitude
+                const shadowAlpha = 0.4 - (bob * 0.015);
+                container.shadowGraphics.alpha = Math.max(0.2, shadowAlpha);
+            }
         } else {
             // SCOUT DRONE: Bobbing motion, spinning rotors, pulsing LEDs
             
@@ -981,7 +997,8 @@ class RTSEngine {
             'SCOUT_DRONE': { sides: 4, size: 12, color: 0x87CEEB, isAir: true }, // Light sky blue
             'HELICOPTER': { sides: 5, size: 22, color: 0x8B4513, isAir: true }, // Brown/tan, larger than scout drone
             'BOMBER': { sides: 3, size: 25, color: 0x404040, isAir: true, isSortie: true }, // Dark gray, larger, triangle (delta wing)
-            'INTERCEPTOR': { sides: 3, size: 20, color: 0xFF4500, isAir: true, isSortie: true } // Orange-red, sleek fighter
+            'INTERCEPTOR': { sides: 3, size: 20, color: 0xFF4500, isAir: true, isSortie: true }, // Orange-red, sleek fighter
+            'GUNSHIP': { sides: 5, size: 28, color: 0x2F4F4F, isAir: true, isSortie: true } // Dark slate gray, heavy attack aircraft (hero)
         };
         return unitTypes[unitType] || { sides: 4, size: 15, color: 0xFFFFFF };
     }
@@ -1090,6 +1107,8 @@ class RTSEngine {
                 return this.createHelicopterGraphics(unitData, typeInfo);
             case 'INTERCEPTOR':
                 return this.createInterceptorGraphics(unitData, typeInfo);
+            case 'GUNSHIP':
+                return this.createGunshipGraphics(unitData, typeInfo);
             case 'SCOUT_DRONE':
             default:
                 return this.createScoutDroneGraphics(unitData, typeInfo);
@@ -1448,6 +1467,118 @@ class RTSEngine {
         // Store animation state
         container.animationTime = Math.random() * Math.PI * 2;
         container.rotorAngle = 0;
+        
+        // Store data
+        container.unitData = unitData;
+        container.typeInfo = typeInfo;
+        
+        return container;
+    }
+    
+    /**
+     * Create graphics for Gunship (LOW altitude heavy attack aircraft)
+     * Features: fixed-wing design, dual jet engines, weapon pods, armored appearance
+     * Storm Wings hero unit - heavy attack jet, larger and more imposing than interceptor
+     */
+    createGunshipGraphics(unitData, typeInfo) {
+        const container = new PIXI.Container();
+        container.isAirUnit = true;
+        container.isGunship = true;
+        
+        // 1. SHADOW (drawn first, appears below unit)
+        const shadow = new PIXI.Graphics();
+        const shadowOffset = -36; // Larger offset than helicopter (bigger aircraft)
+        shadow.ellipse(0, shadowOffset, typeInfo.size * 1.1, typeInfo.size * 0.55);
+        shadow.fill({ color: 0x000000, alpha: 0.4 });
+        container.addChild(shadow);
+        container.shadowGraphics = shadow;
+        
+        // 2. ROTATING CONTAINER for main body (rotates to face direction, but no spinning parts)
+        const rotatingContainer = new PIXI.Container();
+        container.addChild(rotatingContainer);
+        container.rotatingContainer = rotatingContainer;
+        
+        // 3. MAIN BODY (gunship fuselage - pentagon shape for fixed-wing jet)
+        const body = new PIXI.Graphics();
+        
+        // Draw gunship body using physics vertices if available
+        if (unitData.vertices && unitData.vertices.length > 0) {
+            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
+            
+            if (isMultiFixture) {
+                for (const fixtureVertices of unitData.vertices) {
+                    if (fixtureVertices.length > 0) {
+                        this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
+                    }
+                }
+            } else {
+                this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
+            }
+        } else {
+            // Fallback: pentagon (gunship shape)
+            this.drawPolygon(body, 5, typeInfo.size, typeInfo.color, unitData.team);
+        }
+        
+        body.alpha = 0.95; // Slightly transparent
+        rotatingContainer.addChild(body);
+        
+        // 4. WINGS (swept-back delta wings for heavy attack jet)
+        const leftWing = new PIXI.Graphics();
+        leftWing.moveTo(0, 0);
+        leftWing.lineTo(-typeInfo.size * 0.6, -typeInfo.size * 0.8);
+        leftWing.lineTo(-typeInfo.size * 0.3, -typeInfo.size * 0.5);
+        leftWing.fill({ color: typeInfo.color, alpha: 0.8 });
+        rotatingContainer.addChild(leftWing);
+        
+        const rightWing = new PIXI.Graphics();
+        rightWing.moveTo(0, 0);
+        rightWing.lineTo(-typeInfo.size * 0.6, typeInfo.size * 0.8);
+        rightWing.lineTo(-typeInfo.size * 0.3, typeInfo.size * 0.5);
+        rightWing.fill({ color: typeInfo.color, alpha: 0.8 });
+        rotatingContainer.addChild(rightWing);
+        
+        // 5. COCKPIT (armored cockpit at front)
+        const cockpit = new PIXI.Graphics();
+        cockpit.circle(typeInfo.size * 0.4, 0, typeInfo.size * 0.25);
+        cockpit.fill({ color: 0x4682B4, alpha: 0.7 }); // Steel blue tinted glass
+        rotatingContainer.addChild(cockpit);
+        
+        // 6. WEAPON PODS (dual weapon systems under wings)
+        const leftWeapon = new PIXI.Graphics();
+        leftWeapon.rect(-typeInfo.size * 0.4, -3, typeInfo.size * 0.6, 6);
+        leftWeapon.fill({ color: 0x2F4F4F, alpha: 0.95 }); // Dark slate gray
+        leftWeapon.position.set(-typeInfo.size * 0.1, -typeInfo.size * 0.6); // Under left wing
+        rotatingContainer.addChild(leftWeapon);
+        
+        const rightWeapon = new PIXI.Graphics();
+        rightWeapon.rect(-typeInfo.size * 0.4, -3, typeInfo.size * 0.6, 6);
+        rightWeapon.fill({ color: 0x2F4F4F, alpha: 0.95 });
+        rightWeapon.position.set(-typeInfo.size * 0.1, typeInfo.size * 0.6); // Under right wing
+        rotatingContainer.addChild(rightWeapon);
+        
+        // 9. ARMOR PLATING HIGHLIGHTS (hero unit visual flair)
+        const armorHighlight = new PIXI.Graphics();
+        armorHighlight.rect(-typeInfo.size * 0.4, -typeInfo.size * 0.15, typeInfo.size * 0.8, typeInfo.size * 0.3);
+        armorHighlight.fill({ color: 0x708090, alpha: 0.3 }); // Slate gray highlight
+        rotatingContainer.addChild(armorHighlight);
+        
+        // 10. HEALTH BAR
+        const healthBar = new PIXI.Graphics();
+        healthBar.rect(-typeInfo.size * 0.7, -typeInfo.size - 10, typeInfo.size * 1.4, 5);
+        healthBar.fill({ color: 0x00FF00 });
+        container.addChild(healthBar);
+        container.healthBar = healthBar;
+        
+        // 11. SELECTION CIRCLE
+        const selectionCircle = new PIXI.Graphics();
+        selectionCircle.visible = false;
+        selectionCircle.circle(0, 0, typeInfo.size * 1.3);
+        selectionCircle.stroke({ width: 3, color: 0xFFD700 }); // Gold for hero unit
+        container.addChild(selectionCircle);
+        container.selectionCircle = selectionCircle;
+        
+        // Store animation state
+        container.animationTime = Math.random() * Math.PI * 2;
         
         // Store data
         container.unitData = unitData;
@@ -5141,6 +5272,19 @@ class RTSEngine {
     }
     
     /**
+     * Issue RTB (Return To Base) order to recall aircraft
+     * @param {number} hangarId - ID of the hangar to recall aircraft to
+     */
+    issueRTBOrder(hangarId) {
+        const input = {
+            rtbHangarId: hangarId
+        };
+        
+        this.sendInput(input);
+        this.showGameEvent('Aircraft returning to base', 'info');
+    }
+    
+    /**
      * Draw sortie flight path on bomber unit graphics
      * @param {PIXI.Container} container - Bomber unit container
      * @param {object} sortieData - Sortie command data from server
@@ -5247,7 +5391,7 @@ class RTSEngine {
                 hangarStatusDiv.appendChild(healthStatus);
             }
             
-            // Sortie button (only if ready - not on sortie)
+            // Sortie button (only if ready - not on sortie) OR RTB button (if on sortie)
             if (!onSortie) {
                 const sortieButton = document.createElement('button');
                 sortieButton.className = 'build-button';
@@ -5263,6 +5407,24 @@ class RTSEngine {
                 sortieButton.style.border = '2px solid #FF8833';
                 sortieButton.onclick = () => this.enterSortieTargetingMode(buildingData.id, aircraftType);
                 hangarStatusDiv.appendChild(sortieButton);
+            } else {
+                // RTB (Return To Base) button - recall aircraft
+                const rtbButton = document.createElement('button');
+                rtbButton.className = 'build-button';
+                
+                // Different button text based on aircraft type
+                const aircraftType = buildingData.hangarAircraftType || 'BOMBER';
+                const buttonText = (aircraftType === 'INTERCEPTOR' || aircraftType === 'GUNSHIP') 
+                    ? '🏠 RECALL' 
+                    : '🏠 RETURN TO BASE';
+                
+                rtbButton.textContent = buttonText;
+                rtbButton.style.marginTop = '10px';
+                rtbButton.style.width = '100%';
+                rtbButton.style.background = '#00AA00';
+                rtbButton.style.border = '2px solid #00CC00';
+                rtbButton.onclick = () => this.issueRTBOrder(buildingData.id);
+                hangarStatusDiv.appendChild(rtbButton);
             }
         } else if (buildingData.hangarProducing) {
             // Show production status

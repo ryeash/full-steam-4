@@ -193,8 +193,22 @@ public class RTSWorld {
                 double sizeVariation = baseSize * 0.5; // ±50% variation
                 double size = baseSize + (ThreadLocalRandom.current().nextDouble() * 2 - 1) * sizeVariation;
 
+                // Determine obstacle properties (harvestable, destructible, resources)
+                // 50% chance of being harvestable (contains resources)
+                // 30% chance of being destructible (can be destroyed but no resources)
+                // 20% chance of being indestructible
+                double roll = ThreadLocalRandom.current().nextDouble();
+                boolean harvestable = roll < 0.5;
+                boolean destructible = !harvestable && roll < 0.8; // 30% of remaining 50%
+                
+                // Harvestable obstacles contain resources
+                int resources = 0;
+                if (harvestable) {
+                    resources = 5000 + ThreadLocalRandom.current().nextInt(5000); // 5000-10000 resources per obstacle
+                }
+
                 // Generate obstacle with biome-specific shape
-                pattern.add(generateBiomeObstacle(obstaclePos, size, ThreadLocalRandom.current()));
+                pattern.add(generateBiomeObstacle(obstaclePos, size, harvestable, destructible, resources, ThreadLocalRandom.current()));
             }
         }
 
@@ -217,19 +231,20 @@ public class RTSWorld {
     /**
      * Generate an obstacle with biome-specific shape characteristics
      */
-    private ObstacleSpawn generateBiomeObstacle(Vector2 position, double size, Random random) {
+    private ObstacleSpawn generateBiomeObstacle(Vector2 position, double size, boolean harvestable, 
+                                                boolean destructible, int resources, Random random) {
         return switch (biome) {
             case GRASSLAND -> {
                 // Trees: Mix of circles (round trees) and irregular organic shapes
                 if (random.nextDouble() < 0.3) {
-                    yield new ObstacleSpawn(position, size); // Circle (round tree)
+                    yield new ObstacleSpawn(position, size, harvestable, destructible, resources); // Circle (round tree)
                 } else {
                     // Bushy, organic tree shapes
                     int sides = 6 + random.nextInt(3); // 6-8 sides
                     double irregularity = 0.3 + random.nextDouble() * 0.3; // 0.3-0.6
                     double spikiness = 0.2 + random.nextDouble() * 0.3;    // 0.2-0.5
                     Vector2[] vertices = generateIrregularPolygon(size, sides, irregularity, spikiness, random);
-                    yield new ObstacleSpawn(position, vertices);
+                    yield new ObstacleSpawn(position, vertices, harvestable, destructible, resources);
                 }
             }
             case DESERT -> {
@@ -238,19 +253,19 @@ public class RTSWorld {
                 double irregularity = 0.4 + random.nextDouble() * 0.4; // 0.4-0.8 (very irregular)
                 double spikiness = 0.3 + random.nextDouble() * 0.4;    // 0.3-0.7 (quite spiky)
                 Vector2[] vertices = generateIrregularPolygon(size, sides, irregularity, spikiness, random);
-                yield new ObstacleSpawn(position, vertices);
+                yield new ObstacleSpawn(position, vertices, harvestable, destructible, resources);
             }
             case SNOW -> {
                 // Ice: Mix of regular crystals and irregular chunks
                 if (random.nextDouble() < 0.4) {
-                    yield new ObstacleSpawn(position, size, 6); // Regular hexagon (ice crystal)
+                    yield new ObstacleSpawn(position, size, 6, harvestable, destructible, resources); // Regular hexagon (ice crystal)
                 } else {
                     // Irregular ice chunks
                     int sides = 5 + random.nextInt(3); // 5-7 sides
                     double irregularity = 0.2 + random.nextDouble() * 0.3; // 0.2-0.5
                     double spikiness = 0.3 + random.nextDouble() * 0.4;    // 0.3-0.7 (sharp edges)
                     Vector2[] vertices = generateIrregularPolygon(size, sides, irregularity, spikiness, random);
-                    yield new ObstacleSpawn(position, vertices);
+                    yield new ObstacleSpawn(position, vertices, harvestable, destructible, resources);
                 }
             }
             case VOLCANIC -> {
@@ -259,7 +274,7 @@ public class RTSWorld {
                 double irregularity = 0.5 + random.nextDouble() * 0.4; // 0.5-0.9 (very angular)
                 double spikiness = 0.4 + random.nextDouble() * 0.5;    // 0.4-0.9 (very spiky)
                 Vector2[] vertices = generateIrregularPolygon(size, sides, irregularity, spikiness, random);
-                yield new ObstacleSpawn(position, vertices);
+                yield new ObstacleSpawn(position, vertices, harvestable, destructible, resources);
             }
             case URBAN -> {
                 // Rubble: Extremely irregular, chaotic shapes
@@ -267,7 +282,7 @@ public class RTSWorld {
                 double irregularity = 0.6 + random.nextDouble() * 0.3; // 0.6-0.9 (chaotic)
                 double spikiness = 0.5 + random.nextDouble() * 0.4;    // 0.5-0.9 (very varied)
                 Vector2[] vertices = generateIrregularPolygon(size, sides, irregularity, spikiness, random);
-                yield new ObstacleSpawn(position, vertices);
+                yield new ObstacleSpawn(position, vertices, harvestable, destructible, resources);
             }
         };
     }
@@ -278,10 +293,34 @@ public class RTSWorld {
         List<ObstacleSpawn> mirrored = new ArrayList<>();
         for (ObstacleSpawn spawn : pattern) {
             Vector2 pos = spawn.getPosition();
+            Vector2 mirroredPos = new Vector2(-pos.x, -pos.y);
+            
             if (spawn.getShape() == Obstacle.Shape.CIRCLE) {
-                mirrored.add(new ObstacleSpawn(new Vector2(-pos.x, -pos.y), spawn.getSize()));
+                mirrored.add(new ObstacleSpawn(
+                    mirroredPos, 
+                    spawn.getSize(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
+                ));
+            } else if (spawn.getShape() == Obstacle.Shape.POLYGON) {
+                mirrored.add(new ObstacleSpawn(
+                    mirroredPos, 
+                    spawn.getSize(), 
+                    spawn.getSides(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
+                ));
             } else {
-                mirrored.add(new ObstacleSpawn(new Vector2(-pos.x, -pos.y), spawn.getSize(), spawn.getSides()));
+                // IRREGULAR_POLYGON - mirror the vertices too
+                mirrored.add(new ObstacleSpawn(
+                    mirroredPos, 
+                    spawn.getVertices(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
+                ));
             }
         }
         return mirrored;
@@ -291,10 +330,34 @@ public class RTSWorld {
         List<ObstacleSpawn> rotated = new ArrayList<>();
         for (ObstacleSpawn spawn : pattern) {
             Vector2 pos = spawn.getPosition();
+            Vector2 rotatedPos = new Vector2(pos.y, -pos.x);
+            
             if (spawn.getShape() == Obstacle.Shape.CIRCLE) {
-                rotated.add(new ObstacleSpawn(new Vector2(pos.y, -pos.x), spawn.getSize()));
+                rotated.add(new ObstacleSpawn(
+                    rotatedPos, 
+                    spawn.getSize(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
+                ));
+            } else if (spawn.getShape() == Obstacle.Shape.POLYGON) {
+                rotated.add(new ObstacleSpawn(
+                    rotatedPos, 
+                    spawn.getSize(), 
+                    spawn.getSides(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
+                ));
             } else {
-                rotated.add(new ObstacleSpawn(new Vector2(pos.y, -pos.x), spawn.getSize(), spawn.getSides()));
+                // IRREGULAR_POLYGON
+                rotated.add(new ObstacleSpawn(
+                    rotatedPos, 
+                    spawn.getVertices(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
+                ));
             }
         }
         return rotated;
@@ -308,10 +371,34 @@ public class RTSWorld {
         List<ObstacleSpawn> rotated = new ArrayList<>();
         for (ObstacleSpawn spawn : pattern) {
             Vector2 pos = spawn.getPosition();
+            Vector2 rotatedPos = new Vector2(-pos.y, pos.x);
+            
             if (spawn.getShape() == Obstacle.Shape.CIRCLE) {
-                rotated.add(new ObstacleSpawn(new Vector2(-pos.y, pos.x), spawn.getSize()));
+                rotated.add(new ObstacleSpawn(
+                    rotatedPos, 
+                    spawn.getSize(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
+                ));
+            } else if (spawn.getShape() == Obstacle.Shape.POLYGON) {
+                rotated.add(new ObstacleSpawn(
+                    rotatedPos, 
+                    spawn.getSize(), 
+                    spawn.getSides(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
+                ));
             } else {
-                rotated.add(new ObstacleSpawn(new Vector2(-pos.y, pos.x), spawn.getSize(), spawn.getSides()));
+                // IRREGULAR_POLYGON
+                rotated.add(new ObstacleSpawn(
+                    rotatedPos, 
+                    spawn.getVertices(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
+                ));
             }
         }
         return rotated;
@@ -338,31 +425,43 @@ public class RTSWorld {
         private final Obstacle.Shape shape;
         private final int sides; // For polygons
         private final Vector2[] vertices; // For irregular polygons
+        private final boolean harvestable; // Whether this obstacle contains resources
+        private final boolean destructible; // Whether this obstacle can be destroyed
+        private final int resources; // Amount of resources (if harvestable)
 
         // Circle constructor
-        public ObstacleSpawn(Vector2 position, double size) {
+        public ObstacleSpawn(Vector2 position, double size, boolean harvestable, boolean destructible, int resources) {
             this.position = position;
             this.size = size;
             this.shape = Obstacle.Shape.CIRCLE;
             this.sides = 0;
             this.vertices = null;
+            this.harvestable = harvestable;
+            this.destructible = destructible;
+            this.resources = resources;
         }
 
         // Polygon constructor
-        public ObstacleSpawn(Vector2 position, double size, int sides) {
+        public ObstacleSpawn(Vector2 position, double size, int sides, boolean harvestable, boolean destructible, int resources) {
             this.position = position;
             this.size = size;
             this.shape = Obstacle.Shape.POLYGON;
             this.sides = sides;
             this.vertices = null;
+            this.harvestable = harvestable;
+            this.destructible = destructible;
+            this.resources = resources;
         }
 
         // Irregular polygon constructor
-        public ObstacleSpawn(Vector2 position, Vector2[] vertices) {
+        public ObstacleSpawn(Vector2 position, Vector2[] vertices, boolean harvestable, boolean destructible, int resources) {
             this.position = position;
             this.shape = Obstacle.Shape.IRREGULAR_POLYGON;
             this.sides = vertices.length;
             this.vertices = vertices;
+            this.harvestable = harvestable;
+            this.destructible = destructible;
+            this.resources = resources;
 
             // Calculate bounding size from vertices
             double maxDist = 0.0;
@@ -466,23 +565,13 @@ public class RTSWorld {
      * Place obstacles from RTSWorld symmetric layout
      */
     public void placeObstacles() {
-        Random random = new Random();
-
         for (RTSWorld.ObstacleSpawn spawn : getObstacleSpawns()) {
             Obstacle obstacle;
 
-            // 50% chance of being harvestable (contains resources)
-            // 30% chance of being destructible (can be destroyed but no resources)
-            // 20% chance of being indestructible
-            double roll = random.nextDouble();
-            boolean harvestable = roll < 0.5;
-            boolean destructible = !harvestable && roll < 0.8; // 30% of remaining 50%
-            
-            // Harvestable obstacles contain resources
-            int resources = 0;
-            if (harvestable) {
-                resources = 5000 + random.nextInt(5000); // 5000-10000 resources per obstacle
-            }
+            // Use pre-determined properties from spawn (ensures symmetry)
+            boolean harvestable = spawn.isHarvestable();
+            boolean destructible = spawn.isDestructible();
+            int resources = spawn.getResources();
 
             // Create obstacle based on shape type
             if (spawn.getShape() == Obstacle.Shape.IRREGULAR_POLYGON) {

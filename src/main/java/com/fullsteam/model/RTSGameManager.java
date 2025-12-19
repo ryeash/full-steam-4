@@ -12,6 +12,7 @@ import com.fullsteam.model.command.GarrisonBunkerCommand;
 import com.fullsteam.model.command.HarvestCommand;
 import com.fullsteam.model.command.MoveCommand;
 import com.fullsteam.model.command.OnStationCommand;
+import com.fullsteam.model.command.ReturnToHangarCommand;
 import com.fullsteam.model.command.SortieCommand;
 import com.fullsteam.model.component.AndroidComponent;
 import com.fullsteam.model.component.AndroidFactoryComponent;
@@ -787,6 +788,37 @@ public class RTSGameManager {
                             playerId,
                             GameEvent.EventCategory.WARNING
                     ));
+                }
+            }
+        }
+
+        // Handle RTB (Return To Base) orders - recall aircraft from sortie
+        if (input.getRtbHangarId() != null) {
+            Building hangar = buildings.get(input.getRtbHangarId());
+            if (hangar != null && hangar.getBuildingType() == BuildingType.HANGAR &&
+                    hangar.belongsTo(playerId) && !hangar.isUnderConstruction()) {
+
+                // Get the hangar component
+                HangarComponent hangarComponent = hangar.getComponent(HangarComponent.class).orElse(null);
+                if (hangarComponent != null && hangarComponent.isOnSortie()) {
+                    Unit aircraft = hangarComponent.getHousedAircraft();
+                    if (aircraft != null && units.containsKey(aircraft.getId())) {
+                        // Issue return to hangar command
+                        aircraft.issueCommand(new ReturnToHangarCommand(aircraft, hangar.getId(), true), gameEntities);
+                        log.info("Player {} recalled aircraft {} to hangar {}",
+                                playerId, aircraft.getId(), hangar.getId());
+                        sendGameEvent(GameEvent.createPlayerEvent(
+                                "✈️ Aircraft returning to base",
+                                playerId,
+                                GameEvent.EventCategory.INFO
+                        ));
+                    } else {
+                        log.warn("Player {} tried to recall aircraft from hangar {} but aircraft not found in world",
+                                playerId, hangar.getId());
+                    }
+                } else {
+                    log.warn("Player {} tried to recall aircraft from hangar {} but no aircraft is on sortie",
+                            playerId, hangar.getId());
                 }
             }
         }
@@ -2111,6 +2143,7 @@ public class RTSGameManager {
                     data.put("hangarAircraftType", hangarComp.getHousedAircraft().getUnitType().name());
                     data.put("hangarAircraftHealth", hangarComp.getHousedAircraft().getHealth());
                     data.put("hangarAircraftMaxHealth", hangarComp.getHousedAircraft().getMaxHealth());
+                    data.put("hangarAircraftId", hangarComp.getHousedAircraft().getId());
                 }
 
                 // Include producing type if currently producing
