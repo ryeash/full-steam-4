@@ -65,12 +65,17 @@ public class BeamWeapon extends Weapon {
                                                        int ownerId,
                                                        int ownerTeam,
                                                        Body ignoredBody,
-                                                       GameEntities gameEntities) {
+                                                       GameEntities gameEntities,
+                                                       ResearchModifier modifier) {
         // Beams require the world for raycasting
         World<Body> world = gameEntities.getWorld();
         if (world == null) {
             return List.of();
         }
+
+        // Apply research modifiers to damage and range
+        double effectiveDamage = damage * modifier.getBeamDamageMultiplier();
+        double effectiveRange = range * modifier.getAttackRangeMultiplier();
 
         // Calculate direction to target
         Vector2 direction = targetPosition.copy().subtract(position);
@@ -78,19 +83,19 @@ public class BeamWeapon extends Weapon {
         direction.normalize();
 
         // Use the minimum of weapon range and distance to target
-        double effectiveRange = Math.min(range, distanceToTarget);
+        double raycastRange = Math.min(effectiveRange, distanceToTarget);
 
         // Perform raycast to find actual beam endpoint (respecting elevation)
-        Vector2 end = performRaycast(world, position, direction, effectiveRange, ignoredBody, ownerTeam, targetElevation);
+        Vector2 end = performRaycast(world, position, direction, raycastRange, ignoredBody, ownerTeam, targetElevation, effectiveDamage);
 
         // Create and return beam with raycast results in a list (single beam for standard weapons)
         Beam beam = new Beam(
                 position.copy(),
                 end,
-                range,
+                effectiveRange,
                 ownerId,
                 ownerTeam,
-                damage,
+                effectiveDamage,
                 bulletEffects,
                 ordinanceType,
                 beamType,
@@ -110,7 +115,7 @@ public class BeamWeapon extends Weapon {
      */
     private Vector2 performRaycast(World<Body> world, Vector2 start, Vector2 direction,
                                    double maxRange, Body ignoredBody, int ownerTeam,
-                                   Elevation beamElevation) {
+                                   Elevation beamElevation, double beamDamage) {
         // Create a ray for the raycast
         Ray ray = new Ray(start, direction);
 
@@ -157,7 +162,7 @@ public class BeamWeapon extends Weapon {
                         closestHit = result;
                     }
                     // pass damage on to the building
-                    s.getBuilding().takeDamage(getDamage());
+                    s.getBuilding().takeDamage(beamDamage);
                 }
             }
         }
@@ -178,21 +183,6 @@ public class BeamWeapon extends Weapon {
                 damage,
                 range,
                 attackRate,
-                beamWidth,
-                beamDuration,
-                beamType,
-                ordinanceType,
-                Set.copyOf(bulletEffects),
-                elevationTargeting
-        );
-    }
-
-    @Override
-    public Weapon copyWithModifiers(ResearchModifier modifier) {
-        return new BeamWeapon(
-                damage * modifier.getBeamDamageMultiplier(),
-                range * modifier.getAttackRangeMultiplier(),
-                attackRate * modifier.getAttackRateMultiplier(),
                 beamWidth,
                 beamDuration,
                 beamType,

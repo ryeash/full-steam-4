@@ -27,7 +27,6 @@ import java.util.Queue;
 @Getter
 public class ProductionComponent extends AbstractBuildingComponent {
     private final Queue<ProductionOrder> productionQueue = new LinkedList<>();
-    private ResearchModifier researchModifier = new ResearchModifier();
     private ProductionOrder currentProduction = null;
     private double productionProgress = 0; // seconds
     private Vector2 rallyPoint;
@@ -55,29 +54,30 @@ public class ProductionComponent extends AbstractBuildingComponent {
         if (currentProduction != null && !hasLowPower) {
             productionProgress += deltaTime;
 
-            // Check if production is complete
-            if ((productionProgress * researchModifier.getProductionSpeedMultiplier()) >= currentProduction.unitType.getBuildTimeSeconds()) {
+            // Check if production is complete (with research modifier applied dynamically)
+            ResearchModifier modifier = getResearchModifier();
+            if ((productionProgress * modifier.getProductionSpeedMultiplier()) >= currentProduction.unitType.getBuildTimeSeconds()) {
                 UnitType unitType = currentProduction.unitType;
                 currentProduction = null;
                 productionProgress = 0;
 
-                // Create unit
+                // Get player faction for research modifiers
+                PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
+
+                // Create unit with faction reference
                 Unit unit = new Unit(
                         IdGenerator.nextEntityId(),
                         unitType,
                         0, 0,
                         building.getOwnerId(),
-                        building.getTeamNumber()
+                        building.getTeamNumber(),
+                        faction  // Pass faction reference for dynamic modifiers
                 );
 
                 // Initialize components
                 unit.initializeComponents(gameEntities);
 
-                // Apply research modifiers from player's research
-                PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
-                if (faction != null && faction.getResearchManager() != null) {
-                    unit.applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
-                }
+                // Note: Research modifiers are now applied dynamically, no need to apply retroactively
 
                 // Sortie-based units (e.g., Bombers) are now produced directly by their component (HangarComponent)
                 // and should never reach ProductionComponent, so we don't need special handling here.
@@ -101,9 +101,19 @@ public class ProductionComponent extends AbstractBuildingComponent {
         }
     }
 
-    @Override
-    public void applyResearchModifiers(ResearchModifier modifier) {
-        this.researchModifier = modifier;
+    /**
+     * Get research modifier from building's faction for production speed calculations.
+     * This allows dynamic access to research modifiers without caching.
+     */
+    private ResearchModifier getResearchModifier() {
+        if (gameEntities == null) {
+            return new ResearchModifier(); // Default (no modifiers)
+        }
+        PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
+        if (faction != null && faction.getResearchManager() != null) {
+            return faction.getResearchManager().getCumulativeModifier();
+        }
+        return new ResearchModifier(); // Default (no modifiers)
     }
 
     /**

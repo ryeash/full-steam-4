@@ -67,13 +67,17 @@ public class AndroidFactoryComponent extends AbstractBuildingComponent {
                 // Spawn the android
                 Vector2 spawnPos = findSpawnPosition(building);
 
+                // Get player faction
+                PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
+
                 Unit android = new Unit(
                         IdGenerator.nextEntityId(),
                         ANDROID_TYPE,
                         spawnPos.x,
                         spawnPos.y,
                         building.getOwnerId(),
-                        building.getTeamNumber()
+                        building.getTeamNumber(),
+                        faction  // Pass faction reference for dynamic modifiers
                 );
 
                 // Initialize components
@@ -90,11 +94,7 @@ public class AndroidFactoryComponent extends AbstractBuildingComponent {
                 producingAndroid = false;
                 productionProgress = 0;
 
-                // Apply research modifiers (reuse faction variable from above)
-                PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
-                if (faction != null && faction.getResearchManager() != null) {
-                    android.applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
-                }
+                // Note: Research modifiers are now applied dynamically, no need to apply retroactively
 
                 gameEntities.getUnits().put(android.getId(), android);
                 gameEntities.getWorld().addBody(android.getBody());

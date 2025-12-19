@@ -120,23 +120,23 @@ public class HangarComponent extends AbstractBuildingComponent {
                 // Create the aircraft unit (but keep it housed, not in world)
                 Vector2 hangarPos = building.getPosition();
 
+                // Get player faction
+                PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
+
                 Unit aircraft = new Unit(
                         IdGenerator.nextEntityId(),
                         producingType,
                         hangarPos.x,
                         hangarPos.y,
                         building.getOwnerId(),
-                        building.getTeamNumber()
+                        building.getTeamNumber(),
+                        faction  // Pass faction reference for dynamic modifiers
                 );
 
                 // Initialize components
                 aircraft.initializeComponents(gameEntities);
 
-                // Apply research modifiers
-                PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
-                if (faction != null && faction.getResearchManager() != null) {
-                    aircraft.applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
-                }
+                // Note: Research modifiers are now applied dynamically, no need to apply retroactively
 
                 // House the aircraft (keeps it out of game world until sortie)
                 houseAircraft(aircraft);

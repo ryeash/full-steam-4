@@ -42,7 +42,7 @@ public abstract class Weapon {
     }
 
     /**
-     * Fire this weapon from a position towards a target.
+     * Fire this weapon from a position towards a target with research modifiers applied.
      * This method handles cooldown tracking automatically.
      *
      * @param position       The firing position
@@ -51,6 +51,7 @@ public abstract class Weapon {
      * @param ownerTeam      The team number of the firing entity
      * @param ignoredBody    The physics body to ignore in collision/raycasting (typically the firer)
      * @param gameEntities   Access to all game entities and the physics world
+     * @param modifier       Research modifiers to apply to damage/range/rate
      * @return List of created ordinance (may be empty if unable to fire)
      */
     public List<AbstractOrdinance> fire(Vector2 position,
@@ -59,14 +60,18 @@ public abstract class Weapon {
                                         int ownerId,
                                         int ownerTeam,
                                         Body ignoredBody,
-                                        GameEntities gameEntities) {
-        // Check if weapon is ready to fire
-        if (!canFire()) {
+                                        GameEntities gameEntities,
+                                        ResearchModifier modifier) {
+        // Check if weapon is ready to fire (with research-modified attack rate)
+        if (!canFire(modifier)) {
             return List.of();
         }
 
         // Fire the weapon (implemented by subclass)
-        List<AbstractOrdinance> ordinances = createOrdinances(position, targetPosition, targetElevation, ownerId, ownerTeam, ignoredBody, gameEntities);
+        List<AbstractOrdinance> ordinances = createOrdinances(
+            position, targetPosition, targetElevation, 
+            ownerId, ownerTeam, ignoredBody, gameEntities, modifier
+        );
 
         // Record the fire time if successful
         if (!ordinances.isEmpty()) {
@@ -77,7 +82,7 @@ public abstract class Weapon {
     }
 
     /**
-     * Create the ordinances for this weapon type.
+     * Create the ordinances for this weapon type with research modifiers applied.
      * Subclasses implement this to create their specific ordinance(s) (Projectile, Beam, etc.).
      * Most weapons return a single-element list, but some (like multi-barrel weapons) return multiple.
      *
@@ -87,6 +92,7 @@ public abstract class Weapon {
      * @param ownerTeam      The team number of the firing entity
      * @param ignoredBody    The physics body to ignore in collision/raycasting (typically the firer)
      * @param gameEntities   Access to all game entities and the physics world
+     * @param modifier       Research modifiers to apply to damage/range/rate
      * @return List of created ordinances (may be empty if unable to create)
      */
     protected abstract List<AbstractOrdinance> createOrdinances(
@@ -96,26 +102,40 @@ public abstract class Weapon {
             int ownerId,
             int ownerTeam,
             Body ignoredBody,
-            GameEntities gameEntities
+            GameEntities gameEntities,
+            ResearchModifier modifier
     );
 
     /**
-     * Get the attack cooldown in milliseconds based on attack rate.
+     * Get the attack cooldown in milliseconds based on attack rate with research modifiers.
      *
+     * @param modifier Research modifier for attack rate
      * @return Milliseconds between attacks
      */
-    public double getAttackCooldownMs() {
-        return 1000.0 / attackRate;
+    public double getAttackCooldownMs(ResearchModifier modifier) {
+        double effectiveAttackRate = attackRate * modifier.getAttackRateMultiplier();
+        return 1000.0 / effectiveAttackRate;
     }
 
     /**
-     * Check if this weapon can fire (cooldown has elapsed).
+     * Check if this weapon can fire (cooldown has elapsed) with research modifiers.
      *
+     * @param modifier Research modifier for attack rate
      * @return true if weapon is ready to fire
      */
-    public boolean canFire() {
+    public boolean canFire(ResearchModifier modifier) {
         long now = System.currentTimeMillis();
-        return (now - lastFireTime) >= getAttackCooldownMs();
+        return (now - lastFireTime) >= getAttackCooldownMs(modifier);
+    }
+
+    /**
+     * Get effective range with research modifiers applied.
+     *
+     * @param modifier Research modifier for range
+     * @return Effective weapon range
+     */
+    public double getEffectiveRange(ResearchModifier modifier) {
+        return range * modifier.getAttackRangeMultiplier();
     }
 
     /**
@@ -127,16 +147,8 @@ public abstract class Weapon {
     }
 
     /**
-     * Create a copy of this weapon (useful for per-unit weapon instances that can be upgraded)
+     * Create a copy of this weapon (useful for sharing weapon definitions)
      */
     public abstract Weapon copy();
-
-    /**
-     * Copy this weapon, applying research modifiers to the copy.
-     *
-     * @param modifier the combined research modifier
-     * @return the copied and modified weapon
-     */
-    public abstract Weapon copyWithModifiers(ResearchModifier modifier);
 }
 

@@ -93,8 +93,13 @@ public class MultiProjectileWeapon extends Weapon {
                                                        int ownerId,
                                                        int ownerTeam,
                                                        Body ignoredBody,
-                                                       GameEntities gameEntities) {
+                                                       GameEntities gameEntities,
+                                                       ResearchModifier modifier) {
         List<AbstractOrdinance> ordinances = new ArrayList<>();
+
+        // Apply research modifiers to damage and range
+        double effectiveDamage = damage * modifier.getProjectileDamageMultiplier();
+        double effectiveRange = range * modifier.getAttackRangeMultiplier();
 
         // Calculate direction to target
         Vector2 direction = targetPosition.copy().subtract(position);
@@ -120,8 +125,8 @@ public class MultiProjectileWeapon extends Weapon {
                 Projectile projectile = new Projectile(
                         spawnPos,
                         velocity,
-                        damage / projectileCount, // Split damage among projectiles
-                        range,
+                        effectiveDamage / projectileCount, // Split damage among projectiles
+                        effectiveRange,
                         ownerId,
                         ownerTeam,
                         linearDamping,
@@ -160,8 +165,8 @@ public class MultiProjectileWeapon extends Weapon {
                 Projectile projectile = new Projectile(
                         position.copy(),
                         velocity,
-                        damage / projectileCount, // Split damage among projectiles
-                        range,
+                        effectiveDamage / projectileCount, // Split damage among projectiles
+                        effectiveRange,
                         ownerId,
                         ownerTeam,
                         linearDamping,
@@ -180,8 +185,8 @@ public class MultiProjectileWeapon extends Weapon {
             Projectile projectile = new Projectile(
                     position,
                     velocity,
-                    damage,
-                    range,
+                    effectiveDamage,
+                    effectiveRange,
                     ownerId,
                     ownerTeam,
                     linearDamping,
@@ -203,25 +208,6 @@ public class MultiProjectileWeapon extends Weapon {
                 damage,
                 range,
                 attackRate,
-                projectileSpeed,
-                linearDamping,
-                projectileSize,
-                ordinanceType,
-                Set.copyOf(bulletEffects),
-                projectileCount,
-                spreadDistance,
-                elevationTargeting
-        );
-        copy.spreadAngle = this.spreadAngle;
-        return copy;
-    }
-
-    @Override
-    public Weapon copyWithModifiers(ResearchModifier modifier) {
-        MultiProjectileWeapon copy = new MultiProjectileWeapon(
-                damage * modifier.getBeamDamageMultiplier(),
-                range * modifier.getAttackRangeMultiplier(),
-                attackRate * modifier.getAttackRateMultiplier(),
                 projectileSpeed,
                 linearDamping,
                 projectileSize,

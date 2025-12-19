@@ -53,11 +53,6 @@ public class DefenseComponent extends AbstractBuildingComponent {
         }
     }
 
-    @Override
-    public void applyResearchModifiers(ResearchModifier modifier) {
-        this.weapon = weapon.copyWithModifiers(modifier);
-    }
-
     /**
      * Fire ordinance at the current target using the weapon system.
      *
@@ -70,7 +65,10 @@ public class DefenseComponent extends AbstractBuildingComponent {
             return;
         }
 
-        // Fire weapon
+        // Get research modifiers from building's faction
+        ResearchModifier modifier = building.getFaction().getResearchManager().getCumulativeModifier();
+
+        // Fire weapon with modifiers
         List<AbstractOrdinance> ordinances = weapon.fire(
                 turretPos,
                 targetPos,
@@ -78,7 +76,8 @@ public class DefenseComponent extends AbstractBuildingComponent {
                 building.getId(),
                 building.getTeamNumber(),
                 building.getBody(),
-                gameEntities
+                gameEntities,
+                modifier
         );
 
         // Add ordinances to game world (defensive buildings can fire projectiles or beams)

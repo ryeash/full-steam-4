@@ -43,8 +43,8 @@ public class Unit extends GameEntity implements Targetable {
     private final UnitType unitType;
     private final int ownerId; // Player who owns this unit
     private final int teamNumber;
+    private final PlayerFaction faction; // Reference to owner's faction for dynamic stat calculations
     private UnitCommand currentCommand = null;
-    private double movementSpeed;
 
     // Component system for modular behaviors
     private final Map<Class<? extends IUnitComponent>, IUnitComponent> components = new LinkedHashMap<>();
@@ -69,7 +69,7 @@ public class Unit extends GameEntity implements Targetable {
 
     // Weapon system
     private Weapon weapon; // The weapon this unit fires (null for non-combat units)
-    private double visionRange; // Modified by research
+    // Note: visionRange is now computed dynamically via getVisionRange()
 
     // Building construction (for workers) - TODO: Move to ConstructComponent in future
     private boolean isConstructing = false;
@@ -78,15 +78,15 @@ public class Unit extends GameEntity implements Targetable {
     private boolean selected = false;
     private boolean garrisoned = false; // True if unit is inside a building
 
-    public Unit(int id, UnitType unitType, double x, double y, int ownerId, int teamNumber) {
+    public Unit(int id, UnitType unitType, double x, double y, int ownerId, int teamNumber, PlayerFaction faction) {
         super(id, createUnitBody(x, y, unitType), unitType.getMaxHealth());
         this.unitType = unitType;
         this.ownerId = ownerId;
         this.teamNumber = teamNumber;
-        this.movementSpeed = unitType.getMovementSpeed();
-        this.visionRange = unitType.getVisionRange();
+        this.faction = faction;
         this.weapon = WeaponFactory.getWeaponForUnitType(unitType);
         // Note: Components are initialized via initializeComponents() after construction
+        // Note: movementSpeed and visionRange are now calculated dynamically via getters
     }
 
     /**
@@ -318,7 +318,7 @@ public class Unit extends GameEntity implements Targetable {
             return new Vector2(0, 0);
         }
 
-        return desired.getNormalized().multiply(movementSpeed);
+        return desired.getNormalized().multiply(getMovementSpeed());
     }
 
     /**
@@ -340,10 +340,10 @@ public class Unit extends GameEntity implements Targetable {
         if (distance < slowingRadius) {
             // Quadratic falloff for smoother deceleration
             double ratio = distance / slowingRadius;
-            double speed = movementSpeed * ratio * ratio; // Quadratic instead of linear
+            double speed = getMovementSpeed() * ratio * ratio; // Quadratic instead of linear
             desired.multiply(speed);
         } else {
-            desired.multiply(movementSpeed);
+            desired.multiply(getMovementSpeed());
         }
 
         return desired;
@@ -428,8 +428,9 @@ public class Unit extends GameEntity implements Targetable {
         // Clamp velocity to max speed
         Vector2 velocity = body.getLinearVelocity();
         double speed = velocity.getMagnitude();
-        if (speed > movementSpeed) {
-            body.setLinearVelocity(velocity.getNormalized().multiply(movementSpeed));
+        double maxSpeed = getMovementSpeed();
+        if (speed > maxSpeed) {
+            body.setLinearVelocity(velocity.getNormalized().multiply(maxSpeed));
         }
 
         // Update rotation to face movement direction
@@ -570,8 +571,12 @@ public class Unit extends GameEntity implements Targetable {
         // Notify cloak component of firing (will break cloak temporarily)
         getComponent(CloakComponent.class).ifPresent(CloakComponent::onFire);
 
-        // Fire the weapon
-        List<AbstractOrdinance> ordinances = weapon.fire(getPosition(), targetPos, targetElevation, getId(), teamNumber, body, gameEntities);
+        // Fire the weapon with research modifiers applied
+        ResearchModifier modifier = faction.getResearchManager().getCumulativeModifier();
+        List<AbstractOrdinance> ordinances = weapon.fire(
+            getPosition(), targetPos, targetElevation, 
+            getId(), teamNumber, body, gameEntities, modifier
+        );
 
         // Notify interceptor component of weapon fire (consumes ammo)
         if (!ordinances.isEmpty()) {
@@ -1048,39 +1053,43 @@ public class Unit extends GameEntity implements Targetable {
     }
 
     /**
-     * Apply research modifiers to this unit's stats
-     * Called when unit is created or when research completes
+     * Get effective movement speed with research modifiers applied.
+     * Returns 0 if unit is deployed (for CRAWLER).
      */
-    public void applyResearchModifiers(ResearchModifier modifier) {
-        // Apply health modifier (increase max health and current health proportionally)
-        double healthMultiplier = modifier.getUnitHealthMultiplier();
-        if (healthMultiplier != 1.0) {
-            double healthPercent = health / maxHealth;
-            maxHealth *= healthMultiplier;
-            health = maxHealth * healthPercent;
+    public double getMovementSpeed() {
+        // Check if unit is deployed (immobile mode for CRAWLER)
+        DeployComponent deployComp = getComponent(DeployComponent.class).orElse(null);
+        if (deployComp != null && deployComp.isDeployed()) {
+            return 0.0; // Deployed units can't move
         }
 
-        if (weapon != null) {
-            this.weapon = weapon.copyWithModifiers(modifier);
-        }
-
-        // Apply speed modifiers (infantry or vehicle)
+        double baseSpeed = unitType.getMovementSpeed();
+        ResearchModifier modifier = faction.getResearchManager().getCumulativeModifier();
+        
         if (isInfantry()) {
-            movementSpeed *= modifier.getInfantrySpeedMultiplier();
+            return baseSpeed * modifier.getInfantrySpeedMultiplier();
         } else if (isVehicle()) {
-            movementSpeed *= modifier.getVehicleSpeedMultiplier();
+            return baseSpeed * modifier.getVehicleSpeedMultiplier();
         }
+        return baseSpeed;
+    }
 
-        // Worker capacity bonus is now handled by HarvestComponent
-        // (already delegated via component.applyResearchModifiers)
+    /**
+     * Get effective vision range with research modifiers applied.
+     */
+    public double getVisionRange() {
+        return unitType.getVisionRange() * 
+            faction.getResearchManager().getCumulativeModifier().getVisionRangeMultiplier();
+    }
 
-        // Apply vision range modifier
-        visionRange *= modifier.getVisionRangeMultiplier();
-
-        // Apply modifiers to all components
-        for (IUnitComponent component : components.values()) {
-            component.applyResearchModifiers(modifier);
-        }
+    /**
+     * Get effective max health with research modifiers applied.
+     * Overrides GameEntity.getMaxHealth() to apply research bonuses.
+     */
+    @Override
+    public double getMaxHealth() {
+        return unitType.getMaxHealth() * 
+            faction.getResearchManager().getCumulativeModifier().getUnitHealthMultiplier();
     }
 
     /**

@@ -55,18 +55,23 @@ public class ProjectileWeapon extends Weapon {
                                                        int ownerId,
                                                        int ownerTeam,
                                                        Body ignoredBody,
-                                                       GameEntities gameEntities) {
+                                                       GameEntities gameEntities,
+                                                       ResearchModifier modifier) {
         Vector2 velocity = targetPosition.copy()
                 .subtract(position)
                 .getNormalized()
                 .multiply(projectileSpeed);
 
+        // Apply research modifiers to damage and range
+        double effectiveDamage = damage * modifier.getProjectileDamageMultiplier();
+        double effectiveRange = range * modifier.getAttackRangeMultiplier();
+
         // Create and return projectile in a list (single projectile for standard weapons)
         Projectile projectile = new Projectile(
                 position,
                 velocity,
-                damage,
-                range,
+                effectiveDamage,
+                effectiveRange,
                 ownerId,
                 ownerTeam,
                 linearDamping,
@@ -86,21 +91,6 @@ public class ProjectileWeapon extends Weapon {
                 damage,
                 range,
                 attackRate,
-                projectileSpeed,
-                linearDamping,
-                projectileSize,
-                ordinanceType,
-                Set.copyOf(bulletEffects),
-                elevationTargeting
-        );
-    }
-
-    @Override
-    public Weapon copyWithModifiers(ResearchModifier modifier) {
-        return new ProjectileWeapon(
-                damage * modifier.getBeamDamageMultiplier(),
-                range * modifier.getAttackRangeMultiplier(),
-                attackRate * modifier.getAttackRateMultiplier(),
                 projectileSpeed,
                 linearDamping,
                 projectileSize,

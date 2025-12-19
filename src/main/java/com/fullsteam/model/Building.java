@@ -36,6 +36,7 @@ public class Building extends GameEntity implements Targetable {
     private final BuildingType buildingType;
     private final int ownerId; // Player who owns this building
     private final int teamNumber;
+    private final PlayerFaction faction; // Reference to owner's faction for dynamic stat calculations
 
     // Component system for modular building behavior
     private final Map<Class<? extends IBuildingComponent>, IBuildingComponent> components = new HashMap<>();
@@ -50,11 +51,12 @@ public class Building extends GameEntity implements Targetable {
     /**
      * Constructor with custom max health (for faction modifiers)
      */
-    public Building(int id, GameEntities gameEntities, BuildingType buildingType, double x, double y, int ownerId, int teamNumber, double maxHealth) {
+    public Building(int id, GameEntities gameEntities, BuildingType buildingType, double x, double y, int ownerId, int teamNumber, PlayerFaction faction, double maxHealth) {
         super(id, createBuildingBody(x, y, buildingType), maxHealth);
         this.buildingType = buildingType;
         this.ownerId = ownerId;
         this.teamNumber = teamNumber;
+        this.faction = faction;
 
         // Headquarters starts fully constructed
         if (buildingType == BuildingType.HEADQUARTERS) {
@@ -263,11 +265,8 @@ public class Building extends GameEntity implements Targetable {
                 component.onConstructionComplete();
             }
 
-            // Apply research modifiers after construction completes
-            PlayerFaction faction = gameEntities.getPlayerFactions().get(ownerId);
-            if (faction != null) {
-                applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
-            }
+            // Note: Research modifiers are now applied dynamically via getMaxHealth()
+            // No need to retroactively apply them here
 
             return true; // Construction just completed
         }
@@ -462,19 +461,14 @@ public class Building extends GameEntity implements Targetable {
                 .orElse(null);
     }
 
-    public void applyResearchModifiers(ResearchModifier modifier) {
-        // Apply health modifier (increase max health and current health proportionally)
-        // TODO: wire in for all research and components
-        double healthMultiplier = modifier.getUnitHealthMultiplier();
-        if (healthMultiplier != 1.0) {
-            double healthPercent = health / maxHealth;
-            maxHealth *= healthMultiplier;
-            health = maxHealth * healthPercent;
-        }
-
-        for (IBuildingComponent value : components.values()) {
-            value.applyResearchModifiers(modifier);
-        }
+    /**
+     * Get effective max health with research modifiers applied.
+     * Overrides GameEntity.getMaxHealth() to apply research bonuses.
+     */
+    @Override
+    public double getMaxHealth() {
+        return buildingType.getMaxHealth() * 
+            faction.getResearchManager().getCumulativeModifier().getBuildingHealthMultiplier();
     }
 }
 

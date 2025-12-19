@@ -900,6 +900,7 @@ public class RTSGameManager {
                         location.x, location.y,
                         playerId,
                         faction.getTeamNumber(),
+                        faction,  // Pass faction reference for dynamic modifiers
                         maxHealth
                 );
                 buildings.put(building.getId(), building);
@@ -1534,7 +1535,7 @@ public class RTSGameManager {
             List<ResearchType> completedResearch =
                     faction.getResearchManager().updateResearch(deltaTime);
 
-            // Notify player of completed research and apply modifiers to existing units
+            // Notify player of completed research
             for (ResearchType research : completedResearch) {
                 log.info("Player {} completed research: {}", playerId, research.getDisplayName());
 
@@ -1545,14 +1546,9 @@ public class RTSGameManager {
                         GameEvent.EventCategory.INFO
                 ));
 
-                // Apply research modifiers to all existing units owned by this player
-                ResearchModifier modifier = research.getModifier();
-                units.values().stream()
-                        .filter(unit -> unit.getOwnerId() == playerId)
-                        .forEach(unit -> unit.applyResearchModifiers(modifier));
-
-                // Note: Buildings don't need retroactive modifier application
-                // Research affects new buildings via faction modifiers at creation time
+                // Note: Research modifiers are now applied dynamically!
+                // Units and buildings automatically use the updated modifiers via their faction reference.
+                // No need for retroactive updates!
             }
         });
     }
@@ -2500,6 +2496,7 @@ public class RTSGameManager {
                 position.x, position.y,
                 playerId,
                 teamNumber,
+                faction,  // Pass faction reference for dynamic modifiers
                 hqMaxHealth
         );
         buildings.put(hq.getId(), hq);
@@ -2520,16 +2517,14 @@ public class RTSGameManager {
                     UnitType.WORKER,
                     x, y,
                     playerId,
-                    teamNumber
+                    teamNumber,
+                    faction  // Pass faction reference for dynamic modifiers
             );
 
             // Initialize components
             worker.initializeComponents(gameEntities);
 
-            // Apply research modifiers (though starting units won't have research yet)
-            if (faction != null && faction.getResearchManager() != null) {
-                worker.applyResearchModifiers(faction.getResearchManager().getCumulativeModifier());
-            }
+            // Note: Research modifiers are now applied dynamically, no need to apply retroactively
 
             units.put(worker.getId(), worker);
             world.addBody(worker.getBody());

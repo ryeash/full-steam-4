@@ -154,13 +154,10 @@ public class GunshipComponent extends AbstractUnitComponent {
         unit.issueCommand(returnCommand, gameEntities);
     }
 
-    @Override
-    public void applyResearchModifiers(ResearchModifier modifier) {
-        this.airWeapon = airWeapon.copyWithModifiers(modifier);
-        this.groundWeapon = groundWeapon.copyWithModifiers(modifier);
-    }
-
     private void attackEnemies() {
+        // Get research modifiers from unit's faction
+        ResearchModifier modifier = unit.getFaction().getResearchManager().getCumulativeModifier();
+
         Targetable airUnit = gameEntities.findNearestEnemyTargetable(unit.getPosition(), unit.getTeamNumber(), airWeapon);
         List<AbstractOrdinance> ordinances = new ArrayList<>();
         if (airUnit != null) {
@@ -171,7 +168,8 @@ public class GunshipComponent extends AbstractUnitComponent {
                     unit.getOwnerId(),
                     unit.getTeamNumber(),
                     unit.getBody(),
-                    gameEntities);
+                    gameEntities,
+                    modifier);
             ordinances.addAll(list);
             currentAmmoAir -= list.size();
         }
@@ -185,7 +183,8 @@ public class GunshipComponent extends AbstractUnitComponent {
                     unit.getOwnerId(),
                     unit.getTeamNumber(),
                     unit.getBody(),
-                    gameEntities);
+                    gameEntities,
+                    modifier);
             ordinances.addAll(list);
             currentAmmoGround -= list.size();
         }

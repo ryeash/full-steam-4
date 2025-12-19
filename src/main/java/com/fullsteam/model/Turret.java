@@ -63,6 +63,7 @@ public class Turret {
                 targetPos.y - turretWorldPos.y,
                 targetPos.x - turretWorldPos.x
         );
+        // Get research modifiers from parent unit's faction
         return weapon.fire(
                 turretWorldPos,
                 targetPos,
@@ -70,7 +71,8 @@ public class Turret {
                 parentUnit.getId(),
                 parentUnit.getTeamNumber(),
                 parentUnit.getBody(),
-                gameEntities
+                gameEntities,
+                parentUnit.getFaction().getResearchManager().getCumulativeModifier()
         );
     }
 

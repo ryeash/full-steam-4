@@ -24,12 +24,10 @@ public class DeployComponent extends AbstractUnitComponent {
     private boolean deployed = false;
     private long lastToggleTime = 0;
     private List<Turret> turrets = new ArrayList<>();
-    private double originalMovementSpeed;
 
     @Override
     public void init(com.fullsteam.model.Unit unit, com.fullsteam.model.GameEntities gameEntities) {
         super.init(unit, gameEntities);
-        this.originalMovementSpeed = unit.getMovementSpeed();
     }
 
     @Override
@@ -63,10 +61,10 @@ public class DeployComponent extends AbstractUnitComponent {
 
     /**
      * Deploy the unit (immobile, multi-turret mode).
+     * Movement speed is automatically set to 0 via Unit.getMovementSpeed() checking deployed state.
      */
     private void deploy() {
-        // Stop movement
-        unit.setMovementSpeed(0);
+        // Stop movement (immobility is enforced via Unit.getMovementSpeed())
         unit.getBody().setLinearVelocity(0, 0);
 
         // Create 4 turrets at corners
@@ -92,12 +90,10 @@ public class DeployComponent extends AbstractUnitComponent {
 
     /**
      * Undeploy the unit (restore mobility, clear turrets).
+     * Movement speed is automatically restored via Unit.getMovementSpeed().
      */
     private void undeploy() {
-        // Restore movement
-        unit.setMovementSpeed(originalMovementSpeed);
-
-        // Clear turrets
+        // Clear turrets (mobility is automatically restored via Unit.getMovementSpeed())
         turrets.clear();
 
         log.info("Crawler {} undeployed - returning to mobile mode", unit.getId());
