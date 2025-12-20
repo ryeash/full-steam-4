@@ -25,9 +25,3 @@ public abstract class AbstractUnitComponent implements IUnitComponent {
         return gameEntities.getWorld().getTimeStep().getDeltaTime();
     }
 }
-
-
-
-
-
-

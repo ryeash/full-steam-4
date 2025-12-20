@@ -118,4 +118,3 @@ public interface Targetable {
                 && (!isCloaked() || (isCloaked() && distance < Unit.getCloakDetectionRange()));
     }
 }
-

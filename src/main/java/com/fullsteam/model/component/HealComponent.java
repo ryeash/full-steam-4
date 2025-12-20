@@ -108,9 +108,3 @@ public class HealComponent extends AbstractUnitComponent {
         return HEAL_RANGE;
     }
 }
-
-
-
-
-
-

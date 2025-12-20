@@ -154,9 +154,3 @@ public class CloakComponent extends AbstractUnitComponent {
         }
     }
 }
-
-
-
-
-
-

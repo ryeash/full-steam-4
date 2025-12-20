@@ -13,13 +13,3 @@ import lombok.RequiredArgsConstructor;
 public class ShieldSensor {
     private final Building building;
 }
-
-
-
-
-
-
-
-
-
-

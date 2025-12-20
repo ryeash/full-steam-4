@@ -75,9 +75,3 @@ public enum Elevation {
         return this != GROUND;
     }
 }
-
-
-
-
-
-

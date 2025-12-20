@@ -362,13 +362,13 @@ public class WeaponFactory {
         return new BeamWeapon(
                 35.0,  // damage (moderate per shot, but high DPS due to fire rate)
                 350.0, // range (good range)
-                2.5,   // attack rate (fast fire rate)
+                0.9,   // attack rate
                 4.0,   // beam width (visible laser)
-                0.4,   // duration (visible beam)
+                0.5,   // duration (visible beam)
                 Beam.BeamType.LASER,
                 Ordinance.LASER,
                 Set.of(),
-                ElevationTargeting.GROUND_ONLY // Lasers - ground only for now
+                ElevationTargeting.ALL_ELEVATIONS // Lasers - ground only for now
         );
     }
 

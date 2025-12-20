@@ -69,6 +69,3 @@ public enum ElevationTargeting {
         return Elevation.GROUND;
     }
 }
-
-
-
