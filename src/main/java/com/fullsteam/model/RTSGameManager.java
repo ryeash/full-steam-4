@@ -24,7 +24,6 @@ import com.fullsteam.model.component.InterceptorComponent;
 import com.fullsteam.model.component.ShieldComponent;
 import com.fullsteam.model.factions.Faction;
 import com.fullsteam.model.research.ResearchManager;
-import com.fullsteam.model.research.ResearchModifier;
 import com.fullsteam.model.research.ResearchType;
 import io.micronaut.websocket.WebSocketSession;
 import io.micronaut.websocket.exceptions.WebSocketSessionException;
@@ -52,6 +51,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -590,6 +590,51 @@ public class RTSGameManager {
                     .filter(u -> u.belongsTo(playerId) && u.isSelected())
                     .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
                     .forEach(u -> u.setAiStance(input.getSetStance()));
+        }
+
+        // Handle scatter command
+        if (input.isScatterCommand()) {
+            List<Unit> selectedUnits = units.values().stream()
+                    .filter(u -> u.belongsTo(playerId) && u.isSelected())
+                    .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
+                    .toList();
+
+            if (!selectedUnits.isEmpty()) {
+                // Calculate average center position of selected units
+                Vector2 center = selectedUnits.stream()
+                        .map(Unit::getPosition)
+                        .reduce(selectedUnits.get(0).getPosition().copy(), (a, b) -> a.sum(b).divide(2.0));
+
+                selectedUnits.forEach(u -> {
+                    Vector2 currentPos = u.getPosition().copy();
+                    Vector2 directionFromCenter = currentPos.copy().subtract(center);
+
+                    // If unit is at the center, give it a random direction
+                    if (directionFromCenter.getMagnitude() < 1.0) {
+                        double randomAngle = Math.random() * 2 * Math.PI;
+                        directionFromCenter = new Vector2(Math.cos(randomAngle), Math.sin(randomAngle));
+                    }
+
+                    // Normalize and scale to scatter distance
+                    directionFromCenter.normalize();
+                    directionFromCenter.multiply(ThreadLocalRandom.current().nextDouble(31, 67));
+
+                    Vector2 scatterDestination = currentPos.copy().add(directionFromCenter);
+                    log.info("Scatter command:to ({}, {})", scatterDestination.x, scatterDestination.y);
+                    List<Vector2> path = Pathfinding.findPath(
+                            u.getPosition(),
+                            scatterDestination,
+                            obstacles.values(),
+                            buildings.values(),
+                            u.getUnitType().getSize(),
+                            gameConfig.getWorldWidth(),
+                            gameConfig.getWorldHeight(),
+                            u.getUnitType().getElevation().isAirborne()
+                    );
+                    u.issueCommand(new MoveCommand(u, scatterDestination, true), gameEntities);
+                    u.getCurrentCommand().setPath(path);
+                });
+            }
         }
 
         // Handle special ability activation

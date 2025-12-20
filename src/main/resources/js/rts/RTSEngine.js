@@ -289,13 +289,6 @@ class RTSEngine {
             const data = JSON.parse(event.data);
             this.handleServerMessage(data);
         };
-        
-        this.websocket.onerror = (error) => {
-            console.error('WebSocket error:', error);
-        };
-        
-        this.websocket.onclose = () => {
-        };
     }
     
     handleServerMessage(data) {
@@ -3187,11 +3180,6 @@ class RTSEngine {
         } else {
             this.app.canvas.style.cursor = 'default';
         }
-        
-        // Update selection box
-        if (this.isSelecting && this.selectionStart) {
-            // TODO: Draw selection box
-        }
     }
     
     onMouseUp(e) {
@@ -3248,6 +3236,9 @@ class RTSEngine {
         } else if (e.key === 'q' || e.key === 'Q') {
             // Attack-move hotkey
             this.enterAttackMoveMode();
+        } else if (e.key === 'x' || e.key === 'X') {
+            // Scatter hotkey - scatter selected units away from their center
+            this.scatterSelectedUnits();
         }
     }
     
@@ -3559,18 +3550,22 @@ class RTSEngine {
                 }
             }
         }
-        
-        
+
         if (hasAttackUnit) {
             this.attackMoveMode = true;
             document.body.style.cursor = 'crosshair';
-        } else {
         }
     }
     
     exitAttackMoveMode() {
         this.attackMoveMode = false;
         document.body.style.cursor = 'default';
+    }
+    
+    scatterSelectedUnits() {
+        if (this.selectedUnits.size > 0) {
+            this.sendInput({ scatterCommand: true });
+        }
     }
     
     getBuildingInfo(buildingType) {

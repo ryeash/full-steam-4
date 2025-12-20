@@ -47,6 +47,9 @@ public class RTSPlayerInput {
     // Stop command
     private boolean stopCommand; // Stop all selected units
 
+    // Scatter command
+    private boolean scatterCommand; // Scatter selected units away from their center
+
     // AI stance
     private AIStance setStance; // Change AI stance for selected units
 
