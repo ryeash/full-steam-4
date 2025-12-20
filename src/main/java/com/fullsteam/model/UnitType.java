@@ -599,8 +599,36 @@ public enum UnitType {
      */
     public List<Convex> createPhysicsFixtures() {
         return switch (this) {
-            // Basic Infantry - standard triangle (pointing forward)
-            case INFANTRY -> List.of(Geometry.createPolygonalCircle(3, size));
+            // Basic Infantry - tactical soldier with armor plating and weapon mount
+            case INFANTRY -> {
+                // Main body: elongated pentagon (armored torso)
+                Vector2[] mainBody = new Vector2[]{
+                        new Vector2(-size * 0.6, -size * 0.4),  // Back left
+                        new Vector2(-size * 0.1, -size * 0.7),  // Left shoulder (armor plate)
+                        new Vector2(size * 0.8, 0),             // Front point (weapon direction)
+                        new Vector2(-size * 0.1, size * 0.7),   // Right shoulder (armor plate)
+                        new Vector2(-size * 0.6, size * 0.4)    // Back right
+                };
+                Convex torso = Geometry.createPolygon(mainBody);
+
+                // Left armor plate (shoulder guard)
+                Vector2[] leftPlate = new Vector2[]{
+                        new Vector2(-size * 0.3, -size * 0.75),
+                        new Vector2(size * 0.2, -size * 0.85),
+                        new Vector2(size * 0.4, -size * 0.65)
+                };
+                Convex plateLeft = Geometry.createPolygon(leftPlate);
+
+                // Right armor plate (shoulder guard)
+                Vector2[] rightPlate = new Vector2[]{
+                        new Vector2(-size * 0.3, size * 0.75),
+                        new Vector2(size * 0.4, size * 0.65),
+                        new Vector2(size * 0.2, size * 0.85)
+                };
+                Convex plateRight = Geometry.createPolygon(rightPlate);
+
+                yield List.of(torso, plateLeft, plateRight);
+            }
 
             // Laser Infantry - angular prism design with crystalline focusing arrays
             case LASER_INFANTRY -> {
@@ -679,17 +707,38 @@ public enum UnitType {
                 yield List.of(Geometry.createPolygon(vertices));
             }
 
-            // Sniper - elongated narrow triangle (long rifle look)
+            // Sniper - precision marksman with elongated rifle and stabilizing bipod
             case SNIPER -> {
-                // Symmetric triangle like infantry, but longer and narrower
-                // Pointing right (positive X direction, 0 radians) to match other infantry
-                // Counter-clockwise winding: back-bottom -> front -> back-top
-                Vector2[] vertices = new Vector2[]{
-                        new Vector2(-size * 0.7, -size * 0.5),// Back bottom (narrow base)
-                        new Vector2(size * 1.3, 0),           // Front point (long barrel, pointing right)
-                        new Vector2(-size * 0.7, size * 0.5)  // Back top (narrow base)
+                // Main body: narrow elongated hexagon (prone shooter profile)
+                Vector2[] mainBody = new Vector2[]{
+                        new Vector2(-size * 0.9, -size * 0.35), // Back left
+                        new Vector2(-size * 0.3, -size * 0.5),  // Mid-left (narrow waist)
+                        new Vector2(size * 0.5, -size * 0.4),   // Front left
+                        new Vector2(size * 1.0, 0),             // Rifle tip (pointing right)
+                        new Vector2(size * 0.5, size * 0.4),    // Front right
+                        new Vector2(-size * 0.3, size * 0.5),   // Mid-right (narrow waist)
+                        new Vector2(-size * 0.9, size * 0.35)   // Back right
                 };
-                yield List.of(Geometry.createPolygon(vertices));
+                Convex body = Geometry.createPolygon(mainBody);
+
+                // Scope mount (top detail)
+                Vector2[] scope = new Vector2[]{
+                        new Vector2(size * 0.2, -size * 0.4),
+                        new Vector2(size * 0.6, -size * 0.5),
+                        new Vector2(size * 0.7, -size * 0.35)
+                };
+                Convex scopeMount = Geometry.createPolygon(scope);
+
+                // Stock/rear support
+                Vector2[] stock = new Vector2[]{
+                        new Vector2(-size * 1.0, -size * 0.25),
+                        new Vector2(-size * 0.6, -size * 0.3),
+                        new Vector2(-size * 0.6, size * 0.3),
+                        new Vector2(-size * 1.0, size * 0.25)
+                };
+                Convex rearStock = Geometry.createPolygon(stock);
+
+                yield List.of(body, scopeMount, rearStock);
             }
 
             // Ion Ranger - complex multi-lens focusing array for long-range ion beam
@@ -751,8 +800,91 @@ public enum UnitType {
             // Worker/Support units - circular for easy navigation
             case WORKER, MEDIC, ENGINEER -> List.of(Geometry.createCircle(size));
 
-            // Android - diamond/square shape (synthetic unit)
-            case ANDROID -> List.of(Geometry.createPolygonalCircle(4, size));
+            // Android - synthetic combat unit with angular robotic chassis
+            case ANDROID -> {
+                // Central core: diamond chassis (robotic torso)
+                Vector2[] core = new Vector2[]{
+                        new Vector2(-size * 0.7, 0),            // Back center
+                        new Vector2(0, -size * 0.7),            // Top center
+                        new Vector2(size * 0.9, 0),             // Front center (head)
+                        new Vector2(0, size * 0.7)              // Bottom center
+                };
+                Convex chassis = Geometry.createPolygon(core);
+
+                // Upper left arm assembly
+                Vector2[] leftArmUpper = new Vector2[]{
+                        new Vector2(-size * 0.3, -size * 0.75),
+                        new Vector2(size * 0.1, -size * 0.95),
+                        new Vector2(size * 0.3, -size * 0.8),
+                        new Vector2(size * 0.1, -size * 0.6)
+                };
+                Convex armLU = Geometry.createPolygon(leftArmUpper);
+
+                // Upper right arm assembly
+                Vector2[] rightArmUpper = new Vector2[]{
+                        new Vector2(-size * 0.3, size * 0.75),
+                        new Vector2(size * 0.1, size * 0.6),
+                        new Vector2(size * 0.3, size * 0.8),
+                        new Vector2(size * 0.1, size * 0.95)
+                };
+                Convex armRU = Geometry.createPolygon(rightArmUpper);
+
+                // Lower left arm (weapon mount)
+                Vector2[] leftArmLower = new Vector2[]{
+                        new Vector2(size * 0.3, -size * 0.75),
+                        new Vector2(size * 0.7, -size * 0.85),
+                        new Vector2(size * 0.9, -size * 0.6),
+                        new Vector2(size * 0.6, -size * 0.5)
+                };
+                Convex armLL = Geometry.createPolygon(leftArmLower);
+
+                // Lower right arm (weapon mount)
+                Vector2[] rightArmLower = new Vector2[]{
+                        new Vector2(size * 0.3, size * 0.75),
+                        new Vector2(size * 0.6, size * 0.5),
+                        new Vector2(size * 0.9, size * 0.6),
+                        new Vector2(size * 0.7, size * 0.85)
+                };
+                Convex armRL = Geometry.createPolygon(rightArmLower);
+
+                // Head/sensor array (angular trapezoid)
+                Vector2[] head = new Vector2[]{
+                        new Vector2(size * 0.5, -size * 0.4),
+                        new Vector2(size * 1.0, -size * 0.25),
+                        new Vector2(size * 1.0, size * 0.25),
+                        new Vector2(size * 0.5, size * 0.4)
+                };
+                Convex sensorArray = Geometry.createPolygon(head);
+
+                // Left leg strut
+                Vector2[] leftLeg = new Vector2[]{
+                        new Vector2(-size * 0.5, -size * 0.5),
+                        new Vector2(-size * 0.2, -size * 0.85),
+                        new Vector2(size * 0.0, -size * 0.75),
+                        new Vector2(-size * 0.2, -size * 0.4)
+                };
+                Convex legL = Geometry.createPolygon(leftLeg);
+
+                // Right leg strut
+                Vector2[] rightLeg = new Vector2[]{
+                        new Vector2(-size * 0.5, size * 0.5),
+                        new Vector2(-size * 0.2, size * 0.4),
+                        new Vector2(size * 0.0, size * 0.75),
+                        new Vector2(-size * 0.2, size * 0.85)
+                };
+                Convex legR = Geometry.createPolygon(rightLeg);
+
+                // Rear power pack (small angular detail)
+                Vector2[] powerPack = new Vector2[]{
+                        new Vector2(-size * 0.8, -size * 0.3),
+                        new Vector2(-size * 0.5, -size * 0.35),
+                        new Vector2(-size * 0.5, size * 0.35),
+                        new Vector2(-size * 0.8, size * 0.3)
+                };
+                Convex power = Geometry.createPolygon(powerPack);
+
+                yield List.of(chassis, armLU, armRU, armLL, armRL, sensorArray, legL, legR, power);
+            }
 
             // Scout Drone - X-shaped quadcopter with 4 rotors
             case SCOUT_DRONE -> {
