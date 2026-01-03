@@ -398,7 +398,7 @@ public class WeaponFactory {
                 120.0, // damage (heavy anti-air)
                 450.0, // range (very long - weather radar targeting)
                 0.5,   // attack rate (2 shots per second - rapid flak)
-                500.0, // projectile speed (fast flak)
+                700.0, // projectile speed (fast flak)
                 0.2,   // damping
                 6.0,   // size (large flak burst)
                 Ordinance.FLAK,

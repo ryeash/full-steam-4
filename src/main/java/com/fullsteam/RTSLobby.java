@@ -381,15 +381,23 @@ public class RTSLobby {
                 }
             }
 
-            // Remove old matchmaking games that never filled
+            // Remove old matchmaking games that never filled OR have finished
             List<String> oldMatchmakingGames = new ArrayList<>();
             long now = System.currentTimeMillis();
             for (Map.Entry<String, MatchmakingGame> entry : matchmakingGames.entrySet()) {
                 MatchmakingGame mmGame = entry.getValue();
-                // Remove if older than 10 minutes and not full
-                if (now - mmGame.getCreatedTime() > 600000 && !mmGame.isReady()) {
+                RTSGameManager game = activeGames.get(entry.getKey());
+                
+                // Remove if:
+                // 1. Older than 10 minutes and not full (stale waiting games), OR
+                // 2. The associated game is over (finished games)
+                if ((now - mmGame.getCreatedTime() > 600000 && !mmGame.isReady()) ||
+                    (game != null && game.isGameOver())) {
                     oldMatchmakingGames.add(entry.getKey());
-                    log.info("Removing stale matchmaking game: {}", entry.getKey());
+                    log.info("Removing matchmaking entry for game: {} (stale={}, gameOver={})", 
+                            entry.getKey(), 
+                            !mmGame.isReady(), 
+                            game != null && game.isGameOver());
                 }
             }
 
