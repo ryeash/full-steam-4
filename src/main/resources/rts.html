@@ -139,7 +139,27 @@
             color: white;
             pointer-events: all;
             min-width: 250px;
+            max-width: 350px;
             display: none;
+        }
+        
+        /* Custom scrollbar for unit info panel */
+        #unit-info-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #unit-info-panel::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+        }
+        
+        #unit-info-panel::-webkit-scrollbar-thumb {
+            background: #00AAFF;
+            border-radius: 4px;
+        }
+        
+        #unit-info-panel::-webkit-scrollbar-thumb:hover {
+            background: #0088DD;
         }
         
         .unit-name {
@@ -209,7 +229,8 @@
         }
         
         .build-button {
-            display: block;
+            display: block !important;
+            visibility: visible !important;
             width: 100%;
             padding: 10px;
             margin: 5px 0;
@@ -220,6 +241,7 @@
             cursor: pointer;
             transition: all 0.2s;
             text-align: left;
+            min-height: 40px;
         }
         
         .build-button:hover {
@@ -242,6 +264,258 @@
         .build-cost {
             color: #00FF00;
             font-size: 12px;
+        }
+        
+        /* Research Tree Modal */
+        #research-tree-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 9000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: all;
+        }
+        
+        .research-modal-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 3px solid #00CED1;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1200px;
+            height: 85%;
+            max-height: 800px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 40px rgba(0, 206, 209, 0.5);
+            pointer-events: all;
+        }
+        
+        .research-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            border-bottom: 2px solid #00CED1;
+            background: rgba(0, 206, 209, 0.1);
+        }
+        
+        .research-modal-header h2 {
+            margin: 0;
+            color: #00CED1;
+            font-size: 28px;
+            text-shadow: 0 0 10px rgba(0, 206, 209, 0.8);
+        }
+        
+        .research-modal-close {
+            background: #FF4444;
+            border: 2px solid #FF6666;
+            color: white;
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        
+        .research-modal-close:hover {
+            background: #FF6666;
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(255, 68, 68, 0.8);
+        }
+        
+        .research-category-tabs {
+            display: flex;
+            gap: 10px;
+            padding: 15px 30px;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 2px solid #333;
+        }
+        
+        .research-tab {
+            flex: 1;
+            padding: 12px 20px;
+            background: #2a2a3e;
+            border: 2px solid #444;
+            border-radius: 8px;
+            color: #AAA;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .research-tab:hover {
+            background: #3a3a4e;
+            border-color: #666;
+            color: #FFF;
+            transform: translateY(-2px);
+        }
+        
+        .research-tab.active {
+            background: linear-gradient(135deg, #00CED1 0%, #1E90FF 100%);
+            border-color: #00CED1;
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 206, 209, 0.4);
+        }
+        
+        .research-tree-container {
+            flex: 1;
+            position: relative;
+            overflow: auto;
+            padding: 30px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+        
+        #research-nodes-container {
+            position: relative;
+            min-height: 600px;
+        }
+        
+        .research-node {
+            position: absolute;
+            width: 200px;
+            padding: 15px;
+            background: #2a2a3e;
+            border: 3px solid #444;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        .research-node:hover {
+            transform: scale(1.05);
+            z-index: 100;
+        }
+        
+        .research-node.completed {
+            background: linear-gradient(135deg, #1a4d1a 0%, #2d7a2d 100%);
+            border-color: #4CAF50;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.6);
+        }
+        
+        .research-node.available {
+            background: linear-gradient(135deg, #1a3a4d 0%, #2d5a7a 100%);
+            border-color: #00CED1;
+            box-shadow: 0 0 20px rgba(0, 206, 209, 0.4);
+        }
+        
+        .research-node.researching {
+            background: linear-gradient(135deg, #4d4d1a 0%, #7a7a2d 100%);
+            border-color: #FFD700;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+            animation: pulse 2s infinite;
+        }
+        
+        .research-node.locked {
+            background: #1a1a1a;
+            border-color: #333;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.6); }
+            50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.9); }
+        }
+        
+        .research-node-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .research-node-icon {
+            font-size: 24px;
+        }
+        
+        .research-node-title {
+            font-weight: bold;
+            font-size: 14px;
+            color: white;
+            flex: 1;
+        }
+        
+        .research-node-effect {
+            font-size: 12px;
+            color: #AAA;
+            margin-bottom: 8px;
+        }
+        
+        .research-node-cost {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #FFD700;
+        }
+        
+        .research-node-status {
+            margin-top: 8px;
+            padding: 5px;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .research-node-status.completed {
+            background: rgba(76, 175, 80, 0.3);
+            color: #4CAF50;
+        }
+        
+        .research-node-status.available {
+            background: rgba(0, 206, 209, 0.3);
+            color: #00CED1;
+        }
+        
+        .research-node-status.researching {
+            background: rgba(255, 215, 0, 0.3);
+            color: #FFD700;
+        }
+        
+        .research-node-status.locked {
+            background: rgba(255, 68, 68, 0.3);
+            color: #FF4444;
+        }
+        
+        .research-node-progress {
+            margin-top: 8px;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .research-node-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #FFD700, #FFA500);
+            transition: width 0.3s;
+        }
+        
+        .research-modal-footer {
+            padding: 15px 30px;
+            border-top: 2px solid #333;
+            background: rgba(0, 0, 0, 0.3);
+            min-height: 60px;
+        }
+        
+        #research-tooltip {
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #00CED1;
+            border-radius: 8px;
+            padding: 15px;
+            color: white;
         }
         
         /* Loading Screen */
@@ -279,11 +553,11 @@
             transition: width 0.3s ease;
         }
     </style>
-        <script src="js/rts/RTSEngine.js?v=68"></script>
+    <script src="js/rts/RTSEngine.js?v=68"></script>
     <script type="text/javascript">
         window.addEventListener('load', () => {
             try {
-                new RTSEngine();
+                window.rtsEngine = new RTSEngine();
             } catch (error) {
                 console.error('Failed to initialize RTS game:', error);
                 document.getElementById('loading-status').textContent = 'Failed to load game: ' + error.message;
@@ -302,12 +576,11 @@
             <div id="loading-status">Initializing...</div>
         </div>
     </div>
-    
+
     <div id="rts-ui" style="display: none;">
         <!-- Resource Panel -->
         <div id="resource-panel">
             <div class="resource-item">
-                <span class="resource-label">Player:</span>
                 <span class="resource-value" id="player-info">-</span>
             </div>
             <div class="resource-item">
@@ -323,10 +596,10 @@
                 <span class="resource-value" id="power-value">0/0</span>
             </div>
         </div>
-        
+
         <!-- Game Event Feed -->
         <div id="event-feed"></div>
-        
+
         <!-- Unit Info Panel -->
         <div id="unit-info-panel" style="display: none;">
             <!-- Single unit display -->
@@ -348,77 +621,64 @@
                     <span id="unit-ability-name">-</span>
                 </div>
             </div>
-            
+
             <!-- Multiple units display -->
             <div id="multi-unit-info" style="display: none;">
                 <div class="unit-name">Multiple Units Selected</div>
                 <div id="unit-count-list"></div>
             </div>
         </div>
-        
-        <!-- Build Menu -->
+
+        <!-- Build Menu (dynamically generated based on faction) -->
         <div id="build-menu">
             <div class="build-menu-title">Build Menu</div>
-            
-            <!-- Tier 1 Buildings -->
-            <div class="build-category">Basic</div>
-            <button class="build-button" data-building="POWER_PLANT">
-                ⚡ Power Plant <span class="build-cost">(250)</span>
-            </button>
-            <button class="build-button" data-building="BARRACKS">
-                🏰 Barracks <span class="build-cost">(200)</span>
-            </button>
-            <button class="build-button" data-building="REFINERY">
-                🏭 Refinery <span class="build-cost">(300)</span>
-            </button>
-            <button class="build-button" data-building="WALL">
-                🧱 Wall <span class="build-cost">(50)</span>
-            </button>
-            
-            <!-- Tier 2 Buildings -->
-            <div class="build-category">Advanced (T2)</div>
-            <button class="build-button" data-building="RESEARCH_LAB">
-                🔬 Research Lab <span class="build-cost">(500)</span>
-            </button>
-            <button class="build-button" data-building="FACTORY">
-                🚗 Factory <span class="build-cost">(400)</span>
-            </button>
-            <button class="build-button" data-building="WEAPONS_DEPOT">
-                🔫 Weapons Depot <span class="build-cost">(400)</span>
-            </button>
-            <button class="build-button" data-building="TURRET">
-                🎯 Turret <span class="build-cost">(250)</span>
-            </button>
-            <button class="build-button" data-building="SHIELD_GENERATOR">
-                🛡️ Shield Generator <span class="build-cost">(400)</span>
-            </button>
-            
-            <!-- Tier 3 Buildings -->
-            <div class="build-category">Elite (T3)</div>
-            <button class="build-button" data-building="TECH_CENTER">
-                🧪 Tech Center <span class="build-cost">(800)</span>
-            </button>
-            <button class="build-button" data-building="ADVANCED_FACTORY">
-                🏭 Advanced Factory <span class="build-cost">(1000)</span>
-            </button>
-            <button class="build-button" data-building="BANK">
-                💰 Bank <span class="build-cost">(600)</span>
-            </button>
+            <!-- Buildings will be populated dynamically when faction data loads -->
         </div>
-        
+
+        <!-- Research Tree Modal -->
+        <div id="research-tree-modal" style="display: none;">
+            <div class="research-modal-content">
+                <div class="research-modal-header">
+                    <h2>🔬 Research Tree</h2>
+                    <button class="research-modal-close" onclick="window.rtsEngine.closeResearchTreeModal()">✕</button>
+                </div>
+
+                <div class="research-category-tabs">
+                    <button class="research-tab active" data-category="UNITS">🎖️ Units</button>
+                    <button class="research-tab" data-category="COMBAT">🗡️ Combat</button>
+                    <button class="research-tab" data-category="DEFENSE">🛡️ Defense</button>
+                    <button class="research-tab" data-category="MOBILITY">⚡ Mobility</button>
+                    <button class="research-tab" data-category="ECONOMY">💰 Economy</button>
+                    <button class="research-tab" data-category="SPECIAL">✨ Special</button>
+                </div>
+
+                <div class="research-tree-container">
+                    <div id="research-nodes-container"></div>
+                </div>
+
+                <div class="research-modal-footer">
+                    <div id="research-tooltip" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- Game Over Screen -->
-        <div id="game-over-screen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 10000; justify-content: center; align-items: center; pointer-events: all;">
+        <div id="game-over-screen"
+             style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 10000; justify-content: center; align-items: center; pointer-events: all;">
             <div style="text-align: center; color: white; pointer-events: all;">
-                <h1 id="game-over-title" style="font-size: 72px; margin-bottom: 20px; text-shadow: 0 0 20px currentColor;">VICTORY</h1>
+                <h1 id="game-over-title"
+                    style="font-size: 72px; margin-bottom: 20px; text-shadow: 0 0 20px currentColor;">VICTORY</h1>
                 <p id="game-over-winner" style="font-size: 32px; margin-bottom: 20px; font-weight: bold;"></p>
-                <p id="game-over-reason" style="font-size: 24px; margin-bottom: 40px;">You destroyed all enemy headquarters!</p>
-                <button id="play-again-btn" style="padding: 15px 40px; font-size: 20px; background: #FFD700; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; pointer-events: all;">
+                <p id="game-over-reason" style="font-size: 24px; margin-bottom: 40px;">You destroyed all enemy
+                    headquarters!</p>
+                <button id="play-again-btn"
+                        style="padding: 15px 40px; font-size: 20px; background: #FFD700; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; pointer-events: all;">
                     Play Again
                 </button>
             </div>
         </div>
     </div>
-    
+
     <div id="pixi-container"></div>
 </div>
 </body>

@@ -1,0 +1,156 @@
+{
+  "faction": "STORM_WINGS",
+  "starterUnits": ["WORKER", "INFANTRY", "JEEP", "SCOUT_DRONE"],
+  
+  "infantryNodes": [
+    {
+      "id": "SW_INF_MEDIC",
+      "displayName": "Field Medic Training",
+      "description": "Unlock Medic units for infantry support",
+      "unitToUnlock": "MEDIC",
+      "unitToReplace": null,
+      "creditCost": 250,
+      "researchTimeSeconds": 35,
+      "tier": "BASIC",
+      "category": "INFANTRY",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "SW_INF_ENGINEER",
+      "displayName": "Engineering Corps",
+      "description": "Unlock Engineer units for repairs",
+      "unitToUnlock": "ENGINEER",
+      "unitToReplace": null,
+      "creditCost": 300,
+      "researchTimeSeconds": 40,
+      "tier": "BASIC",
+      "category": "INFANTRY",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "SW_INF_ROCKET_SOLDIER",
+      "displayName": "Air Defense Infantry",
+      "description": "Unlock Rocket Soldiers for anti-air defense",
+      "unitToUnlock": "ROCKET_SOLDIER",
+      "unitToReplace": null,
+      "creditCost": 400,
+      "researchTimeSeconds": 50,
+      "tier": "BASIC",
+      "category": "INFANTRY",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    }
+  ],
+  
+  "vehicleNodes": [
+    {
+      "id": "SW_VEH_TANK",
+      "displayName": "Ground Support Tank",
+      "description": "Unlock basic tank units",
+      "unitToUnlock": "TANK",
+      "unitToReplace": null,
+      "creditCost": 450,
+      "researchTimeSeconds": 55,
+      "tier": "BASIC",
+      "category": "VEHICLE",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "SW_VEH_FLAK_TANK",
+      "displayName": "Mobile AA Platform",
+      "description": "Unlock Flak Tanks for mobile air defense",
+      "unitToUnlock": "FLAK_TANK",
+      "unitToReplace": null,
+      "creditCost": 500,
+      "researchTimeSeconds": 60,
+      "tier": "ADVANCED",
+      "category": "VEHICLE",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    }
+  ],
+  
+  "flyerNodes": [
+    {
+      "id": "SW_AIR_HELICOPTER",
+      "displayName": "Attack Helicopter",
+      "description": "Unlock versatile attack helicopters",
+      "unitToUnlock": "HELICOPTER",
+      "unitToReplace": null,
+      "creditCost": 450,
+      "researchTimeSeconds": 50,
+      "tier": "BASIC",
+      "category": "FLYER",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "SW_AIR_VTOL_UPGRADE",
+      "displayName": "Advanced VTOL Systems",
+      "description": "Enhance VTOL capabilities",
+      "unitToUnlock": null,
+      "unitToReplace": null,
+      "creditCost": 600,
+      "researchTimeSeconds": 70,
+      "tier": "ADVANCED",
+      "category": "FLYER",
+      "prerequisiteIds": ["SW_AIR_HELICOPTER"],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "SW_AIR_GUNSHIP",
+      "displayName": "Elite Gunship",
+      "description": "Unlock the Gunship - elite heavy attack helicopter",
+      "unitToUnlock": "GUNSHIP",
+      "unitToReplace": null,
+      "creditCost": 1200,
+      "researchTimeSeconds": 120,
+      "tier": "ELITE",
+      "category": "FLYER",
+      "prerequisiteIds": ["SW_AIR_VTOL_UPGRADE", "SW_AIR_HELICOPTER"],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "SW_AIR_FIXED_WING",
+      "displayName": "Fixed-Wing Aircraft",
+      "description": "Unlock fixed-wing aircraft technology",
+      "unitToUnlock": null,
+      "unitToReplace": null,
+      "creditCost": 550,
+      "researchTimeSeconds": 65,
+      "tier": "ADVANCED",
+      "category": "FLYER",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "SW_AIR_BOMBER",
+      "displayName": "Strategic Bomber",
+      "description": "Unlock heavy bombing aircraft",
+      "unitToUnlock": "BOMBER",
+      "unitToReplace": null,
+      "creditCost": 650,
+      "researchTimeSeconds": 75,
+      "tier": "ADVANCED",
+      "category": "FLYER",
+      "prerequisiteIds": ["SW_AIR_FIXED_WING"],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "SW_AIR_INTERCEPTOR",
+      "displayName": "Air Superiority Fighter",
+      "description": "Unlock elite interceptor aircraft",
+      "unitToUnlock": "INTERCEPTOR",
+      "unitToReplace": null,
+      "creditCost": 700,
+      "researchTimeSeconds": 80,
+      "tier": "ELITE",
+      "category": "FLYER",
+      "prerequisiteIds": ["SW_AIR_FIXED_WING"],
+      "mutuallyExclusiveIds": []
+    }
+  ]
+}

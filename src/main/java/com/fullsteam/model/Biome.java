@@ -10,51 +10,51 @@ import lombok.Getter;
 public enum Biome {
     GRASSLAND(
             "Grassland",
-            0x4A7C2C,  // Ground color: green
-            0x2D5016,  // Obstacle color: dark green (trees)
+            0x3A5A24,  // Ground color: muted olive green (was 0x4A7C2C)
+            0x2A4418,  // Obstacle color: dark muted green (trees)
             ObstacleType.TREE,
             "A lush grassland with scattered trees"
     ),
-    
+
     DESERT(
             "Desert",
-            0xC2B280,  // Ground color: sandy tan
-            0x8B7355,  // Obstacle color: brown (rocks)
+            0xA89968,  // Ground color: muted sandy tan (was 0xC2B280)
+            0x7A6348,  // Obstacle color: muted brown (rocks)
             ObstacleType.ROCK,
             "A harsh desert with rocky outcrops"
     ),
-    
+
     SNOW(
             "Snow",
-            0xE8F4F8,  // Ground color: light blue-white
-            0x4A5F6A,  // Obstacle color: dark blue-gray (ice/rocks)
+            0xC8D4D8,  // Ground color: muted blue-white (was 0xE8F4F8)
+            0x3A4F5A,  // Obstacle color: muted blue-gray (ice/rocks)
             ObstacleType.ICE,
             "A frozen tundra with ice formations"
     ),
-    
+
     VOLCANIC(
             "Volcanic",
-            0x3A3A3A,  // Ground color: dark gray
-            0x8B0000,  // Obstacle color: dark red (lava rocks)
+            0x2A2A2A,  // Ground color: darker gray (was 0x3A3A3A)
+            0x6B0000,  // Obstacle color: muted dark red (lava rocks)
             ObstacleType.LAVA_ROCK,
             "A volcanic wasteland with lava rocks"
     ),
-    
+
     URBAN(
             "Urban",
-            0x505050,  // Ground color: gray (concrete)
-            0x696969,  // Obstacle color: darker gray (rubble)
+            0x404040,  // Ground color: muted gray (concrete)
+            0x595959,  // Obstacle color: muted darker gray (rubble)
             ObstacleType.RUBBLE,
             "A ruined city with debris and rubble"
     );
-    
+
     private final String displayName;
     private final int groundColor;
     private final int obstacleColor;
     private final ObstacleType obstacleType;
     private final String description;
-    
-    Biome(String displayName, int groundColor, int obstacleColor, 
+
+    Biome(String displayName, int groundColor, int obstacleColor,
           ObstacleType obstacleType, String description) {
         this.displayName = displayName;
         this.groundColor = groundColor;
@@ -62,7 +62,7 @@ public enum Biome {
         this.obstacleType = obstacleType;
         this.description = description;
     }
-    
+
     /**
      * Obstacle types for different biomes
      */

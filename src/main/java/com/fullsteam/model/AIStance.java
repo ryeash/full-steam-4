@@ -13,31 +13,31 @@ public enum AIStance {
             true,
             true
     ),
-    
+
     DEFENSIVE(
             "Defensive",
             "Automatically attacks enemies in vision range but stays near original position",
             true,
             false
     ),
-    
+
     PASSIVE(
             "Passive",
             "Does not automatically attack, only responds to direct commands",
             false,
             false
     );
-    
+
     private final String displayName;
     private final String description;
     private final boolean autoAttack;
-    private final boolean pursuEnemies;
-    
-    AIStance(String displayName, String description, boolean autoAttack, boolean pursuEnemies) {
+    private final boolean pursueEnemies;
+
+    AIStance(String displayName, String description, boolean autoAttack, boolean pursueEnemies) {
         this.displayName = displayName;
         this.description = description;
         this.autoAttack = autoAttack;
-        this.pursuEnemies = pursuEnemies;
+        this.pursueEnemies = pursueEnemies;
     }
 }
 

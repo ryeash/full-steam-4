@@ -1,5 +1,6 @@
 package com.fullsteam.model;
 
+import com.fullsteam.games.IdGenerator;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -12,40 +13,47 @@ import org.dyn4j.geometry.Vector2;
 /**
  * Represents a wall segment that connects two wall posts.
  * Wall segments are automatically created when two wall posts are close enough together.
+ * Wall segments are destructible entities that can be targeted and destroyed.
  */
 @Slf4j
 @Getter
 @Setter
-public class WallSegment {
-    private final int id;
+public class WallSegment extends GameEntity implements Targetable {
     private final int ownerId;
     private final int teamNumber;
     private final Building post1;
     private final Building post2;
-    private final Body body;
-
-    private double health;
-    private double maxHealth;
-    private boolean active = true;
 
     // Wall segment dimensions
     private static final double WALL_THICKNESS = 8.0;
 
-    public WallSegment(int id, Building post1, Building post2, int ownerId, int teamNumber) {
-        this.id = id;
+    public WallSegment(Building post1, Building post2, int ownerId, int teamNumber) {
+        super(IdGenerator.nextEntityId(), createWallBody(post1, post2), calculateWallHealth(post1, post2));
+
         this.post1 = post1;
         this.post2 = post2;
         this.ownerId = ownerId;
         this.teamNumber = teamNumber;
 
-        // Calculate wall segment properties
+        log.debug("Created wall segment {} connecting posts {} and {} (length: {}, health: {})",
+                id, post1.getId(), post2.getId(), getLength(), maxHealth);
+    }
+
+    /**
+     * Calculate wall health based on length (10 HP per unit of length)
+     */
+    private static double calculateWallHealth(Building post1, Building post2) {
+        double length = post1.getPosition().distance(post2.getPosition());
+        return length * 10.0;
+    }
+
+    /**
+     * Create the physics body for the wall segment
+     */
+    private static Body createWallBody(Building post1, Building post2) {
         Vector2 pos1 = post1.getPosition();
         Vector2 pos2 = post2.getPosition();
         double length = pos1.distance(pos2);
-
-        // Health scales with length (10 HP per unit of length)
-        this.maxHealth = length * 10.0;
-        this.health = maxHealth;
 
         // Create physics body
         Vector2 midpoint = new Vector2(
@@ -53,7 +61,7 @@ public class WallSegment {
                 (pos1.y + pos2.y) / 2.0
         );
 
-        this.body = new Body();
+        Body body = new Body();
 
         // Create rectangle fixture for the wall segment
         BodyFixture fixture = body.addFixture(new Rectangle(length, WALL_THICKNESS));
@@ -72,24 +80,7 @@ public class WallSegment {
         body.rotate(angle);
         body.translate(midpoint);
 
-        body.setUserData(this);
-
-        log.debug("Created wall segment {} connecting posts {} and {} (length: {}, health: {})",
-                id, post1.getId(), post2.getId(), length, maxHealth);
-    }
-
-    /**
-     * Get the position of this wall segment (midpoint)
-     */
-    public Vector2 getPosition() {
-        return body.getTransform().getTranslation();
-    }
-
-    /**
-     * Get the rotation of this wall segment
-     */
-    public double getRotation() {
-        return body.getTransform().getRotationAngle();
+        return body;
     }
 
     /**
@@ -100,23 +91,15 @@ public class WallSegment {
     }
 
     /**
-     * Take damage and return true if destroyed
+     * Take damage (overrides GameEntity method)
+     * Logs when wall segment is destroyed
      */
-    public boolean takeDamage(double amount) {
+    @Override
+    public void takeDamage(double amount) {
+        super.takeDamage(amount);
         if (!active) {
-            return true;
-        }
-
-        health -= amount;
-
-        if (health <= 0) {
-            health = 0;
-            active = false;
             log.debug("Wall segment {} destroyed", id);
-            return true;
         }
-
-        return false;
     }
 
     /**
@@ -132,5 +115,20 @@ public class WallSegment {
     public boolean hasDestroyedPost() {
         return !post1.isActive() || !post2.isActive();
     }
+
+    // ==================== Targetable Interface Implementation ====================
+
+    @Override
+    public Elevation getElevation() {
+        return Elevation.GROUND; // Walls are always at ground level
+    }
+
+    @Override
+    public double getTargetSize() {
+        return 10.0; // Wall segment "thickness" for targeting
+    }
+
+    // Note: getId(), getPosition(), getRotation(), isActive(), takeDamage(), 
+    // getHealth(), getMaxHealth() are inherited from GameEntity
 }
 

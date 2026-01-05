@@ -1,5 +1,6 @@
 package com.fullsteam.model;
 
+import com.fullsteam.model.weapon.ElevationTargeting;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.dynamics.Body;
@@ -25,11 +26,23 @@ public abstract class AbstractOrdinance extends GameEntity {
     protected double size; // Visual size
     protected boolean active = true;
     protected Set<Integer> affectedEntities = new HashSet<>(); // For piercing/multi-hit tracking
-    
-    public AbstractOrdinance(int id, Body body, int ownerId, int ownerTeam, 
-                            Vector2 origin, double damage, 
-                            Set<BulletEffect> bulletEffects, 
-                            Ordinance ordinanceType, double size) {
+    protected ElevationTargeting elevationTargeting; // Which elevations this ordinance can hit
+
+    /**
+     * The elevation this ordinance is flying at.
+     * This determines which objects it can collide with:
+     * - GROUND ordinance hits ground units, buildings, obstacles, walls
+     * - LOW ordinance hits low-altitude aircraft only
+     * - HIGH ordinance hits high-altitude aircraft only
+     */
+    protected Elevation currentElevation;
+
+    public AbstractOrdinance(int id, Body body, int ownerId, int ownerTeam,
+                             Vector2 origin, double damage,
+                             Set<BulletEffect> bulletEffects,
+                             Ordinance ordinanceType, double size,
+                             ElevationTargeting elevationTargeting,
+                             Elevation currentElevation) {
         super(id, body, 0);
         this.id = id;
         this.ownerId = ownerId;
@@ -39,41 +52,13 @@ public abstract class AbstractOrdinance extends GameEntity {
         this.bulletEffects = bulletEffects != null ? new HashSet<>(bulletEffects) : new HashSet<>();
         this.ordinanceType = ordinanceType;
         this.size = size;
+        this.elevationTargeting = elevationTargeting != null ? elevationTargeting : ElevationTargeting.GROUND_ONLY;
+        this.currentElevation = currentElevation != null ? currentElevation : Elevation.GROUND;
     }
-    
+
     /**
      * Update the ordinance state
-     * @param deltaTime Time since last update
      */
-    public abstract void update(double deltaTime);
-    
-    /**
-     * Check if this ordinance has a specific bullet effect
-     */
-    public boolean hasEffect(BulletEffect effect) {
-        return bulletEffects.contains(effect);
-    }
-    
-    /**
-     * Check if this ordinance has already affected a specific entity
-     * Used for piercing weapons to track what they've hit
-     */
-    public boolean hasAffectedEntity(int entityId) {
-        return affectedEntities.contains(entityId);
-    }
-    
-    /**
-     * Mark an entity as affected by this ordinance
-     */
-    public void markEntityAffected(int entityId) {
-        affectedEntities.add(entityId);
-    }
-    
-    /**
-     * Deactivate this ordinance
-     */
-    public void deactivate() {
-        this.active = false;
-    }
+    public abstract void update(GameEntities gameEntities);
 }
 

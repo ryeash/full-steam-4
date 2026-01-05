@@ -1,17 +1,30 @@
 package com.fullsteam.model;
 
+import com.fullsteam.model.component.AndroidFactoryComponent;
+import com.fullsteam.model.component.BankComponent;
+import com.fullsteam.model.component.DefenseComponent;
+import com.fullsteam.model.component.GarrisonComponent;
+import com.fullsteam.model.component.HangarComponent;
+import com.fullsteam.model.component.IBuildingComponent;
+import com.fullsteam.model.component.ProductionComponent;
+import com.fullsteam.model.component.ResearchComponent;
+import com.fullsteam.model.component.SandstormComponent;
+import com.fullsteam.model.component.ShieldComponent;
+import com.fullsteam.model.research.ResearchModifier;
+import com.fullsteam.model.weapon.WeaponFactory;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.dyn4j.dynamics.Body;
-import org.dyn4j.geometry.Geometry;
+import org.dyn4j.dynamics.BodyFixture;
+import org.dyn4j.geometry.Convex;
 import org.dyn4j.geometry.MassType;
 import org.dyn4j.geometry.Vector2;
 
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.Set;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Represents a building in the RTS game.
@@ -19,165 +32,247 @@ import java.util.Set;
 @Slf4j
 @Getter
 @Setter
-public class Building extends GameEntity {
+public class Building extends GameEntity implements Targetable {
     private final BuildingType buildingType;
     private final int ownerId; // Player who owns this building
     private final int teamNumber;
-    
+    private final PlayerFaction faction; // Reference to owner's faction for dynamic stat calculations
+
+    // Component system for modular building behavior
+    private final Map<Class<? extends IBuildingComponent>, IBuildingComponent> components = new HashMap<>();
+
     // Construction state
     private boolean underConstruction = true;
     private double constructionProgress = 0; // 0 to maxHealth
-    
-    // Production queue (for buildings that produce units)
-    private final Queue<ProductionOrder> productionQueue = new LinkedList<>();
-    private ProductionOrder currentProduction = null;
-    private double productionProgress = 0; // seconds
-    
-    // Turret behavior (for defensive buildings)
-    private Unit targetUnit = null;
-    private long lastAttackTime = 0;
-    private static final double TURRET_DAMAGE = 25;
-    private static final double TURRET_ATTACK_RATE = 2.0; // attacks per second
-    private static final double TURRET_RANGE = 300;
-    
-    // Rally point for produced units
-    private Vector2 rallyPoint = null;
-    
-    // Shield Generator fields
-    private Body shieldSensorBody = null;
-    private boolean shieldActive = false;
-    private static final double SHIELD_RADIUS = 200.0; // Shield projection radius
-    
-    // Bank fields
-    private double bankInterestTimer = 0; // Time accumulator for interest payments
-    private static final double BANK_INTEREST_INTERVAL = 30.0; // Pay interest every 30 seconds
-    private static final double BANK_INTEREST_RATE = 0.02; // 2% interest per interval
-    
-    public Building(int id, BuildingType buildingType, double x, double y, int ownerId, int teamNumber) {
-        this(id, buildingType, x, y, ownerId, teamNumber, buildingType.getMaxHealth());
-    }
-    
+
+    // Monument aura fields
+    private static final int COMMAND_CITADEL_UPKEEP_BONUS = 50; // +50 max upkeep
+
     /**
      * Constructor with custom max health (for faction modifiers)
      */
-    public Building(int id, BuildingType buildingType, double x, double y, int ownerId, int teamNumber, double maxHealth) {
+    public Building(int id, GameEntities gameEntities, BuildingType buildingType, double x, double y, int ownerId, int teamNumber, PlayerFaction faction, double maxHealth) {
         super(id, createBuildingBody(x, y, buildingType), maxHealth);
         this.buildingType = buildingType;
         this.ownerId = ownerId;
         this.teamNumber = teamNumber;
-        
+        this.faction = faction;
+
         // Headquarters starts fully constructed
         if (buildingType == BuildingType.HEADQUARTERS) {
             underConstruction = false;
             constructionProgress = maxHealth;
             health = maxHealth;
         } else {
-            health = 1; // Buildings start with minimal health during construction
+            // Buildings start with minimal health and construction progress during construction
+            // Must be > 0 to stay active and be targetable
+            health = 1;
+            constructionProgress = 1;
+        }
+
+        // Initialize components based on building type
+        initializeComponents(gameEntities);
+    }
+
+    /**
+     * Initialize components based on building type.
+     * This method adds the appropriate components to buildings that need them.
+     */
+    private void initializeComponents(GameEntities gameEntities) {
+        // Add ProductionComponent to buildings that can produce units (except Android Factory and Hangar)
+        // Android Factory uses AndroidFactoryComponent for autonomous production
+        // Hangar uses HangarComponent for bomber production (one bomber per hangar)
+        if (buildingType.isCanProduceUnits()
+                && buildingType != BuildingType.ANDROID_FACTORY
+                && buildingType != BuildingType.HANGAR) {
+            addComponent(new ProductionComponent(null));
+            log.debug("Building {} ({}) initialized with ProductionComponent", id, buildingType.getDisplayName());
+        }
+
+        if (buildingType == BuildingType.BANK) {
+            addComponent(new BankComponent());
+            log.debug("Building {} ({}) initialized with BankComponent", id, buildingType.getDisplayName());
+        }
+
+        if (buildingType == BuildingType.TURRET) {
+            addComponent(new DefenseComponent(WeaponFactory.getTurretWeapon()));
+            log.debug("Building {} ({}) initialized with DefenseComponent", id, buildingType.getDisplayName());
+        }
+
+        if (buildingType == BuildingType.ROCKET_TURRET) {
+            addComponent(new DefenseComponent(WeaponFactory.getRocketTurretWeapon()));
+            log.debug("Building {} ({}) initialized with DefenseComponent (Rocket)", id, buildingType.getDisplayName());
+        }
+
+        if (buildingType == BuildingType.LASER_TURRET) {
+            addComponent(new DefenseComponent(WeaponFactory.getLaserTurretWeapon()));
+            log.debug("Building {} ({}) initialized with DefenseComponent (Laser)", id, buildingType.getDisplayName());
+        }
+
+        if (buildingType == BuildingType.PHOTON_SPIRE) {
+            addComponent(new DefenseComponent(WeaponFactory.getPhotonSpireWeapon()));
+            log.debug("Building {} ({}) initialized with DefenseComponent", id, buildingType.getDisplayName());
+        }
+
+        if (buildingType == BuildingType.SHIELD_GENERATOR) {
+            addComponent(new ShieldComponent());
+            log.debug("Building {} ({}) initialized with ShieldComponent", id, buildingType.getDisplayName());
+        }
+
+        if (buildingType == BuildingType.ANDROID_FACTORY) {
+            addComponent(new AndroidFactoryComponent());
+            log.debug("Building {} ({}) initialized with AndroidFactoryComponent", id, buildingType.getDisplayName());
+        }
+
+        if (buildingType == BuildingType.RESEARCH_LAB || buildingType == BuildingType.TECH_CENTER) {
+            addComponent(new ResearchComponent(this));
+            log.debug("Building {} ({}) initialized with ResearchComponent", id, buildingType.getDisplayName());
+        }
+
+        if (buildingType == BuildingType.SANDSTORM_GENERATOR) {
+            addComponent(new SandstormComponent());
         }
         
-        // Set rally point to building position by default
-        this.rallyPoint = new Vector2(x, y);
+        // Tempest Spire (Storm Wings monument) - Anti-air defense tower
+        if (buildingType == BuildingType.TEMPEST_SPIRE) {
+            addComponent(new DefenseComponent(WeaponFactory.getTempestSpireWeapon()));
+            log.debug("Building {} ({}) initialized with DefenseComponent (anti-air)", id, buildingType.getDisplayName());
+        }
+
+        if (buildingType == BuildingType.BUNKER) {
+            addComponent(new GarrisonComponent(6));
+        }
+
+        if (buildingType == BuildingType.HANGAR) {
+            addComponent(new HangarComponent());
+            log.debug("Building {} ({}) initialized with HangarComponent", id, buildingType.getDisplayName());
+        }
+
+        // More components will be added here as we extract them:
+        // - AuraComponent for monuments
+
+        // initialize each building component
+        components.values().forEach(c -> c.init(gameEntities, this));
     }
-    
+
+    // ============================================================================
+    // Targetable Interface Implementation
+    // ============================================================================
+
+    // getId(), getTeamNumber(), getPosition(), isActive(), getHealth(), getMaxHealth()
+    // are inherited from GameEntity
+
+    /**
+     * Override takeDamage to also reduce construction progress for buildings
+     */
+    @Override
+    public void takeDamage(double damage) {
+        if (!active) {
+            return;
+        }
+
+        health -= damage;
+        constructionProgress -= damage; // Damage also reduces construction progress
+
+        if (health <= 0) {
+            health = 0;
+            active = false;
+        }
+    }
+
+    /**
+     * Implements Targetable - buildings are always at GROUND elevation
+     */
+    @Override
+    public Elevation getElevation() {
+        return Elevation.GROUND;
+    }
+
+    /**
+     * Implements Targetable - returns the building's size as target size
+     */
+    @Override
+    public double getTargetSize() {
+        return buildingType.getSize();
+    }
+
     private static Body createBuildingBody(double x, double y, BuildingType buildingType) {
         Body body = new Body();
-        
-        // Create polygon fixture based on building sides (like units)
-        int sides = buildingType.getSides();
-        double radius = buildingType.getSize();
-        org.dyn4j.geometry.Convex shape = Geometry.createPolygonalCircle(sides, radius);
-        org.dyn4j.dynamics.BodyFixture fixture = body.addFixture(shape);
-        
-        // Configure fixture properties
-        fixture.setFriction(0.1);      // Low friction
-        fixture.setRestitution(0.0);   // No bounce
-        fixture.setSensor(false);      // Solid collision (not a sensor)
-        
+
+        // Use custom physics fixtures from BuildingType (supports multi-fixture compound shapes)
+        List<Convex> shapes = buildingType.createPhysicsFixtures();
+
+        // Add all fixtures to the body
+        for (Convex shape : shapes) {
+            BodyFixture fixture = body.addFixture(shape);
+
+            // Configure fixture properties
+            fixture.setFriction(0.1);      // Low friction
+            fixture.setRestitution(0.0);   // No bounce
+            fixture.setSensor(false);      // Solid collision (not a sensor)
+        }
+
         body.setMass(MassType.INFINITE); // Buildings don't move
         body.getTransform().setTranslation(x, y);
         return body;
     }
-    
+
     @Override
-    public void update(double deltaTime) {
-        update(deltaTime, false); // Default: no low power
+    public void update(GameEntities gameEntities) {
+        update(gameEntities, gameEntities.getWorld().getTimeStep().getDeltaTime(), false); // Default: no low power
     }
-    
+
     /**
      * Update building with power status
      */
-    public void update(double deltaTime, boolean hasLowPower) {
-        super.update(deltaTime);
-        
+    public void update(GameEntities gameEntities, double deltaTime, boolean hasLowPower) {
         if (!active) {
             return;
         }
-        
+
         // Update construction progress
         if (underConstruction) {
             // Construction is handled by worker units
             // Health increases as construction progresses
-            health = constructionProgress;
-            
+            // Ensure health is at least 1 so building stays active and targetable
+            health = Math.max(1, constructionProgress);
+
             if (constructionProgress >= maxHealth) {
-                completeConstruction();
+                completeConstruction(gameEntities);
             }
             return; // Don't do anything else while under construction
         }
-        
-        // Update production queue (only if not low power)
-        if (buildingType.isCanProduceUnits()) {
-            updateProduction(deltaTime, hasLowPower);
-        }
-        
-        // Update turret behavior (projectile firing handled by RTSGameManager)
-        // This just updates targeting and rotation
-        if (buildingType.isDefensive()) {
-            updateTurretBehavior(deltaTime);
-        }
-        
-        // Update shield generator (deactivate if low power)
-        if (buildingType == BuildingType.SHIELD_GENERATOR) {
-            updateShield(hasLowPower);
-        }
-        
-        // Update bank (accumulate interest timer)
-        if (buildingType == BuildingType.BANK && !hasLowPower) {
-            bankInterestTimer += deltaTime;
+
+        // Update all components
+        for (IBuildingComponent component : components.values()) {
+            component.update(hasLowPower);
         }
     }
-    
-    /**
-     * Check if bank is ready to pay interest and reset timer
-     * Returns the interest rate to apply (0.0 if not ready)
-     */
-    public double checkAndResetBankInterest() {
-        if (buildingType != BuildingType.BANK || underConstruction) {
-            return 0.0;
-        }
-        
-        if (bankInterestTimer >= BANK_INTEREST_INTERVAL) {
-            bankInterestTimer = 0;
-            return BANK_INTEREST_RATE;
-        }
-        
-        return 0.0;
-    }
-    
+
     /**
      * Complete construction of this building
+     *
      * @return true if construction was just completed (for triggering post-construction logic)
      */
-    public boolean completeConstruction() {
+    public boolean completeConstruction(GameEntities gameEntities) {
         if (underConstruction) {
             underConstruction = false;
             health = maxHealth;
             constructionProgress = maxHealth;
+
+            // Notify all components that construction is complete
+            for (IBuildingComponent component : components.values()) {
+                component.onConstructionComplete();
+            }
+
+            // Note: Research modifiers are now applied dynamically via getMaxHealth()
+            // No need to retroactively apply them here
+
             return true; // Construction just completed
         }
         return false; // Already completed
     }
-    
+
     /**
      * Add construction progress (called by worker units)
      */
@@ -189,287 +284,194 @@ public class Building extends GameEntity {
         // Update health to match construction progress
         health = constructionProgress;
     }
-    
+
     /**
      * Check if construction is complete
      */
     public boolean isConstructionComplete() {
         return !underConstruction || constructionProgress >= maxHealth;
     }
-    
+
     /**
      * Get construction progress as a percentage
      */
     public double getConstructionPercent() {
         return constructionProgress / maxHealth;
     }
-    
-    /**
-     * Update unit production
-     */
-    private void updateProduction(double deltaTime, boolean hasLowPower) {
-        // Start next production if none active
-        if (currentProduction == null && !productionQueue.isEmpty()) {
-            currentProduction = productionQueue.poll();
-            productionProgress = 0;
-            log.info("Building {} started producing {}", id, currentProduction.unitType);
-        }
-        
-        // Update current production (only if not low power)
-        if (currentProduction != null && !hasLowPower) {
-            productionProgress += deltaTime;
-            
-            // Check if production is complete
-            if (productionProgress >= currentProduction.unitType.getBuildTimeSeconds()) {
-                log.info("Building {} completed producing {} (progress: {}/{})", 
-                        id, currentProduction.unitType, productionProgress, currentProduction.unitType.getBuildTimeSeconds());
-                // Production complete - unit will be spawned by RTSGameManager
-                // Don't clear it here - let getCompletedUnitType() handle it
-            }
-        } else if (hasLowPower && currentProduction != null) {
-            // Production is paused due to low power
-            log.debug("Building {} production paused due to LOW POWER", id);
-        }
-    }
-    
+
+
     /**
      * Queue a unit for production
-     * @return true if successfully queued, false if building can't produce this unit
+     * Note: Validation should be done by the caller (RTSGameManager) using faction tech tree
+     *
+     * @return true if successfully queued
      */
     public boolean queueUnitProduction(UnitType unitType) {
-        if (!buildingType.canProduce(unitType)) {
-            return false;
-        }
-        
-        productionQueue.add(new ProductionOrder(unitType));
-        return true;
+        return getComponent(ProductionComponent.class)
+                .map(p -> p.queueUnitProduction(unitType))
+                .orElse(false);
     }
-    
+
     /**
      * Cancel current production and refund resources
      */
     public UnitType cancelCurrentProduction() {
-        if (currentProduction != null) {
-            UnitType cancelled = currentProduction.unitType;
-            currentProduction = null;
-            productionProgress = 0;
-            return cancelled;
-        }
-        return null;
+        return getComponent(ProductionComponent.class)
+                .map(ProductionComponent::cancelCurrentProduction)
+                .orElse(null);
     }
-    
+
     /**
      * Get production progress as a percentage
      */
     public double getProductionPercent() {
-        if (currentProduction == null) {
-            return 0;
-        }
-        return productionProgress / currentProduction.unitType.getBuildTimeSeconds();
+        return getComponent(ProductionComponent.class)
+                .map(ProductionComponent::getProductionPercent)
+                .orElseGet(() -> getComponent(AndroidFactoryComponent.class)
+                        .map(AndroidFactoryComponent::getProductionProgressPercent)
+                        .orElse(0.0D));
+
     }
-    
+
     /**
      * Get the number of units in the production queue (excluding current production)
      */
     public int getProductionQueueSize() {
-        return productionQueue.size();
+        return getComponent(ProductionComponent.class)
+                .map(ProductionComponent::getProductionQueueSize)
+                .orElse(0);
     }
-    
-    /**
-     * Check if a unit is ready to be spawned
-     */
-    public boolean hasCompletedUnit() {
-        return currentProduction != null && productionProgress >= currentProduction.unitType.getBuildTimeSeconds();
-    }
-    
-    /**
-     * Get the completed unit type and clear production
-     */
-    public UnitType getCompletedUnitType() {
-        if (hasCompletedUnit()) {
-            UnitType completed = currentProduction.unitType;
-            currentProduction = null;
-            productionProgress = 0;
-            return completed;
-        }
-        return null;
-    }
-    
-    /**
-     * Update turret targeting and attack behavior
-     * @return Projectile if fired, null otherwise
-     */
-    public Projectile updateTurretBehavior(double deltaTime) {
-        // Target acquisition is handled by RTSGameManager
-        if (targetUnit != null && targetUnit.isActive()) {
-            Vector2 turretPos = getPosition();
-            Vector2 targetPos = targetUnit.getPosition();
-            double distance = turretPos.distance(targetPos);
-            
-            // Check if target is in range
-            if (distance <= TURRET_RANGE) {
-                // Face target
-                Vector2 direction = targetPos.copy().subtract(turretPos);
-                setRotation(Math.atan2(direction.y, direction.x));
-                
-                // Attack if cooldown is ready
-                long now = System.currentTimeMillis();
-                double attackInterval = 1000.0 / TURRET_ATTACK_RATE;
-                if (now - lastAttackTime >= attackInterval) {
-                    lastAttackTime = now;
-                    return attackTarget();
-                }
-            } else {
-                // Target out of range
-                targetUnit = null;
-            }
-        }
-        return null;
-    }
-    
-    /**
-     * Attack current target - fires a projectile
-     * @return Projectile to be added to world, or null if can't attack
-     */
-    private Projectile attackTarget() {
-        if (targetUnit == null || !targetUnit.isActive()) {
-            return null;
-        }
-        
-        Vector2 turretPos = getPosition();
-        Vector2 targetPos = targetUnit.getPosition();
-        Vector2 direction = targetPos.copy().subtract(turretPos);
-        direction.normalize();
-        
-        // Turrets fire bullets
-        double projectileSpeed = 600;
-        Vector2 velocity = direction.multiply(projectileSpeed);
-        
-        Set<BulletEffect> effects = new HashSet<>();
-        
-        return new Projectile(
-                id,
-                turretPos.x,
-                turretPos.y,
-                velocity.x,
-                velocity.y,
-                TURRET_DAMAGE,
-                TURRET_RANGE,
-                teamNumber,
-                0.2, // linear damping
-                effects,
-                Ordinance.BULLET,
-                3.5 // Building turrets fire medium-sized projectiles
-        );
-    }
-    
+
     /**
      * Set rally point for produced units
      */
     public void setRallyPoint(Vector2 point) {
-        this.rallyPoint = point.copy();
+        getComponent(ProductionComponent.class)
+                .ifPresent(pc -> pc.setRallyPoint(point));
+        getComponent(AndroidFactoryComponent.class)
+                .ifPresent(pc -> pc.setRallyPoint(point));
     }
-    
+
     /**
      * Check if this building belongs to a specific player
      */
     public boolean belongsTo(int playerId) {
         return this.ownerId == playerId;
     }
-    
+
     /**
-     * Check if this building is on a specific team
+     * Check if this is a monument building
      */
-    public boolean isOnTeam(int team) {
-        return this.teamNumber == team;
+    public boolean isMonument() {
+        return buildingType == BuildingType.PHOTON_SPIRE ||
+                buildingType == BuildingType.ANDROID_FACTORY ||
+                buildingType == BuildingType.SANDSTORM_GENERATOR ||
+                buildingType == BuildingType.COMMAND_CITADEL ||
+                buildingType == BuildingType.TEMPEST_SPIRE;
     }
-    
+
     /**
-     * Create shield sensor body for Shield Generator
+     * Get the upkeep bonus from Command Citadel
      */
-    public Body createShieldSensorBody() {
-        if (buildingType != BuildingType.SHIELD_GENERATOR) {
-            return null;
+    public int getUpkeepBonus() {
+        if (buildingType == BuildingType.COMMAND_CITADEL) {
+            return COMMAND_CITADEL_UPKEEP_BONUS;
         }
-        
-        Body sensor = new Body();
-        sensor.addFixture(Geometry.createCircle(SHIELD_RADIUS), 0.0, 0.0, 0.0);
-        sensor.getFixture(0).setSensor(true); // Make it a sensor (no collision response)
-        sensor.setMass(MassType.INFINITE);
-        sensor.getTransform().setTranslation(getPosition().x, getPosition().y);
-        sensor.setUserData(this); // Link back to building
-        
-        return sensor;
+        return 0;
     }
-    
+
     /**
-     * Update shield state (activate/deactivate based on power)
+     * Garrison a unit inside this building (for Bunker)
+     *
+     * @return true if successfully garrisoned, false if full or not allowed
      */
-    private void updateShield(boolean hasLowPower) {
-        boolean shouldBeActive = !hasLowPower && !underConstruction;
-        
-        if (shouldBeActive && !shieldActive) {
-            activateShield();
-        } else if (!shouldBeActive && shieldActive) {
-            deactivateShield();
+    public boolean garrisonUnit(Unit unit) {
+        return getComponent(GarrisonComponent.class)
+                .map(c -> c.garrisonUnit(unit))
+                .orElse(false);
+    }
+
+    /**
+     * Ungarrison a unit from this building
+     *
+     * @param unit The unit to ungarrison (null = ungarrison first unit)
+     * @return The ungarrisoned unit, or null if none available
+     */
+    public Unit ungarrisonUnit(Unit unit) {
+        return getComponent(GarrisonComponent.class)
+                .map(c -> c.ungarrisonUnit(unit))
+                .orElse(null);
+    }
+
+    /**
+     * Un-garrison all units from this building
+     *
+     * @return List of ungarrisoned units
+     */
+    public List<Unit> ungarrisonAllUnits() {
+        return getComponent(GarrisonComponent.class)
+                .map(GarrisonComponent::ungarrisonAllUnits)
+                .orElse(List.of());
+    }
+
+    /**
+     * Get number of garrisoned units
+     */
+    public int getGarrisonCount() {
+        return getComponent(GarrisonComponent.class)
+                .map(GarrisonComponent::getGarrisonCount)
+                .orElse(0);
+    }
+
+    public int getMaxGarrisonCapacity() {
+        return getComponent(GarrisonComponent.class)
+                .map(GarrisonComponent::getMaxGarrisonCapacity)
+                .orElse(0);
+    }
+
+    /**
+     * Add a component to this building.
+     * Components provide modular functionality (production, defense, etc.)
+     *
+     * @param component The component to add
+     * @param <T>       The component type
+     */
+    public <T extends IBuildingComponent> void addComponent(T component) {
+        if (component != null) {
+            components.put(component.getClass(), component);
         }
     }
-    
+
     /**
-     * Activate the shield
+     * Get a component by its class type.
+     *
+     * @param componentClass The class of the component to retrieve
+     * @param <T>            The component type
+     * @return The component, or null if not present
      */
-    public void activateShield() {
-        if (buildingType != BuildingType.SHIELD_GENERATOR || shieldActive) {
-            return;
-        }
-        
-        shieldActive = true;
-        log.debug("Shield activated for building {}", id);
+    public <T extends IBuildingComponent> Optional<T> getComponent(Class<T> componentClass) {
+        return Optional.ofNullable(componentClass.cast(components.get(componentClass)));
     }
-    
-    /**
-     * Deactivate the shield
-     */
-    public void deactivateShield() {
-        if (!shieldActive) {
-            return;
-        }
-        
-        shieldActive = false;
-        log.debug("Shield deactivated for building {}", id);
+
+    public Vector2 getRallyPoint() {
+        return getComponent(ProductionComponent.class)
+                .map(ProductionComponent::getRallyPoint)
+                .or(() -> getComponent(AndroidFactoryComponent.class)
+                        .map(AndroidFactoryComponent::getRallyPoint))
+                .orElse(null);
     }
-    
+
     /**
-     * Check if a position is inside this building's shield
+     * Get effective max health with faction and research modifiers applied.
+     * Overrides GameEntity.getMaxHealth() to apply faction bonuses and research bonuses.
      */
-    public boolean isPositionInsideShield(Vector2 position) {
-        if (!shieldActive || buildingType != BuildingType.SHIELD_GENERATOR) {
-            return false;
-        }
-        
-        double distance = getPosition().distance(position);
-        return distance <= SHIELD_RADIUS;
-    }
-    
-    /**
-     * Get the shield radius
-     */
-    public double getShieldRadius() {
-        return SHIELD_RADIUS;
-    }
-    
-    /**
-     * Represents a unit production order
-     */
-    @Getter
-    public static class ProductionOrder {
-        private final UnitType unitType;
-        private final long queueTime;
-        
-        public ProductionOrder(UnitType unitType) {
-            this.unitType = unitType;
-            this.queueTime = System.currentTimeMillis();
-        }
+    @Override
+    public double getMaxHealth() {
+        // Apply both faction base modifier and research modifiers
+        return buildingType.getMaxHealth() * 
+            faction.getFactionDefinition().getBuildingHealthMultiplier() *
+            faction.getResearchManager().getCumulativeModifier().getBuildingHealthMultiplier();
     }
 }
+
 

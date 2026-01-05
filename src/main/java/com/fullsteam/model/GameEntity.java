@@ -25,14 +25,12 @@ public abstract class GameEntity {
         this.body = body;
         this.health = maxHealth;
         this.maxHealth = maxHealth;
-        
+
         // Configure body if provided
         if (body != null) {
             body.setAtRest(false);
             body.setAtRestDetectionEnabled(false);
             body.setEnabled(true);
-            
-            // Only set userData if it's not already set (Beam uses it to pass data)
             if (body.getUserData() == null) {
                 body.setUserData(this);
             }
@@ -59,17 +57,30 @@ public abstract class GameEntity {
         }
     }
 
-    public void update(double deltaTime) {
+    public void update(GameEntities gameEntities) {
         // default no-op
     }
 
-    public boolean takeDamage(double damage) {
-        boolean wasActive = active;
+    /**
+     * Apply damage to this entity (implements Targetable interface).
+     * Entities become inactive when health drops to or below zero.
+     */
+    public void takeDamage(double damage) {
         health -= damage;
         if (health <= 0) {
             active = false;
         }
-        return wasActive && !active; // Return true if entity became inactive
+    }
+
+    /**
+     * Helper method to apply damage and check if the entity was destroyed.
+     *
+     * @return true if the entity became inactive as a result of this damage
+     */
+    public boolean takeDamageAndCheckDestroyed(double damage) {
+        boolean wasActive = active;
+        takeDamage(damage);
+        return wasActive && !active;
     }
 
     public boolean isExpired() {
@@ -92,6 +103,40 @@ public abstract class GameEntity {
         long totalDuration = expires - created;
         long remainingTime = expires - System.currentTimeMillis();
         return Math.max(0, Math.min(1, (double) remainingTime / totalDuration));
+    }
+
+    /**
+     * Clamp entity position to world boundaries.
+     * This is especially important for air units which can fly over boundary obstacles.
+     * 
+     * @param worldWidth The width of the world
+     * @param worldHeight The height of the world
+     */
+    public void clampToBounds(double worldWidth, double worldHeight) {
+        if (body == null) {
+            return;
+        }
+
+        Vector2 worldCenter = body.getWorldCenter();
+        double halfWidth = worldWidth / 2.0;
+        double halfHeight = worldHeight / 2.0;
+
+        // Calculate clamped position
+        double clampedX = Math.max(-halfWidth, Math.min(halfWidth, worldCenter.x));
+        double clampedY = Math.max(-halfHeight, Math.min(halfHeight, worldCenter.y));
+
+        // Only update if position changed
+        if (clampedX != worldCenter.x || clampedY != worldCenter.y) {
+            // Calculate the offset between world center and transform translation
+            Vector2 translation = body.getTransform().getTranslation();
+            Vector2 offset = translation.difference(worldCenter);
+            
+            // Set new translation that will result in the clamped world center
+            body.getTransform().setTranslation(clampedX + offset.x, clampedY + offset.y);
+            
+            // Stop velocity when hitting boundary to prevent pushing against edge
+            body.setLinearVelocity(0, 0);
+        }
     }
 }
 

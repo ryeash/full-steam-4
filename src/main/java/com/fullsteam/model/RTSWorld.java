@@ -1,11 +1,14 @@
 package com.fullsteam.model;
 
+import com.fullsteam.games.IdGenerator;
 import lombok.Getter;
 import org.dyn4j.geometry.Vector2;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Represents the RTS game world with bounded rectangle, start points, and symmetric resource/obstacle placement.
@@ -22,11 +25,11 @@ public class RTSWorld {
     // Start positions for each team (90-degree symmetry)
     private final List<Vector2> teamStartPoints;
 
-    // Resource deposits (90-degree symmetric placement)
-    private final List<ResourceDepositSpawn> resourceSpawns;
-
     // Obstacles (90-degree symmetric placement)
+    // Some obstacles are harvestable and contain resources
     private final List<ObstacleSpawn> obstacleSpawns;
+
+    private final List<Obstacle> obstacles = new LinkedList<>();
 
     // World bounds
     private final double minX;
@@ -49,10 +52,8 @@ public class RTSWorld {
         this.maxY = height / 2.0;
 
         // Generate symmetric world layout
-        Random random = new Random(seed);
         this.teamStartPoints = generateTeamStartPoints();
-        this.resourceSpawns = generateResourceSpawns(random);
-        this.obstacleSpawns = generateObstacleSpawns(random);
+        this.obstacleSpawns = generateObstacleSpawns();
     }
 
     /**
@@ -101,84 +102,15 @@ public class RTSWorld {
         return startPoints;
     }
 
-    /**
-     * Generate resource deposit spawns with 90-degree symmetry.
-     * Creates a base pattern in one quadrant and mirrors it to others.
-     */
-    private List<ResourceDepositSpawn> generateResourceSpawns(Random random) {
-        List<ResourceDepositSpawn> spawns = new ArrayList<>();
-
-        // Generate base pattern in first quadrant (or half for 2 teams)
-        List<ResourceDepositSpawn> basePattern = generateBaseResourcePattern(random);
-
-        // Mirror pattern based on team count
-        if (teamCount == 2) {
-            // 180-degree symmetry for 2 teams
-            spawns.addAll(basePattern);
-            spawns.addAll(mirror180(basePattern));
-        } else if (teamCount == 4) {
-            // 90-degree rotational symmetry for 4 teams
-            spawns.addAll(basePattern);
-            spawns.addAll(rotate90(basePattern));
-            spawns.addAll(rotate180(basePattern));
-            spawns.addAll(rotate270(basePattern));
-        } else {
-            // For other team counts, just use base pattern
-            spawns.addAll(basePattern);
-        }
-
-        return spawns;
-    }
-
-    /**
-     * Generate base resource pattern in one quadrant/section.
-     */
-    private List<ResourceDepositSpawn> generateBaseResourcePattern(Random random) {
-        List<ResourceDepositSpawn> pattern = new ArrayList<>();
-
-        // Define the working area (one quadrant for 4 teams, one half for 2 teams)
-        double workWidth = width / 2.0;
-        double workHeight = height / 2.0;
-
-        // Place 2-3 resource deposits in this section
-        int depositsInSection = 2 + random.nextInt(2);
-
-        for (int i = 0; i < depositsInSection; i++) {
-            // Random position within the working area, avoiding edges
-            double margin = 100; // Stay away from edges
-            double x = margin + random.nextDouble() * (workWidth - 2 * margin);
-            double y = margin + random.nextDouble() * (workHeight - 2 * margin);
-
-            // For 4 teams, place in first quadrant (positive x, positive y)
-            // For 2 teams, place in bottom half (any x, negative y)
-            if (teamCount == 4) {
-                x = x; // Already positive
-                y = y; // Already positive
-            } else {
-                x = x - workWidth / 2.0; // Center around 0
-                y = -y; // Place in bottom half
-            }
-
-            int resources = 5000 + random.nextInt(5000); // 5000-10000 resources
-            pattern.add(new ResourceDepositSpawn(new Vector2(x, y), resources));
-        }
-
-        // Add one central resource deposit (shared/contested)
-        if (pattern.isEmpty() || random.nextDouble() < 0.5) {
-            pattern.add(new ResourceDepositSpawn(new Vector2(0, 0), 10000));
-        }
-
-        return pattern;
-    }
 
     /**
      * Generate obstacle spawns with 90-degree symmetry.
      */
-    private List<ObstacleSpawn> generateObstacleSpawns(Random random) {
+    private List<ObstacleSpawn> generateObstacleSpawns() {
         List<ObstacleSpawn> spawns = new ArrayList<>();
 
         // Generate base pattern
-        List<ObstacleSpawn> basePattern = generateBaseObstaclePattern(random);
+        List<ObstacleSpawn> basePattern = generateBaseObstaclePattern();
 
         // Mirror pattern based on team count
         if (teamCount == 2) {
@@ -199,7 +131,7 @@ public class RTSWorld {
     /**
      * Generate base obstacle pattern.
      */
-    private List<ObstacleSpawn> generateBaseObstaclePattern(Random random) {
+    private List<ObstacleSpawn> generateBaseObstaclePattern() {
         List<ObstacleSpawn> pattern = new ArrayList<>();
 
         // Use most of the map (90% of width/height) instead of restricted area
@@ -215,7 +147,7 @@ public class RTSWorld {
         double scaledCount = baseObstacleCount * obstacleDensityMultiplier;
         int minObstacles = (int) Math.ceil(scaledCount * 0.75);
         int maxObstacles = (int) Math.ceil(scaledCount * 1.25);
-        int obstaclesInSection = minObstacles + random.nextInt(Math.max(1, maxObstacles - minObstacles + 1));
+        int obstaclesInSection = minObstacles + ThreadLocalRandom.current().nextInt(Math.max(1, maxObstacles - minObstacles + 1));
         obstaclesInSection = Math.max(2, obstaclesInSection); // At least 2 obstacles
 
         // Define exclusion radius around starting positions (to prevent blocking HQ and starting units)
@@ -234,12 +166,12 @@ public class RTSWorld {
 
             if (teamCount == 4) {
                 // For 4 teams, generate in first quadrant (positive x, positive y)
-                x = margin + random.nextDouble() * (workWidth / 2.0 - 2 * margin);
-                y = margin + random.nextDouble() * (workHeight / 2.0 - 2 * margin);
+                x = margin + ThreadLocalRandom.current().nextDouble() * (workWidth / 2.0 - 2 * margin);
+                y = margin + ThreadLocalRandom.current().nextDouble() * (workHeight / 2.0 - 2 * margin);
             } else {
                 // For 2 teams, generate across full width, bottom half
-                x = -workWidth / 2.0 + margin + random.nextDouble() * (workWidth - 2 * margin);
-                y = -workHeight / 2.0 + margin + random.nextDouble() * (workHeight / 2.0 - 2 * margin);
+                x = -workWidth / 2.0 + margin + ThreadLocalRandom.current().nextDouble() * (workWidth - 2 * margin);
+                y = -workHeight / 2.0 + margin + ThreadLocalRandom.current().nextDouble() * (workHeight / 2.0 - 2 * margin);
             }
 
             Vector2 obstaclePos = new Vector2(x, y);
@@ -259,10 +191,24 @@ public class RTSWorld {
                 // Vary obstacle size based on biome
                 double baseSize = getBiomeObstacleSize();
                 double sizeVariation = baseSize * 0.5; // ±50% variation
-                double size = baseSize + (random.nextDouble() * 2 - 1) * sizeVariation;
+                double size = baseSize + (ThreadLocalRandom.current().nextDouble() * 2 - 1) * sizeVariation;
+
+                // Determine obstacle properties (harvestable, destructible, resources)
+                // 50% chance of being harvestable (contains resources)
+                // 30% chance of being destructible (can be destroyed but no resources)
+                // 20% chance of being indestructible
+                double roll = ThreadLocalRandom.current().nextDouble();
+                boolean harvestable = roll < 0.5;
+                boolean destructible = !harvestable && roll < 0.8; // 30% of remaining 50%
+                
+                // Harvestable obstacles contain resources
+                int resources = 0;
+                if (harvestable) {
+                    resources = 5000 + ThreadLocalRandom.current().nextInt(5000); // 5000-10000 resources per obstacle
+                }
 
                 // Generate obstacle with biome-specific shape
-                pattern.add(generateBiomeObstacle(obstaclePos, size, random));
+                pattern.add(generateBiomeObstacle(obstaclePos, size, harvestable, destructible, resources, ThreadLocalRandom.current()));
             }
         }
 
@@ -285,116 +231,95 @@ public class RTSWorld {
     /**
      * Generate an obstacle with biome-specific shape characteristics
      */
-    private ObstacleSpawn generateBiomeObstacle(Vector2 position, double size, Random random) {
+    private ObstacleSpawn generateBiomeObstacle(Vector2 position, double size, boolean harvestable, 
+                                                boolean destructible, int resources, Random random) {
         return switch (biome) {
             case GRASSLAND -> {
-                // Trees: Mix of circles (round trees) and 6-8 sided polygons (bushy trees)
-                if (random.nextDouble() < 0.6) {
-                    yield new ObstacleSpawn(position, size); // Circle
+                // Trees: Mix of circles (round trees) and irregular organic shapes
+                if (random.nextDouble() < 0.3) {
+                    yield new ObstacleSpawn(position, size, harvestable, destructible, resources); // Circle (round tree)
                 } else {
+                    // Bushy, organic tree shapes
                     int sides = 6 + random.nextInt(3); // 6-8 sides
-                    yield new ObstacleSpawn(position, size, sides);
+                    double irregularity = 0.3 + random.nextDouble() * 0.3; // 0.3-0.6
+                    double spikiness = 0.2 + random.nextDouble() * 0.3;    // 0.2-0.5
+                    Vector2[] vertices = generateIrregularPolygon(size, sides, irregularity, spikiness, random);
+                    yield new ObstacleSpawn(position, vertices, harvestable, destructible, resources);
                 }
             }
             case DESERT -> {
-                // Rocks: Irregular polygons with 5-8 sides
+                // Rocks: Very irregular, weathered shapes
                 int sides = 5 + random.nextInt(4); // 5-8 sides
-                yield new ObstacleSpawn(position, size, sides);
+                double irregularity = 0.4 + random.nextDouble() * 0.4; // 0.4-0.8 (very irregular)
+                double spikiness = 0.3 + random.nextDouble() * 0.4;    // 0.3-0.7 (quite spiky)
+                Vector2[] vertices = generateIrregularPolygon(size, sides, irregularity, spikiness, random);
+                yield new ObstacleSpawn(position, vertices, harvestable, destructible, resources);
             }
             case SNOW -> {
-                // Ice: Mix of hexagons (crystals) and irregular shapes
-                if (random.nextDouble() < 0.5) {
-                    yield new ObstacleSpawn(position, size, 6); // Hexagon (ice crystal)
+                // Ice: Mix of regular crystals and irregular chunks
+                if (random.nextDouble() < 0.4) {
+                    yield new ObstacleSpawn(position, size, 6, harvestable, destructible, resources); // Regular hexagon (ice crystal)
                 } else {
+                    // Irregular ice chunks
                     int sides = 5 + random.nextInt(3); // 5-7 sides
-                    yield new ObstacleSpawn(position, size, sides);
+                    double irregularity = 0.2 + random.nextDouble() * 0.3; // 0.2-0.5
+                    double spikiness = 0.3 + random.nextDouble() * 0.4;    // 0.3-0.7 (sharp edges)
+                    Vector2[] vertices = generateIrregularPolygon(size, sides, irregularity, spikiness, random);
+                    yield new ObstacleSpawn(position, vertices, harvestable, destructible, resources);
                 }
             }
             case VOLCANIC -> {
-                // Lava rocks: Sharp, angular shapes with 4-7 sides
+                // Lava rocks: Sharp, angular, highly irregular shapes
                 int sides = 4 + random.nextInt(4); // 4-7 sides
-                yield new ObstacleSpawn(position, size, sides);
+                double irregularity = 0.5 + random.nextDouble() * 0.4; // 0.5-0.9 (very angular)
+                double spikiness = 0.4 + random.nextDouble() * 0.5;    // 0.4-0.9 (very spiky)
+                Vector2[] vertices = generateIrregularPolygon(size, sides, irregularity, spikiness, random);
+                yield new ObstacleSpawn(position, vertices, harvestable, destructible, resources);
             }
             case URBAN -> {
-                // Rubble: Very irregular shapes with 4-9 sides
+                // Rubble: Extremely irregular, chaotic shapes
                 int sides = 4 + random.nextInt(6); // 4-9 sides
-                yield new ObstacleSpawn(position, size, sides);
+                double irregularity = 0.6 + random.nextDouble() * 0.3; // 0.6-0.9 (chaotic)
+                double spikiness = 0.5 + random.nextDouble() * 0.4;    // 0.5-0.9 (very varied)
+                Vector2[] vertices = generateIrregularPolygon(size, sides, irregularity, spikiness, random);
+                yield new ObstacleSpawn(position, vertices, harvestable, destructible, resources);
             }
         };
     }
 
     // ===== Symmetry transformation methods =====
 
-    /**
-     * Mirror resource deposits 180 degrees (for 2-team symmetry)
-     */
-    private List<ResourceDepositSpawn> mirror180(List<ResourceDepositSpawn> pattern) {
-        List<ResourceDepositSpawn> mirrored = new ArrayList<>();
-        for (ResourceDepositSpawn spawn : pattern) {
-            Vector2 pos = spawn.getPosition();
-            mirrored.add(new ResourceDepositSpawn(
-                    new Vector2(-pos.x, -pos.y),
-                    spawn.getResources()
-            ));
-        }
-        return mirrored;
-    }
-
-    /**
-     * Rotate resource deposits 90 degrees clockwise
-     */
-    private List<ResourceDepositSpawn> rotate90(List<ResourceDepositSpawn> pattern) {
-        List<ResourceDepositSpawn> rotated = new ArrayList<>();
-        for (ResourceDepositSpawn spawn : pattern) {
-            Vector2 pos = spawn.getPosition();
-            // 90-degree clockwise: (x, y) -> (y, -x)
-            rotated.add(new ResourceDepositSpawn(
-                    new Vector2(pos.y, -pos.x),
-                    spawn.getResources()
-            ));
-        }
-        return rotated;
-    }
-
-    /**
-     * Rotate resource deposits 180 degrees
-     */
-    private List<ResourceDepositSpawn> rotate180(List<ResourceDepositSpawn> pattern) {
-        return mirror180(pattern); // Same as 180-degree rotation
-    }
-
-    /**
-     * Rotate resource deposits 270 degrees clockwise (90 counter-clockwise)
-     */
-    private List<ResourceDepositSpawn> rotate270(List<ResourceDepositSpawn> pattern) {
-        List<ResourceDepositSpawn> rotated = new ArrayList<>();
-        for (ResourceDepositSpawn spawn : pattern) {
-            Vector2 pos = spawn.getPosition();
-            // 270-degree clockwise: (x, y) -> (-y, x)
-            rotated.add(new ResourceDepositSpawn(
-                    new Vector2(-pos.y, pos.x),
-                    spawn.getResources()
-            ));
-        }
-        return rotated;
-    }
-
-    // Obstacle symmetry methods
-
     private List<ObstacleSpawn> mirror180Obstacles(List<ObstacleSpawn> pattern) {
         List<ObstacleSpawn> mirrored = new ArrayList<>();
         for (ObstacleSpawn spawn : pattern) {
             Vector2 pos = spawn.getPosition();
+            Vector2 mirroredPos = new Vector2(-pos.x, -pos.y);
+            
             if (spawn.getShape() == Obstacle.Shape.CIRCLE) {
                 mirrored.add(new ObstacleSpawn(
-                        new Vector2(-pos.x, -pos.y),
-                        spawn.getSize()
+                    mirroredPos, 
+                    spawn.getSize(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
+                ));
+            } else if (spawn.getShape() == Obstacle.Shape.POLYGON) {
+                mirrored.add(new ObstacleSpawn(
+                    mirroredPos, 
+                    spawn.getSize(), 
+                    spawn.getSides(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
                 ));
             } else {
+                // IRREGULAR_POLYGON - mirror the vertices too
                 mirrored.add(new ObstacleSpawn(
-                        new Vector2(-pos.x, -pos.y),
-                        spawn.getSize(),
-                        spawn.getSides()
+                    mirroredPos, 
+                    spawn.getVertices(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
                 ));
             }
         }
@@ -405,16 +330,33 @@ public class RTSWorld {
         List<ObstacleSpawn> rotated = new ArrayList<>();
         for (ObstacleSpawn spawn : pattern) {
             Vector2 pos = spawn.getPosition();
+            Vector2 rotatedPos = new Vector2(pos.y, -pos.x);
+            
             if (spawn.getShape() == Obstacle.Shape.CIRCLE) {
                 rotated.add(new ObstacleSpawn(
-                        new Vector2(pos.y, -pos.x),
-                        spawn.getSize()
+                    rotatedPos, 
+                    spawn.getSize(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
+                ));
+            } else if (spawn.getShape() == Obstacle.Shape.POLYGON) {
+                rotated.add(new ObstacleSpawn(
+                    rotatedPos, 
+                    spawn.getSize(), 
+                    spawn.getSides(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
                 ));
             } else {
+                // IRREGULAR_POLYGON
                 rotated.add(new ObstacleSpawn(
-                        new Vector2(pos.y, -pos.x),
-                        spawn.getSize(),
-                        spawn.getSides()
+                    rotatedPos, 
+                    spawn.getVertices(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
                 ));
             }
         }
@@ -429,36 +371,37 @@ public class RTSWorld {
         List<ObstacleSpawn> rotated = new ArrayList<>();
         for (ObstacleSpawn spawn : pattern) {
             Vector2 pos = spawn.getPosition();
+            Vector2 rotatedPos = new Vector2(-pos.y, pos.x);
+            
             if (spawn.getShape() == Obstacle.Shape.CIRCLE) {
                 rotated.add(new ObstacleSpawn(
-                        new Vector2(-pos.y, pos.x),
-                        spawn.getSize()
+                    rotatedPos, 
+                    spawn.getSize(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
+                ));
+            } else if (spawn.getShape() == Obstacle.Shape.POLYGON) {
+                rotated.add(new ObstacleSpawn(
+                    rotatedPos, 
+                    spawn.getSize(), 
+                    spawn.getSides(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
                 ));
             } else {
+                // IRREGULAR_POLYGON
                 rotated.add(new ObstacleSpawn(
-                        new Vector2(-pos.y, pos.x),
-                        spawn.getSize(),
-                        spawn.getSides()
+                    rotatedPos, 
+                    spawn.getVertices(), 
+                    spawn.isHarvestable(), 
+                    spawn.isDestructible(), 
+                    spawn.getResources()
                 ));
             }
         }
         return rotated;
-    }
-
-    /**
-     * Check if a position is within world bounds
-     */
-    public boolean isInBounds(Vector2 position) {
-        return position.x >= minX && position.x <= maxX
-                && position.y >= minY && position.y <= maxY;
-    }
-
-    /**
-     * Check if a position is within world bounds with margin
-     */
-    public boolean isInBounds(Vector2 position, double margin) {
-        return position.x >= minX + margin && position.x <= maxX - margin
-                && position.y >= minY + margin && position.y <= maxY - margin;
     }
 
     /**
@@ -471,19 +414,6 @@ public class RTSWorld {
         return new Vector2(0, 0); // Fallback to center
     }
 
-    /**
-     * Represents a resource deposit spawn location
-     */
-    @Getter
-    public static class ResourceDepositSpawn {
-        private final Vector2 position;
-        private final int resources;
-
-        public ResourceDepositSpawn(Vector2 position, int resources) {
-            this.position = position;
-            this.resources = resources;
-        }
-    }
 
     /**
      * Represents an obstacle spawn location with shape information
@@ -494,23 +424,246 @@ public class RTSWorld {
         private final double size;
         private final Obstacle.Shape shape;
         private final int sides; // For polygons
+        private final Vector2[] vertices; // For irregular polygons
+        private final boolean harvestable; // Whether this obstacle contains resources
+        private final boolean destructible; // Whether this obstacle can be destroyed
+        private final int resources; // Amount of resources (if harvestable)
 
         // Circle constructor
-        public ObstacleSpawn(Vector2 position, double size) {
+        public ObstacleSpawn(Vector2 position, double size, boolean harvestable, boolean destructible, int resources) {
             this.position = position;
             this.size = size;
             this.shape = Obstacle.Shape.CIRCLE;
             this.sides = 0;
+            this.vertices = null;
+            this.harvestable = harvestable;
+            this.destructible = destructible;
+            this.resources = resources;
         }
 
         // Polygon constructor
-        public ObstacleSpawn(Vector2 position, double size, int sides) {
+        public ObstacleSpawn(Vector2 position, double size, int sides, boolean harvestable, boolean destructible, int resources) {
             this.position = position;
             this.size = size;
             this.shape = Obstacle.Shape.POLYGON;
             this.sides = sides;
+            this.vertices = null;
+            this.harvestable = harvestable;
+            this.destructible = destructible;
+            this.resources = resources;
+        }
+
+        // Irregular polygon constructor
+        public ObstacleSpawn(Vector2 position, Vector2[] vertices, boolean harvestable, boolean destructible, int resources) {
+            this.position = position;
+            this.shape = Obstacle.Shape.IRREGULAR_POLYGON;
+            this.sides = vertices.length;
+            this.vertices = vertices;
+            this.harvestable = harvestable;
+            this.destructible = destructible;
+            this.resources = resources;
+
+            // Calculate bounding size from vertices
+            double maxDist = 0.0;
+            for (Vector2 v : vertices) {
+                double dist = Math.sqrt(v.x * v.x + v.y * v.y);
+                maxDist = Math.max(maxDist, dist);
+            }
+            this.size = maxDist;
+        }
+
+        public Vector2 getPosition() {
+            return position;
+        }
+
+        public double getSize() {
+            return size;
+        }
+
+        public Obstacle.Shape getShape() {
+            return shape;
+        }
+
+        public int getSides() {
+            return sides;
+        }
+
+        public Vector2[] getVertices() {
+            return vertices;
         }
     }
+
+    /**
+     * Generate a random irregular polygon with the given number of vertices
+     * GUARANTEED to be convex (required by dyn4j)
+     *
+     * @param baseRadius   Average distance from center
+     * @param vertexCount  Number of vertices (3-12)
+     * @param irregularity How much vertices deviate from regular polygon (0.0-1.0)
+     * @param spikiness    How much radius varies per vertex (0.0-1.0)
+     * @param random       Random number generator
+     * @return Array of vertices in counter-clockwise order, guaranteed convex
+     */
+    public static Vector2[] generateIrregularPolygon(double baseRadius, int vertexCount,
+                                                     double irregularity, double spikiness,
+                                                     java.util.Random random) {
+        // Clamp parameters
+        vertexCount = Math.max(3, Math.min(12, vertexCount));
+        irregularity = Math.max(0.0, Math.min(1.0, irregularity));
+        spikiness = Math.max(0.0, Math.min(1.0, spikiness));
+
+        // Generate evenly spaced angles first
+        double angleStep = (2.0 * Math.PI) / vertexCount;
+
+        // Limit angle variation to prevent concave shapes
+        // Max variation is 40% of angle step to ensure convexity
+        double maxAngleVariation = angleStep * 0.4 * irregularity;
+
+        double[] angles = new double[vertexCount];
+        double currentAngle = 0.0;
+
+        for (int i = 0; i < vertexCount; i++) {
+            // Add controlled randomness to angle
+            double variation = (random.nextDouble() * 2.0 - 1.0) * maxAngleVariation;
+            angles[i] = currentAngle + variation;
+            currentAngle += angleStep;
+        }
+
+        // Ensure angles are properly ordered (maintain convexity)
+        // Clamp each angle to stay within its sector
+        for (int i = 0; i < vertexCount; i++) {
+            double minAngle = angleStep * i;
+            double maxAngle = angleStep * (i + 1);
+            angles[i] = Math.max(minAngle, Math.min(maxAngle, angles[i]));
+        }
+
+        // Generate vertices with varying radii (limited to maintain convexity)
+        Vector2[] vertices = new Vector2[vertexCount];
+
+        // Limit radius variation to prevent extreme spikes that could cause concavity
+        double maxRadiusVariation = baseRadius * spikiness * 0.5; // Max 50% variation
+
+        for (int i = 0; i < vertexCount; i++) {
+            // Random radius variation (limited)
+            double radiusOffset = (random.nextDouble() * 2.0 - 1.0) * maxRadiusVariation;
+            double radius = baseRadius + radiusOffset;
+
+            // Ensure minimum radius (70% of base to maintain shape)
+            radius = Math.max(baseRadius * 0.7, Math.min(baseRadius * 1.3, radius));
+
+            // Calculate vertex position
+            double x = Math.cos(angles[i]) * radius;
+            double y = Math.sin(angles[i]) * radius;
+            vertices[i] = new Vector2(x, y);
+        }
+
+        return vertices;
+    }
+
+
+    /**
+     * Place obstacles from RTSWorld symmetric layout
+     */
+    public void placeObstacles() {
+        for (RTSWorld.ObstacleSpawn spawn : getObstacleSpawns()) {
+            Obstacle obstacle;
+
+            // Use pre-determined properties from spawn (ensures symmetry)
+            boolean harvestable = spawn.isHarvestable();
+            boolean destructible = spawn.isDestructible();
+            int resources = spawn.getResources();
+
+            // Create obstacle based on shape type
+            if (spawn.getShape() == Obstacle.Shape.IRREGULAR_POLYGON) {
+                // Irregular polygon obstacle (custom vertices)
+                obstacle = new Obstacle(
+                        IdGenerator.nextEntityId(),
+                        spawn.getPosition().x,
+                        spawn.getPosition().y,
+                        spawn.getVertices(),
+                        destructible,
+                        harvestable,
+                        harvestable ? ResourceType.CREDITS : null,
+                        resources
+                );
+            } else if (spawn.getShape() == Obstacle.Shape.POLYGON) {
+                // Regular polygon obstacle
+                obstacle = new Obstacle(
+                        IdGenerator.nextEntityId(),
+                        spawn.getPosition().x,
+                        spawn.getPosition().y,
+                        spawn.getSize(),
+                        spawn.getSides(),
+                        destructible,
+                        harvestable,
+                        harvestable ? ResourceType.CREDITS : null,
+                        resources
+                );
+            } else {
+                // Circle obstacle (default)
+                obstacle = new Obstacle(
+                        IdGenerator.nextEntityId(),
+                        spawn.getPosition().x,
+                        spawn.getPosition().y,
+                        spawn.getSize(),
+                        destructible,
+                        harvestable,
+                        harvestable ? ResourceType.CREDITS : null,
+                        resources
+                );
+            }
+            obstacles.add(obstacle);
+        }
+    }
+
+    /**
+     * Create world boundaries
+     */
+    public void createWorldBoundaries() {
+        // Create rectangular obstacle walls around the world perimeter
+        double wallThickness = 50.0; // Thickness of boundary walls
+
+        // Top wall (horizontal rectangle)
+        Obstacle topWall = new Obstacle(
+                IdGenerator.nextEntityId(),
+                0, // centered horizontally
+                height / 2 - wallThickness / 2,
+                width, // full width
+                wallThickness // thin height
+        );
+        obstacles.add(topWall);
+
+        // Bottom wall (horizontal rectangle)
+        Obstacle bottomWall = new Obstacle(
+                IdGenerator.nextEntityId(),
+                0,
+                -height / 2 + wallThickness / 2,
+                width,
+                wallThickness
+        );
+        obstacles.add(bottomWall);
+
+        // Left wall (vertical rectangle)
+        Obstacle leftWall = new Obstacle(
+                IdGenerator.nextEntityId(),
+                -width / 2 + wallThickness / 2,
+                0, // centered vertically
+                wallThickness, // thin width
+                height // full height
+        );
+        obstacles.add(leftWall);
+
+        // Right wall (vertical rectangle)
+        Obstacle rightWall = new Obstacle(
+                IdGenerator.nextEntityId(),
+                width / 2 - wallThickness / 2,
+                0,
+                wallThickness,
+                height
+        );
+        obstacles.add(rightWall);
+    }
+
 }
 
 

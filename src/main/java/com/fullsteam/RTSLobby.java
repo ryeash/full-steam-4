@@ -1,21 +1,24 @@
 package com.fullsteam;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fullsteam.games.GameConstants;
+import com.fullsteam.games.IdGenerator;
 import com.fullsteam.model.Biome;
 import com.fullsteam.model.GameConfig;
 import com.fullsteam.model.ObstacleDensity;
 import com.fullsteam.model.RTSGameManager;
-import com.fullsteam.util.GameConstants;
-import com.fullsteam.util.IdGenerator;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -33,11 +36,7 @@ public class RTSLobby {
     @Inject
     public RTSLobby(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
-
-        // Start cleanup thread
-        Thread cleanupThread = new Thread(this::runCleanupLoop, "RTS-Cleanup");
-        cleanupThread.setDaemon(true);
-        cleanupThread.start();
+        GameConstants.EXECUTOR.scheduleAtFixedRate(this::cleanupFinishedGames, 5, 5, TimeUnit.SECONDS);
     }
 
     public long getGlobalPlayerCount() {
@@ -102,21 +101,40 @@ public class RTSLobby {
     /**
      * Join or create a matchmaking game
      *
-     * @return the game ID
+     * @param gameId          Optional - if provided, join this specific game
+     * @param biome           The map biome
+     * @param obstacleDensity The obstacle density
+     * @param faction         The player's selected faction
+     * @param maxPlayers      Optional - if creating a new game, the max players (default 2)
+     * @return Map containing gameId and sessionToken
      */
-    public synchronized String joinMatchmaking(String biome, String obstacleDensity, String faction) {
-        // Try to find an existing game waiting for players
-        MatchmakingGame availableGame = matchmakingGames.values().stream()
-                .filter(game -> game.getCurrentPlayers() < game.getMaxPlayers())
-                .findFirst()
-                .orElse(null);
+    public synchronized Map<String, String> joinMatchmaking(String gameId, String biome, String obstacleDensity,
+                                                            String faction, Integer maxPlayers) {
+        Map<String, String> map = new HashMap<>();
 
-        if (availableGame != null) {
-            availableGame.incrementPlayers(faction);
-            log.info("Player joined existing matchmaking game: {}, players: {}/{}, faction: {}",
-                    availableGame.getGameId(), availableGame.getCurrentPlayers(), availableGame.getMaxPlayers(), faction);
-            return availableGame.getGameId();
+        // If gameId is specified, join that specific game
+        if (gameId != null && !gameId.isEmpty()) {
+            MatchmakingGame specificGame = matchmakingGames.get(gameId);
+            if (specificGame != null && specificGame.getCurrentPlayers() < specificGame.getMaxPlayers()) {
+                String sessionToken = specificGame.reserveSlot(faction);
+                if (sessionToken != null) {
+                    log.info("Player joined specific game: {}, players: {}/{}, faction: {}, session: {}",
+                            gameId, specificGame.getCurrentPlayers(),
+                            specificGame.getMaxPlayers(), faction, sessionToken);
+                    map.put("gameId", specificGame.getGameId());
+                    map.put("sessionToken", sessionToken);
+                    return map;
+                } else {
+                    throw new IllegalStateException("Game is full or unable to join");
+                }
+            } else {
+                throw new IllegalArgumentException("Game not found or is full");
+            }
         }
+
+        // Otherwise, try to find an existing game waiting for players with matching settings
+        // (For now, we skip auto-matching and just create a new game)
+        // In future, we could match based on biome/density/playerCount
 
         // Parse biome (default to GRASSLAND if not provided or invalid)
         Biome selectedBiome = Biome.GRASSLAND;
@@ -138,34 +156,51 @@ public class RTSLobby {
             }
         }
 
+        // Determine max players (default to 2 if not specified, max 4)
+        int players = (maxPlayers != null && maxPlayers >= 2 && maxPlayers <= 4) ? maxPlayers : 2;
+
+        // Determine world size based on player count
+        int worldSize = calculateWorldSize(players);
+
         // Create a new matchmaking game with selected configuration
         GameConfig config = GameConfig.builder()
-                .maxPlayers(2)  // 1v1 for now
-                .worldWidth(3000)
-                .worldHeight(3000)
+                .maxPlayers(players)
+                .worldWidth(worldSize)
+                .worldHeight(worldSize)
                 .biome(selectedBiome)
                 .obstacleDensity(selectedDensity)
                 .build();
 
         RTSGameManager game = createGameWithConfig(config);
-        MatchmakingGame matchmakingGame = new MatchmakingGame(game.getGameId(), 2);
-        matchmakingGame.incrementPlayers(faction);
+        MatchmakingGame matchmakingGame = new MatchmakingGame(game.getGameId(), players);
+        String sessionToken = matchmakingGame.reserveSlot(faction);
         matchmakingGames.put(game.getGameId(), matchmakingGame);
 
-        log.info("Created new matchmaking game: {} with biome {}, density {}, faction {}",
-                game.getGameId(), selectedBiome, selectedDensity, faction);
-        return game.getGameId();
+        log.info("Created new matchmaking game: {} with biome {}, density {}, maxPlayers {}, faction {}, session: {}",
+                game.getGameId(), selectedBiome, selectedDensity, players, faction, sessionToken);
+        map.put("gameId", game.getGameId());
+        map.put("sessionToken", sessionToken);
+        return map;
+    }
+
+    /**
+     * Calculate appropriate world size based on player count
+     */
+    private int calculateWorldSize(int playerCount) {
+        if (playerCount <= 2) return 3000;
+        if (playerCount <= 3) return 3500;
+        return 4000; // 4 players
     }
 
     /**
      * Leave a matchmaking game
      */
-    public synchronized void leaveMatchmaking(String gameId) {
+    public synchronized void leaveMatchmaking(String gameId, String sessionToken) {
         MatchmakingGame game = matchmakingGames.get(gameId);
         if (game != null) {
-            game.decrementPlayers();
-            log.info("Player left matchmaking game: {}, players: {}/{}",
-                    gameId, game.getCurrentPlayers(), game.getMaxPlayers());
+            game.releaseSlot(sessionToken);
+            log.info("Player left matchmaking game: {}, session: {}, players: {}/{}",
+                    gameId, sessionToken, game.getCurrentPlayers(), game.getMaxPlayers());
 
             // If no players left, remove the game
             if (game.getCurrentPlayers() <= 0) {
@@ -197,26 +232,37 @@ public class RTSLobby {
         MatchmakingGame game = matchmakingGames.get(gameId);
         return game != null && game.getCurrentPlayers() >= game.getMaxPlayers();
     }
-    
+
     /**
      * Create a matchmaking entry for a debug game (to track faction selection)
+     *
+     * @return The session token for the player
      */
-    public void createDebugMatchmakingEntry(String gameId, String faction) {
+    public String createDebugMatchmakingEntry(String gameId, String faction) {
         MatchmakingGame matchmakingGame = new MatchmakingGame(gameId, 1); // Single player debug game
-        matchmakingGame.incrementPlayers(faction);
+        String sessionToken = matchmakingGame.reserveSlot(faction);
         matchmakingGames.put(gameId, matchmakingGame);
-        log.info("Created debug matchmaking entry for game {} with faction {}", gameId, faction);
+        log.info("Created debug matchmaking entry for game {} with faction {} and session token {}",
+                gameId, faction, sessionToken);
+        return sessionToken;
     }
 
     /**
      * Inner class to track matchmaking game state
      */
     public static class MatchmakingGame {
+        @Getter
         private final String gameId;
+        @Getter
         private final int maxPlayers;
+        @Getter
         private int currentPlayers;
+        @Getter
         private final long createdTime;
-        private final List<String> playerFactions = new ArrayList<>(); // Faction selection per player slot
+
+        // Map session tokens to faction selections (ensures correct faction assignment)
+        private final Map<String, String> sessionTokenToFaction = new ConcurrentSkipListMap<>();
+        private final Map<String, Integer> sessionTokenToSlot = new ConcurrentSkipListMap<>();
 
         public MatchmakingGame(String gameId, int maxPlayers) {
             this.gameId = gameId;
@@ -225,65 +271,82 @@ public class RTSLobby {
             this.createdTime = System.currentTimeMillis();
         }
 
-        public synchronized int incrementPlayers(String faction) {
+        /**
+         * Reserve a slot for a player and return a unique session token
+         *
+         * @param faction The faction the player selected
+         * @return A unique session token for this player
+         */
+        public synchronized String reserveSlot(String faction) {
+            if (currentPlayers >= maxPlayers) {
+                return null; // Game is full
+            }
+
+            // Generate unique session token
+            String sessionToken = IdGenerator.nextGameId(); // Reuse game ID generator for uniqueness
             int slot = currentPlayers;
-            playerFactions.add(faction != null ? faction : "TERRAN");
+
+            sessionTokenToFaction.put(sessionToken, faction != null ? faction : "TERRAN");
+            sessionTokenToSlot.put(sessionToken, slot);
             currentPlayers++;
-            return slot;
+
+            log.info("Reserved slot {} for session {} with faction {}", slot, sessionToken, faction);
+            return sessionToken;
         }
 
-        public synchronized void decrementPlayers() {
-            if (currentPlayers > 0) {
-                currentPlayers--;
-                if (!playerFactions.isEmpty()) {
-                    playerFactions.remove(playerFactions.size() - 1);
+        /**
+         * Release a reserved slot (when player leaves before connecting)
+         */
+        public synchronized void releaseSlot(String sessionToken) {
+            if (sessionToken != null && sessionTokenToFaction.containsKey(sessionToken)) {
+                sessionTokenToFaction.remove(sessionToken);
+                sessionTokenToSlot.remove(sessionToken);
+                if (currentPlayers > 0) {
+                    currentPlayers--;
                 }
+                log.info("Released slot for session {}", sessionToken);
             }
         }
-        
-        public synchronized String getFactionForSlot(int slot) {
-            if (slot >= 0 && slot < playerFactions.size()) {
-                return playerFactions.get(slot);
+
+        /**
+         * Get faction for a specific session token
+         */
+        public synchronized String getFactionForSession(String sessionToken) {
+            String faction = sessionTokenToFaction.get(sessionToken);
+            if (faction != null) {
+                log.info("Retrieved faction {} for session {}", faction, sessionToken);
+                return faction;
             }
+            log.warn("No faction found for session {}, defaulting to TERRAN", sessionToken);
             return "TERRAN";
         }
 
-        public String getGameId() {
-            return gameId;
+        /**
+         * Get slot number for a specific session token
+         */
+        public synchronized Integer getSlotForSession(String sessionToken) {
+            return sessionTokenToSlot.get(sessionToken);
         }
 
-        public int getMaxPlayers() {
-            return maxPlayers;
-        }
-
-        public int getCurrentPlayers() {
-            return currentPlayers;
-        }
-
-        public long getCreatedTime() {
-            return createdTime;
+        /**
+         * Mark a session as connected (consumed)
+         */
+        public synchronized void markSessionConnected(String sessionToken) {
+            // Keep the mapping for now, but we could add a "connected" flag if needed
+            log.info("Session {} connected to game", sessionToken);
         }
 
         public boolean isReady() {
             return currentPlayers >= maxPlayers;
         }
-    }
 
-    /**
-     * Background cleanup loop to remove finished games
-     */
-    private void runCleanupLoop() {
-        while (true) {
-            try {
-                Thread.sleep(30000); // Check every 30 seconds
-                cleanupFinishedGames();
-            } catch (InterruptedException e) {
-                log.warn("Cleanup thread interrupted", e);
-                Thread.currentThread().interrupt();
-                break;
-            } catch (Exception e) {
-                log.error("Error in cleanup loop", e);
-            }
+        /**
+         * Legacy method for backward compatibility (used by debug games)
+         */
+        @Deprecated
+        public synchronized int incrementPlayers(String faction) {
+            String token = reserveSlot(faction);
+            return token != null ? sessionTokenToSlot.get(token) : -1;
         }
     }
 
@@ -291,56 +354,68 @@ public class RTSLobby {
      * Remove games that are finished (gameOver = true) or have no players
      */
     private void cleanupFinishedGames() {
-        int removedCount = 0;
+        try {
+            int removedCount = 0;
 
-        // Remove finished games from active games
-        List<String> toRemove = new ArrayList<>();
-        for (Map.Entry<String, RTSGameManager> entry : activeGames.entrySet()) {
-            RTSGameManager game = entry.getValue();
+            // Remove finished games from active games
+            List<String> toRemove = new ArrayList<>();
+            for (Map.Entry<String, RTSGameManager> entry : activeGames.entrySet()) {
+                RTSGameManager game = entry.getValue();
 
-            // Remove if game is over or has been running for too long without players
-            if (game.isGameOver()) {
-                toRemove.add(entry.getKey());
-                log.info("Removing finished game: {}", entry.getKey());
-            } else if (game.getPlayerFactions().isEmpty() &&
-                    System.currentTimeMillis() - game.getGameStartTime() > 300000) { // 5 minutes
-                toRemove.add(entry.getKey());
-                log.info("Removing abandoned game: {}", entry.getKey());
+                // Remove if game is over or has been running for too long without players
+                if (game.isGameOver()) {
+                    toRemove.add(entry.getKey());
+                    log.info("Removing finished game: {}", entry.getKey());
+                } else if (game.getGameEntities().getPlayerFactions().isEmpty() &&
+                        System.currentTimeMillis() - game.getGameStartTime() > 300000) { // 5 minutes
+                    toRemove.add(entry.getKey());
+                    log.info("Removing abandoned game: {}", entry.getKey());
+                }
             }
-        }
 
-        for (String gameId : toRemove) {
-            RTSGameManager game = activeGames.remove(gameId);
-            if (game != null) {
-                game.stopGame();
-                removedCount++;
+            for (String gameId : toRemove) {
+                RTSGameManager game = activeGames.remove(gameId);
+                if (game != null) {
+                    game.stopGame();
+                    removedCount++;
+                }
             }
-        }
 
-        // Remove old matchmaking games that never filled
-        List<String> oldMatchmakingGames = new ArrayList<>();
-        long now = System.currentTimeMillis();
-        for (Map.Entry<String, MatchmakingGame> entry : matchmakingGames.entrySet()) {
-            MatchmakingGame mmGame = entry.getValue();
-            // Remove if older than 10 minutes and not full
-            if (now - mmGame.getCreatedTime() > 600000 && !mmGame.isReady()) {
-                oldMatchmakingGames.add(entry.getKey());
-                log.info("Removing stale matchmaking game: {}", entry.getKey());
+            // Remove old matchmaking games that never filled OR have finished
+            List<String> oldMatchmakingGames = new ArrayList<>();
+            long now = System.currentTimeMillis();
+            for (Map.Entry<String, MatchmakingGame> entry : matchmakingGames.entrySet()) {
+                MatchmakingGame mmGame = entry.getValue();
+                RTSGameManager game = activeGames.get(entry.getKey());
+                
+                // Remove if:
+                // 1. Older than 10 minutes and not full (stale waiting games), OR
+                // 2. The associated game is over (finished games)
+                if ((now - mmGame.getCreatedTime() > 600000 && !mmGame.isReady()) ||
+                    (game != null && game.isGameOver())) {
+                    oldMatchmakingGames.add(entry.getKey());
+                    log.info("Removing matchmaking entry for game: {} (stale={}, gameOver={})", 
+                            entry.getKey(), 
+                            !mmGame.isReady(), 
+                            game != null && game.isGameOver());
+                }
             }
-        }
 
-        for (String gameId : oldMatchmakingGames) {
-            matchmakingGames.remove(gameId);
-            RTSGameManager game = activeGames.remove(gameId);
-            if (game != null) {
-                game.stopGame();
-                removedCount++;
+            for (String gameId : oldMatchmakingGames) {
+                matchmakingGames.remove(gameId);
+                RTSGameManager game = activeGames.remove(gameId);
+                if (game != null) {
+                    game.stopGame();
+                    removedCount++;
+                }
             }
-        }
 
-        if (removedCount > 0) {
-            log.info("Cleanup completed: removed {} games. Active games: {}, Matchmaking games: {}",
-                    removedCount, activeGames.size(), matchmakingGames.size());
+            if (removedCount > 0) {
+                log.info("Cleanup completed: removed {} games. Active games: {}, Matchmaking games: {}",
+                        removedCount, activeGames.size(), matchmakingGames.size());
+            }
+        } catch (Throwable t) {
+            log.error("error cleaning up inactive games", t);
         }
     }
 }

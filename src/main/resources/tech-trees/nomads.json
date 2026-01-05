@@ -1,0 +1,182 @@
+{
+  "faction": "NOMADS",
+  "starterUnits": ["WORKER", "INFANTRY", "JEEP", "SCOUT_DRONE"],
+  
+  "infantryNodes": [
+    {
+      "id": "NOMADS_INF_MEDIC",
+      "displayName": "Combat Medic",
+      "description": "Unlock mobile combat medics",
+      "unitToUnlock": "MEDIC",
+      "unitToReplace": null,
+      "creditCost": 200,
+      "researchTimeSeconds": 30,
+      "tier": "BASIC",
+      "category": "INFANTRY",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "NOMADS_INF_ENGINEER",
+      "displayName": "Field Mechanic",
+      "description": "Unlock field mechanics for quick repairs",
+      "unitToUnlock": "ENGINEER",
+      "unitToReplace": null,
+      "creditCost": 300,
+      "researchTimeSeconds": 40,
+      "tier": "BASIC",
+      "category": "INFANTRY",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "NOMADS_INF_ROCKET_SOLDIER",
+      "displayName": "Mobile AT Squad",
+      "description": "Unlock mobile anti-tank infantry",
+      "unitToUnlock": "ROCKET_SOLDIER",
+      "unitToReplace": null,
+      "creditCost": 350,
+      "researchTimeSeconds": 45,
+      "tier": "BASIC",
+      "category": "INFANTRY",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    }
+  ],
+  
+  "vehicleNodes": [
+    {
+      "id": "NOMADS_VEH_JEEP_UPGRADE",
+      "displayName": "Upgraded Scout Vehicles",
+      "description": "Enhance jeep speed and armor",
+      "unitToUnlock": null,
+      "unitToReplace": null,
+      "creditCost": 300,
+      "researchTimeSeconds": 40,
+      "tier": "BASIC",
+      "category": "VEHICLE",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "NOMADS_VEH_TANK",
+      "displayName": "Light Tank",
+      "description": "Unlock fast, light tanks",
+      "unitToUnlock": "TANK",
+      "unitToReplace": null,
+      "creditCost": 350,
+      "researchTimeSeconds": 45,
+      "tier": "BASIC",
+      "category": "VEHICLE",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "NOMADS_VEH_ARTILLERY",
+      "displayName": "Mobile Artillery",
+      "description": "Unlock mobile artillery platforms",
+      "unitToUnlock": "ARTILLERY",
+      "unitToReplace": null,
+      "creditCost": 450,
+      "researchTimeSeconds": 55,
+      "tier": "BASIC",
+      "category": "VEHICLE",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "NOMADS_VEH_SPEED_TECH",
+      "displayName": "Advanced Mobility",
+      "description": "Unlock enhanced mobility systems",
+      "unitToUnlock": null,
+      "unitToReplace": null,
+      "creditCost": 600,
+      "researchTimeSeconds": 70,
+      "tier": "ADVANCED",
+      "category": "VEHICLE",
+      "prerequisiteIds": ["NOMADS_VEH_JEEP_UPGRADE"],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "NOMADS_VEH_ELITE_RAIDER",
+      "displayName": "Elite Raider Access",
+      "description": "Unlock elite raider vehicle production",
+      "unitToUnlock": null,
+      "unitToReplace": null,
+      "creditCost": 800,
+      "researchTimeSeconds": 90,
+      "tier": "ELITE",
+      "category": "VEHICLE",
+      "prerequisiteIds": ["NOMADS_VEH_SPEED_TECH"],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "NOMADS_VEH_RAIDER",
+      "displayName": "Raider Deployment",
+      "description": "Unlock the Raider - elite fast attack vehicle",
+      "unitToUnlock": "RAIDER",
+      "unitToReplace": null,
+      "creditCost": 1200,
+      "researchTimeSeconds": 120,
+      "tier": "ELITE",
+      "category": "VEHICLE",
+      "prerequisiteIds": ["NOMADS_VEH_ELITE_RAIDER", "NOMADS_VEH_SPEED_TECH", "NOMADS_VEH_JEEP_UPGRADE"],
+      "mutuallyExclusiveIds": []
+    }
+  ],
+  
+  "flyerNodes": [
+    {
+      "id": "NOMADS_AIR_HELICOPTER",
+      "displayName": "Light Helicopter",
+      "description": "Unlock fast, light helicopters",
+      "unitToUnlock": "HELICOPTER",
+      "unitToReplace": null,
+      "creditCost": 450,
+      "researchTimeSeconds": 50,
+      "tier": "BASIC",
+      "category": "FLYER",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "NOMADS_AIR_FIXED_WING",
+      "displayName": "Fixed-Wing Aircraft",
+      "description": "Unlock fixed-wing aircraft",
+      "unitToUnlock": null,
+      "unitToReplace": null,
+      "creditCost": 600,
+      "researchTimeSeconds": 70,
+      "tier": "ADVANCED",
+      "category": "FLYER",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "NOMADS_AIR_BOMBER",
+      "displayName": "Strike Bomber",
+      "description": "Unlock fast strike bombers",
+      "unitToUnlock": "BOMBER",
+      "unitToReplace": null,
+      "creditCost": 650,
+      "researchTimeSeconds": 75,
+      "tier": "ADVANCED",
+      "category": "FLYER",
+      "prerequisiteIds": ["NOMADS_AIR_FIXED_WING"],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "NOMADS_AIR_INTERCEPTOR",
+      "displayName": "Fast Interceptor",
+      "description": "Unlock high-speed interceptors",
+      "unitToUnlock": "INTERCEPTOR",
+      "unitToReplace": null,
+      "creditCost": 700,
+      "researchTimeSeconds": 80,
+      "tier": "ELITE",
+      "category": "FLYER",
+      "prerequisiteIds": ["NOMADS_AIR_FIXED_WING"],
+      "mutuallyExclusiveIds": []
+    }
+  ]
+}

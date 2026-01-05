@@ -110,7 +110,6 @@ public class GameEvent {
             ALL,        // All players in the game
             TEAM,       // Specific team(s)
             SPECIFIC,   // Specific player(s)
-            SPECTATORS  // Only spectators
         }
     }
 
@@ -285,7 +284,7 @@ public class GameEvent {
     public static GameEvent createEliminationEvent(String playerName, int teamNumber, int livesRemaining) {
         StringBuilder messageBuilder = new StringBuilder();
         messageBuilder.append("💀 ");
-        
+
         // Add player name with team color
         if (teamNumber > 0) {
             String teamColor = getTeamColorHex(teamNumber);
@@ -293,12 +292,12 @@ public class GameEvent {
         } else {
             messageBuilder.append(playerName);
         }
-        
+
         messageBuilder.append(" has been eliminated!");
-        
+
         // Add lives remaining if not completely out
         if (livesRemaining > 0) {
-            messageBuilder.append(String.format(" (%d %s remaining)", 
+            messageBuilder.append(String.format(" (%d %s remaining)",
                     livesRemaining, livesRemaining == 1 ? "life" : "lives"));
         }
 

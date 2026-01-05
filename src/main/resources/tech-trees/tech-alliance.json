@@ -1,0 +1,156 @@
+{
+  "faction": "TECH_ALLIANCE",
+  "starterUnits": ["WORKER", "PLASMA_TROOPER", "PHOTON_SCOUT", "SCOUT_DRONE"],
+  
+  "infantryNodes": [
+    {
+      "id": "TA_INF_MEDIC",
+      "displayName": "Medical Officer",
+      "description": "Unlock Medic units with beam healing technology",
+      "unitToUnlock": "MEDIC",
+      "unitToReplace": null,
+      "creditCost": 300,
+      "researchTimeSeconds": 40,
+      "tier": "BASIC",
+      "category": "INFANTRY",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TA_INF_ENGINEER",
+      "displayName": "Tech Specialist",
+      "description": "Unlock Engineer units specialized in energy systems",
+      "unitToUnlock": "ENGINEER",
+      "unitToReplace": null,
+      "creditCost": 350,
+      "researchTimeSeconds": 45,
+      "tier": "BASIC",
+      "category": "INFANTRY",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TA_INF_ION_RANGER",
+      "displayName": "Ion Ranger",
+      "description": "Unlock Ion Rangers with advanced beam weapons",
+      "unitToUnlock": "ION_RANGER",
+      "unitToReplace": null,
+      "creditCost": 500,
+      "researchTimeSeconds": 60,
+      "tier": "ADVANCED",
+      "category": "INFANTRY",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    }
+  ],
+  
+  "vehicleNodes": [
+    {
+      "id": "TA_VEH_BEAM_TANK",
+      "displayName": "Beam Tank",
+      "description": "Unlock Beam Tanks with energy weapons",
+      "unitToUnlock": "BEAM_TANK",
+      "unitToReplace": null,
+      "creditCost": 500,
+      "researchTimeSeconds": 60,
+      "tier": "BASIC",
+      "category": "VEHICLE",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TA_VEH_PULSE_ARTILLERY",
+      "displayName": "Pulse Artillery",
+      "description": "Unlock long-range pulse artillery",
+      "unitToUnlock": "PULSE_ARTILLERY",
+      "unitToReplace": null,
+      "creditCost": 600,
+      "researchTimeSeconds": 70,
+      "tier": "ADVANCED",
+      "category": "VEHICLE",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TA_VEH_BEAM_UPGRADE",
+      "displayName": "Enhanced Beam Weapons",
+      "description": "Upgrade beam weapon systems",
+      "unitToUnlock": null,
+      "unitToReplace": null,
+      "creditCost": 700,
+      "researchTimeSeconds": 80,
+      "tier": "ADVANCED",
+      "category": "VEHICLE",
+      "prerequisiteIds": ["TA_VEH_BEAM_TANK"],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TA_VEH_PHOTON_TITAN",
+      "displayName": "Photon Titan",
+      "description": "Unlock the Photon Titan - massive beam weapon platform",
+      "unitToUnlock": "PHOTON_TITAN",
+      "unitToReplace": null,
+      "creditCost": 1400,
+      "researchTimeSeconds": 140,
+      "tier": "ELITE",
+      "category": "VEHICLE",
+      "prerequisiteIds": ["TA_VEH_BEAM_UPGRADE", "TA_VEH_BEAM_TANK"],
+      "mutuallyExclusiveIds": []
+    }
+  ],
+  
+  "flyerNodes": [
+    {
+      "id": "TA_AIR_HELICOPTER",
+      "displayName": "Beam Gunship",
+      "description": "Unlock beam-armed gunships",
+      "unitToUnlock": "HELICOPTER",
+      "unitToReplace": null,
+      "creditCost": 500,
+      "researchTimeSeconds": 60,
+      "tier": "BASIC",
+      "category": "FLYER",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TA_AIR_FIXED_WING",
+      "displayName": "Energy Fighter Access",
+      "description": "Unlock energy-based aircraft",
+      "unitToUnlock": null,
+      "unitToReplace": null,
+      "creditCost": 600,
+      "researchTimeSeconds": 70,
+      "tier": "ADVANCED",
+      "category": "FLYER",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TA_AIR_BOMBER",
+      "displayName": "Photon Bomber",
+      "description": "Unlock photon bombing aircraft",
+      "unitToUnlock": "BOMBER",
+      "unitToReplace": null,
+      "creditCost": 700,
+      "researchTimeSeconds": 80,
+      "tier": "ADVANCED",
+      "category": "FLYER",
+      "prerequisiteIds": ["TA_AIR_FIXED_WING"],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TA_AIR_INTERCEPTOR",
+      "displayName": "Beam Interceptor",
+      "description": "Unlock beam-armed interceptors",
+      "unitToUnlock": "INTERCEPTOR",
+      "unitToReplace": null,
+      "creditCost": 750,
+      "researchTimeSeconds": 85,
+      "tier": "ELITE",
+      "category": "FLYER",
+      "prerequisiteIds": ["TA_AIR_FIXED_WING"],
+      "mutuallyExclusiveIds": []
+    }
+  ]
+}

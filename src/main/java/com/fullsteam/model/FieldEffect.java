@@ -1,5 +1,6 @@
 package com.fullsteam.model;
 
+import com.fullsteam.games.IdGenerator;
 import lombok.Getter;
 import org.dyn4j.dynamics.Body;
 import org.dyn4j.dynamics.BodyFixture;
@@ -7,9 +8,7 @@ import org.dyn4j.geometry.Circle;
 import org.dyn4j.geometry.MassType;
 import org.dyn4j.geometry.Vector2;
 
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -27,10 +26,9 @@ public class FieldEffect extends GameEntity {
     private final int ownerTeam;
     private final long armingTime;
     private final Set<Integer> affectedEntities; // Track which entities have been affected
-    private final Map<Integer, Long> lastDamageTime; // Track last damage time for each player (in milliseconds)
 
-    public FieldEffect(int id, int ownerId, FieldEffectType type, Vector2 position, double radius, double damage, double duration, int ownerTeam) {
-        this(id, ownerId, type, position, radius, radius, damage, duration, 0, ownerTeam);
+    public FieldEffect(int ownerId, FieldEffectType type, Vector2 position, double radius, double damage, double duration, int ownerTeam) {
+        this(IdGenerator.nextEntityId(), ownerId, type, position, radius, radius, damage, duration, 0, ownerTeam);
     }
 
     public FieldEffect(int id, int ownerId, FieldEffectType type, Vector2 position, double radius, double maxRadius, double damage, double duration, long armingTime, int ownerTeam) {
@@ -45,7 +43,6 @@ public class FieldEffect extends GameEntity {
         this.armingTime = armingTime;
         this.ownerTeam = ownerTeam;
         this.affectedEntities = new HashSet<>();
-        this.lastDamageTime = new HashMap<>();
         this.active = true;
         getBody().setUserData(this);
     }
@@ -111,46 +108,75 @@ public class FieldEffect extends GameEntity {
     }
 
     public boolean canAffect(GameEntity entity) {
-        if (!active
-                || entity == null
-                || type == FieldEffectType.WARNING_ZONE
-                || !isInRange(entity.getPosition())
-                // For instantaneous effects, check if already affected
-                || (type.isInstantaneous() && affectedEntities.contains(entity.getId()))) {
+        if (!entity.isActive()) {
             return false;
         }
 
-        if (entity instanceof Unit player) {
-            // for own-team/self targeting
-            if (type == FieldEffectType.HEAL_ZONE || type == FieldEffectType.SPEED_BOOST) {
-                // In FFA mode (team 0), can only help self
-                if (ownerTeam == 0 || player.getTeamNumber() == 0) {
-                    return ownerId == player.getId();
-                }
-                // In team mode, can help teammates AND the owner
-                return ownerTeam == player.getTeamNumber();
-            }
-
-            // Team-based damage rules (same as projectiles)
+        // Team-based damage rules for units
+        if (entity instanceof Unit unit) {
             // Can't damage self (though this should be rare for field effects)
-            if (player.getId() == ownerId) {
+            if (unit.getId() == ownerId) {
                 return false;
             }
 
-            // In FFA mode (team 0), can damage anyone
-            if (ownerTeam == 0 || player.getTeamNumber() == 0) {
-                return true;
+            // Check elevation targeting - can this field effect damage units at this elevation?
+            if (!type.canAffectElevation(unit.getUnitType().getElevation())) {
+                return false;
             }
 
-            // In team mode, can only damage players on different teams
-            return ownerTeam != player.getTeamNumber();
+            // FFA mode (team 0): Can damage all other units (already checked not self above)
+            // Team mode (team > 0): Can only damage units on different teams
+            if (ownerTeam == 0 || ownerTeam != unit.getTeamNumber()) {
+                return canDamageEntity(entity.getId());
+            }
+
+            return false;
         }
 
+        // Team-based damage rules for buildings (buildings are always at ground level)
+        if (entity instanceof Building building) {
+            // Can't damage buildings owned by the same player
+            if (building.getOwnerId() == ownerId) {
+                return false;
+            }
+
+            // Check if field effect can damage ground-level targets
+            if (!type.canAffectElevation(Elevation.GROUND)) {
+                return false;
+            }
+
+            // FFA mode (team 0): Can damage all other buildings (already checked not same owner above)
+            // Team mode (team > 0): Can only damage buildings on different teams
+            if (ownerTeam == 0 || building.getTeamNumber() != ownerTeam) {
+                return canDamageEntity(entity.getId());
+            }
+
+            return false;
+        }
+
+        // Other entities (shouldn't happen, but allow damage by default)
+        return canDamageEntity(entity.getId());
+    }
+
+    /**
+     * Check if this entity can be damaged by this field effect
+     * Instantaneous effects (EXPLOSION) damage once per entity
+     * DOT effects (ELECTRIC, FIRE, POISON) damage every physics frame while entity is in range
+     */
+    private boolean canDamageEntity(int entityId) {
+        // Instantaneous effects only damage once per entity
+        if (type.isInstantaneous()) {
+            return !affectedEntities.contains(entityId);
+        }
         return true;
     }
 
     public void markAsAffected(GameEntity entity) {
-        affectedEntities.add(entity.getId());
+        int entityId = entity.getId();
+        // For instantaneous effects, mark entity as affected to prevent re-damage
+        if (type.isInstantaneous()) {
+            affectedEntities.add(entityId);
+        }
     }
 
     public double getIntensityAtPosition(Vector2 targetPosition) {
@@ -159,13 +185,12 @@ public class FieldEffect extends GameEntity {
         }
         return switch (type) {
             // explosions degrade with distance from center
-            case EXPLOSION -> {
+            case FLAK_EXPLOSION, EXPLOSION -> {
                 double distance = getPosition().distance(targetPosition);
                 double intensity = 0.5 + (0.5 * (distance / radius));
                 yield Math.max(0.0, intensity);
             }
             // Earthquakes have uniform intensity
-            case EARTHQUAKE -> 1.0;
             default -> 1.0;
         };
     }
@@ -189,30 +214,6 @@ public class FieldEffect extends GameEntity {
                 ? (double) (duration - timeRemaining) / duration
                 : 1.0;
     }
-
-//    /**
-//     * Trigger the mine and create an explosion field effect (for proximity mines)
-//     */
-//    public FieldEffect trigger() {
-//        if (type != FieldEffectType.PROXIMITY_MINE || hasTriggered) {
-//            return null;
-//        }
-//
-//        hasTriggered = true;
-//        active = false;
-//
-//        // Create explosion field effect
-//        return new FieldEffect(
-//                getId() + 10000, // Offset ID to avoid conflicts
-//                ownerId,
-//                FieldEffectType.EXPLOSION,
-//                getPosition(),
-//                explosionRadius,
-//                explosionDamage,
-//                FieldEffectType.EXPLOSION.getDefaultDuration(),
-//                ownerTeam
-//        );
-//    }
 
     /**
      * Check if the mine is armed (for proximity mines)

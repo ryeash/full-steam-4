@@ -1,399 +1,213 @@
 package com.fullsteam.model;
 
+import com.fullsteam.model.component.ShieldComponent;
 import lombok.extern.slf4j.Slf4j;
+import org.dyn4j.dynamics.Body;
+import org.dyn4j.dynamics.BodyFixture;
 import org.dyn4j.geometry.Vector2;
+import org.dyn4j.world.BroadphaseCollisionData;
+import org.dyn4j.world.ManifoldCollisionData;
+import org.dyn4j.world.NarrowphaseCollisionData;
+import org.dyn4j.world.World;
+import org.dyn4j.world.listener.CollisionListener;
 
 import java.util.Map;
-import java.util.function.BiConsumer;
 
 /**
  * Centralized collision detection and handling for RTS game mode.
  * Handles projectile collisions with units, buildings, and obstacles.
+ * Implements CollisionListener to control physics collision behavior.
  */
 @Slf4j
-public class RTSCollisionProcessor {
-    
+public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixture> {
+
+    private final World<Body> world;
+    private final GameEntities gameEntities;
     private final Map<Integer, Unit> units;
     private final Map<Integer, Building> buildings;
     private final Map<Integer, Obstacle> obstacles;
     private final Map<Integer, WallSegment> wallSegments;
-    private final BiConsumer<Vector2, ExplosionParams> explosionCreator;
-    
-    /**
-     * Parameters for creating explosions
-     */
-    public record ExplosionParams(double damage, double radius, int ownerTeam) {}
-    
-    public RTSCollisionProcessor(
-            Map<Integer, Unit> units,
-            Map<Integer, Building> buildings,
-            Map<Integer, Obstacle> obstacles,
-            Map<Integer, WallSegment> wallSegments,
-            BiConsumer<Vector2, ExplosionParams> explosionCreator
-    ) {
-        this.units = units;
-        this.buildings = buildings;
-        this.obstacles = obstacles;
-        this.wallSegments = wallSegments;
-        this.explosionCreator = explosionCreator;
+
+    public RTSCollisionProcessor(GameEntities gameEntities) {
+        this.world = gameEntities.getWorld();
+        this.gameEntities = gameEntities;
+        this.units = gameEntities.getUnits();
+        this.buildings = gameEntities.getBuildings();
+        this.obstacles = gameEntities.getObstacles();
+        this.wallSegments = gameEntities.getWallSegments();
     }
-    
+
     /**
-     * Process all projectile collisions for this frame
+     * Create an explosion at a projectile's position (when it reaches max range)
      */
-    public void processProjectileCollisions(Map<Integer, Projectile> projectiles) {
-        for (Projectile projectile : projectiles.values()) {
-            if (!projectile.isActive()) {
-                continue;
-            }
-            
-            // Check shield collisions FIRST (shields destroy projectiles before other collisions)
-            if (checkProjectileShieldCollisions(projectile)) {
-                // Projectile was destroyed by shield
-                continue;
-            }
-            
-            // Check unit collisions
-            if (checkProjectileUnitCollisions(projectile)) {
-                // Projectile may have been deactivated
-                if (!projectile.isActive()) {
-                    continue;
-                }
-            }
-            
-            // Check building collisions
-            if (checkProjectileBuildingCollisions(projectile)) {
-                // Projectile may have been deactivated
-                if (!projectile.isActive()) {
-                    continue;
-                }
-            }
-            
-            // Check wall segment collisions (wall segments take damage like buildings)
-            if (checkProjectileWallSegmentCollisions(projectile)) {
-                // Projectile may have been deactivated
-                if (!projectile.isActive()) {
-                    continue;
-                }
-            }
-            
-            // Check obstacle collisions (projectiles should be destroyed by obstacles)
-            checkProjectileObstacleCollisions(projectile);
+    public void handleTerminalEffects(AbstractOrdinance projectile) {
+        if (projectile.getBulletEffects().contains(BulletEffect.EXPLOSIVE)) {
+            createExplosionEffect(projectile);
+        } else if (projectile.getBulletEffects().contains(BulletEffect.FLAK)) {
+            createFlakExplosionEffect(projectile);
+        } else if (projectile.getBulletEffects().contains(BulletEffect.ELECTRIC)) {
+            createElectricFieldEffect(projectile);
         }
     }
-    
-    /**
-     * Check projectile collisions with units
-     * @return true if any collision occurred
-     */
-    private boolean checkProjectileUnitCollisions(Projectile projectile) {
-        Vector2 projPos = projectile.getPosition();
-        double projRadius = projectile.getOrdinance().getSize();
-        boolean hitSomething = false;
-        
-        for (Unit unit : units.values()) {
-            if (!unit.isActive()) {
-                continue;
-            }
-            
-            // Skip friendly fire - projectiles pass through friendly units
-            if (unit.getTeamNumber() == projectile.getOwnerTeam()) {
-                continue;
-            }
-            
-            // Check if already hit this unit (important for piercing projectiles)
-            if (projectile.getAffectedPlayers().contains(unit.getId())) {
-                continue;
-            }
-            
-            // Circle-circle collision detection
-            double distance = projPos.distance(unit.getPosition());
-            double collisionThreshold = projRadius + unit.getUnitType().getSize();
-            
-            if (distance <= collisionThreshold) {
-                // Hit detected!
-                handleProjectileUnitHit(projectile, unit, projPos);
-                hitSomething = true;
-                
-                // Check if projectile should be deactivated
-                if (!shouldProjectilePierce(projectile)) {
-                    projectile.setActive(false);
-                    break; // Stop checking collisions for this projectile
-                }
-            }
-        }
-        
-        return hitSomething;
-    }
-    
-    /**
-     * Check projectile collisions with buildings
-     * @return true if any collision occurred
-     */
-    private boolean checkProjectileBuildingCollisions(Projectile projectile) {
-        Vector2 projPos = projectile.getPosition();
-        double projRadius = projectile.getOrdinance().getSize();
-        boolean hitSomething = false;
-        
-        for (Building building : buildings.values()) {
-            if (!building.isActive()) {
-                continue;
-            }
-            
-            // Skip friendly fire - projectiles pass through friendly buildings
-            if (building.getTeamNumber() == projectile.getOwnerTeam()) {
-                continue;
-            }
-            
-            // Check if already hit this building (for piercing projectiles)
-            if (projectile.getAffectedPlayers().contains(building.getId())) {
-                continue;
-            }
-            
-            // Circle-square collision detection (approximate buildings as circles for simplicity)
-            double distance = projPos.distance(building.getPosition());
-            double collisionThreshold = projRadius + building.getBuildingType().getSize();
-            
-            if (distance <= collisionThreshold) {
-                // Hit detected!
-                handleProjectileBuildingHit(projectile, building, projPos);
-                hitSomething = true;
-                
-                // Buildings always stop projectiles (even piercing ones)
-                projectile.setActive(false);
-                break;
-            }
-        }
-        
-        return hitSomething;
-    }
-    
-    /**
-     * Check projectile collisions with wall segments
-     * @return true if any collision occurred
-     */
-    private boolean checkProjectileWallSegmentCollisions(Projectile projectile) {
-        Vector2 projPos = projectile.getPosition();
-        double projRadius = projectile.getOrdinance().getSize();
-        boolean hitSomething = false;
-        
-        for (WallSegment segment : wallSegments.values()) {
-            if (!segment.isActive()) {
-                continue;
-            }
-            
-            // Skip friendly fire - projectiles pass through friendly wall segments
-            if (segment.getTeamNumber() == projectile.getOwnerTeam()) {
-                continue;
-            }
-            
-            // Check if already hit this segment (for piercing projectiles)
-            if (projectile.getAffectedPlayers().contains(segment.getId())) {
-                continue;
-            }
-            
-            // Rectangle collision detection for wall segments
-            // Wall segments are rotated rectangles, so we need to check distance to the line
-            Vector2 segmentPos = segment.getPosition();
-            double distance = projPos.distance(segmentPos);
-            
-            // Approximate collision: if projectile is within segment length/2 + thickness/2 + projectile radius
-            double collisionThreshold = projRadius + segment.getLength() / 2.0 + 10; // 10 for some buffer
-            
-            if (distance <= collisionThreshold) {
-                // More precise check: distance to the wall segment's center line
-                // For simplicity, we'll use the approximate check above
-                // Hit detected!
-                handleProjectileWallSegmentHit(projectile, segment, projPos);
-                hitSomething = true;
-                
-                // Wall segments always stop projectiles (like buildings)
-                projectile.setActive(false);
-                break;
-            }
-        }
-        
-        return hitSomething;
-    }
-    
-    /**
-     * Check projectile collisions with obstacles
-     * @return true if collision occurred
-     */
-    private boolean checkProjectileObstacleCollisions(Projectile projectile) {
-        Vector2 projPos = projectile.getPosition();
-        double projRadius = projectile.getOrdinance().getSize();
-        
-        for (Obstacle obstacle : obstacles.values()) {
-            boolean collision = false;
-            
-            // Different collision detection based on obstacle shape
-            switch (obstacle.getShape()) {
-                case CIRCLE -> {
-                    double distance = projPos.distance(obstacle.getPosition());
-                    collision = distance <= projRadius + obstacle.getSize();
-                }
-                case RECTANGLE -> {
-                    // AABB collision
-                    double halfWidth = obstacle.getWidth() / 2.0;
-                    double halfHeight = obstacle.getHeight() / 2.0;
-                    
-                    collision = Math.abs(projPos.x - obstacle.getPosition().x) < halfWidth + projRadius &&
-                               Math.abs(projPos.y - obstacle.getPosition().y) < halfHeight + projRadius;
-                }
-                case POLYGON -> {
-                    // Approximate polygon as circle for projectile collision
-                    double distance = projPos.distance(obstacle.getPosition());
-                    collision = distance <= projRadius + obstacle.getSize();
-                }
-            }
-            
-            if (collision) {
-                // Obstacles destroy projectiles (no damage to obstacle)
-                log.debug("Projectile {} hit obstacle {} at ({}, {})", 
-                         projectile.getId(), obstacle.getId(), projPos.x, projPos.y);
-                
-                // Create explosion if it's an explosive projectile
-                if (isExplosiveProjectile(projectile)) {
-                    createExplosionEffect(projPos, projectile);
-                }
-                
-                projectile.setActive(false);
-                return true;
-            }
-        }
-        
-        return false;
-    }
-    
+
     /**
      * Handle a projectile hitting a unit
      */
     private void handleProjectileUnitHit(Projectile projectile, Unit unit, Vector2 hitPosition) {
         // Mark unit as affected to prevent multiple hits from same projectile
         projectile.getAffectedPlayers().add(unit.getId());
-        
-        // Apply damage
-        boolean died = unit.takeDamage(projectile.getDamage());
-        
-        log.debug("Projectile {} hit unit {} for {} damage (died: {})", 
-                 projectile.getId(), unit.getId(), projectile.getDamage(), died);
-        
-        // Create explosion for explosive projectiles
-        if (isExplosiveProjectile(projectile)) {
-            createExplosionEffect(hitPosition, projectile);
-        }
+
+        // Apply damage and check if died
+        boolean wasActive = unit.isActive();
+        unit.takeDamage(projectile.getDamage());
+        boolean died = wasActive && !unit.isActive();
+
+        log.debug("Projectile {} hit unit {} for {} damage (died: {})",
+                projectile.getId(), unit.getId(), projectile.getDamage(), died);
+        handleTerminalEffects(projectile);
     }
-    
+
     /**
      * Handle a projectile hitting a building
      */
-    private void handleProjectileBuildingHit(Projectile projectile, Building building, Vector2 hitPosition) {
+    private void handleProjectileBuildingHit(Projectile projectile, Building building) {
         // Mark building as affected
         projectile.getAffectedPlayers().add(building.getId());
-        
-        // Apply damage
-        boolean destroyed = building.takeDamage(projectile.getDamage());
-        
-        log.debug("Projectile {} hit building {} for {} damage (destroyed: {})", 
-                 projectile.getId(), building.getId(), projectile.getDamage(), destroyed);
-        
-        // Create explosion for explosive projectiles
-        if (isExplosiveProjectile(projectile)) {
-            createExplosionEffect(hitPosition, projectile);
-        }
+
+        // Apply damage and check if destroyed
+        boolean wasActive = building.isActive();
+        building.takeDamage(projectile.getDamage());
+        boolean destroyed = wasActive && !building.isActive();
+
+        log.debug("Projectile {} hit building {} for {} damage (destroyed: {})",
+                projectile.getId(), building.getId(), projectile.getDamage(), destroyed);
+        handleTerminalEffects(projectile);
     }
-    
+
     /**
      * Handle a projectile hitting a wall segment
      */
     private void handleProjectileWallSegmentHit(Projectile projectile, WallSegment segment, Vector2 hitPosition) {
         // Mark segment as affected
         projectile.getAffectedPlayers().add(segment.getId());
-        
-        // Apply damage
-        boolean destroyed = segment.takeDamage(projectile.getDamage());
-        
-        log.debug("Projectile {} hit wall segment {} for {} damage (destroyed: {})", 
-                 projectile.getId(), segment.getId(), projectile.getDamage(), destroyed);
-        
-        // Create explosion for explosive projectiles
-        if (isExplosiveProjectile(projectile)) {
-            createExplosionEffect(hitPosition, projectile);
-        }
+
+        // Apply damage and check if destroyed
+        boolean destroyed = segment.takeDamageAndCheckDestroyed(projectile.getDamage());
+
+        log.debug("Projectile {} hit wall segment {} for {} damage (destroyed: {})",
+                projectile.getId(), segment.getId(), projectile.getDamage(), destroyed);
+        handleTerminalEffects(projectile);
     }
-    
+
     /**
      * Check if projectile should pierce through targets
      */
     private boolean shouldProjectilePierce(Projectile projectile) {
         return projectile.getBulletEffects().contains(BulletEffect.PIERCING);
     }
-    
+
     /**
      * Check if projectile creates explosions
      */
     private boolean isExplosiveProjectile(Projectile projectile) {
-        Ordinance ordinance = projectile.getOrdinance();
-        return ordinance == Ordinance.ROCKET || 
-               ordinance == Ordinance.GRENADE ||
-               ordinance == Ordinance.SHELL;
+        // Check for FLAK bullet effect (handled separately)
+        if (projectile.getBulletEffects().contains(BulletEffect.FLAK)) {
+            return false; // FLAK is handled by createFlakExplosion()
+        }
+
+        Ordinance ordinance = projectile.getOrdinanceType();
+        return ordinance == Ordinance.ROCKET ||
+                ordinance == Ordinance.GRENADE ||
+                ordinance == Ordinance.SHELL;
     }
-    
+
     /**
-     * Create explosion effect at hit position
+     * Check if projectile creates flak explosions (anti-air bursts)
      */
-    private void createExplosionEffect(Vector2 position, Projectile projectile) {
-        double explosionDamage = projectile.getDamage() * 0.5; // 50% of projectile damage
-        double explosionRadius = projectile.getOrdinance().getSize() * 15; // Scale with projectile size
-        
-        ExplosionParams params = new ExplosionParams(
-            explosionDamage,
-            explosionRadius,
-            projectile.getOwnerTeam()
+    private boolean createsFlakExplosion(Projectile projectile) {
+        return projectile.getBulletEffects().contains(BulletEffect.FLAK);
+    }
+
+    /**
+     * Create explosion effect at hit position.
+     * <p>
+     * Note: For anti-aircraft weapons, you can create FLAK_EXPLOSION effects instead:
+     * <pre>
+     * // Example: Flak cannon burst (damages all elevations)
+     * FieldEffect flak = new FieldEffect(
+     *     projectile.getOwnerId(),
+     *     FieldEffectType.FLAK_EXPLOSION,
+     *     position,
+     *     projectile.getOrdinance().getSize() * 12,  // Smaller radius than ground explosions
+     *     projectile.getDamage() * 0.6,              // Flak damage
+     *     FieldEffectType.FLAK_EXPLOSION.getDefaultDuration(),
+     *     projectile.getOwnerTeam()
+     * );
+     * gameEntities.add(flak);
+     * </pre>
+     */
+    public void createExplosionEffect(AbstractOrdinance o) {
+        Vector2 position = o instanceof Beam b
+                ? b.getEndPosition()
+                : o.getPosition();
+        FieldEffect effect = new FieldEffect(
+                o.getOwnerId(),
+                FieldEffectType.EXPLOSION,
+                position,
+                o.getOrdinanceType().getSize() * 15,
+                o.getDamage() * 0.5,
+                FieldEffectType.EXPLOSION.getDefaultDuration(),
+                o.getOwnerTeam()
         );
-        
-        explosionCreator.accept(position, params);
+        gameEntities.add(effect);
     }
-    
+
     /**
-     * Check if a unit can reach a position (for pathfinding/movement validation)
+     * Create flak explosion effect at hit position (anti-air burst).
+     * Flak explosions only damage aircraft (LOW and HIGH elevations).
      */
-    public boolean isPositionBlocked(Vector2 position, double unitRadius, double worldWidth, double worldHeight) {
-        // Check world bounds
-        double halfWidth = worldWidth / 2.0;
-        double halfHeight = worldHeight / 2.0;
-        if (Math.abs(position.x) > halfWidth - unitRadius || 
-            Math.abs(position.y) > halfHeight - unitRadius) {
-            return true;
-        }
-        
-        // Check obstacles
-        for (Obstacle obstacle : obstacles.values()) {
-            if (circleIntersectsObstacle(position, unitRadius, obstacle)) {
-                return true;
-            }
-        }
-        
-        // Check buildings (units can't move through buildings)
-        for (Building building : buildings.values()) {
-            if (!building.isActive()) {
-                continue;
-            }
-            
-            Vector2 buildingPos = building.getPosition();
-            double dx = Math.abs(position.x - buildingPos.x);
-            double dy = Math.abs(position.y - buildingPos.y);
-            double size = building.getBuildingType().getSize();
-            
-            if (dx < size + unitRadius && dy < size + unitRadius) {
-                return true;
-            }
-        }
-        
-        return false;
+    public void createFlakExplosionEffect(AbstractOrdinance o) {
+        Vector2 position = o instanceof Beam b
+                ? b.getEndPosition()
+                : o.getPosition();
+        FieldEffect effect = new FieldEffect(
+                o.getOwnerId(),
+                FieldEffectType.FLAK_EXPLOSION,
+                position,
+                o.getOrdinanceType().getSize() * 12,  // Smaller radius than ground explosions
+                o.getDamage() * 0.6,              // 60% of projectile damage as AOE
+                FieldEffectType.FLAK_EXPLOSION.getDefaultDuration(),
+                o.getOwnerTeam()
+        );
+        gameEntities.add(effect);
     }
-    
+
+    /**
+     * Check if projectile has electric effect
+     */
+    private boolean hasElectricEffect(AbstractOrdinance ordinance) {
+        return ordinance.getBulletEffects().contains(BulletEffect.ELECTRIC);
+    }
+
+    /**
+     * Create electric field effect at hit position (area denial)
+     */
+    public void createElectricFieldEffect(AbstractOrdinance o) {
+        Vector2 position = o instanceof Beam b
+                ? b.getEndPosition()
+                : o.getPosition();
+        FieldEffect effect = new FieldEffect(
+                o.getOwnerId(),
+                FieldEffectType.ELECTRIC,
+                position,
+                o.getOrdinanceType().getSize() * 12,
+                o.getDamage() * 0.3,
+                FieldEffectType.ELECTRIC.getDefaultDuration(),
+                o.getOwnerTeam()
+        );
+        gameEntities.add(effect);
+    }
+
     /**
      * Check if a circle intersects with an obstacle
      */
@@ -407,9 +221,9 @@ public class RTSCollisionProcessor {
                 // AABB vs circle collision
                 double halfWidth = obstacle.getWidth() / 2.0;
                 double halfHeight = obstacle.getHeight() / 2.0;
-                
+
                 return Math.abs(position.x - obstacle.getPosition().x) < halfWidth + radius &&
-                       Math.abs(position.y - obstacle.getPosition().y) < halfHeight + radius;
+                        Math.abs(position.y - obstacle.getPosition().y) < halfHeight + radius;
             }
             case POLYGON -> {
                 // Approximate polygon as circle
@@ -419,19 +233,18 @@ public class RTSCollisionProcessor {
         }
         return false;
     }
-    
+
     /**
      * Validate building placement location
      */
     public boolean isValidBuildLocation(
-            Vector2 location, 
+            Vector2 location,
             BuildingType buildingType,
-            Map<Integer, ResourceDeposit> resourceDeposits,
             double worldWidth,
             double worldHeight
     ) {
         double size = buildingType.getSize();
-        
+
         // Check if too close to other buildings
         for (Building building : buildings.values()) {
             double dist = location.distance(building.getPosition());
@@ -441,19 +254,19 @@ public class RTSCollisionProcessor {
                 return false;
             }
         }
-        
+
         // Check if too close to obstacles
         for (Obstacle obstacle : obstacles.values()) {
             boolean tooClose = false;
-            
+
             switch (obstacle.getShape()) {
                 case RECTANGLE -> {
                     double halfWidth = obstacle.getWidth() / 2.0;
                     double halfHeight = obstacle.getHeight() / 2.0;
                     double buffer = size + 10;
-                    
+
                     tooClose = Math.abs(location.x - obstacle.getPosition().x) < halfWidth + buffer &&
-                              Math.abs(location.y - obstacle.getPosition().y) < halfHeight + buffer;
+                            Math.abs(location.y - obstacle.getPosition().y) < halfHeight + buffer;
                 }
                 case CIRCLE, POLYGON -> {
                     double dist = location.distance(obstacle.getPosition());
@@ -461,83 +274,651 @@ public class RTSCollisionProcessor {
                     tooClose = dist < minDist;
                 }
             }
-            
+
             if (tooClose) {
                 log.debug("Build location too close to obstacle");
                 return false;
             }
         }
-        
-        // Check if too close to resource deposits (except for refineries)
-        if (buildingType != BuildingType.REFINERY) {
-            for (ResourceDeposit deposit : resourceDeposits.values()) {
-                double dist = location.distance(deposit.getPosition());
-                double depositSize = 40.0; // Resource deposit radius
-                double minDist = size + depositSize + 50; // Increased buffer to prevent overlap
-                if (dist < minDist) {
-                    log.debug("Build location too close to resource deposit (dist: {}, minDist: {})", dist, minDist);
-                    return false;
-                }
-            }
-        }
-        
+
+        // Resource deposits removed - obstacles now contain harvestable resources
+        // Obstacle proximity is already checked above
+
         // Check world bounds
         double halfWidth = worldWidth / 2.0;
         double halfHeight = worldHeight / 2.0;
-        if (Math.abs(location.x) > halfWidth - size || 
-            Math.abs(location.y) > halfHeight - size) {
+        if (Math.abs(location.x) > halfWidth - size ||
+                Math.abs(location.y) > halfHeight - size) {
             log.debug("Build location outside world bounds");
             return false;
         }
-        
-        return true;
-    }
-    
-    /**
-     * Check if a projectile collides with any active shields
-     * @return true if projectile was destroyed by a shield
-     */
-    private boolean checkProjectileShieldCollisions(Projectile projectile) {
-        Vector2 projectilePos = projectile.getPosition();
-        Vector2 projectileOrigin = projectile.getOrigin();
-        
-        // Check all buildings for active shields
-        for (Building building : buildings.values()) {
-            if (!building.isActive() || building.getBuildingType() != BuildingType.SHIELD_GENERATOR) {
-                continue;
+
+        // Check proximity requirements (e.g., Hangar must be near Airfield)
+        BuildingType proximityRequirement = buildingType.getProximityRequirement();
+        if (proximityRequirement != null) {
+            double requiredRange = buildingType.getProximityRange();
+            boolean foundNearbyRequirement = false;
+
+            for (Building building : buildings.values()) {
+                if (building.getBuildingType() == proximityRequirement && building.isActive()) {
+                    double dist = location.distance(building.getPosition());
+                    if (dist <= requiredRange) {
+                        foundNearbyRequirement = true;
+                        break;
+                    }
+                }
             }
-            
-            if (!building.isShieldActive()) {
-                continue;
-            }
-            
-            // Don't destroy projectiles from the same team
-            if (building.getTeamNumber() == projectile.getOwnerTeam()) {
-                continue;
-            }
-            
-            // Check if projectile is currently inside the shield
-            boolean currentlyInShield = building.isPositionInsideShield(projectilePos);
-            
-            // Check if projectile originated inside this shield
-            boolean originatedInShield = building.isPositionInsideShield(projectileOrigin);
-            
-            // Destroy projectile if:
-            // 1. It's currently inside the shield AND
-            // 2. It did NOT originate inside the shield (incoming projectile)
-            if (currentlyInShield && !originatedInShield) {
-                // Apply reduced damage to the shield generator (10% of projectile damage)
-                double reducedDamage = projectile.getDamage() * 0.10;
-                building.takeDamage(reducedDamage);
-                
-                log.debug("Projectile {} blocked by shield from building {} (dealt {} reduced damage)", 
-                         projectile.getId(), building.getId(), reducedDamage);
-                projectile.setActive(false);
-                return true;
+
+            if (!foundNearbyRequirement) {
+                log.debug("Build location does not meet proximity requirement: {} must be within {} pixels of {}",
+                        buildingType, requiredRange, proximityRequirement);
+                return false;
             }
         }
-        
-        return false;
+
+        return true;
+    }
+
+    /**
+     * Check if a support building can support another dependent building
+     * For example, check if an Airfield has capacity for another Hangar
+     *
+     * @param location     Location where the new building will be placed
+     * @param buildingType Type of building being placed
+     * @param playerId     Owner of the building
+     * @return true if support capacity is available, false if at capacity
+     */
+    public boolean hasSupportCapacity(Vector2 location, BuildingType buildingType, int playerId) {
+        BuildingType proximityRequirement = buildingType.getProximityRequirement();
+        if (proximityRequirement == null) {
+            return true; // No proximity requirement = no support capacity check needed
+        }
+
+        int supportCapacity = proximityRequirement.getSupportCapacity();
+        if (supportCapacity == 0) {
+            return true; // No capacity limit
+        }
+
+        double requiredRange = buildingType.getProximityRange();
+
+        // Find the nearest support building within range
+        Building nearestSupport = null;
+        double nearestDist = Double.MAX_VALUE;
+
+        for (Building building : buildings.values()) {
+            if (building.getBuildingType() == proximityRequirement &&
+                    building.isActive() &&
+                    building.getOwnerId() == playerId) { // Must belong to same player
+                double dist = location.distance(building.getPosition());
+                if (dist <= requiredRange && dist < nearestDist) {
+                    nearestSupport = building;
+                    nearestDist = dist;
+                }
+            }
+        }
+
+        if (nearestSupport == null) {
+            return false; // No support building nearby
+        }
+
+        // Count how many dependent buildings this support building already has
+        int currentDependents = 0;
+        for (Building building : buildings.values()) {
+            if (building.getBuildingType() == buildingType &&
+                    building.isActive() &&
+                    building.getOwnerId() == playerId) {
+                double dist = building.getPosition().distance(nearestSupport.getPosition());
+                if (dist <= requiredRange) {
+                    currentDependents++;
+                }
+            }
+        }
+
+        boolean hasCapacity = currentDependents < supportCapacity;
+        if (!hasCapacity) {
+            log.debug("Support building {} at capacity: {}/{} dependent buildings",
+                    proximityRequirement, currentDependents, supportCapacity);
+        }
+
+        return hasCapacity;
+    }
+
+    /**
+     * Check if a position is valid for spawning a unit
+     * Used by buildings to find safe spawn locations for produced units
+     */
+    public boolean isValidSpawnPosition(
+            Vector2 position,
+            double unitSize,
+            double worldWidth,
+            double worldHeight
+    ) {
+        // Check world bounds
+        double halfWidth = worldWidth / 2.0;
+        double halfHeight = worldHeight / 2.0;
+        if (Math.abs(position.x) > halfWidth - unitSize ||
+                Math.abs(position.y) > halfHeight - unitSize) {
+            return false; // Too close to world edge
+        }
+
+        // Check distance to obstacles
+        for (Obstacle obstacle : obstacles.values()) {
+            if (!obstacle.isActive()) {
+                continue;
+            }
+
+            double distance = position.distance(obstacle.getPosition());
+            double minDistance = unitSize + obstacle.getSize() + 5; // 5 unit buffer
+            if (distance < minDistance) {
+                return false; // Too close to obstacle
+            }
+        }
+
+        // Check distance to buildings
+        for (Building building : buildings.values()) {
+            if (!building.isActive()) {
+                continue;
+            }
+
+            double distance = position.distance(building.getPosition());
+            double minDistance = unitSize + building.getBuildingType().getSize() + 5; // 5 unit buffer
+            if (distance < minDistance) {
+                return false; // Too close to building
+            }
+        }
+
+        // Check distance to wall segments
+        for (WallSegment segment : wallSegments.values()) {
+            if (!segment.isActive()) {
+                continue;
+            }
+
+            double distance = position.distance(segment.getPosition());
+            double minDistance = unitSize + 15; // Wall segments are thin, use fixed buffer
+            if (distance < minDistance) {
+                return false; // Too close to wall
+            }
+        }
+
+        // Check distance to other units (avoid spawning on top of existing units)
+        for (Unit unit : units.values()) {
+            if (!unit.isActive()) {
+                continue;
+            }
+
+            double distance = position.distance(unit.getPosition());
+            double minDistance = unitSize + unit.getUnitType().getSize() + 3; // 3 unit buffer
+            if (distance < minDistance) {
+                return false; // Too close to another unit
+            }
+        }
+
+        // Resource deposits removed - obstacles now contain harvestable resources
+        // Obstacle proximity is already checked above
+
+        return true; // Position is valid
+    }
+
+    // ========================================
+    // CollisionListener Implementation
+    // ========================================
+
+    /**
+     * Called during broad-phase collision detection.
+     * Allow broad-phase to proceed for all collisions.
+     */
+    @Override
+    public boolean collision(BroadphaseCollisionData<Body, BodyFixture> collision) {
+        // Allow all broad-phase collisions to proceed to narrow-phase
+        return true;
+    }
+
+    /**
+     * Called during narrow-phase collision detection.
+     * Allow narrow-phase to proceed for all collisions.
+     */
+    @Override
+    public boolean collision(NarrowphaseCollisionData<Body, BodyFixture> collision) {
+        // Allow all narrow-phase collisions to proceed to manifold generation
+        return true;
+    }
+
+    /**
+     * Called when contact manifolds are generated (most fine-grained collision detection).
+     * Return false to prevent collision response (physics reaction).
+     * This handles all projectile collision logic including damage application.
+     */
+    @Override
+    public boolean collision(ManifoldCollisionData<Body, BodyFixture> collision) {
+        Body body1 = collision.getBody1();
+        Body body2 = collision.getBody2();
+
+        Object obj1 = body1.getUserData();
+        Object obj2 = body2.getUserData();
+
+        // Check if either object is null (this can happen if body wasn't properly initialized)
+        if (obj1 == null || obj2 == null) {
+            log.warn("Collision detected with null user data: obj1={}, obj2={}", obj1, obj2);
+            return false;
+        }
+
+        // Check if this is a projectile collision
+        boolean body1IsProjectile = obj1 instanceof Projectile;
+        boolean body2IsProjectile = obj2 instanceof Projectile;
+
+        // Check if this is a beam collision
+        boolean body1IsBeam = obj1 instanceof Beam;
+        boolean body2IsBeam = obj2 instanceof Beam;
+
+        // Check if this is a field effect collision
+        boolean body1IsFieldEffect = obj1 instanceof FieldEffect;
+        boolean body2IsFieldEffect = obj2 instanceof FieldEffect;
+
+        if (body1IsProjectile || body2IsProjectile) {
+            Projectile projectile = body1IsProjectile ? (Projectile) obj1 : (Projectile) obj2;
+            Object other = body1IsProjectile ? obj2 : obj1;
+
+            if (!projectile.isActive()) {
+                return false; // Ignore inactive projectiles
+            }
+
+            // Handle projectile-to-projectile collisions (never physically collide)
+            if (other instanceof Projectile) {
+                return false;
+            }
+
+            // Check for shield sensor collision FIRST
+            if (other instanceof ShieldSensor shieldSensor) {
+                Building shieldBuilding = shieldSensor.getBuilding();
+                ShieldComponent shieldComponent = shieldBuilding.getComponent(ShieldComponent.class).orElseThrow();
+
+                // Check if projectile originated inside this shield
+                Vector2 projectileOrigin = projectile.getOrigin();
+                boolean originatedInShield = shieldComponent.isPositionInside(projectileOrigin);
+
+                if (originatedInShield) {
+                    return false; // Allow projectiles fired from inside the shield to exit
+                }
+
+                // Shield blocks the projectile
+                if (shieldBuilding.getTeamNumber() == projectile.getOwnerTeam()) {
+                    // the projectile is still terminated by the shield, just no damage
+                    projectile.setActive(false);
+                    return false;
+                }
+
+                // Apply reduced damage to the shield generator (10% of projectile damage)
+                double reducedDamage = projectile.getDamage() * 0.10;
+                shieldBuilding.takeDamage(reducedDamage);
+
+                // Deactivate projectile
+                projectile.setActive(false);
+
+                return false; // Sensor collision, no physics response
+            }
+
+            // Get collision position for explosions
+            Vector2 hitPosition = projectile.getBody().getWorldCenter();
+
+            // Check if projectile hits a unit
+            if (other instanceof Unit unit) {
+                if (unit.getTeamNumber() == projectile.getOwnerTeam()) {
+                    return false; // Pass through friendly units (no physics or damage)
+                }
+
+                if (!unit.isActive()) {
+                    return false;
+                }
+
+                // Check if projectile can target this unit's elevation
+                if (!projectile.getElevationTargeting().canTarget(unit.getUnitType().getElevation())) {
+                    return false; // Projectile passes through units at untargetable elevations
+                }
+
+                // Check if already hit this unit (for piercing projectiles)
+                if (projectile.getAffectedPlayers().contains(unit.getId())) {
+                    return false;
+                }
+
+                // Apply damage
+                handleProjectileUnitHit(projectile, unit, hitPosition);
+
+                // Deactivate if not piercing
+                if (!shouldProjectilePierce(projectile)) {
+                    projectile.setActive(false);
+                }
+
+                return false; // No physics collision (handled manually)
+            }
+
+            // Check if projectile hits a building
+            if (other instanceof Building building) {
+                // Buildings are at GROUND elevation - only hit if projectile is also at GROUND
+                if (projectile.getCurrentElevation() != Elevation.GROUND) {
+                    return false; // Projectile at higher elevation passes over buildings
+                }
+
+                if (building.getTeamNumber() == projectile.getOwnerTeam()) {
+                    return false; // Pass through friendly buildings (no physics or damage)
+                }
+
+                if (!building.isActive()) {
+                    return false;
+                }
+
+                // Check if already hit this building
+                if (projectile.getAffectedPlayers().contains(building.getId())) {
+                    return false;
+                }
+
+                // Apply damage
+                handleProjectileBuildingHit(projectile, building);
+
+                // Buildings always stop projectiles
+                projectile.setActive(false);
+                return false; // No physics collision
+            }
+
+            // Check if projectile hits a wall segment
+            if (other instanceof WallSegment segment) {
+                // Walls are at GROUND elevation - only hit if projectile is also at GROUND
+                if (projectile.getCurrentElevation() != Elevation.GROUND) {
+                    return false; // Projectile at higher elevation passes over walls
+                }
+
+                if (segment.getTeamNumber() == projectile.getOwnerTeam()) {
+                    return false; // Pass through friendly walls (no physics or damage)
+                }
+
+                if (!segment.isActive()) {
+                    return false;
+                }
+
+                // Check if already hit this segment
+                if (projectile.getAffectedPlayers().contains(segment.getId())) {
+                    return false;
+                }
+
+                // Apply damage
+                handleProjectileWallSegmentHit(projectile, segment, hitPosition);
+
+                // Walls always stop projectiles
+                projectile.setActive(false);
+                return false; // No physics collision
+            }
+
+            // Check if projectile hits an obstacle
+            if (other instanceof Obstacle) {
+                // Obstacles are at GROUND elevation - only hit if projectile is also at GROUND
+                if (projectile.getCurrentElevation() != Elevation.GROUND) {
+                    return false; // Projectile at higher elevation passes over obstacles
+                }
+
+                // Obstacles destroy projectiles
+                log.debug("Projectile {} hit obstacle at ({}, {})",
+                        projectile.getId(), hitPosition.x, hitPosition.y);
+                handleTerminalEffects(projectile);
+
+                projectile.setActive(false);
+                return true; // Allow physics collision with obstacles
+            }
+
+            // Resource deposits removed - obstacles now contain harvestable resources
+            // Obstacles are handled in the section above
+        }
+
+        // Handle beam collisions (beams are sensors, so they detect but don't physically collide)
+        if (body1IsBeam || body2IsBeam) {
+            Beam beam = body1IsBeam ? (Beam) obj1 : (Beam) obj2;
+            Object other = body1IsBeam ? obj2 : obj1;
+
+            if (!beam.isActive()) {
+                return false; // Ignore inactive beams
+            }
+
+            // Beams pass through other beams and projectiles
+            if (other instanceof Beam || other instanceof Projectile) {
+                return false;
+            }
+
+            // Beams pass through field effects
+            if (other instanceof FieldEffect) {
+                return false;
+            }
+
+            // Calculate hit position (beam center)
+            Vector2 hitPosition = beam.getEndPosition();
+
+            // Check if beam hits a unit
+            if (other instanceof Unit unit) {
+                // Skip friendly fire
+                if (unit.getTeamNumber() == beam.getOwnerTeam()) {
+                    return false;
+                }
+
+                if (!unit.isActive()) {
+                    return false;
+                }
+
+                // Check if beam can target this unit's elevation
+                if (!beam.getElevationTargeting().canTarget(unit.getUnitType().getElevation())) {
+                    return false; // Beam passes through units at untargetable elevations
+                }
+
+                // Check if already damaged this unit
+                if (beam.getAffectedPlayers().contains(unit.getId())) {
+                    return false;
+                }
+
+                // Apply damage
+                unit.takeDamage(beam.getDamage());
+                // Mark unit as affected
+                beam.getAffectedPlayers().add(unit.getId());
+                return false; // No physics collision (sensor)
+            }
+
+            // Check if beam hits a building
+            if (other instanceof Building building) {
+                // Buildings are at GROUND elevation - only hit if beam is also at GROUND
+                if (beam.getCurrentElevation() != Elevation.GROUND) {
+                    return false; // Beam at higher elevation passes over buildings
+                }
+
+                // Skip friendly fire
+                if (building.getTeamNumber() == beam.getOwnerTeam()) {
+                    return false;
+                }
+
+                if (!building.isActive()) {
+                    return false;
+                }
+
+                // Check if already damaged this building
+                if (beam.getAffectedPlayers().contains(building.getId())) {
+                    return false;
+                }
+
+                // Apply damage
+                handleBeamBuildingHit(beam, building, hitPosition);
+                return false; // No physics collision (sensor)
+            }
+
+            // Check if beam hits a wall segment
+            if (other instanceof WallSegment segment) {
+                // Walls are at GROUND elevation - only hit if beam is also at GROUND
+                if (beam.getCurrentElevation() != Elevation.GROUND) {
+                    return false; // Beam at higher elevation passes over walls
+                }
+
+                // Skip friendly fire
+                if (segment.getTeamNumber() == beam.getOwnerTeam()) {
+                    return false;
+                }
+
+                if (!segment.isActive()) {
+                    return false;
+                }
+
+                // Check if already damaged this segment
+                if (beam.getAffectedPlayers().contains(segment.getId())) {
+                    return false;
+                }
+
+                // Apply damage
+                handleBeamWallSegmentHit(beam, segment, hitPosition);
+                return false; // No physics collision (sensor)
+            }
+
+            // Check if beam hits an obstacle
+            if (other instanceof Obstacle obstacle) {
+                // Obstacles are at GROUND elevation - only hit if beam is also at GROUND
+                if (beam.getCurrentElevation() != Elevation.GROUND) {
+                    return false; // Beam at higher elevation passes over obstacles
+                }
+
+                if (!obstacle.isActive()) {
+                    return false;
+                }
+
+                // Check if already processed this obstacle
+                if (beam.getAffectedPlayers().contains(obstacle.getId())) {
+                    return false;
+                }
+
+                // Only non-destructible obstacles can be damaged by beams
+                if (!obstacle.isDestructible()) {
+                    obstacle.takeDamage(beam.getDamage());
+                }
+
+                // Mark as affected
+                beam.getAffectedPlayers().add(obstacle.getId());
+
+                log.debug("Beam {} hit obstacle at ({}, {})",
+                        beam.getId(), hitPosition.x, hitPosition.y);
+
+                return false; // No physics collision (sensor)
+            }
+
+            // Resource deposits removed - obstacles now contain harvestable resources
+            // Obstacles are handled in the section above
+        }
+
+        // Handle field effect collisions (explosions, electric fields, etc.)
+        if (body1IsFieldEffect || body2IsFieldEffect) {
+            FieldEffect fieldEffect = body1IsFieldEffect ? (FieldEffect) obj1 : (FieldEffect) obj2;
+            Object other = body1IsFieldEffect ? obj2 : obj1;
+
+            if (!fieldEffect.isActive()) {
+                return false; // Ignore inactive field effects
+            }
+
+            // Field effects pass through other field effects, beams, and projectiles
+            if (other instanceof FieldEffect || other instanceof Projectile) {
+                return false;
+            }
+
+            // Field effects pass through obstacles and walls (they're area effects)
+            if (other instanceof Obstacle || other instanceof WallSegment) {
+                return false;
+            }
+
+            // Check if field effect hits a unit
+            if (other instanceof Unit unit) {
+                if (fieldEffect.canAffect(unit)) {
+                    handleFieldEffectUnitHit(fieldEffect, unit);
+                }
+                return false; // No physics collision (sensor)
+            }
+
+            // Check if field effect hits a building
+            if (other instanceof Building building) {
+                // Check if we can damage this building (cooldown check)
+                if (fieldEffect.canAffect(building)) {
+                    handleFieldEffectBuildingHit(fieldEffect, building);
+                }
+                // Apply damage based on distance from center
+                return false;
+            }
+        }
+
+        // Allow collision response for all other collisions
+        return true;
+    }
+
+    /**
+     * Handle a beam hitting a building
+     */
+    private void handleBeamBuildingHit(Beam beam, Building building, Vector2 hitPosition) {
+        // Mark building as affected
+        beam.getAffectedPlayers().add(building.getId());
+
+        // Apply damage
+        building.takeDamage(beam.getDamage());
+
+        log.debug("Beam {} hit building {} for {} damage",
+                beam.getId(), building.getId(), beam.getDamage());
+    }
+
+    /**
+     * Handle a beam hitting a wall segment
+     */
+    private void handleBeamWallSegmentHit(Beam beam, WallSegment segment, Vector2 hitPosition) {
+        // Mark segment as affected
+        beam.getAffectedPlayers().add(segment.getId());
+
+        // Apply damage
+        segment.takeDamage(beam.getDamage());
+
+        log.debug("Beam {} hit wall segment {} for {} damage",
+                beam.getId(), segment.getId(), beam.getDamage());
+    }
+
+    /**
+     * Handle a field effect hitting a unit
+     * Field effects apply damage over time with distance-based intensity
+     */
+    private void handleFieldEffectUnitHit(FieldEffect fieldEffect, Unit unit) {
+        // Get delta time from physics world
+        double deltaTime = world.getTimeStep().getDeltaTime();
+
+        // Calculate damage based on distance from field effect center
+        // For instantaneous effects (EXPLOSION), damage is full amount
+        // For DOT effects (ELECTRIC, FIRE, POISON), damage is DPS * deltaTime
+        double baseDamage = fieldEffect.getDamageAtPosition(unit.getPosition());
+        double damage = fieldEffect.getType().isInstantaneous() ? baseDamage : baseDamage * deltaTime;
+
+        // Apply damage
+        unit.takeDamage(damage);
+
+        // Mark as affected (for instantaneous effects, prevents re-damage)
+        fieldEffect.markAsAffected(unit);
+
+        log.debug("Field effect {} ({}) damaged unit {} for {} damage (deltaTime: {})",
+                fieldEffect.getId(), fieldEffect.getType(), unit.getId(), damage, deltaTime);
+    }
+
+    /**
+     * Handle a field effect hitting a building
+     * Field effects apply damage over time with distance-based intensity
+     */
+    private void handleFieldEffectBuildingHit(FieldEffect fieldEffect, Building building) {
+        // Get delta time from physics world
+        double deltaTime = world.getTimeStep().getDeltaTime();
+
+        // Calculate damage based on distance from field effect center
+        // For instantaneous effects (EXPLOSION), damage is full amount
+        // For DOT effects (ELECTRIC, FIRE, POISON), damage is DPS * deltaTime
+        double baseDamage = fieldEffect.getDamageAtPosition(building.getPosition());
+        double damage = fieldEffect.getType().isInstantaneous() ? baseDamage : baseDamage * deltaTime;
+
+        // Apply damage
+        building.takeDamage(damage);
+
+        // Mark as affected (for instantaneous effects, prevents re-damage)
+        fieldEffect.markAsAffected(building);
+
+        log.debug("Field effect {} ({}) damaged building {} for {} damage (deltaTime: {})",
+                fieldEffect.getId(), fieldEffect.getType(), building.getId(), damage, deltaTime);
     }
 }
 

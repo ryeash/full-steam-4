@@ -152,4 +152,3 @@ public class FactionDefinition {
         private final double buildTimeMultiplier = 1.0;
     }
 }
-

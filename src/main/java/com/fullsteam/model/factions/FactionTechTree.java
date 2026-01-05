@@ -5,75 +5,65 @@ import com.fullsteam.model.UnitType;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Defines the tech tree for a faction - what units and buildings are available.
- * This is the core of faction differentiation.
+ * Defines the tech tree for a faction - what buildings are available.
+ * 
+ * NOTE: Unit availability is now managed by the UnitTechTree and ResearchManager systems.
+ * This class only manages BUILDING availability.
+ * 
+ * @deprecated for unit tech - use com.fullsteam.model.research.UnitTechTree instead
  */
 @Getter
 @Builder
 public class FactionTechTree {
-    
+
     /**
-     * Units that this faction can build
+     * Buildings and their starter units (only used for initialization, not production validation)
+     * Unit production validation now uses the ResearchManager system.
      */
     @Builder.Default
-    private final Set<UnitType> availableUnits = new HashSet<>();
-    
+    private final Map<BuildingType, List<UnitType>> buildingsAndUnits = new LinkedHashMap<>();
+
     /**
-     * Buildings that this faction can build
+     * Check if a unit is available to this faction (checks if any building produces it)
+     * 
+     * @deprecated Use ResearchManager.canProduceUnit() for research-based unit availability
      */
-    @Builder.Default
-    private final Set<BuildingType> availableBuildings = new HashSet<>();
-    
-    /**
-     * Which buildings can produce which units (faction-specific)
-     * Allows factions to have different production buildings for same units
-     */
-    @Builder.Default
-    private final Map<UnitType, List<BuildingType>> unitProducers = new HashMap<>();
-    
-    /**
-     * Tech tier requirements for buildings (can override defaults per faction)
-     */
-    @Builder.Default
-    private final Map<BuildingType, Integer> buildingTechTiers = new HashMap<>();
-    
-    /**
-     * Check if a unit is available to this faction
-     */
+    @Deprecated
     public boolean canBuildUnit(UnitType unitType) {
-        return availableUnits.contains(unitType);
+        return buildingsAndUnits.values()
+                .stream()
+                .anyMatch(units -> units.contains(unitType));
     }
-    
+
     /**
      * Check if a building is available to this faction
      */
     public boolean canBuildBuilding(BuildingType buildingType) {
-        return availableBuildings.contains(buildingType);
+        return buildingType != BuildingType.HEADQUARTERS && buildingsAndUnits.containsKey(buildingType);
     }
-    
+
     /**
-     * Get which buildings can produce a specific unit for this faction
+     * Get which starter units a building produces for this faction (initial units only)
+     * 
+     * @deprecated Use ResearchManager for actual unit production validation
      */
-    public List<BuildingType> getProducersFor(UnitType unitType) {
-        return unitProducers.getOrDefault(unitType, Collections.emptyList());
+    @Deprecated
+    public List<UnitType> getUnitsProducedBy(BuildingType buildingType) {
+        return buildingsAndUnits.getOrDefault(buildingType, List.of());
     }
-    
+
     /**
-     * Get the tech tier required for a building (faction-specific override)
+     * Check if a building can produce a specific unit for this faction
+     * 
+     * @deprecated Use ResearchManager.canProduceUnit() + UnitType.getProducedBy() instead
      */
-    public int getTechTierFor(BuildingType buildingType) {
-        return buildingTechTiers.getOrDefault(buildingType, buildingType.getRequiredTechTier());
-    }
-    
-    /**
-     * Check if a building can produce a specific unit
-     */
+    @Deprecated
     public boolean canBuildingProduceUnit(BuildingType buildingType, UnitType unitType) {
-        List<BuildingType> producers = getProducersFor(unitType);
-        return producers.contains(buildingType);
+        return buildingsAndUnits.getOrDefault(buildingType, List.of()).contains(unitType);
     }
 }
-

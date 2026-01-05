@@ -11,14 +11,14 @@ class RTSEngine {
         // Game entities
         this.units = new Map();
         this.buildings = new Map();
-        this.resourceDeposits = new Map();
-        this.obstacles = new Map();
+        this.obstacles = new Map(); // Some obstacles are harvestable and contain resources
         this.projectiles = new Map();
         this.beams = new Map();
         this.fieldEffects = new Map();
         this.wallSegments = new Map();
         
         // Player state
+        this.gameId = null;
         this.myPlayerId = null;
         this.myFaction = null;
         this.myFactionData = null; // Faction data from API
@@ -27,6 +27,9 @@ class RTSEngine {
         this.visionRange = 400; // Default, updated from server
         this.lastFogUpdate = 0; // Timestamp of last fog update
         this.fogUpdateInterval = 200; // Update fog every 200ms (5 times per second)
+        
+        // UI state
+        this.currentResearchTab = 'COMBAT'; // Track current research tab
         
         // Biome
         this.biome = null;
@@ -63,6 +66,10 @@ class RTSEngine {
         this.specialAbilityTargetingMode = false;
         this.specialAbilityTargetType = null; // 'unit' or 'building'
         
+        // Sortie targeting mode (for bombers)
+        this.sortieTargetingMode = false;
+        this.sortieHangarId = null; // ID of the hangar issuing the sortie
+        
         this.init();
     }
     
@@ -96,7 +103,7 @@ class RTSEngine {
         await this.app.init({
             width: window.innerWidth,
             height: window.innerHeight,
-            backgroundColor: 0x1a1a1a,
+            backgroundColor: 0x000000, // Black background outside world bounds
             antialias: true,
             resolution: window.devicePixelRatio || 1,
             autoDensity: true
@@ -106,9 +113,29 @@ class RTSEngine {
         
         // Create containers
         this.gameContainer = new PIXI.Container();
+        this.gameContainer.sortableChildren = true; // Enable z-index sorting
+        
+        /**
+         * Z-Index Rendering Order (from back to front):
+         * -2: World bounds (background)
+         * -1: Obstacles and resource deposits
+         *  0: Buildings and wall segments
+         *  1: Ground units
+         * 1.5: Field effects (explosions, fire, etc.)
+         *  2: Low altitude air units (Scout Drone)
+         *  3: High altitude air units (Bomber, Interceptor)
+         *  4: Projectiles (bullets, missiles)
+         *  5: Beams (laser weapons)
+         * 100: Fog of war overlay
+         * 101: Selection box
+         */
+        
         this.fogContainer = new PIXI.Container(); // Fog of war overlay
         this.selectionBoxGraphics = new PIXI.Graphics(); // Selection box
         this.uiContainer = new PIXI.Container();
+        
+        // Create world bounds background (will be colored with biome color)
+        this.worldBoundsGraphics = new PIXI.Graphics();
         
         // Flip Y-axis to match physics
         this.gameContainer.scale.y = -1;
@@ -116,9 +143,15 @@ class RTSEngine {
         this.app.stage.addChild(this.gameContainer);
         this.app.stage.addChild(this.uiContainer);
         
-        // Add fog and selection box to game container so they follow camera
+        // Add world bounds first (bottom layer), then fog and selection box
+        this.gameContainer.addChild(this.worldBoundsGraphics);
+        this.worldBoundsGraphics.zIndex = -2; // Bottom layer - background
+        
         this.gameContainer.addChild(this.fogContainer);
+        this.fogContainer.zIndex = 100; // Top layer - fog of war
+        
         this.gameContainer.addChild(this.selectionBoxGraphics);
+        this.selectionBoxGraphics.zIndex = 101; // Top layer - selection box
         
         // Handle resize
         window.addEventListener('resize', () => this.handleResize());
@@ -135,6 +168,21 @@ class RTSEngine {
     }
     
     /**
+     * Draw the world bounds rectangle with the biome color
+     * Everything outside this rectangle will be black
+     */
+    drawWorldBounds() {
+        this.worldBoundsGraphics.clear();
+        this.worldBoundsGraphics.rect(
+            -this.worldBounds.width / 2,
+            -this.worldBounds.height / 2,
+            this.worldBounds.width,
+            this.worldBounds.height
+        );
+        this.worldBoundsGraphics.fill(this.groundColor);
+    }
+    
+    /**
      * Center camera on player's headquarters
      */
     centerCameraOnHQ(buildings) {
@@ -144,7 +192,6 @@ class RTSEngine {
         for (const buildingData of buildings) {
             if (buildingData.ownerId === this.myPlayerId && 
                 buildingData.type === 'HEADQUARTERS') {
-                console.log('Centering camera on HQ at', buildingData.x, buildingData.y);
                 this.camera.x = buildingData.x;
                 this.camera.y = buildingData.y;
                 this.updateCameraTransform();
@@ -193,7 +240,6 @@ class RTSEngine {
         
         if (!gameId) {
             // Create new game
-            console.log('Creating new RTS game...');
             const response = await fetch('/api/rts/games', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -206,7 +252,6 @@ class RTSEngine {
             
             const data = await response.json();
             gameId = data.gameId;
-            console.log('Created RTS game:', gameId);
             
             // Update URL with game ID
             const newUrl = `${window.location.pathname}?gameId=${gameId}`;
@@ -217,16 +262,27 @@ class RTSEngine {
             throw new Error('Failed to get game ID');
         }
         
-        // Connect via WebSocket
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/rts/${gameId}`;
+        // Store game ID for later use
+        this.gameId = gameId;
         
-        console.log('Connecting to WebSocket:', wsUrl);
+        // Get session token from URL or sessionStorage
+        let sessionToken = urlParams.get('sessionToken');
+        if (!sessionToken) {
+            sessionToken = sessionStorage.getItem('rts_session_token');
+        }
+        
+        // Connect via WebSocket with session token
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        let wsUrl = `${protocol}//${window.location.host}/rts/${gameId}`;
+        if (sessionToken) {
+            wsUrl += `?sessionToken=${sessionToken}`;
+            console.log('Connecting with session token:', sessionToken);
+        }
+        
         this.websocket = new WebSocket(wsUrl);
         this.websocket.binaryType = 'arraybuffer';
         
         this.websocket.onopen = () => {
-            console.log('WebSocket connected to RTS game:', gameId);
         };
         
         this.websocket.onerror = (error) => {
@@ -234,20 +290,11 @@ class RTSEngine {
         };
         
         this.websocket.onclose = (event) => {
-            console.log('WebSocket closed:', event.code, event.reason);
         };
         
         this.websocket.onmessage = (event) => {
             const data = JSON.parse(event.data);
             this.handleServerMessage(data);
-        };
-        
-        this.websocket.onerror = (error) => {
-            console.error('WebSocket error:', error);
-        };
-        
-        this.websocket.onclose = () => {
-            console.log('Disconnected from server');
         };
     }
     
@@ -258,7 +305,6 @@ class RTSEngine {
                 break;
             case 'playerId':
                 this.myPlayerId = data.playerId;
-                console.log('Assigned player ID:', this.myPlayerId);
                 break;
             case 'gameOver':
                 this.handleGameOver(data);
@@ -308,6 +354,18 @@ class RTSEngine {
         while (eventFeed.children.length > 5) {
             eventFeed.removeChild(eventFeed.firstChild);
         }
+    }
+    
+    /**
+     * Show a client-side game event (not from server)
+     * @param {string} message - Event message to display
+     * @param {string} category - Event category ('info', 'warning', 'system')
+     */
+    showGameEvent(message, category = 'info') {
+        this.handleGameEvent({
+            message: message,
+            category: category
+        });
     }
     
     handleGameOver(data) {
@@ -362,7 +420,6 @@ class RTSEngine {
             // Add new listener
             newBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                console.log('Play Again clicked - navigating to lobby');
                 window.location.href = '/rts-lobby.html';
             });
         }
@@ -371,6 +428,9 @@ class RTSEngine {
     }
     
     updateGameState(state) {
+        // Store the full game state for research system and other features
+        this.lastGameState = state;
+        
         // Update units
         if (state.units) {
             const currentUnitIds = new Set(state.units.map(u => u.id));
@@ -419,24 +479,7 @@ class RTSEngine {
             });
         }
         
-        // Update resource deposits
-        if (state.resourceDeposits) {
-            const currentDepositIds = new Set(state.resourceDeposits.map(d => d.id));
-            
-            // Remove deposits that no longer exist (depleted)
-            this.resourceDeposits.forEach((depositContainer, id) => {
-                if (!currentDepositIds.has(id)) {
-                    this.gameContainer.removeChild(depositContainer);
-                    this.resourceDeposits.delete(id);
-                    console.log('Removed depleted resource deposit', id);
-                }
-            });
-            
-            // Update or create deposits
-            state.resourceDeposits.forEach(depositData => {
-                this.updateResourceDeposit(depositData);
-            });
-        }
+        // Resource deposits removed - obstacles now contain harvestable resources
         
         // Update obstacles
         if (state.obstacles) {
@@ -558,14 +601,24 @@ class RTSEngine {
             this.biome = state.biome.name;
             this.groundColor = state.biome.groundColor;
             this.obstacleColor = state.biome.obstacleColor;
-            this.app.renderer.background.color = this.groundColor;
-            console.log('Biome set to:', this.biome, 'Ground color:', this.groundColor.toString(16));
+            
+            // Draw the world bounds rectangle with the biome color
+            // Everything outside this will be black
+            this.drawWorldBounds();
+            
         }
         
         // Update world dimensions (for camera bounds)
         if (state.worldWidth && state.worldHeight) {
+            const boundsChanged = this.worldBounds.width !== state.worldWidth || 
+                                  this.worldBounds.height !== state.worldHeight;
             this.worldBounds.width = state.worldWidth;
             this.worldBounds.height = state.worldHeight;
+            
+            // Redraw world bounds if dimensions changed and we have a biome color
+            if (boundsChanged && this.biome) {
+                this.drawWorldBounds();
+            }
         }
         
         // Update build menu based on available tech
@@ -592,6 +645,20 @@ class RTSEngine {
             unitContainer = this.createUnitGraphics(unitData);
             this.units.set(unitData.id, unitContainer);
             this.gameContainer.addChild(unitContainer);
+            
+            // Set z-index based on elevation (air units should render above buildings and projectiles)
+            // Buildings have default z-index of 0
+            // Ground units: z-index 1
+            // Projectiles: z-index 4
+            // Low altitude units: z-index 5
+            // High altitude units: z-index 6
+            if (unitData.elevation === 'HIGH') {
+                unitContainer.zIndex = 6;
+            } else if (unitData.elevation === 'LOW') {
+                unitContainer.zIndex = 5;
+            } else {
+                unitContainer.zIndex = 1; // GROUND units
+            }
         }
         
         // Update position
@@ -617,31 +684,6 @@ class RTSEngine {
                 unitContainer.healthBar.rect(-15, -offset, 30 * healthPercent, 3);
                 unitContainer.healthBar.fill(this.getHealthColor(healthPercent));
             }
-        }
-        
-        // Update pickaxe durability bar (for miners)
-        if (unitData.type === 'MINER' && unitData.pickaxeDurability !== undefined) {
-            if (!unitContainer.pickaxeBar) {
-                unitContainer.pickaxeBar = new PIXI.Graphics();
-                unitContainer.addChild(unitContainer.pickaxeBar);
-            }
-            const durabilityPercent = unitData.pickaxeDurability / 100.0;
-            
-            // Hide pickaxe bar if at full durability
-            if (durabilityPercent >= 1.0) {
-                unitContainer.pickaxeBar.visible = false;
-            } else {
-                unitContainer.pickaxeBar.visible = true;
-                const offset = (unitContainer.healthBarOffset || 25) - 5; // Below health bar
-                unitContainer.pickaxeBar.clear();
-                unitContainer.pickaxeBar.rect(-15, -offset, 30 * durabilityPercent, 2);
-                // Color: green when high, yellow when medium, red when low
-                const pickaxeColor = durabilityPercent > 0.5 ? 0x00FF00 : (durabilityPercent > 0.2 ? 0xFFFF00 : 0xFF0000);
-                unitContainer.pickaxeBar.fill(pickaxeColor);
-            }
-        } else if (unitContainer.pickaxeBar) {
-            // Hide pickaxe bar for non-miners
-            unitContainer.pickaxeBar.visible = false;
         }
         
         // Update selection indicator and track selected units
@@ -681,6 +723,74 @@ class RTSEngine {
             unitContainer.deployIndicator.visible = false;
         }
         
+        // Update cloak visual effect (for Cloak Tank)
+        if (unitData.specialAbilityActive && unitData.specialAbility === 'CLOAK') {
+            // Apply transparency and shimmer effect when cloaked
+            if (unitData.cloaked) {
+                // Fully cloaked - very transparent with shimmer
+                unitContainer.alpha = 0.15;
+                
+                // Add shimmer indicator if not already present
+                if (!unitContainer.cloakShimmer) {
+                    const shimmer = new PIXI.Graphics();
+                    shimmer.circle(0, 0, typeInfo.size + 8);
+                    shimmer.stroke({ width: 2, color: 0x00FFFF, alpha: 0.3 });
+                    unitContainer.addChild(shimmer);
+                    unitContainer.cloakShimmer = shimmer;
+                    
+                    // Animate shimmer (pulsing effect)
+                    shimmer.pulseDirection = 1;
+                    shimmer.pulseAlpha = 0.3;
+                }
+                unitContainer.cloakShimmer.visible = true;
+                
+                // Pulse the shimmer
+                if (unitContainer.cloakShimmer.pulseAlpha !== undefined) {
+                    unitContainer.cloakShimmer.pulseAlpha += 0.01 * unitContainer.cloakShimmer.pulseDirection;
+                    if (unitContainer.cloakShimmer.pulseAlpha >= 0.5) {
+                        unitContainer.cloakShimmer.pulseDirection = -1;
+                    } else if (unitContainer.cloakShimmer.pulseAlpha <= 0.1) {
+                        unitContainer.cloakShimmer.pulseDirection = 1;
+                    }
+                    unitContainer.cloakShimmer.alpha = unitContainer.cloakShimmer.pulseAlpha;
+                }
+            } else {
+                // Cloak active but recently fired - partial transparency
+                unitContainer.alpha = 0.5;
+                if (unitContainer.cloakShimmer) {
+                    unitContainer.cloakShimmer.visible = false;
+                }
+            }
+        } else {
+            // Not cloaked - full visibility
+            unitContainer.alpha = 1.0;
+            if (unitContainer.cloakShimmer) {
+                unitContainer.cloakShimmer.visible = false;
+            }
+        }
+        
+        // ANIMATE AIR UNITS (bobbing, rotor spinning, etc.)
+        if (unitContainer.isAirUnit) {
+            this.updateAirUnitAnimation(unitContainer);
+        }
+        
+        // UPDATE BOMBER SORTIE PATH (if bomber with active sortie)
+        if (unitData.type === 'BOMBER' && unitContainer.isBomber) {
+            if (unitData.currentCommand && unitData.currentCommand.type === 'SORTIE') {
+                // Draw sortie flight path
+                this.drawSortiePath(unitContainer, {
+                    phase: unitData.currentCommand.phase,
+                    targetLocation: unitData.currentCommand.targetLocation,
+                    homeLocation: unitData.currentCommand.homeLocation
+                });
+            } else {
+                // Clear sortie path if no active sortie
+                if (unitContainer.sortiePath) {
+                    unitContainer.sortiePath.visible = false;
+                }
+            }
+        }
+        
         // Update turrets (for deployed Crawler)
         if (unitData.turrets && unitData.turrets.length > 0) {
             if (!unitContainer.turretGraphics) {
@@ -701,7 +811,7 @@ class RTSEngine {
                     
                     // Turret barrel (pointing right by default)
                     const barrel = new PIXI.Graphics();
-                    const barrelLength = typeInfo.size * 0.5;
+                    const barrelLength = typeInfo.size * 0.3; // Shortened from 0.5 to 0.3
                     const barrelWidth = 3;
                     barrel.rect(0, -barrelWidth / 2, barrelLength, barrelWidth);
                     barrel.fill(0x404040);
@@ -744,6 +854,119 @@ class RTSEngine {
         unitContainer.unitData = unitData;
     }
     
+    /**
+     * Update air unit animations (bobbing, rotor spinning, LED pulsing)
+     */
+    updateAirUnitAnimation(container) {
+        // Increment animation time
+        container.animationTime += 0.05;
+        const time = container.animationTime;
+        
+        // Different animations for bomber vs. scout drone
+        if (container.isBomber) {
+            // BOMBER: Smooth flight, no bobbing, pulsing exhaust
+            
+            // 1. PULSING EXHAUST (jet engines)
+            if (container.exhaustTrails) {
+                const exhaustPulse = 0.5 + Math.sin(time * 3) * 0.3; // Faster pulse
+                container.exhaustTrails.forEach(exhaust => {
+                    exhaust.alpha = exhaustPulse;
+                    // Slight scale variation for flame effect
+                    const scale = 0.8 + Math.sin(time * 5 + exhaust.position.y) * 0.2;
+                    exhaust.scale.set(scale, scale);
+                });
+            }
+            
+            // 2. BLINKING WING LIGHTS (navigation lights)
+            if (container.wingLights) {
+                const blink = Math.floor(time * 2) % 2 === 0; // Blink every 0.5 seconds
+                container.wingLights.forEach(light => {
+                    light.alpha = blink ? 1.0 : 0.3;
+                });
+            }
+            
+            // 3. SHADOW STAYS CONSTANT (bomber flies at constant altitude)
+            // No animation needed for bomber shadow
+            
+        } else if (container.isHelicopter) {
+            // HELICOPTER: Bobbing motion (like scout drone), spinning main rotor, spinning tail rotor
+            
+            // 1. BOBBING MOTION (helicopter body moves up/down, shadow stays fixed but changes alpha)
+            const bob = Math.sin(time) * 4; // 4 pixel bob (slightly more than scout drone for larger craft)
+            
+            if (container.rotatingContainer) {
+                // Move the helicopter body up and down
+                container.rotatingContainer.y = bob;
+            }
+            
+            if (container.shadowGraphics) {
+                // Shadow stays at fixed position but changes alpha based on altitude
+                const shadowAlpha = 0.35 - (bob * 0.02);
+                container.shadowGraphics.alpha = Math.max(0.15, shadowAlpha);
+            }
+            
+            // 2. SPIN MAIN ROTOR (top rotor blades)
+            if (container.rotorContainer) {
+                container.rotorContainer.rotation += 0.4; // Fast spinning
+            }
+            
+            // 3. SPIN TAIL ROTOR (smaller rotor at rear)
+            if (container.tailRotor) {
+                container.tailRotor.rotation += 0.6; // Even faster than main rotor
+            }
+            
+        } else if (container.isGunship) {
+            // GUNSHIP: Smooth flight with gentle bobbing, pulsing jet exhaust (like bomber but with slight bob)
+            
+            // 1. GENTLE BOBBING MOTION (subtle for fixed-wing jet at low altitude)
+            const bob = Math.sin(time * 0.8) * 3; // 3 pixel bob, slow frequency
+            
+            if (container.rotatingContainer) {
+                // Move the gunship body up and down gently
+                container.rotatingContainer.y = bob;
+            }
+            
+            if (container.shadowGraphics) {
+                // Shadow stays at fixed position but changes alpha based on altitude
+                const shadowAlpha = 0.4 - (bob * 0.015);
+                container.shadowGraphics.alpha = Math.max(0.2, shadowAlpha);
+            }
+        } else {
+            // SCOUT DRONE: Bobbing motion, spinning rotors, pulsing LEDs
+            
+            // 1. BOBBING MOTION (drone body moves up/down, shadow stays fixed but changes alpha)
+            const bob = Math.sin(time) * 3; // 3 pixel bob
+            
+            if (container.rotatingContainer) {
+                // Move the drone body up and down
+                container.rotatingContainer.y = bob;
+            }
+            
+            if (container.shadowGraphics) {
+                // Shadow stays at fixed position but changes alpha based on altitude
+                const shadowAlpha = 0.3 - (bob * 0.02);
+                container.shadowGraphics.alpha = Math.max(0.1, shadowAlpha);
+            }
+            
+            // 2. SPIN ROTORS (4 independent rotors)
+            if (container.rotors) {
+                container.rotors.forEach((rotor, index) => {
+                    // Each rotor spins at slightly different speed for variety
+                    const speedVariation = 1 + (index * 0.1);
+                    rotor.rotation += 0.3 * speedVariation;
+                });
+            }
+            
+            // 3. PULSE LED LIGHTS
+            if (container.leds) {
+                const ledPulse = 0.5 + Math.sin(time * 2) * 0.3; // Pulse between 0.2 and 0.8
+                container.leds.forEach(led => {
+                    led.alpha = ledPulse;
+                });
+            }
+        }
+    }
+    
     getUnitTypeInfo(unitType) {
         const unitTypes = {
             'WORKER': { sides: 16, size: 15, color: 0xFFFF00 },
@@ -752,25 +975,43 @@ class RTSEngine {
             'MEDIC': { sides: 6, size: 12, color: 0xFFFFFF },
             'ROCKET_SOLDIER': { sides: 3, size: 12, color: 0xFF8800 },
             'SNIPER': { sides: 3, size: 12, color: 0x8B4513 },
-            'ENGINEER': { sides: 6, size: 13, color: 0xFFD700 },
-            'MINER': { sides: 8, size: 14, color: 0x8B4513 },
+            'ENGINEER': { sides: 6, size: 13, color: 0x00CED1 }, // Dark turquoise (distinct from yellow worker)
             'JEEP': { sides: 4, size: 20, color: 0x00FFFF },
             'TANK': { sides: 5, size: 30, color: 0x8888FF },
             'ARTILLERY': { sides: 6, size: 25, color: 0xFF00FF },
             'GIGANTONAUT': { sides: 8, size: 35, color: 0x8B0000 }, // Super heavy artillery!
+            'CLOAK_TANK': { sides: 5, size: 28, color: 0x2F4F4F },
+            'MAMMOTH_TANK': { sides: 6, size: 40, color: 0x556B2F },
+            // Hero units
             'CRAWLER': { sides: 8, size: 50, color: 0x4A4A4A },
-            'STEALTH_TANK': { sides: 5, size: 28, color: 0x2F4F4F },
-            'MAMMOTH_TANK': { sides: 6, size: 40, color: 0x556B2F }
+            'RAIDER': { sides: 3, size: 22, color: 0xDC143C }, // Crimson (Nomads hero)
+            'COLOSSUS': { sides: 6, size: 50, color: 0x4B0082 }, // Indigo (Synthesis hero)
+            // Tech Alliance beam weapon units
+            'PLASMA_TROOPER': { sides: 3, size: 12, color: 0x00FF7F }, // Spring green
+            'ION_RANGER': { sides: 3, size: 12, color: 0x9370DB }, // Medium purple
+            'PHOTON_SCOUT': { sides: 4, size: 18, color: 0x7FFF00 }, // Chartreuse
+            'BEAM_TANK': { sides: 6, size: 30, color: 0x00FA9A }, // Medium spring green
+            'PULSE_ARTILLERY': { sides: 6, size: 26, color: 0xFFD700 }, // Gold
+            'PHOTON_TITAN': { sides: 8, size: 38, color: 0x00FF00 }, // Bright green (hero unit)
+            // Air units
+            'SCOUT_DRONE': { sides: 4, size: 12, color: 0x87CEEB, isAir: true }, // Light sky blue
+            'HELICOPTER': { sides: 5, size: 22, color: 0x8B4513, isAir: true }, // Brown/tan, larger than scout drone
+            'BOMBER': { sides: 3, size: 25, color: 0x404040, isAir: true, isSortie: true }, // Dark gray, larger, triangle (delta wing)
+            'INTERCEPTOR': { sides: 3, size: 20, color: 0xFF4500, isAir: true, isSortie: true }, // Orange-red, sleek fighter
+            'GUNSHIP': { sides: 5, size: 28, color: 0x2F4F4F, isAir: true, isSortie: true } // Dark slate gray, heavy attack aircraft (hero)
         };
         return unitTypes[unitType] || { sides: 4, size: 15, color: 0xFFFFFF };
     }
     
     createUnitGraphics(unitData) {
-        const container = new PIXI.Container();
-        
-        // Get unit type info
         const typeInfo = this.getUnitTypeInfo(unitData.type);
         
+        // Special rendering for air units
+        if (typeInfo.isAir) {
+            return this.createAirUnitGraphics(unitData, typeInfo);
+        }
+        
+        const container = new PIXI.Container();
         // Create a rotating container for the unit shape and direction indicator
         const rotatingContainer = new PIXI.Container();
         container.addChild(rotatingContainer);
@@ -780,16 +1021,23 @@ class RTSEngine {
         const shape = new PIXI.Graphics();
         // Use physics body vertices if available, otherwise fall back to manual drawing
         if (unitData.vertices && unitData.vertices.length > 0) {
-            // Debug logging for custom shapes
-            if (unitData.type === 'GIGANTONAUT') {
-                console.log('Gigantonaut vertices:', unitData.vertices);
+            // Check if this is multi-fixture format (array of fixtures) or single-fixture format
+            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
+            
+            if (isMultiFixture) {
+                // Multi-fixture: vertices is [fixture1, fixture2, ...]
+                // where each fixture is [[x1, y1], [x2, y2], ...]
+                for (const fixtureVertices of unitData.vertices) {
+                    if (fixtureVertices.length > 0) {
+                        this.drawPhysicsPolygon(shape, fixtureVertices, typeInfo.color, unitData.team);
+                    }
+                }
+            } else {
+                // Single-fixture (backward compatibility): vertices is [[x1, y1], [x2, y2], ...]
+                this.drawPhysicsPolygon(shape, unitData.vertices, typeInfo.color, unitData.team);
             }
-            this.drawPhysicsPolygon(shape, unitData.vertices, typeInfo.color, unitData.team);
         } else {
             // Fallback for circles or if vertices not provided
-            if (unitData.type === 'GIGANTONAUT') {
-                console.log('Gigantonaut using fallback rendering (no vertices)');
-            }
             this.drawPolygon(shape, typeInfo.sides, typeInfo.size, typeInfo.color, unitData.team);
         }
         rotatingContainer.addChild(shape);
@@ -846,6 +1094,614 @@ class RTSEngine {
         return container;
     }
     
+    /**
+     * Create special graphics for air units (Scout Drone, Bomber, Helicopter, Interceptor)
+     * Features: shadow, rotor/engine animation, glow effects, bobbing motion
+     */
+    createAirUnitGraphics(unitData, typeInfo) {
+        // Route to specific air unit renderer
+        switch (unitData.type) {
+            case 'BOMBER':
+                return this.createBomberGraphics(unitData, typeInfo);
+            case 'HELICOPTER':
+                return this.createHelicopterGraphics(unitData, typeInfo);
+            case 'INTERCEPTOR':
+                return this.createInterceptorGraphics(unitData, typeInfo);
+            case 'GUNSHIP':
+                return this.createGunshipGraphics(unitData, typeInfo);
+            case 'SCOUT_DRONE':
+            default:
+                return this.createScoutDroneGraphics(unitData, typeInfo);
+        }
+    }
+    
+    /**
+     * Create graphics for Scout Drone (VTOL quadcopter)
+     * Features: spinning rotors, bobbing motion, LEDs
+     */
+    createScoutDroneGraphics(unitData, typeInfo) {
+        const container = new PIXI.Container();
+        container.isAirUnit = true;
+        
+        // 1. SHADOW (drawn first, appears below unit)
+        const shadow = new PIXI.Graphics();
+        const shadowOffset = -24; // Negative Y for shadow below unit
+        shadow.ellipse(0, shadowOffset, typeInfo.size * 0.7, typeInfo.size * 0.4);
+        shadow.fill({ color: 0x000000, alpha: 0.3 });
+        container.addChild(shadow);
+        container.shadowGraphics = shadow;
+        
+        // 2. ROTATING CONTAINER for main body + rotors
+        const rotatingContainer = new PIXI.Container();
+        container.addChild(rotatingContainer);
+        container.rotatingContainer = rotatingContainer;
+        
+        // 3. MAIN BODY (quadcopter center hub + arms)
+        const body = new PIXI.Graphics();
+        
+        // Draw X-shaped drone body using physics vertices if available
+        if (unitData.vertices && unitData.vertices.length > 0) {
+            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
+            
+            if (isMultiFixture) {
+                for (const fixtureVertices of unitData.vertices) {
+                    if (fixtureVertices.length > 0) {
+                        this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
+                    }
+                }
+            } else {
+                this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
+            }
+        } else {
+            // Fallback: simple diamond shape
+            this.drawPolygon(body, 4, typeInfo.size, typeInfo.color, unitData.team);
+        }
+        
+        // Make body semi-transparent for "floating" effect
+        body.alpha = 0.9;
+        rotatingContainer.addChild(body);
+        
+        // 4. ROTOR BLADES (4 rotors at corners, spinning independently)
+        const rotorPositions = [
+            { x: typeInfo.size * 0.7, y: typeInfo.size * 0.7 },   // Front-right
+            { x: -typeInfo.size * 0.7, y: typeInfo.size * 0.7 },  // Front-left
+            { x: -typeInfo.size * 0.7, y: -typeInfo.size * 0.7 }, // Rear-left
+            { x: typeInfo.size * 0.7, y: -typeInfo.size * 0.7 }   // Rear-right
+        ];
+        
+        container.rotors = [];
+        for (const pos of rotorPositions) {
+            const rotor = new PIXI.Graphics();
+            
+            // Draw rotor blades (two perpendicular lines)
+            rotor.moveTo(-typeInfo.size * 0.25, 0);
+            rotor.lineTo(typeInfo.size * 0.25, 0);
+            rotor.stroke({ width: 1.5, color: 0x888888, alpha: 0.7 });
+            
+            rotor.moveTo(0, -typeInfo.size * 0.25);
+            rotor.lineTo(0, typeInfo.size * 0.25);
+            rotor.stroke({ width: 1.5, color: 0x888888, alpha: 0.7 });
+            
+            rotor.position.set(pos.x, pos.y);
+            rotatingContainer.addChild(rotor);
+            container.rotors.push(rotor);
+        }
+        
+        // 5. LED LIGHTS at rotor positions (pulsing effect)
+        container.leds = [];
+        for (const pos of rotorPositions) {
+            const led = new PIXI.Graphics();
+            led.circle(0, 0, 2);
+            led.fill({ color: 0x00FFFF, alpha: 0.8 });
+            led.position.set(pos.x, pos.y);
+            rotatingContainer.addChild(led);
+            container.leds.push(led);
+        }
+        
+        // 6. GLOW FILTER for ethereal look
+        if (PIXI.GlowFilter) {
+            const glow = new PIXI.GlowFilter({
+                distance: 10,
+                outerStrength: 1.5,
+                color: typeInfo.color,
+                quality: 0.3
+            });
+            body.filters = [glow];
+        }
+        
+        // 7. HEALTH BAR (same as ground units)
+        const healthBar = new PIXI.Graphics();
+        healthBar.rect(-typeInfo.size * 0.6, -typeInfo.size - 8, typeInfo.size * 1.2, 4);
+        healthBar.fill({ color: 0x00FF00 });
+        container.addChild(healthBar);
+        container.healthBar = healthBar;
+        
+        // 8. SELECTION CIRCLE (drawn when selected)
+        const selectionCircle = new PIXI.Graphics();
+        selectionCircle.visible = false;
+        selectionCircle.circle(0, 0, typeInfo.size * 1.3);
+        selectionCircle.stroke({ width: 2, color: 0x00FF00 });
+        container.addChild(selectionCircle);
+        container.selectionCircle = selectionCircle;
+        
+        // Store animation state
+        container.animationTime = Math.random() * Math.PI * 2; // Random start phase
+        
+        // Store data
+        container.unitData = unitData;
+        container.typeInfo = typeInfo;
+        
+        return container;
+    }
+    
+    /**
+     * Create graphics for Bomber (fixed-wing aircraft)
+     * Features: delta wing shape, jet exhaust, larger shadow, no bobbing (smooth flight)
+     */
+    createBomberGraphics(unitData, typeInfo) {
+        const container = new PIXI.Container();
+        container.isAirUnit = true;
+        container.isBomber = true;
+        
+        // 1. SHADOW (larger and more diffuse for higher altitude)
+        const shadow = new PIXI.Graphics();
+        const shadowOffset = -35; // Larger offset = higher altitude
+        shadow.ellipse(0, shadowOffset, typeInfo.size * 1.2, typeInfo.size * 0.5);
+        shadow.fill({ color: 0x000000, alpha: 0.4 });
+        // Add blur for altitude effect
+        if (PIXI.BlurFilter) {
+            shadow.filters = [new PIXI.BlurFilter({ strength: 2 })];
+        }
+        container.addChild(shadow);
+        container.shadowGraphics = shadow;
+        
+        // 2. ROTATING CONTAINER for aircraft body
+        const rotatingContainer = new PIXI.Container();
+        container.addChild(rotatingContainer);
+        container.rotatingContainer = rotatingContainer;
+        
+        // 3. MAIN BODY (delta wing aircraft)
+        const body = new PIXI.Graphics();
+        
+        // Draw delta wing shape using physics vertices if available
+        if (unitData.vertices && unitData.vertices.length > 0) {
+            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
+            
+            if (isMultiFixture) {
+                for (const fixtureVertices of unitData.vertices) {
+                    if (fixtureVertices.length > 0) {
+                        this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
+                    }
+                }
+            } else {
+                this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
+            }
+        } else {
+            // Fallback: triangle (delta wing)
+            this.drawPolygon(body, 3, typeInfo.size, typeInfo.color, unitData.team);
+        }
+        
+        // More opaque than drone (solid metal)
+        body.alpha = 1.0;
+        rotatingContainer.addChild(body);
+        
+        // 4. ENGINE EXHAUST (at rear of aircraft - tail)
+        const exhaustContainer = new PIXI.Container();
+        exhaustContainer.position.set(-typeInfo.size * 0.7, 0); // Rear of aircraft
+        
+        // Two exhaust trails
+        container.exhaustTrails = [];
+        const exhaustPositions = [
+            { x: 0, y: -typeInfo.size * 0.15 },
+            { x: 0, y: typeInfo.size * 0.15 }
+        ];
+        
+        for (const pos of exhaustPositions) {
+            const exhaust = new PIXI.Graphics();
+            exhaust.circle(0, 0, 3);
+            exhaust.fill({ color: 0xFF6600, alpha: 0.6 }); // Orange glow
+            exhaust.position.set(pos.x, pos.y);
+            exhaustContainer.addChild(exhaust);
+            container.exhaustTrails.push(exhaust);
+        }
+        
+        rotatingContainer.addChild(exhaustContainer);
+        
+        // 5. COCKPIT (small lighter triangle at front)
+        const cockpit = new PIXI.Graphics();
+        cockpit.moveTo(typeInfo.size * 0.6, 0);
+        cockpit.lineTo(typeInfo.size * 0.4, -typeInfo.size * 0.1);
+        cockpit.lineTo(typeInfo.size * 0.4, typeInfo.size * 0.1);
+        cockpit.closePath();
+        cockpit.fill({ color: 0x87CEEB, alpha: 0.7 }); // Light blue tinted glass
+        rotatingContainer.addChild(cockpit);
+        
+        // 7. SUBTLE GLOW for jet engines
+        if (PIXI.GlowFilter) {
+            const glow = new PIXI.GlowFilter({
+                distance: 8,
+                outerStrength: 1.0,
+                color: 0xFF6600, // Orange glow from engines
+                quality: 0.3
+            });
+            exhaustContainer.filters = [glow];
+        }
+        
+        // 8. HEALTH BAR
+        const healthBar = new PIXI.Graphics();
+        healthBar.rect(-typeInfo.size * 0.6, -typeInfo.size - 8, typeInfo.size * 1.2, 4);
+        healthBar.fill({ color: 0x00FF00 });
+        container.addChild(healthBar);
+        container.healthBar = healthBar;
+        
+        // 9. SELECTION CIRCLE
+        const selectionCircle = new PIXI.Graphics();
+        selectionCircle.visible = false;
+        selectionCircle.circle(0, 0, typeInfo.size * 1.3);
+        selectionCircle.stroke({ width: 2, color: 0x00FF00 });
+        container.addChild(selectionCircle);
+        container.selectionCircle = selectionCircle;
+        
+        // 10. SORTIE PATH VISUALIZATION (if sortie data available)
+        const sortiePath = new PIXI.Graphics();
+        sortiePath.visible = false;
+        container.addChild(sortiePath);
+        container.sortiePath = sortiePath;
+        
+        // Store animation state
+        container.animationTime = Math.random() * Math.PI * 2;
+        
+        // Store data
+        container.unitData = unitData;
+        container.typeInfo = typeInfo;
+        
+        return container;
+    }
+    
+    /**
+     * Create graphics for Helicopter (LOW altitude attack helicopter)
+     * Features: spinning rotor, bobbing motion, dual rocket pods, landing skids
+     */
+    createHelicopterGraphics(unitData, typeInfo) {
+        const container = new PIXI.Container();
+        container.isAirUnit = true;
+        container.isHelicopter = true;
+        
+        // 1. SHADOW (drawn first, appears below unit)
+        const shadow = new PIXI.Graphics();
+        const shadowOffset = -32; // Negative Y for shadow below unit (lower than scout drone due to larger size)
+        shadow.ellipse(0, shadowOffset, typeInfo.size * 1.0, typeInfo.size * 0.5);
+        shadow.fill({ color: 0x000000, alpha: 0.35 });
+        container.addChild(shadow);
+        container.shadowGraphics = shadow;
+        
+        // 2. ROTATING CONTAINER for main body + rotors
+        const rotatingContainer = new PIXI.Container();
+        container.addChild(rotatingContainer);
+        container.rotatingContainer = rotatingContainer;
+        
+        // 3. MAIN BODY (helicopter fuselage - pentagon shape)
+        const body = new PIXI.Graphics();
+        
+        // Draw helicopter body using physics vertices if available
+        if (unitData.vertices && unitData.vertices.length > 0) {
+            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
+            
+            if (isMultiFixture) {
+                for (const fixtureVertices of unitData.vertices) {
+                    if (fixtureVertices.length > 0) {
+                        this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
+                    }
+                }
+            } else {
+                this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
+            }
+        } else {
+            // Fallback: pentagon (helicopter shape)
+            this.drawPolygon(body, 5, typeInfo.size, typeInfo.color, unitData.team);
+        }
+        
+        body.alpha = 0.95; // Slightly transparent
+        rotatingContainer.addChild(body);
+        
+        // 4. MAIN ROTOR (top rotor blades)
+        const rotorContainer = new PIXI.Container();
+        rotorContainer.position.set(0, -typeInfo.size * 0.1); // Slightly above center
+        
+        // Two rotor blades crossing
+        const rotor1 = new PIXI.Graphics();
+        rotor1.rect(-typeInfo.size * 1.2, -2, typeInfo.size * 2.4, 4);
+        rotor1.fill({ color: 0x808080, alpha: 0.4 }); // Semi-transparent gray
+        rotorContainer.addChild(rotor1);
+        
+        const rotor2 = new PIXI.Graphics();
+        rotor2.rect(-2, -typeInfo.size * 1.2, 4, typeInfo.size * 2.4);
+        rotor2.fill({ color: 0x808080, alpha: 0.4 });
+        rotorContainer.addChild(rotor2);
+        
+        rotatingContainer.addChild(rotorContainer);
+        container.rotorContainer = rotorContainer;
+        
+        // 5. TAIL ROTOR (small rotor at rear)
+        const tailRotor = new PIXI.Graphics();
+        tailRotor.rect(-6, -1, 12, 2);
+        tailRotor.fill({ color: 0x808080, alpha: 0.3 });
+        tailRotor.position.set(-typeInfo.size * 0.8, 0); // At tail
+        rotatingContainer.addChild(tailRotor);
+        container.tailRotor = tailRotor;
+        
+        // 6. COCKPIT (small lighter section at front)
+        const cockpit = new PIXI.Graphics();
+        cockpit.circle(typeInfo.size * 0.3, 0, typeInfo.size * 0.2);
+        cockpit.fill({ color: 0x87CEEB, alpha: 0.6 }); // Light blue tinted glass
+        rotatingContainer.addChild(cockpit);
+
+        // 8. LANDING SKIDS
+        const leftSkid = new PIXI.Graphics();
+        leftSkid.rect(-typeInfo.size * 0.6, -2, typeInfo.size * 1.2, 3);
+        leftSkid.fill({ color: 0x696969, alpha: 0.8 }); // Dark gray
+        leftSkid.position.set(0, -typeInfo.size * 0.4); // Below left
+        rotatingContainer.addChild(leftSkid);
+        
+        const rightSkid = new PIXI.Graphics();
+        rightSkid.rect(-typeInfo.size * 0.6, -2, typeInfo.size * 1.2, 3);
+        rightSkid.fill({ color: 0x696969, alpha: 0.8 });
+        rightSkid.position.set(0, typeInfo.size * 0.4); // Below right
+        rotatingContainer.addChild(rightSkid);
+
+        // 10. HEALTH BAR
+        const healthBar = new PIXI.Graphics();
+        healthBar.rect(-typeInfo.size * 0.6, -typeInfo.size - 8, typeInfo.size * 1.2, 4);
+        healthBar.fill({ color: 0x00FF00 });
+        container.addChild(healthBar);
+        container.healthBar = healthBar;
+        
+        // 11. SELECTION CIRCLE
+        const selectionCircle = new PIXI.Graphics();
+        selectionCircle.visible = false;
+        selectionCircle.circle(0, 0, typeInfo.size * 1.2);
+        selectionCircle.stroke({ width: 2, color: 0x00FF00 });
+        container.addChild(selectionCircle);
+        container.selectionCircle = selectionCircle;
+        
+        // Store animation state
+        container.animationTime = Math.random() * Math.PI * 2;
+        container.rotorAngle = 0;
+        
+        // Store data
+        container.unitData = unitData;
+        container.typeInfo = typeInfo;
+        
+        return container;
+    }
+    
+    /**
+     * Create graphics for Gunship (LOW altitude heavy attack aircraft)
+     * Features: fixed-wing design, dual jet engines, weapon pods, armored appearance
+     * Storm Wings hero unit - heavy attack jet, larger and more imposing than interceptor
+     */
+    createGunshipGraphics(unitData, typeInfo) {
+        const container = new PIXI.Container();
+        container.isAirUnit = true;
+        container.isGunship = true;
+        
+        // 1. SHADOW (drawn first, appears below unit)
+        const shadow = new PIXI.Graphics();
+        const shadowOffset = -36; // Larger offset than helicopter (bigger aircraft)
+        shadow.ellipse(0, shadowOffset, typeInfo.size * 1.1, typeInfo.size * 0.55);
+        shadow.fill({ color: 0x000000, alpha: 0.4 });
+        container.addChild(shadow);
+        container.shadowGraphics = shadow;
+        
+        // 2. ROTATING CONTAINER for main body (rotates to face direction, but no spinning parts)
+        const rotatingContainer = new PIXI.Container();
+        container.addChild(rotatingContainer);
+        container.rotatingContainer = rotatingContainer;
+        
+        // 3. MAIN BODY (gunship fuselage - pentagon shape for fixed-wing jet)
+        const body = new PIXI.Graphics();
+        
+        // Draw gunship body using physics vertices if available
+        if (unitData.vertices && unitData.vertices.length > 0) {
+            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
+            
+            if (isMultiFixture) {
+                for (const fixtureVertices of unitData.vertices) {
+                    if (fixtureVertices.length > 0) {
+                        this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
+                    }
+                }
+            } else {
+                this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
+            }
+        } else {
+            // Fallback: pentagon (gunship shape)
+            this.drawPolygon(body, 5, typeInfo.size, typeInfo.color, unitData.team);
+        }
+        
+        body.alpha = 0.95; // Slightly transparent
+        rotatingContainer.addChild(body);
+        
+        // 4. WINGS (swept-back delta wings for heavy attack jet)
+        const leftWing = new PIXI.Graphics();
+        leftWing.moveTo(0, 0);
+        leftWing.lineTo(-typeInfo.size * 0.6, -typeInfo.size * 0.8);
+        leftWing.lineTo(-typeInfo.size * 0.3, -typeInfo.size * 0.5);
+        leftWing.fill({ color: typeInfo.color, alpha: 0.8 });
+        rotatingContainer.addChild(leftWing);
+        
+        const rightWing = new PIXI.Graphics();
+        rightWing.moveTo(0, 0);
+        rightWing.lineTo(-typeInfo.size * 0.6, typeInfo.size * 0.8);
+        rightWing.lineTo(-typeInfo.size * 0.3, typeInfo.size * 0.5);
+        rightWing.fill({ color: typeInfo.color, alpha: 0.8 });
+        rotatingContainer.addChild(rightWing);
+        
+        // 5. COCKPIT (armored cockpit at front)
+        const cockpit = new PIXI.Graphics();
+        cockpit.circle(typeInfo.size * 0.4, 0, typeInfo.size * 0.25);
+        cockpit.fill({ color: 0x4682B4, alpha: 0.7 }); // Steel blue tinted glass
+        rotatingContainer.addChild(cockpit);
+        
+        // 6. WEAPON PODS (dual weapon systems under wings)
+        const leftWeapon = new PIXI.Graphics();
+        leftWeapon.rect(-typeInfo.size * 0.4, -3, typeInfo.size * 0.6, 6);
+        leftWeapon.fill({ color: 0x2F4F4F, alpha: 0.95 }); // Dark slate gray
+        leftWeapon.position.set(-typeInfo.size * 0.1, -typeInfo.size * 0.6); // Under left wing
+        rotatingContainer.addChild(leftWeapon);
+        
+        const rightWeapon = new PIXI.Graphics();
+        rightWeapon.rect(-typeInfo.size * 0.4, -3, typeInfo.size * 0.6, 6);
+        rightWeapon.fill({ color: 0x2F4F4F, alpha: 0.95 });
+        rightWeapon.position.set(-typeInfo.size * 0.1, typeInfo.size * 0.6); // Under right wing
+        rotatingContainer.addChild(rightWeapon);
+        
+        // 9. ARMOR PLATING HIGHLIGHTS (hero unit visual flair)
+        const armorHighlight = new PIXI.Graphics();
+        armorHighlight.rect(-typeInfo.size * 0.4, -typeInfo.size * 0.15, typeInfo.size * 0.8, typeInfo.size * 0.3);
+        armorHighlight.fill({ color: 0x708090, alpha: 0.3 }); // Slate gray highlight
+        rotatingContainer.addChild(armorHighlight);
+        
+        // 10. HEALTH BAR
+        const healthBar = new PIXI.Graphics();
+        healthBar.rect(-typeInfo.size * 0.7, -typeInfo.size - 10, typeInfo.size * 1.4, 5);
+        healthBar.fill({ color: 0x00FF00 });
+        container.addChild(healthBar);
+        container.healthBar = healthBar;
+        
+        // 11. SELECTION CIRCLE
+        const selectionCircle = new PIXI.Graphics();
+        selectionCircle.visible = false;
+        selectionCircle.circle(0, 0, typeInfo.size * 1.3);
+        selectionCircle.stroke({ width: 3, color: 0xFFD700 }); // Gold for hero unit
+        container.addChild(selectionCircle);
+        container.selectionCircle = selectionCircle;
+        
+        // Store animation state
+        container.animationTime = Math.random() * Math.PI * 2;
+        
+        // Store data
+        container.unitData = unitData;
+        container.typeInfo = typeInfo;
+        
+        return container;
+    }
+    
+    /**
+     * Create graphics for Interceptor (HIGH altitude fighter jet)
+     * Features: delta wing design, afterburner, sleek profile
+     */
+    createInterceptorGraphics(unitData, typeInfo) {
+        const container = new PIXI.Container();
+        container.isAirUnit = true;
+        container.isInterceptor = true;
+        
+        // 1. SHADOW (largest offset for highest altitude)
+        const shadow = new PIXI.Graphics();
+        const shadowOffset = -40; // Highest altitude = largest offset
+        shadow.ellipse(0, shadowOffset, typeInfo.size * 1.3, typeInfo.size * 0.5);
+        shadow.fill({ color: 0x000000, alpha: 0.45 });
+        // Add blur for high altitude effect
+        if (PIXI.BlurFilter) {
+            shadow.filters = [new PIXI.BlurFilter({ strength: 3 })];
+        }
+        container.addChild(shadow);
+        container.shadowGraphics = shadow;
+        
+        // 2. ROTATING CONTAINER for aircraft body
+        const rotatingContainer = new PIXI.Container();
+        container.addChild(rotatingContainer);
+        container.rotatingContainer = rotatingContainer;
+        
+        // 3. MAIN BODY (sleek delta wing fighter - triangle)
+        const body = new PIXI.Graphics();
+        
+        // Draw delta wing shape using physics vertices if available
+        if (unitData.vertices && unitData.vertices.length > 0) {
+            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
+            
+            if (isMultiFixture) {
+                for (const fixtureVertices of unitData.vertices) {
+                    if (fixtureVertices.length > 0) {
+                        this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
+                    }
+                }
+            } else {
+                this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
+            }
+        } else {
+            // Fallback: triangle (delta wing)
+            this.drawPolygon(body, 3, typeInfo.size, typeInfo.color, unitData.team);
+        }
+        
+        body.alpha = 1.0; // Solid metal
+        rotatingContainer.addChild(body);
+        
+        // 4. AFTERBURNER (bright engine exhaust at rear)
+        const afterburnerContainer = new PIXI.Container();
+        afterburnerContainer.position.set(-typeInfo.size * 0.75, 0); // Rear of aircraft
+        
+        // Single powerful engine exhaust
+        const afterburner = new PIXI.Graphics();
+        afterburner.circle(0, 0, 4);
+        afterburner.fill({ color: 0xFF4500, alpha: 0.9 }); // Bright orange-red
+        afterburnerContainer.addChild(afterburner);
+        
+        // Add intense glow for afterburner
+        if (PIXI.GlowFilter) {
+            const glow = new PIXI.GlowFilter({
+                distance: 12,
+                outerStrength: 2.0,
+                color: 0xFF4500,
+                quality: 0.4
+            });
+            afterburnerContainer.filters = [glow];
+        }
+        
+        rotatingContainer.addChild(afterburnerContainer);
+        container.afterburner = afterburner;
+        
+        // 5. COCKPIT (small canopy at front)
+        const cockpit = new PIXI.Graphics();
+        cockpit.moveTo(typeInfo.size * 0.7, 0);
+        cockpit.lineTo(typeInfo.size * 0.5, -typeInfo.size * 0.08);
+        cockpit.lineTo(typeInfo.size * 0.5, typeInfo.size * 0.08);
+        cockpit.closePath();
+        cockpit.fill({ color: 0x87CEEB, alpha: 0.8 }); // Light blue tinted
+        rotatingContainer.addChild(cockpit);
+
+        // 8. HEALTH BAR
+        const healthBar = new PIXI.Graphics();
+        healthBar.rect(-typeInfo.size * 0.6, -typeInfo.size - 8, typeInfo.size * 1.2, 4);
+        healthBar.fill({ color: 0x00FF00 });
+        container.addChild(healthBar);
+        container.healthBar = healthBar;
+        
+        // 9. FUEL/AMMO INDICATOR (for interceptors)
+        const statusBar = new PIXI.Graphics();
+        statusBar.rect(-typeInfo.size * 0.6, -typeInfo.size - 14, typeInfo.size * 1.2, 3);
+        statusBar.fill({ color: 0x00BFFF }); // Blue for fuel
+        container.addChild(statusBar);
+        container.statusBar = statusBar;
+        
+        // 10. SELECTION CIRCLE
+        const selectionCircle = new PIXI.Graphics();
+        selectionCircle.visible = false;
+        selectionCircle.circle(0, 0, typeInfo.size * 1.4);
+        selectionCircle.stroke({ width: 2, color: 0x00FF00 });
+        container.addChild(selectionCircle);
+        container.selectionCircle = selectionCircle;
+        
+        // Store animation state
+        container.animationTime = Math.random() * Math.PI * 2;
+        
+        // Store data
+        container.unitData = unitData;
+        container.typeInfo = typeInfo;
+        
+        return container;
+    }
+    
     updateBuilding(buildingData) {
         let buildingContainer = this.buildings.get(buildingData.id);
         
@@ -854,6 +1710,9 @@ class RTSEngine {
             buildingContainer = this.createBuildingGraphics(buildingData);
             this.buildings.set(buildingData.id, buildingContainer);
             this.gameContainer.addChild(buildingContainer);
+            
+            // Buildings should render below all units
+            buildingContainer.zIndex = 0;
         }
         
         // Update position
@@ -864,29 +1723,74 @@ class RTSEngine {
             const shape = buildingContainer.shapeGraphics;
             shape.clear();
             
+            // Use physics body vertices if available for accurate shape rendering
+            const hasVertices = buildingData.vertices && buildingData.vertices.length > 0;
+            
             if (buildingData.underConstruction) {
                 // Dotted outline for buildings under construction
-                this.drawPolygonOutline(shape, buildingContainer.typeInfo.sides, 
-                                       buildingContainer.typeInfo.size, 
-                                       buildingContainer.typeInfo.color, 
-                                       buildingData.team);
+                if (hasVertices) {
+                    // Check if this is multi-fixture format
+                    const isMultiFixture = Array.isArray(buildingData.vertices[0]) && Array.isArray(buildingData.vertices[0][0]);
+                    
+                    if (isMultiFixture) {
+                        // Multi-fixture: draw each fixture separately
+                        for (const fixtureVertices of buildingData.vertices) {
+                            if (fixtureVertices.length > 0) {
+                                this.drawPhysicsPolygonOutline(shape, fixtureVertices, 
+                                                               buildingContainer.typeInfo.color, 
+                                                               buildingData.team);
+                            }
+                        }
+                    } else {
+                        // Single-fixture (backward compatibility)
+                        this.drawPhysicsPolygonOutline(shape, buildingData.vertices, 
+                                                       buildingContainer.typeInfo.color, 
+                                                       buildingData.team);
+                    }
+                } else {
+                    this.drawPolygonOutline(shape, buildingContainer.typeInfo.sides, 
+                                           buildingContainer.typeInfo.size, 
+                                           buildingContainer.typeInfo.color, 
+                                           buildingData.team);
+                }
             } else {
                 // Solid fill for completed buildings
-                this.drawPolygon(shape, buildingContainer.typeInfo.sides, 
-                               buildingContainer.typeInfo.size, 
-                               buildingContainer.typeInfo.color, 
-                               buildingData.team);
+                if (hasVertices) {
+                    // Check if this is multi-fixture format
+                    const isMultiFixture = Array.isArray(buildingData.vertices[0]) && Array.isArray(buildingData.vertices[0][0]);
+                    
+                    if (isMultiFixture) {
+                        // Multi-fixture: draw each fixture separately
+                        for (const fixtureVertices of buildingData.vertices) {
+                            if (fixtureVertices.length > 0) {
+                                this.drawPhysicsPolygon(shape, fixtureVertices, 
+                                                       buildingContainer.typeInfo.color, 
+                                                       buildingData.team);
+                            }
+                        }
+                    } else {
+                        // Single-fixture (backward compatibility)
+                        this.drawPhysicsPolygon(shape, buildingData.vertices, 
+                                               buildingContainer.typeInfo.color, 
+                                               buildingData.team);
+                    }
+                } else {
+                    this.drawPolygon(shape, buildingContainer.typeInfo.sides, 
+                                   buildingContainer.typeInfo.size, 
+                                   buildingContainer.typeInfo.color, 
+                                   buildingData.team);
+                }
             }
         }
         
         // Update turret rotation for TURRET buildings (hide barrel during construction)
-        if (buildingContainer.rotatingContainer) {
+        if (buildingContainer.rotatingContainer && buildingContainer.turretBarrel) {
             if (buildingData.underConstruction) {
-                // Hide turret barrel while under construction
-                buildingContainer.rotatingContainer.visible = false;
+                // Hide only the turret barrel while under construction (keep base visible)
+                buildingContainer.turretBarrel.visible = false;
             } else {
                 // Show and rotate turret barrel when construction is complete
-                buildingContainer.rotatingContainer.visible = true;
+                buildingContainer.turretBarrel.visible = true;
                 if (buildingData.rotation !== undefined) {
                     buildingContainer.rotatingContainer.rotation = buildingData.rotation;
                 }
@@ -928,6 +1832,19 @@ class RTSEngine {
             buildingContainer.productionBar.rect(-40, -productionOffset, 80 * buildingData.productionPercent, 5);
             buildingContainer.productionBar.fill(0x00BFFF); // Deep sky blue for production
         } else if (buildingContainer.productionBar) {
+            buildingContainer.productionBar.visible = false;
+        }
+        
+        // Update hangar production progress (for HANGAR buildings)
+        if (buildingData.type === 'HANGAR' && buildingData.hangarProducing && buildingData.hangarProductionPercent > 0) {
+            if (buildingContainer.productionBar) {
+                buildingContainer.productionBar.visible = true;
+                const productionOffset = buildingContainer.productionBarOffset || 40;
+                buildingContainer.productionBar.clear();
+                buildingContainer.productionBar.rect(-40, -productionOffset, 80 * buildingData.hangarProductionPercent, 5);
+                buildingContainer.productionBar.fill(0x00BFFF); // Deep sky blue for production
+            }
+        } else if (buildingData.type === 'HANGAR' && buildingContainer.productionBar) {
             buildingContainer.productionBar.visible = false;
         }
         
@@ -1035,10 +1952,33 @@ class RTSEngine {
             
             // Only show shield if active and not under construction
             if (buildingData.shieldActive && !buildingData.underConstruction) {
-                const shieldRadius = 200; // Match server-side SHIELD_RADIUS
-                shield.circle(0, 0, shieldRadius);
+                shield.circle(0, 0, buildingData.shieldRadius);
                 shield.stroke({ width: 3, color: this.getTeamColor(buildingData.team), alpha: 0.4 });
                 shield.fill({ color: this.getTeamColor(buildingData.team), alpha: 0.1 });
+            }
+        }
+        
+        // Update garrison label (for bunkers)
+        if (buildingContainer.garrisonLabel) {
+            if (buildingData.garrisonCount > 0) {
+                buildingContainer.garrisonLabel.text = `[${buildingData.garrisonCount}/${buildingData.maxGarrisonCapacity}]`;
+                buildingContainer.garrisonLabel.visible = true;
+            } else {
+                buildingContainer.garrisonLabel.visible = false;
+            }
+        }
+        
+        // Update hangar label (for hangars)
+        if (buildingContainer.hangarLabel) {
+            if (buildingData.hangarOccupied !== undefined && buildingData.hangarCapacity !== undefined) {
+                // Show aircraft status with sortie indicator
+                const occupied = buildingData.hangarOccupied || 0;
+                const capacity = buildingData.hangarCapacity || 1;
+                const onSortie = buildingData.hangarOnSortie ? ' ✈' : '';
+                buildingContainer.hangarLabel.text = `[${occupied}/${capacity}]${onSortie}`;
+                buildingContainer.hangarLabel.visible = true;
+            } else {
+                buildingContainer.hangarLabel.visible = false;
             }
         }
         
@@ -1057,19 +1997,30 @@ class RTSEngine {
             'POWER_PLANT': { sides: 6, size: 40, color: 0xFFFF00, rotation: 0 },
             'FACTORY': { sides: 4, size: 55, color: 0x696969, rotation: 0 },
             'RESEARCH_LAB': { sides: 6, size: 50, color: 0x00CED1, rotation: Math.PI / 6 },
-            'WEAPONS_DEPOT': { sides: 5, size: 48, color: 0x8B0000, rotation: Math.PI / 5 },
             'TECH_CENTER': { sides: 8, size: 60, color: 0x4169E1, rotation: Math.PI / 8 },
-            'ADVANCED_FACTORY': { sides: 6, size: 65, color: 0x2F4F4F, rotation: 0 },
             'WALL': { sides: 4, size: 15, color: 0x708090, rotation: 0 },
             'TURRET': { sides: 5, size: 25, color: 0xFF4500, rotation: 0 },
+            'ROCKET_TURRET': { sides: 6, size: 25, color: 0xFF6347, rotation: 0 },
+            'LASER_TURRET': { sides: 8, size: 25, color: 0x00FFFF, rotation: Math.PI / 8 },
             'SHIELD_GENERATOR': { sides: 6, size: 30, color: 0x00BFFF, rotation: 0 },
-            'BANK': { sides: 8, size: 35, color: 0xFFD700, rotation: Math.PI / 8 }
+            'BANK': { sides: 8, size: 35, color: 0xFFD700, rotation: Math.PI / 8 },
+            'BUNKER': { sides: 4, size: 40, color: 0x556B2F, rotation: Math.PI / 4 },
+            // Monument buildings
+            'SANDSTORM_GENERATOR': { sides: 6, size: 45, color: 0xDEB887, rotation: 0 },
+            'QUANTUM_NEXUS': { sides: 8, size: 50, color: 0x9370DB, rotation: Math.PI / 8 },
+            'PHOTON_SPIRE': { sides: 6, size: 48, color: 0x00FF00, rotation: Math.PI / 6 },
+            'ANDROID_FACTORY': { sides: 8, size: 55, color: 0x4B0082, rotation: Math.PI / 8 },
+            'COMMAND_CITADEL': { sides: 8, size: 55, color: 0x4169E1, rotation: 0 },
+            'TEMPEST_SPIRE': { sides: 8, size: 45, color: 0x4682B4, rotation: 0 },
+            // Air unit production
+            'AIRFIELD': { sides: 8, size: 60, color: 0x708090, rotation: 0 },
+            'HANGAR': { sides: 4, size: 35, color: 0x4A5568, rotation: 0 }
         };
         
         const typeInfo = buildingTypes[buildingData.type] || { sides: 4, size: 50, color: 0xFFFFFF, rotation: 0 };
         
         // Create a rotating container for turret buildings
-        const hasTurret = buildingData.type === 'TURRET';
+        const hasTurret = buildingData.type === 'TURRET' || buildingData.type === 'ROCKET_TURRET' || buildingData.type === 'LASER_TURRET';
         let rotatingContainer;
         
         if (hasTurret) {
@@ -1123,13 +2074,22 @@ class RTSEngine {
             'FACTORY': 'F',
             'WALL': 'W',
             'TURRET': 'T',
+            'ROCKET_TURRET': 'RT',
+            'LASER_TURRET': 'LT',
             'POWER_PLANT': 'P',
             'RESEARCH_LAB': 'RL',
-            'WEAPONS_DEPOT': 'WD',
+            'AIRFIELD': 'AF',
+            'HANGAR': 'H',
             'TECH_CENTER': 'TC',
-            'ADVANCED_FACTORY': 'AF',
             'SHIELD_GENERATOR': 'SG',
-            'BANK': '$'
+            'BANK': '$',
+            'BUNKER': '⚔',
+            'PHOTON_SPIRE': '⚡',
+            'QUANTUM_NEXUS': '◈',
+            'SANDSTORM_GENERATOR': '☁',
+            'ANDROID_FACTORY': 'A',
+            'COMMAND_CITADEL': 'CC',
+            'TEMPEST_SPIRE': '⛈'
         };
         const label = new PIXI.Text(labelMap[buildingData.type] || '?', {
             fontFamily: 'Arial',
@@ -1174,38 +2134,42 @@ class RTSEngine {
         container.addChild(selectionCircle);
         container.selectionCircle = selectionCircle;
         
-        return container;
-    }
-    
-    updateResourceDeposit(depositData) {
-        let depositContainer = this.resourceDeposits.get(depositData.id);
-        
-        if (!depositContainer) {
-            // Create new deposit
-            depositContainer = this.createResourceDepositGraphics(depositData);
-            this.resourceDeposits.set(depositData.id, depositContainer);
-            this.gameContainer.addChild(depositContainer);
+        // Create garrison indicator (for bunkers)
+        if (buildingData.type === 'BUNKER') {
+            const garrisonLabel = new PIXI.Text('', {
+                fontFamily: 'Arial',
+                fontSize: 14,
+                fill: 0xFFFFFF,
+                stroke: { color: 0x000000, width: 2 }
+            });
+            garrisonLabel.anchor.set(0.5, 0.5);
+            garrisonLabel.scale.y = -1; // Flip vertically
+            garrisonLabel.y = typeInfo.size + 25; // Below building
+            garrisonLabel.visible = false;
+            container.addChild(garrisonLabel);
+            container.garrisonLabel = garrisonLabel;
         }
         
-        // Update position
-        depositContainer.position.set(depositData.x, depositData.y);
-        
-        // Store data
-        depositContainer.resourceData = depositData; // Store as resourceData for click detection
-    }
-    
-    createResourceDepositGraphics(depositData) {
-        const container = new PIXI.Container();
-        
-        // Create circle for deposit
-        const shape = new PIXI.Graphics();
-        shape.circle(0, 0, 40);
-        shape.fill(0x00FF00); // Green for resources
-        shape.stroke({ width: 2, color: 0xFFFFFF });
-        container.addChild(shape);
+        // Create hangar indicator (for hangars)
+        if (buildingData.type === 'HANGAR') {
+            const hangarLabel = new PIXI.Text('', {
+                fontFamily: 'Arial',
+                fontSize: 14,
+                fill: 0xFFFFFF,
+                stroke: { color: 0x000000, width: 2 }
+            });
+            hangarLabel.anchor.set(0.5, 0.5);
+            hangarLabel.scale.y = -1; // Flip vertically
+            hangarLabel.y = typeInfo.size + 25; // Below building
+            hangarLabel.visible = false;
+            container.addChild(hangarLabel);
+            container.hangarLabel = hangarLabel;
+        }
         
         return container;
     }
+    
+    // Resource deposits removed - obstacles now contain harvestable resources
     
     updateObstacle(obstacleData) {
         let obstacleContainer = this.obstacles.get(obstacleData.id);
@@ -1215,6 +2179,9 @@ class RTSEngine {
             obstacleContainer = this.createObstacleGraphics(obstacleData);
             this.obstacles.set(obstacleData.id, obstacleContainer);
             this.gameContainer.addChild(obstacleContainer);
+            
+            // Obstacles render below buildings
+            obstacleContainer.zIndex = -1;
         }
         
         // Update position
@@ -1249,6 +2216,9 @@ class RTSEngine {
             segmentContainer = this.createWallSegmentGraphics(segmentData);
             this.wallSegments.set(segmentData.id, segmentContainer);
             this.gameContainer.addChild(segmentContainer);
+            
+            // Wall segments render at same layer as buildings
+            segmentContainer.zIndex = 0;
         }
         
         // Update position and rotation
@@ -1309,9 +2279,13 @@ class RTSEngine {
         const container = new PIXI.Container();
         const shape = new PIXI.Graphics();
         
-        // Different colors for destructible vs indestructible obstacles
+        // Different colors for harvestable, destructible, and indestructible obstacles
         let fillColor, strokeColor;
-        if (obstacleData.destructible) {
+        if (obstacleData.harvestable) {
+            // Harvestable obstacles: greenish/gold color (contains resources)
+            fillColor = 0x9ACD32; // Yellow-green (resource-rich)
+            strokeColor = 0x6B8E23; // Olive green
+        } else if (obstacleData.destructible) {
             // Destructible obstacles: brownish/tan color (like rocks that can be broken)
             fillColor = 0x8B7355; // Medium brown
             strokeColor = 0x654321; // Darker brown
@@ -1329,8 +2303,20 @@ class RTSEngine {
             shape.rect(-halfWidth, -halfHeight, obstacleData.width, obstacleData.height);
             shape.fill(fillColor);
             shape.stroke({ width: 2, color: strokeColor });
+        } else if (obstacleData.shape === 'IRREGULAR_POLYGON' && obstacleData.vertices) {
+            // Irregular polygon with custom vertices
+            const vertices = obstacleData.vertices;
+            if (vertices.length >= 3) {
+                shape.moveTo(vertices[0].x, vertices[0].y);
+                for (let i = 1; i < vertices.length; i++) {
+                    shape.lineTo(vertices[i].x, vertices[i].y);
+                }
+                shape.closePath();
+                shape.fill(fillColor);
+                shape.stroke({ width: 2, color: strokeColor });
+            }
         } else if (obstacleData.shape === 'POLYGON') {
-            // Polygon obstacle
+            // Regular polygon
             this.drawPolygon(shape, obstacleData.sides, obstacleData.size, fillColor, 0);
             shape.stroke({ width: 2, color: strokeColor });
         } else {
@@ -1373,11 +2359,27 @@ class RTSEngine {
             projectileContainer = this.createProjectileGraphics(projectileData);
             this.projectiles.set(projectileData.id, projectileContainer);
             this.gameContainer.addChild(projectileContainer);
+            
+            // Projectiles render above units (z-index 4)
+            projectileContainer.zIndex = 4;
         }
         
         // Update position and rotation
         projectileContainer.position.set(projectileData.x, projectileData.y);
         projectileContainer.rotation = projectileData.rotation;
+        
+        // Animate trails
+        if (projectileContainer.fireTrail) {
+            // Animate rocket fire trail (flickering effect)
+            const time = Date.now() / 100;
+            projectileContainer.fireTrail.alpha = 0.8 + Math.sin(time) * 0.2;
+        }
+        
+        if (projectileContainer.smokeTrail) {
+            // Animate smoke trail (pulsing effect)
+            const time = Date.now() / 200;
+            projectileContainer.smokeTrail.alpha = 0.6 + Math.sin(time) * 0.2;
+        }
         
         // Store data
         projectileContainer.projectileData = projectileData;
@@ -1385,30 +2387,181 @@ class RTSEngine {
     
     createProjectileGraphics(projectileData) {
         const container = new PIXI.Container();
+        const size = projectileData.size;
         
-        // Get projectile color based on ordinance type
-        const colors = {
-            'BULLET': 0xFFFF00,      // Yellow
-            'ROCKET': 0xFF4500,      // Orange-red
-            'GRENADE': 0x8B4513,     // Brown
-            'PLASMA': 0x00FFFF,      // Cyan
-            'DART': 0xC0C0C0,        // Silver
-            'FLAMETHROWER': 0xFF6600 // Orange
-        };
-        
-        const color = colors[projectileData.ordinance] || 0xFFFFFF;
-        
-        // Create circle for projectile
+        // Create projectile shape based on ordinance type
         const shape = new PIXI.Graphics();
-        shape.circle(0, 0, projectileData.size);
-        shape.fill(color);
         
-        // Add trail effect for rockets
-        if (projectileData.ordinance === 'ROCKET' || projectileData.ordinance === 'GRENADE') {
-            shape.stroke({ width: 1, color: 0xFF8800 });
+        switch (projectileData.ordinance) {
+            case 'ROCKET':
+                // Rocket: Cone-shaped with fire trail
+                shape.moveTo(size * 2, 0);  // Nose (pointing right)
+                shape.lineTo(-size, -size * 0.6);  // Top fin
+                shape.lineTo(-size, size * 0.6);   // Bottom fin
+                shape.closePath();
+                shape.fill(0xFF4500);  // Orange-red body
+                
+                // Add metallic tip
+                shape.moveTo(size * 2, 0);
+                shape.lineTo(size * 0.5, -size * 0.3);
+                shape.lineTo(size * 0.5, size * 0.3);
+                shape.closePath();
+                shape.fill(0xC0C0C0);  // Silver tip
+                
+                // Fire trail (animated particles will be added in update)
+                const fireTrail = new PIXI.Graphics();
+                for (let i = 0; i < 5; i++) {
+                    const offset = -size - (i * size * 0.8);
+                    const trailSize = size * (1 - i * 0.15);
+                    const alpha = 1 - (i * 0.2);
+                    fireTrail.circle(offset, 0, trailSize);
+                    fireTrail.fill({ color: i % 2 === 0 ? 0xFF6600 : 0xFFAA00, alpha: alpha });
+                }
+                container.addChild(fireTrail);
+                container.addChild(shape);
+                container.fireTrail = fireTrail;  // Store reference for animation
+                break;
+                
+            case 'GRENADE':
+            case 'SHELL':
+                // Grenade/Shell: Oval shape with smoke trail
+                shape.ellipse(0, 0, size * 1.2, size * 0.8);
+                shape.fill(projectileData.ordinance === 'GRENADE' ? 0x4A4A4A : 0x8B7355);
+                
+                // Add metallic band
+                shape.rect(-size * 0.3, -size * 0.8, size * 0.6, size * 1.6);
+                shape.fill(0x696969);
+                
+                // Smoke trail
+                const smokeTrail = new PIXI.Graphics();
+                for (let i = 0; i < 4; i++) {
+                    const offset = -size - (i * size * 1.2);
+                    const smokeSize = size * (0.6 + i * 0.2);
+                    const alpha = 0.4 - (i * 0.1);
+                    smokeTrail.circle(offset, 0, smokeSize);
+                    smokeTrail.fill({ color: 0x808080, alpha: alpha });
+                }
+                container.addChild(smokeTrail);
+                container.addChild(shape);
+                container.smokeTrail = smokeTrail;
+                break;
+                
+            case 'FLAK':
+                // Flak Shell: Angular shell with red/orange tracer
+                // Main body (darker gray, angular)
+                shape.rect(-size * 1.2, -size * 0.9, size * 2, size * 1.8);
+                shape.fill(0x505050);
+                
+                // Nose cone (pointed tip)
+                shape.moveTo(size * 0.8, 0);
+                shape.lineTo(size * 0.2, -size * 0.9);
+                shape.lineTo(size * 0.2, size * 0.9);
+                shape.closePath();
+                shape.fill(0x606060);
+                
+                // Tracer glow (orange-red)
+                shape.circle(0, 0, size * 1.3);
+                shape.fill({ color: 0xFF4500, alpha: 0.4 });
+                
+                // Smoke trail (darker than regular shells)
+                const flakSmoke = new PIXI.Graphics();
+                for (let i = 0; i < 5; i++) {
+                    const offset = -size * 1.5 - (i * size * 1.1);
+                    const smokeSize = size * (0.5 + i * 0.15);
+                    const alpha = 0.35 - (i * 0.07);
+                    flakSmoke.circle(offset, 0, smokeSize);
+                    flakSmoke.fill({ color: 0x404040, alpha: alpha });
+                }
+                container.addChild(flakSmoke);
+                container.addChild(shape);
+                container.smokeTrail = flakSmoke;
+                break;
+                
+            case 'BULLET':
+                // Bullet: Elongated bullet shape
+                const bulletLength = size * 3;
+                const bulletWidth = size * 0.8;
+                
+                // Bullet casing (brass)
+                shape.rect(-bulletLength * 0.3, -bulletWidth, bulletLength * 0.6, bulletWidth * 2);
+                shape.fill(0xB8860B);  // Dark golden rod
+                
+                // Bullet tip (lead/copper)
+                shape.moveTo(bulletLength * 0.3, 0);
+                shape.lineTo(bulletLength * 0.8, -bulletWidth * 0.6);
+                shape.lineTo(bulletLength * 0.8, bulletWidth * 0.6);
+                shape.closePath();
+                shape.fill(0xCD7F32);  // Copper
+                
+                // Add slight glow
+                shape.circle(0, 0, size);
+                shape.fill({ color: 0xFFFF00, alpha: 0.3 });
+                
+                container.addChild(shape);
+                break;
+                
+            case 'PLASMA':
+                // Plasma: Glowing energy ball with corona
+                // Outer glow
+                shape.circle(0, 0, size * 1.5);
+                shape.fill({ color: 0x00FFFF, alpha: 0.3 });
+                
+                // Middle layer
+                shape.circle(0, 0, size * 1.1);
+                shape.fill({ color: 0x00FFFF, alpha: 0.6 });
+                
+                // Core
+                shape.circle(0, 0, size * 0.7);
+                shape.fill(0xFFFFFF);
+                
+                container.addChild(shape);
+                break;
+                
+            case 'DART':
+                // Dart: Thin, sharp projectile
+                const dartLength = size * 4;
+                const dartWidth = size * 0.4;
+                
+                // Shaft
+                shape.rect(-dartLength * 0.4, -dartWidth, dartLength * 0.8, dartWidth * 2);
+                shape.fill(0xC0C0C0);
+                
+                // Tip
+                shape.moveTo(dartLength * 0.4, 0);
+                shape.lineTo(dartLength * 0.8, -dartWidth * 0.5);
+                shape.lineTo(dartLength * 0.8, dartWidth * 0.5);
+                shape.closePath();
+                shape.fill(0x808080);
+                
+                // Fletching
+                shape.moveTo(-dartLength * 0.4, 0);
+                shape.lineTo(-dartLength * 0.6, -dartWidth * 2);
+                shape.lineTo(-dartLength * 0.5, 0);
+                shape.lineTo(-dartLength * 0.6, dartWidth * 2);
+                shape.closePath();
+                shape.fill(0xFF0000);
+                
+                container.addChild(shape);
+                break;
+                
+            case 'FLAMETHROWER':
+                // Flamethrower: Fire particle cluster
+                for (let i = 0; i < 3; i++) {
+                    const offset = (i - 1) * size * 0.5;
+                    const fireSize = size * (1 + Math.random() * 0.5);
+                    const fireColor = i === 1 ? 0xFFFF00 : (i === 0 ? 0xFF6600 : 0xFF0000);
+                    shape.circle(offset, 0, fireSize);
+                    shape.fill({ color: fireColor, alpha: 0.8 });
+                }
+                container.addChild(shape);
+                break;
+                
+            default:
+                // Default: Simple circle
+                shape.circle(0, 0, size);
+                shape.fill(0xFFFFFF);
+                container.addChild(shape);
         }
-        
-        container.addChild(shape);
         
         return container;
     }
@@ -1421,6 +2574,9 @@ class RTSEngine {
             beamGraphics = this.createBeamGraphics(beamData);
             this.beams.set(beamData.id, beamGraphics);
             this.gameContainer.addChild(beamGraphics);
+            
+            // Beams render above projectiles (z-index 5)
+            beamGraphics.zIndex = 5;
         } else {
             // Update existing beam (fade out over time)
             const fadeProgress = beamData.elapsed / beamData.duration;
@@ -1432,27 +2588,50 @@ class RTSEngine {
     }
     
     createBeamGraphics(beamData) {
-        const graphics = new PIXI.Graphics();
+        const container = new PIXI.Container();
         
-        // Get beam color based on type
+        // Get beam color based on type with brighter, more saturated colors
         const colors = {
-            'LASER': 0xFF0000,      // Red laser
+            'LASER': 0xFF3333,      // Bright red laser
             'PLASMA': 0x00FFFF,     // Cyan plasma
-            'ION': 0x8800FF,        // Purple ion
+            'ION': 0xAA00FF,        // Bright purple ion
             'PARTICLE': 0xFFFF00    // Yellow particle
         };
         
-        const color = colors[beamData.beamType] || 0xFF0000;
+        const color = colors[beamData.beamType] || 0xFF3333;
         
-        // Draw beam as a line
-        graphics.moveTo(beamData.startX, beamData.startY);
-        graphics.lineTo(beamData.endX, beamData.endY);
-        graphics.stroke({ width: beamData.width, color: color });
+        // Create outer glow layer (widest, most transparent)
+        const outerGlow = new PIXI.Graphics();
+        outerGlow.moveTo(beamData.startX, beamData.startY);
+        outerGlow.lineTo(beamData.endX, beamData.endY);
+        outerGlow.stroke({ width: beamData.width * 4, color: color, alpha: 0.15 });
+        outerGlow.filters = [new PIXI.BlurFilter(8)];
+        container.addChild(outerGlow);
         
-        // Add glow effect
-        graphics.filters = [new PIXI.BlurFilter(2)];
+        // Create middle glow layer
+        const middleGlow = new PIXI.Graphics();
+        middleGlow.moveTo(beamData.startX, beamData.startY);
+        middleGlow.lineTo(beamData.endX, beamData.endY);
+        middleGlow.stroke({ width: beamData.width * 2, color: color, alpha: 0.4 });
+        middleGlow.filters = [new PIXI.BlurFilter(4)];
+        container.addChild(middleGlow);
         
-        return graphics;
+        // Create core beam (bright, solid)
+        const core = new PIXI.Graphics();
+        core.moveTo(beamData.startX, beamData.startY);
+        core.lineTo(beamData.endX, beamData.endY);
+        core.stroke({ width: beamData.width, color: 0xFFFFFF, alpha: 0.9 }); // White core
+        container.addChild(core);
+        
+        // Create inner colored beam (slightly wider than core)
+        const innerBeam = new PIXI.Graphics();
+        innerBeam.moveTo(beamData.startX, beamData.startY);
+        innerBeam.lineTo(beamData.endX, beamData.endY);
+        innerBeam.stroke({ width: beamData.width * 1.5, color: color, alpha: 0.7 });
+        innerBeam.filters = [new PIXI.BlurFilter(1)];
+        container.addChild(innerBeam);
+        
+        return container;
     }
     
     addBuildingDecorations(container, buildingType, typeInfo) {
@@ -1482,15 +2661,7 @@ class RTSEngine {
                 decorations.circle(0, -typeInfo.size * 0.25, typeInfo.size * 0.1);
                 decorations.fill({ color: 0x000000, alpha: 0.3 });
                 break;
-                
-            case 'WEAPONS_DEPOT':
-                // Add crosshair
-                decorations.rect(-typeInfo.size * 0.3, -typeInfo.size * 0.05, typeInfo.size * 0.6, typeInfo.size * 0.1);
-                decorations.fill({ color: 0x000000, alpha: 0.3 });
-                decorations.rect(-typeInfo.size * 0.05, -typeInfo.size * 0.3, typeInfo.size * 0.1, typeInfo.size * 0.6);
-                decorations.fill({ color: 0x000000, alpha: 0.3 });
-                break;
-                
+
             case 'TECH_CENTER':
                 // Add star pattern
                 for (let i = 0; i < 4; i++) {
@@ -1505,10 +2676,8 @@ class RTSEngine {
                 break;
                 
             case 'FACTORY':
-            case 'ADVANCED_FACTORY':
                 // Add gear teeth pattern on edges
-                const isAdvanced = buildingType === 'ADVANCED_FACTORY';
-                const teethCount = isAdvanced ? 6 : 4;
+                const teethCount = 6;
                 const teethSize = typeInfo.size * 0.15;
                 for (let i = 0; i < teethCount; i++) {
                     const angle = (i * 2 * Math.PI / teethCount);
@@ -1531,6 +2700,28 @@ class RTSEngine {
                     decorations.rect(-typeInfo.size * 0.3, i * typeInfo.size * 0.15, typeInfo.size * 0.6, typeInfo.size * 0.08);
                     decorations.fill({ color: 0x000000, alpha: 0.2 });
                 }
+                break;
+                
+            case 'TEMPEST_SPIRE':
+                // Add weather sensor array (top antenna)
+                decorations.rect(-typeInfo.size * 0.4, -typeInfo.size * 0.7, typeInfo.size * 0.8, typeInfo.size * 0.15);
+                decorations.fill({ color: 0x000000, alpha: 0.3 });
+                
+                // Add left antenna (diagonal line)
+                decorations.moveTo(-typeInfo.size * 0.6, -typeInfo.size * 0.3);
+                decorations.lineTo(-typeInfo.size * 0.45, -typeInfo.size * 0.5);
+                decorations.stroke({ width: 3, color: 0x000000, alpha: 0.3 });
+                
+                // Add right antenna (diagonal line)
+                decorations.moveTo(typeInfo.size * 0.6, -typeInfo.size * 0.3);
+                decorations.lineTo(typeInfo.size * 0.45, -typeInfo.size * 0.5);
+                decorations.stroke({ width: 3, color: 0x000000, alpha: 0.3 });
+                
+                // Add radar dishes (small circles at antenna ends)
+                decorations.circle(-typeInfo.size * 0.6, -typeInfo.size * 0.3, typeInfo.size * 0.08);
+                decorations.fill({ color: 0x000000, alpha: 0.4 });
+                decorations.circle(typeInfo.size * 0.6, -typeInfo.size * 0.3, typeInfo.size * 0.08);
+                decorations.fill({ color: 0x000000, alpha: 0.4 });
                 break;
         }
         
@@ -1577,6 +2768,41 @@ class RTSEngine {
         graphics.poly(points);
         graphics.fill(fillColor);
         graphics.stroke({ width: 2, color: strokeColor });
+    }
+    
+    drawPhysicsPolygonOutline(graphics, vertices, fillColor, team) {
+        // Team colors
+        const teamColors = [
+            0xFFFFFF, // No team (white)
+            0xFF0000, // Team 1 (red)
+            0x0000FF, // Team 2 (blue)
+            0x00FF00, // Team 3 (green)
+            0xFFFF00  // Team 4 (yellow)
+        ];
+        
+        const strokeColor = teamColors[team] || 0xFFFFFF;
+        
+        // Convert vertices array [[x1, y1], [x2, y2], ...] to flat array [x1, y1, x2, y2, ...]
+        const points = [];
+        for (const vertex of vertices) {
+            points.push(vertex[0], vertex[1]);
+        }
+        
+        // Draw polygon with dotted outline (no fill) using physics vertices
+        graphics.poly(points);
+        graphics.stroke({ 
+            width: 3, 
+            color: strokeColor, 
+            alpha: 0.8,
+            cap: 'round',
+            join: 'round',
+            // Create dashed line effect
+            dashArray: [10, 5]
+        });
+        
+        // Add semi-transparent fill to show it's under construction
+        graphics.poly(points);
+        graphics.fill({ color: fillColor, alpha: 0.2 });
     }
     
     drawPolygonOutline(graphics, sides, radius, fillColor, team) {
@@ -1638,8 +2864,10 @@ class RTSEngine {
     
     updateResourceDisplay() {
         if (this.myFaction) {
-            document.getElementById('player-info').textContent = 
-                `ID: ${this.myPlayerId} | Team: ${this.myTeam}`;
+            // Store credits for easy access
+            this.myMoney = this.myFaction.credits || 0;
+            
+            document.getElementById('player-info').textContent = `Team: ${this.myTeam}`;
             document.getElementById('credits-value').textContent = this.myFaction.credits;
             document.getElementById('upkeep-value').textContent = 
                 `${this.myFaction.currentUpkeep}/${this.myFaction.maxUpkeep}`;
@@ -1647,7 +2875,7 @@ class RTSEngine {
             // Update power display
             const powerValue = document.getElementById('power-value');
             if (powerValue) {
-                const powerText = `${this.myFaction.powerGenerated}/${this.myFaction.powerConsumed}`;
+                const powerText = `${this.myFaction.powerConsumed}/${this.myFaction.powerGenerated}`;
                 powerValue.textContent = powerText;
                 
                 // Color code based on power status
@@ -1663,6 +2891,11 @@ class RTSEngine {
     }
     
     updateUnitInfoPanel() {
+        // If a building is selected, don't touch the panel at all - let building UI handle it
+        if (this.selectedBuilding) {
+            return;
+        }
+        
         const panel = document.getElementById('unit-info-panel');
         const singleInfo = document.getElementById('single-unit-info');
         const multiInfo = document.getElementById('multi-unit-info');
@@ -1680,8 +2913,8 @@ class RTSEngine {
             }
         });
         
-        // Hide panel if no units selected OR if a building is selected
-        if (selectedUnits.length === 0 || this.selectedBuilding) {
+        // Hide panel if no units selected
+        if (selectedUnits.length === 0) {
             panel.style.display = 'none';
         } else if (selectedUnits.length === 1) {
             // Single unit selected
@@ -1716,7 +2949,7 @@ class RTSEngine {
                     abilityDiv.style.display = 'none';
                 }
             }
-        } else {
+        } else if (selectedUnits.length > 1) {
             // Multiple units selected
             panel.style.display = 'block';
             singleInfo.style.display = 'none';
@@ -1805,10 +3038,10 @@ class RTSEngine {
     update() {
         // Update camera with WASD (fixed inverted controls)
         const cameraSpeed = 10 / this.camera.zoom;
-        if (this.keys['w'] || this.keys['ArrowUp']) this.camera.y += cameraSpeed;
-        if (this.keys['s'] || this.keys['ArrowDown']) this.camera.y -= cameraSpeed;
-        if (this.keys['a'] || this.keys['ArrowLeft']) this.camera.x -= cameraSpeed;
-        if (this.keys['d'] || this.keys['ArrowRight']) this.camera.x += cameraSpeed;
+        if (this.keys['w'] || this.keys['W'] || this.keys['ArrowUp']) this.camera.y += cameraSpeed;
+        if (this.keys['s'] || this.keys['S'] || this.keys['ArrowDown']) this.camera.y -= cameraSpeed;
+        if (this.keys['a'] || this.keys['A'] || this.keys['ArrowLeft']) this.camera.x -= cameraSpeed;
+        if (this.keys['d'] || this.keys['D'] || this.keys['ArrowRight']) this.camera.x += cameraSpeed;
         
         // Clamp camera to world bounds (with some padding based on zoom)
         const padding = 500 / this.camera.zoom; // More padding when zoomed in
@@ -1860,7 +3093,6 @@ class RTSEngine {
         const screenPos = { x: e.clientX, y: e.clientY };
         this.mouseWorldPos = this.screenToWorld(screenPos);
         
-        console.log('Mouse down - button:', e.button, 'attackMoveMode:', this.attackMoveMode, 'buildMode:', this.buildMode);
         
         if (e.button === 0) { // Left click
             if (this.buildMode) {
@@ -1868,11 +3100,13 @@ class RTSEngine {
                 this.exitBuildMode();
             } else if (this.attackMoveMode) {
                 // Handle attack-move
-                console.log('Sending attack-move order to', this.mouseWorldPos);
                 this.sendInput({ 
                     attackMoveOrder: { x: this.mouseWorldPos.x, y: this.mouseWorldPos.y }
                 });
                 this.exitAttackMoveMode();
+            } else if (this.sortieTargetingMode) {
+                // Handle sortie targeting (bomber aircraft)
+                this.issueSortieOrder(this.mouseWorldPos.x, this.mouseWorldPos.y);
             } else if (this.specialAbilityTargetingMode) {
                 // Handle special ability targeting
                 if (this.specialAbilityTargetType === 'unit') {
@@ -1883,7 +3117,6 @@ class RTSEngine {
                             activateSpecialAbility: true,
                             specialAbilityTargetUnit: clickedUnit.id
                         });
-                        console.log('Healing unit', clickedUnit.id);
                     }
                 } else if (this.specialAbilityTargetType === 'building') {
                     const clickedBuilding = this.getBuildingAtPosition(this.mouseWorldPos);
@@ -1893,7 +3126,6 @@ class RTSEngine {
                             activateSpecialAbility: true,
                             specialAbilityTargetBuilding: clickedBuilding.id
                         });
-                        console.log('Repairing building', clickedBuilding.id);
                     }
                 }
                 // Exit targeting mode
@@ -1901,10 +3133,6 @@ class RTSEngine {
             } else {
                 // Check if clicking on a building first
                 const clickedBuilding = this.getBuildingAtPosition(this.mouseWorldPos);
-                console.log('Left-click at', this.mouseWorldPos, 'found building:', clickedBuilding);
-                if (clickedBuilding) {
-                    console.log('Building ownerId:', clickedBuilding.ownerId, 'myPlayerId:', this.myPlayerId);
-                }
                 if (clickedBuilding && clickedBuilding.ownerId === this.myPlayerId) {
                     // Select building
                     this.selectBuilding(clickedBuilding);
@@ -1945,11 +3173,6 @@ class RTSEngine {
         } else {
             this.app.canvas.style.cursor = 'default';
         }
-        
-        // Update selection box
-        if (this.isSelecting && this.selectionStart) {
-            // TODO: Draw selection box
-        }
     }
     
     onMouseUp(e) {
@@ -1972,10 +3195,28 @@ class RTSEngine {
         this.keys[e.key] = true;
         
         // Hotkeys
-        if (e.key === 'b') {
+        if (e.key === 'b' || e.key === 'B') {
             this.toggleBuildMenu();
+        } else if (e.key === 'r' || e.key === 'R') {
+            // Research tree hotkey
+            const modal = document.getElementById('research-tree-modal');
+            if (modal && modal.style.display === 'flex') {
+                this.closeResearchTreeModal();
+            } else {
+                this.openResearchTreeModal();
+            }
         } else if (e.key === 'Escape') {
-            if (this.specialAbilityTargetingMode) {
+            // Close research modal if open
+            const modal = document.getElementById('research-tree-modal');
+            if (modal && modal.style.display === 'flex') {
+                this.closeResearchTreeModal();
+                return;
+            }
+            
+            if (this.sortieTargetingMode) {
+                this.exitSortieTargetingMode();
+                this.showGameEvent('Sortie order cancelled', 'warning');
+            } else if (this.specialAbilityTargetingMode) {
                 this.exitSpecialAbilityTargetingMode();
             } else if (this.attackMoveMode) {
                 this.exitAttackMoveMode();
@@ -1987,8 +3228,10 @@ class RTSEngine {
             this.activateSpecialAbility();
         } else if (e.key === 'q' || e.key === 'Q') {
             // Attack-move hotkey
-            console.log('Q key pressed, attempting to enter attack-move mode');
             this.enterAttackMoveMode();
+        } else if (e.key === 'x' || e.key === 'X') {
+            // Scatter hotkey - scatter selected units away from their center
+            this.scatterSelectedUnits();
         }
     }
     
@@ -1999,6 +3242,22 @@ class RTSEngine {
     screenToWorld(screenPos) {
         const localPos = this.gameContainer.toLocal(screenPos);
         return { x: localPos.x, y: localPos.y }; // toLocal already handles the transform
+    }
+    
+    /**
+     * Immediately clear unit selection (local state + visual indicators)
+     * Used for instant UI feedback before server confirmation
+     */
+    clearUnitSelectionImmediate() {
+        // Clear the local set
+        this.selectedUnits.clear();
+        
+        // Hide all selection circles immediately
+        this.units.forEach((container) => {
+            if (container.selectionCircle) {
+                container.selectionCircle.visible = false;
+            }
+        });
     }
     
     finishSelection() {
@@ -2041,8 +3300,9 @@ class RTSEngine {
                 // Auto-show build menu if worker is selected
                 this.checkAndShowBuildMenu([clickedUnit]);
             } else {
-                // Clicked on empty space - deselect all
+                // Clicked on empty space - deselect all units
                 this.sendInput({ selectUnits: [] });
+                this.clearUnitSelectionImmediate(); // Clear local state and hide visual indicators
                 this.hideBuildMenu();
             }
         } else {
@@ -2087,7 +3347,6 @@ class RTSEngine {
     issueOrder(worldPos, forceAttack = false) {
         // If force attack mode (CMD/CTRL held), skip target detection and attack ground
         if (forceAttack) {
-            console.log('Force attack at', worldPos);
             this.sendInput({ forceAttackOrder: { x: worldPos.x, y: worldPos.y } });
             return;
         }
@@ -2147,26 +3406,9 @@ class RTSEngine {
             }
         });
         
-        // Check if clicking on a resource deposit
-        let targetResource = null;
-        minDist = 100;
-        
-        this.resourceDeposits.forEach((container, id) => {
-            const resourceData = container.resourceData;
-            if (resourceData) {
-                const dist = Math.sqrt(
-                    Math.pow(resourceData.x - worldPos.x, 2) + 
-                    Math.pow(resourceData.y - worldPos.y, 2)
-                );
-                if (dist < minDist && dist < resourceData.size + 10) {
-                    minDist = dist;
-                    targetResource = resourceData;
-                }
-            }
-        });
-        
-        // Check if clicking on an obstacle
+        // Check if clicking on an obstacle (some are harvestable)
         let targetObstacle = null;
+        let targetHarvestableObstacle = null;
         minDist = 100;
         
         this.obstacles.forEach((container, id) => {
@@ -2179,6 +3421,10 @@ class RTSEngine {
                 if (dist < minDist && dist < obstacleData.size + 10) {
                     minDist = dist;
                     targetObstacle = obstacleData;
+                    // Track if this obstacle is harvestable
+                    if (obstacleData.harvestable) {
+                        targetHarvestableObstacle = obstacleData;
+                    }
                 }
             }
         });
@@ -2199,6 +3445,9 @@ class RTSEngine {
             } else if (targetBuilding.underConstruction) {
                 // Help construct friendly building (for workers)
                 this.sendInput({ constructOrder: targetBuilding.id });
+            } else if (targetBuilding.type === 'BUNKER' && this.hasInfantrySelected()) {
+                // Garrison infantry into bunker
+                this.sendInput({ garrisonOrder: targetBuilding.id });
             } else {
                 // Move near friendly building
                 this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
@@ -2211,21 +3460,41 @@ class RTSEngine {
                 // Move near friendly wall
                 this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
             }
-        } else if (targetResource) {
-            // Harvest resource (for workers)
-            this.sendInput({ harvestOrder: targetResource.id });
+        } else if (targetHarvestableObstacle) {
+            // Harvest resources from harvestable obstacle (for workers)
+            this.sendInput({ harvestOrder: targetHarvestableObstacle.id });
         } else if (targetObstacle) {
-            // Mine obstacle (for miners) - only if destructible
-            if (targetObstacle.destructible) {
-                this.sendInput({ mineOrder: targetObstacle.id });
-            } else {
-                // Can't mine indestructible obstacles, just move
-                this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
-            }
+            // Can't harvest or mine this obstacle, just move near it
+            this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
         } else {
             // Just move to location
             this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
         }
+    }
+    
+    /**
+     * Check if any selected units are infantry (can garrison)
+     */
+    hasInfantrySelected() {
+        const infantryTypes = ['INFANTRY', 'LASER_INFANTRY', 'PLASMA_TROOPER', 'ROCKET_SOLDIER', 
+                               'SNIPER', 'ION_RANGER', 'MEDIC', 'ENGINEER'];
+        for (const unitId of this.selectedUnits) {
+            const unitContainer = this.units.get(unitId);
+            if (unitContainer && unitContainer.unitData && infantryTypes.includes(unitContainer.unitData.type)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Ungarrison units from a bunker
+     */
+    ungarrisonUnit(buildingId, ungarrisonAll) {
+        this.sendInput({
+            ungarrisonBuildingId: buildingId,
+            ungarrisonAll: ungarrisonAll
+        });
     }
     
     enterBuildMode(buildingType) {
@@ -2247,6 +3516,7 @@ class RTSEngine {
         this.buildPreview.shapeGraphics = shape;
         
         // Range indicator (for turrets)
+        // TODO: we need more range indicators and we shouldn't need to hardcode?
         if (buildingType === 'TURRET') {
             const rangeCircle = new PIXI.Graphics();
             rangeCircle.circle(0, 0, 300); // Turret range
@@ -2273,11 +3543,9 @@ class RTSEngine {
         this.specialAbilityTargetingMode = false;
         this.specialAbilityTargetType = null;
         document.body.style.cursor = 'default';
-        console.log('Exited special ability targeting mode');
     }
     
     enterAttackMoveMode() {
-        console.log('enterAttackMoveMode called, selectedUnits:', this.selectedUnits.size);
         
         // Check if any selected units can attack
         let hasAttackUnit = false;
@@ -2285,7 +3553,6 @@ class RTSEngine {
             const unitContainer = this.units.get(id);
             if (unitContainer && unitContainer.unitData) {
                 const unitType = unitContainer.unitData.type;
-                console.log('Checking unit', id, 'type:', unitType);
                 // Workers, Medics, Engineers cannot attack
                 if (unitType !== 'WORKER' && unitType !== 'MEDIC' && unitType !== 'ENGINEER') {
                     hasAttackUnit = true;
@@ -2293,22 +3560,22 @@ class RTSEngine {
                 }
             }
         }
-        
-        console.log('hasAttackUnit:', hasAttackUnit);
-        
+
         if (hasAttackUnit) {
             this.attackMoveMode = true;
             document.body.style.cursor = 'crosshair';
-            console.log('Entered attack-move mode - cursor should be crosshair');
-        } else {
-            console.log('No attack units selected, cannot enter attack-move mode');
         }
     }
     
     exitAttackMoveMode() {
         this.attackMoveMode = false;
         document.body.style.cursor = 'default';
-        console.log('Exited attack-move mode');
+    }
+    
+    scatterSelectedUnits() {
+        if (this.selectedUnits.size > 0) {
+            this.sendInput({ scatterCommand: true });
+        }
     }
     
     getBuildingInfo(buildingType) {
@@ -2322,9 +3589,9 @@ class RTSEngine {
             'WALL': { size: 20, cost: 50, name: 'Wall' },
             'POWER_PLANT': { size: 40, cost: 250, name: 'Power Plant' },
             'RESEARCH_LAB': { size: 50, cost: 500, name: 'Research Lab' },
-            'WEAPONS_DEPOT': { size: 48, cost: 400, name: 'Weapons Depot' },
             'TECH_CENTER': { size: 60, cost: 800, name: 'Tech Center' },
-            'ADVANCED_FACTORY': { size: 65, cost: 1000, name: 'Advanced Factory' },
+            'AIRFIELD': { size: 60, cost: 600, name: 'Airfield' },
+            'HANGAR': { size: 35, cost: 400, name: 'Hangar' },
             'BANK': { size: 35, cost: 600, name: 'Bank' }
         };
         return buildings[buildingType] || { size: 40, cost: 100, name: 'Building' };
@@ -2334,7 +3601,6 @@ class RTSEngine {
         const buildingInfo = this.getBuildingInfo(buildingType);
         const size = buildingInfo.size;
         
-        console.log(`Checking build location: (${worldPos.x.toFixed(1)}, ${worldPos.y.toFixed(1)}) for ${buildingType} (size: ${size})`);
         
         // Check if too close to other buildings
         for (const [id, container] of this.buildings) {
@@ -2346,7 +3612,6 @@ class RTSEngine {
                 );
                 const minDist = size + building.size + 20; // 20 unit buffer
                 if (dist < minDist) {
-                    console.log(`Too close to building ${id}: dist=${dist.toFixed(1)}, minDist=${minDist.toFixed(1)}`);
                     return false;
                 }
             }
@@ -2365,7 +3630,6 @@ class RTSEngine {
                     // Check if building overlaps with obstacle (with buffer)
                     if (Math.abs(worldPos.x - obstacle.x) < halfWidth + buffer &&
                         Math.abs(worldPos.y - obstacle.y) < halfHeight + buffer) {
-                        console.log(`Too close to rectangular obstacle ${id}: obstacle bounds (${(obstacle.x - halfWidth).toFixed(1)}, ${(obstacle.y - halfHeight).toFixed(1)}) to (${(obstacle.x + halfWidth).toFixed(1)}, ${(obstacle.y + halfHeight).toFixed(1)})`);
                         return false;
                     }
                 } else {
@@ -2376,48 +3640,29 @@ class RTSEngine {
                     );
                     const minDist = size + obstacle.size + 10;
                     if (dist < minDist) {
-                        console.log(`Too close to obstacle ${id}: dist=${dist.toFixed(1)}, minDist=${minDist.toFixed(1)}, obstacle at (${obstacle.x.toFixed(1)}, ${obstacle.y.toFixed(1)})`);
                         return false;
                     }
                 }
             }
         }
         
-        // Check if too close to resource deposits (except for refineries)
-        if (buildingType !== 'REFINERY') {
-            for (const [id, container] of this.resourceDeposits) {
-                const resource = container.resourceData;
-                if (resource) {
-                    const dist = Math.sqrt(
-                        Math.pow(resource.x - worldPos.x, 2) + 
-                        Math.pow(resource.y - worldPos.y, 2)
-                    );
-                    const minDist = size + resource.size + 50; // Increased buffer to prevent overlap
-                    if (dist < minDist) {
-                        console.log(`Too close to resource ${id}: dist=${dist.toFixed(1)}, minDist=${minDist.toFixed(1)}`);
-                        return false;
-                    }
-                }
-            }
-        }
+        // Resource deposits removed - obstacles now contain harvestable resources
+        // Obstacle proximity is already checked above
         
         // Check world bounds
         const halfWidth = this.worldBounds.width / 2;
         const halfHeight = this.worldBounds.height / 2;
         if (Math.abs(worldPos.x) > halfWidth - size || 
             Math.abs(worldPos.y) > halfHeight - size) {
-            console.log(`Outside world bounds: halfWidth=${halfWidth}, halfHeight=${halfHeight}`);
             return false;
         }
         
-        console.log('Build location is valid!');
         return true;
     }
     
     placeBuilding(buildingType, worldPos) {
         // Validate placement
         if (!this.isValidBuildLocation(worldPos, buildingType)) {
-            console.log('Invalid build location');
             return;
         }
         
@@ -2457,65 +3702,33 @@ class RTSEngine {
             ? this.myFaction.credits 
             : 0;
         
-        // Get faction's available buildings (if faction data loaded)
-        const availableBuildings = this.myFaction && this.myFaction.availableBuildings
-            ? new Set(this.myFaction.availableBuildings)
-            : null;
-        
-        // Check tech requirements
-        const hasPowerPlant = myBuildingTypes.has('POWER_PLANT');
-        const hasResearchLab = myBuildingTypes.has('RESEARCH_LAB');
-        const hasTechCenter = myBuildingTypes.has('TECH_CENTER');
-        
-        // Define tech requirements for each building
-        const techRequirements = {
-            // T1 - Always available
-            'POWER_PLANT': { tier: 1, requires: [] },
-            'BARRACKS': { tier: 1, requires: [] },
-            'REFINERY': { tier: 1, requires: [] },
-            'WALL': { tier: 1, requires: [] },
-            
-            // T2 - Requires Power Plant
-            'RESEARCH_LAB': { tier: 2, requires: ['POWER_PLANT'] },
-            'FACTORY': { tier: 2, requires: ['POWER_PLANT'] },
-            'WEAPONS_DEPOT': { tier: 2, requires: ['POWER_PLANT'] },
-            'TURRET': { tier: 2, requires: ['POWER_PLANT'] },
-            'SHIELD_GENERATOR': { tier: 2, requires: ['POWER_PLANT'] },
-            
-            // T3 - Requires Power Plant + Research Lab
-            'TECH_CENTER': { tier: 3, requires: ['POWER_PLANT', 'RESEARCH_LAB'] },
-            'ADVANCED_FACTORY': { tier: 3, requires: ['POWER_PLANT', 'RESEARCH_LAB'] },
-            'BANK': { tier: 3, requires: ['POWER_PLANT', 'RESEARCH_LAB'] }
-        };
+        // If faction data not loaded yet, can't update availability
+        if (!this.myFactionData || !this.myFactionData.availableBuildings) {
+            return;
+        }
         
         // Update each button
         document.querySelectorAll('.build-button').forEach(button => {
             const buildingType = button.getAttribute('data-building');
-            const requirements = techRequirements[buildingType];
             
-            if (!requirements) {
-                return; // Unknown building type
-            }
+            // Find building in faction data
+            const buildingInfo = this.myFactionData.availableBuildings.find(b => b.buildingType === buildingType);
             
-            // Check if faction can build this building type
-            if (availableBuildings && !availableBuildings.has(buildingType)) {
-                // Faction cannot build this building - hide it completely
+            if (!buildingInfo) {
+                // Building not available for this faction - should not happen if menu is generated correctly
                 button.style.display = 'none';
                 return;
-            } else {
-                // Faction can build this - make sure it's visible
-                button.style.display = 'block';
             }
             
-            // Get building cost
-            const buildingInfo = this.getBuildingInfo(buildingType);
+            // Get tech requirements from faction data
+            const requiredBuildings = buildingInfo.techRequirements || [];
             const cost = buildingInfo.cost;
             
             // Check if all tech requirements are met
             let hasTech = true;
             let missingRequirements = [];
             
-            for (const required of requirements.requires) {
+            for (const required of requiredBuildings) {
                 if (!myBuildingTypes.has(required)) {
                     hasTech = false;
                     missingRequirements.push(this.getBuildingDisplayName(required));
@@ -2545,24 +3758,6 @@ class RTSEngine {
         });
     }
     
-    getBuildingDisplayName(buildingType) {
-        const names = {
-            'POWER_PLANT': 'Power Plant',
-            'RESEARCH_LAB': 'Research Lab',
-            'TECH_CENTER': 'Tech Center',
-            'BARRACKS': 'Barracks',
-            'FACTORY': 'Factory',
-            'WEAPONS_DEPOT': 'Weapons Depot',
-            'ADVANCED_FACTORY': 'Advanced Factory',
-            'TURRET': 'Turret',
-            'SHIELD_GENERATOR': 'Shield Generator',
-            'REFINERY': 'Refinery',
-            'WALL': 'Wall',
-            'BANK': 'Bank'
-        };
-        return names[buildingType] || buildingType;
-    }
-    
     activateSpecialAbility() {
         // Check if any selected units have special abilities that require targets
         let needsTarget = false;
@@ -2588,7 +3783,6 @@ class RTSEngine {
             // Enter targeting mode
             this.specialAbilityTargetingMode = true;
             this.specialAbilityTargetType = targetType;
-            console.log(`Entering special ability targeting mode: ${targetType}`);
             
             // Visual feedback - change cursor or show message
             document.body.style.cursor = 'crosshair';
@@ -2664,24 +3858,33 @@ class RTSEngine {
     }
     
     selectBuilding(buildingData) {
-        console.log('Selected building:', buildingData);
-        console.log('canProduceUnits:', buildingData.canProduceUnits);
-        console.log('underConstruction:', buildingData.underConstruction);
-        
         this.selectedBuilding = buildingData;
         
-        // Clear unit selection
+        // Clear unit selection (both send to server and clear local state immediately)
         this.sendInput({ selectUnits: [] });
+        this.clearUnitSelectionImmediate(); // Clear local state and hide visual indicators
         
         // Hide build menu when selecting a building
         this.hideBuildMenu();
         
-        // Show production UI if building can produce units and is not under construction
-        if (buildingData.canProduceUnits && !buildingData.underConstruction) {
-            console.log('Showing production UI');
+        // Show production UI if:
+        // 1. Building can produce units and is not under construction, OR
+        // 2. Building is a bunker (has garrison UI), OR
+        // 3. Building is a monument (has aura info), OR
+        // 4. Building is a hangar (has sortie UI)
+        const isBunker = buildingData.type === 'BUNKER';
+        const isMonument = ['PHOTON_SPIRE', 'QUANTUM_NEXUS', 'SANDSTORM_GENERATOR', 'ANDROID_FACTORY', 'COMMAND_CITADEL', 'TEMPEST_SPIRE'].includes(buildingData.type);
+        const isHangar = buildingData.type === 'HANGAR' || buildingData.buildingType === 'HANGAR';
+        const shouldShowUI = (buildingData.canProduceUnits && !buildingData.underConstruction) || isBunker || isMonument || isHangar;
+        
+        if (shouldShowUI) {
             this.showProductionUI(buildingData);
+            
+            // Add hangar-specific UI
+            if (isHangar) {
+                this.updateHangarPanel(buildingData);
+            }
         } else {
-            console.log('Hiding production UI');
             this.hideProductionUI();
         }
     }
@@ -2715,8 +3918,79 @@ class RTSEngine {
         healthText.innerHTML = `<span>Health:</span><span>${Math.floor(buildingData.health)}/${buildingData.maxHealth}</span>`;
         panel.appendChild(healthText);
         
+        // Garrison info (for bunkers)
+        if (buildingData.type === 'BUNKER') {
+            const garrisonInfo = document.createElement('div');
+            garrisonInfo.className = 'unit-stat';
+            garrisonInfo.innerHTML = `<span>Garrison:</span><span>${buildingData.garrisonCount || 0}/${buildingData.maxGarrisonCapacity || 0}</span>`;
+            panel.appendChild(garrisonInfo);
+            
+            // Ungarrison button (if units are garrisoned)
+            if (buildingData.garrisonCount > 0) {
+                const ungarrisonTitle = document.createElement('div');
+                ungarrisonTitle.style.marginTop = '15px';
+                ungarrisonTitle.style.fontWeight = 'bold';
+                ungarrisonTitle.style.color = '#FFD700';
+                ungarrisonTitle.textContent = 'Garrison:';
+                panel.appendChild(ungarrisonTitle);
+                
+                const ungarrisonButton = document.createElement('button');
+                ungarrisonButton.className = 'build-button';
+                ungarrisonButton.textContent = 'Ungarrison One';
+                ungarrisonButton.onclick = () => this.ungarrisonUnit(buildingData.id, false);
+                panel.appendChild(ungarrisonButton);
+                
+                const ungarrisonAllButton = document.createElement('button');
+                ungarrisonAllButton.className = 'build-button';
+                ungarrisonAllButton.textContent = 'Ungarrison All';
+                ungarrisonAllButton.onclick = () => this.ungarrisonUnit(buildingData.id, true);
+                panel.appendChild(ungarrisonAllButton);
+            }
+        }
+        
+        // Monument aura info
+        const monumentInfo = {
+            'PHOTON_SPIRE': { name: 'Beam Amplifier', effect: '+35% beam damage', radius: 250 },
+            'QUANTUM_NEXUS': { name: 'Quantum Shield', effect: '+25% max health', radius: 280 },
+            'SANDSTORM_GENERATOR': { name: 'Sandstorm', effect: '15 damage/sec to enemies', radius: 300 },
+            'TEMPEST_SPIRE': { name: 'Anti-Air Defense', effect: 'Long-range flak cannon', radius: 550 }
+        };
+        
+        if (monumentInfo[buildingData.type]) {
+            const info = monumentInfo[buildingData.type];
+            
+            const monumentTitle = document.createElement('div');
+            monumentTitle.style.marginTop = '15px';
+            monumentTitle.style.fontWeight = 'bold';
+            monumentTitle.style.color = '#FFD700';
+            monumentTitle.textContent = info.name + ':';
+            panel.appendChild(monumentTitle);
+            
+            const effectInfo = document.createElement('div');
+            effectInfo.className = 'unit-stat';
+            effectInfo.innerHTML = `<span>Effect:</span><span>${info.effect}</span>`;
+            panel.appendChild(effectInfo);
+            
+            const radiusInfo = document.createElement('div');
+            radiusInfo.className = 'unit-stat';
+            radiusInfo.innerHTML = `<span>Radius:</span><span>${info.radius}</span>`;
+            panel.appendChild(radiusInfo);
+            
+            const statusInfo = document.createElement('div');
+            statusInfo.className = 'unit-stat';
+            const status = buildingData.auraActive ? '✓ Active' : '✗ Inactive';
+            const statusColor = buildingData.auraActive ? '#00FF00' : '#FF0000';
+            statusInfo.innerHTML = `<span>Status:</span><span style="color: ${statusColor}">${status}</span>`;
+            panel.appendChild(statusInfo);
+        }
+        
+        // Research UI (for RESEARCH_LAB and TECH_CENTER)
+        if ((buildingData.type === 'RESEARCH_LAB' || buildingData.type === 'TECH_CENTER') && !buildingData.underConstruction) {
+            this.showResearchUI(panel, buildingData);
+        }
+        
         // Production buttons
-        if (buildingData.canProduceUnits) {
+        if (buildingData.canProduceUnits && !buildingData.underConstruction) {
             const productionTitle = document.createElement('div');
             productionTitle.style.marginTop = '15px';
             productionTitle.style.fontWeight = 'bold';
@@ -2730,12 +4004,13 @@ class RTSEngine {
             availableUnits.forEach(unitType => {
                 const button = document.createElement('button');
                 button.className = 'build-button';
-                button.innerHTML = `${unitType.name} <span class="build-cost">(${unitType.cost})</span>`;
+                button.innerHTML = `${unitType.name} <span class="build-cost">(💰${unitType.cost} ⚙️${unitType.upkeep})</span>`;
                 button.onclick = () => this.queueUnitProduction(buildingData.id, unitType.type);
                 
                 // Disable if can't afford
-                if (this.myFaction && this.myFaction.credits < unitType.cost) {
+                if (this.myMoney < unitType.cost) {
                     button.disabled = true;
+                    button.style.opacity = '0.5';
                 }
                 
                 panel.appendChild(button);
@@ -2748,6 +4023,1127 @@ class RTSEngine {
     }
     
     /**
+     * Show research UI for research buildings
+     */
+    showResearchUI(panel, buildingData) {
+        // Check if there's active research at this building
+        const activeResearch = this.getActiveResearchAtBuilding(buildingData.id);
+        
+        if (activeResearch) {
+            // Show active research progress
+            const researchTitle = document.createElement('div');
+            researchTitle.style.marginTop = '15px';
+            researchTitle.style.fontWeight = 'bold';
+            researchTitle.style.color = '#00CED1';
+            researchTitle.textContent = '🔬 Researching:';
+            panel.appendChild(researchTitle);
+            
+            const researchName = document.createElement('div');
+            researchName.className = 'unit-stat';
+            researchName.style.color = '#FFD700';
+            researchName.textContent = activeResearch.displayName;
+            panel.appendChild(researchName);
+            
+            // Progress bar
+            const progressBarContainer = document.createElement('div');
+            progressBarContainer.className = 'health-bar';
+            progressBarContainer.style.marginTop = '5px';
+            const progressFill = document.createElement('div');
+            progressFill.className = 'health-fill';
+            progressFill.style.width = activeResearch.progress + '%';
+            progressFill.style.background = 'linear-gradient(90deg, #00CED1, #1E90FF)';
+            progressBarContainer.appendChild(progressFill);
+            panel.appendChild(progressBarContainer);
+            
+            // Progress text
+            const progressText = document.createElement('div');
+            progressText.className = 'unit-stat';
+            progressText.innerHTML = `<span>Progress:</span><span>${activeResearch.progress}% (${activeResearch.timeRemaining}s)</span>`;
+            panel.appendChild(progressText);
+            
+            // Cancel button
+            const cancelButton = document.createElement('button');
+            cancelButton.className = 'build-button';
+            cancelButton.textContent = '❌ Cancel Research';
+            cancelButton.style.marginTop = '10px';
+            cancelButton.onclick = () => this.cancelResearch(buildingData.id);
+            panel.appendChild(cancelButton);
+        } else {
+            // Show available research
+            const researchTitle = document.createElement('div');
+            researchTitle.style.marginTop = '15px';
+            researchTitle.style.fontWeight = 'bold';
+            researchTitle.style.color = '#00CED1';
+            researchTitle.textContent = '🔬 Available Research:';
+            panel.appendChild(researchTitle);
+            
+            // Get available research for this building
+            const availableResearch = this.getAvailableResearch(buildingData.type);
+            
+            if (availableResearch.length === 0) {
+                const noResearch = document.createElement('div');
+                noResearch.className = 'unit-stat';
+                noResearch.style.color = '#888';
+                noResearch.textContent = 'No research available';
+                panel.appendChild(noResearch);
+            } else {
+                // Check simultaneous research limit
+                const activeCount = this.getActiveResearchCount();
+                const maxSimultaneous = this.getMaxSimultaneousResearch();
+                const atLimit = activeCount >= maxSimultaneous;
+                
+                // Show up to 4 research options
+                availableResearch.slice(0, 4).forEach(research => {
+                    const button = document.createElement('button');
+                    button.className = 'build-button';
+                    button.innerHTML = `
+                        ${research.icon} ${research.displayName}
+                        <br><span style="font-size: 11px; color: #AAA;">${research.effectSummary}</span>
+                        <span class="build-cost">(💰${research.creditCost} ⏱️${research.researchTimeSeconds}s)</span>
+                    `;
+                    button.onclick = () => this.startResearch(buildingData.id, research.researchId);
+                    
+                    // Disable if can't afford or at simultaneous research limit
+                    if (this.myMoney < research.creditCost) {
+                        button.disabled = true;
+                        button.style.opacity = '0.5';
+                        button.title = 'Not enough credits';
+                    } else if (atLimit) {
+                        button.disabled = true;
+                        button.style.opacity = '0.5';
+                        button.title = `Simultaneous research limit reached (${activeCount}/${maxSimultaneous})`;
+                    }
+                    
+                    panel.appendChild(button);
+                });
+                
+                // "View All" button if there are more than 4
+                if (availableResearch.length > 4) {
+                    const viewAllButton = document.createElement('button');
+                    viewAllButton.className = 'build-button';
+                    viewAllButton.textContent = `📖 View All Research (${availableResearch.length} available)`;
+                    viewAllButton.style.marginTop = '5px';
+                    viewAllButton.onclick = () => this.openResearchTreeModal();
+                    panel.appendChild(viewAllButton);
+                }
+            }
+        }
+    }
+    
+    /**
+     * Get active research at a specific building
+     */
+    getActiveResearchAtBuilding(buildingId) {
+        if (!this.lastGameState || !this.lastGameState.factions || !this.lastGameState.factions[this.myPlayerId]) {
+            return null;
+        }
+        
+        const myFaction = this.lastGameState.factions[this.myPlayerId];
+        if (!myFaction.activeResearch) {
+            return null;
+        }
+        
+        return myFaction.activeResearch[buildingId] || null;
+    }
+    
+    /**
+     * Get available research for a building type
+     */
+    getAvailableResearch(buildingType) {
+        if (!this.myFactionData || !this.myFactionData.availableResearch) {
+            return [];
+        }
+        
+        if (!this.lastGameState || !this.lastGameState.factions || !this.lastGameState.factions[this.myPlayerId]) {
+            return [];
+        }
+        
+        const myFaction = this.lastGameState.factions[this.myPlayerId];
+        const completedResearch = myFaction.completedResearch || [];
+        
+        // Filter research based on:
+        // 1. Required building matches
+        // 2. Prerequisites are met
+        // 3. Not already completed
+        // 4. Not currently being researched
+        return this.myFactionData.availableResearch.filter(research => {
+            // Check required building
+            if (research.requiredBuilding !== buildingType) {
+                return false;
+            }
+            
+            // Check not already completed
+            if (completedResearch.includes(research.researchId)) {
+                return false;
+            }
+            
+            // Check not currently being researched anywhere
+            if (myFaction.activeResearch) {
+                const isResearching = Object.values(myFaction.activeResearch).some(
+                    active => active.researchType === research.researchId
+                );
+                if (isResearching) {
+                    return false;
+                }
+            }
+            
+            // Check prerequisites
+            if (research.prerequisites && research.prerequisites.length > 0) {
+                const prereqsMet = research.prerequisites.every(prereq => 
+                    completedResearch.includes(prereq)
+                );
+                if (!prereqsMet) {
+                    return false;
+                }
+            }
+            
+            return true;
+        });
+    }
+    
+    /**
+     * Start research at a building
+     */
+    startResearch(buildingId, researchType) {
+        console.log(`Starting research ${researchType} at building ${buildingId}`);
+        
+        this.sendInput({
+            startResearchOrder: researchType,
+            researchBuildingId: buildingId
+        });
+    }
+    
+    /**
+     * Cancel research at a building
+     */
+    cancelResearch(buildingId) {
+        console.log(`Cancelling research at building ${buildingId}`);
+        
+        this.sendInput({
+            cancelResearchBuildingId: buildingId
+        });
+    }
+    
+    /**
+     * Get active unit research at a specific building
+     */
+    getActiveUnitResearchAtBuilding(buildingId) {
+        if (!this.lastGameState || !this.lastGameState.factions || !this.lastGameState.factions[this.myPlayerId]) {
+            return null;
+        }
+        const myFaction = this.lastGameState.factions[this.myPlayerId];
+        if (!myFaction.activeUnitResearch) return null;
+        return myFaction.activeUnitResearch[buildingId] || null;
+    }
+    
+    /**
+     * Start unit research at a building
+     */
+    async startUnitResearch(buildingId, researchNodeId) {
+        console.log(`Starting unit research ${researchNodeId} at building ${buildingId}`);
+        
+        try {
+            const response = await fetch(`/api/rts/games/${this.gameId}/research/start`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    playerId: this.myPlayerId,
+                    researchId: researchNodeId,
+                    buildingId: buildingId
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.text();
+                console.error('Failed to start unit research:', error);
+                alert('Failed to start research: ' + error);
+                return;
+            }
+            
+            const result = await response.json();
+            console.log('Unit research started:', result);
+            
+            // Refresh tech tree to show new state
+            this.showUnitTechTree();
+        } catch (error) {
+            console.error('Error starting unit research:', error);
+            alert('Error starting research: ' + error.message);
+        }
+    }
+    
+    /**
+     * Cancel unit research at a building
+     */
+    cancelUnitResearch(buildingId) {
+        console.log(`Cancelling unit research at building ${buildingId}`);
+        this.sendInput({
+            cancelUnitResearchBuildingId: buildingId
+        });
+    }
+    
+    /**
+     * Open unit tech tree modal (integrated with main research modal)
+     */
+    openUnitTechTreeModal() {
+        const modal = document.getElementById('research-tree-modal');
+        if (!modal) return;
+        modal.style.display = 'flex';
+        this.initializeResearchTabs();
+        
+        // Set active tab to UNITS
+        const tabs = document.querySelectorAll('.research-tab');
+        tabs.forEach(tab => {
+            if (tab.getAttribute('data-category') === 'UNITS') {
+                tab.classList.add('active');
+            } else {
+                tab.classList.remove('active');
+            }
+        });
+        
+        // Show UNITS category (this will also store it in currentResearchTab)
+        this.showResearchCategory('UNITS');
+    }
+    
+    /**
+     * Open research tree modal
+     */
+    openResearchTreeModal() {
+        const modal = document.getElementById('research-tree-modal');
+        if (!modal) return;
+        
+        modal.style.display = 'flex';
+        
+        // Initialize tabs
+        this.initializeResearchTabs();
+        
+        // Update tab visual state to match currentResearchTab
+        const tabs = document.querySelectorAll('.research-tab');
+        tabs.forEach(tab => {
+            if (tab.getAttribute('data-category') === this.currentResearchTab) {
+                tab.classList.add('active');
+            } else {
+                tab.classList.remove('active');
+            }
+        });
+        
+        // Show the previously selected category (or COMBAT by default)
+        this.showResearchCategory(this.currentResearchTab);
+    }
+    
+    /**
+     * Close research tree modal
+     */
+    closeResearchTreeModal() {
+        const modal = document.getElementById('research-tree-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+    
+    /**
+     * Initialize research category tabs
+     */
+    initializeResearchTabs() {
+        const tabs = document.querySelectorAll('.research-tab');
+        tabs.forEach(tab => {
+            tab.onclick = () => {
+                // Remove active class from all tabs
+                tabs.forEach(t => t.classList.remove('active'));
+                // Add active class to clicked tab
+                tab.classList.add('active');
+                // Show category
+                const category = tab.getAttribute('data-category');
+                this.showResearchCategory(category);
+            };
+        });
+    }
+    
+    /**
+     * Show research for a specific category
+     */
+    showResearchCategory(category) {
+        // Store the current tab selection
+        this.currentResearchTab = category;
+        
+        // Handle UNITS category separately
+        if (category === 'UNITS') {
+            this.showUnitTechTree();
+            return;
+        }
+        if (!this.myFactionData || !this.myFactionData.availableResearch) {
+            console.warn('Cannot show research category: faction data not loaded');
+            return;
+        }
+        
+        // Filter research by category
+        const categoryResearch = this.myFactionData.availableResearch.filter(
+            r => r.category === category
+        );
+        
+        // Clear existing nodes
+        const container = document.getElementById('research-nodes-container');
+        if (!container) return;
+        container.innerHTML = '';
+        
+        // Set container to grid layout (same as unit research)
+        container.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; padding: 15px;';
+        
+        // Group research by tiers
+        const researchByTier = this.groupResearchByTier(categoryResearch);
+        
+        // Render each tier's research as cards
+        Object.keys(researchByTier).sort().forEach(tier => {
+            const tierResearch = researchByTier[tier];
+            
+            tierResearch.forEach(research => {
+                this.createResearchCard(research, container);
+            });
+        });
+    }
+    
+    /**
+     * Show the unit tech tree in the research modal
+     */
+    async showUnitTechTree() {
+        const container = document.getElementById('research-nodes-container');
+        if (!container) return;
+        container.innerHTML = '<div style="color: white; text-align: center; padding: 50px;">Loading unit tech tree...</div>';
+        
+        // Use stored gameId instead of extracting from WebSocket URL
+        const gameId = this.gameId;
+        console.log('Unit Tech Tree - gameId:', gameId, 'myPlayerId:', this.myPlayerId);
+        
+        if (!gameId) {
+            container.innerHTML = '<div style="color: #FF4444; text-align: center; padding: 50px;">Error: Not connected to a game<br><small>Please start or join a game first</small></div>';
+            return;
+        }
+        if (!this.myPlayerId) {
+            container.innerHTML = '<div style="color: #FF4444; text-align: center; padding: 50px;">Error: Player ID not found<br><small>Please wait for game to initialize</small></div>';
+            return;
+        }
+        
+        try {
+            const apiUrl = `/api/rts/games/${gameId}/players/${this.myPlayerId}/tech-tree`;
+            console.log('Fetching unit tech tree from:', apiUrl);
+            const response = await fetch(apiUrl);
+            console.log('Unit tech tree response status:', response.status);
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Unit tech tree fetch failed:', response.status, errorText);
+                throw new Error(`Failed to fetch unit tech tree: ${response.status}`);
+            }
+            const techTreeData = await response.json();
+            console.log('Unit tech tree data:', techTreeData);
+            
+            // Render tech tree in 3 columns (Infantry, Vehicles, Aircraft)
+            container.innerHTML = '';
+            container.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; padding: 20px;';
+            
+            // Infantry column
+            const infantryCol = document.createElement('div');
+            infantryCol.innerHTML = '<h3 style="color: #FFD700; margin-bottom: 15px;">🪖 Infantry</h3>';
+            techTreeData.infantryNodes.forEach(node => {
+                this.renderTechTreeNode(node, infantryCol, techTreeData);
+            });
+            container.appendChild(infantryCol);
+            
+            // Vehicles column
+            const vehicleCol = document.createElement('div');
+            vehicleCol.innerHTML = '<h3 style="color: #FFD700; margin-bottom: 15px;">🚙 Vehicles</h3>';
+            techTreeData.vehicleNodes.forEach(node => {
+                this.renderTechTreeNode(node, vehicleCol, techTreeData);
+            });
+            container.appendChild(vehicleCol);
+            
+            // Aircraft column
+            const flyerCol = document.createElement('div');
+            flyerCol.innerHTML = '<h3 style="color: #FFD700; margin-bottom: 15px;">✈️ Aircraft</h3>';
+            techTreeData.flyerNodes.forEach(node => {
+                this.renderTechTreeNode(node, flyerCol, techTreeData);
+            });
+            container.appendChild(flyerCol);
+        } catch (error) {
+            console.error('Failed to load unit tech tree:', error);
+            container.innerHTML = `<div style="color: #FF4444; text-align: center; padding: 50px;">Failed to load unit tech tree<br><small>${error.message}</small><br><br><small>Check browser console for details</small></div>`;
+        }
+    }
+    
+    /**
+     * Render a single tech tree node (for grid layout)
+     */
+    renderTechTreeNode(node, container, techTreeData) {
+        const nodeElement = document.createElement('div');
+        nodeElement.className = 'research-node';
+        nodeElement.classList.add(node.state.toLowerCase());
+        nodeElement.style.cssText = 'margin-bottom: 15px; position: relative;';
+        
+        // Header with icon and title
+        const header = document.createElement('div');
+        header.className = 'research-node-header';
+        const icon = document.createElement('div');
+        icon.className = 'research-node-icon';
+        icon.textContent = '🎖️';
+        const title = document.createElement('div');
+        title.className = 'research-node-title';
+        title.textContent = node.displayName;
+        header.appendChild(icon);
+        header.appendChild(title);
+        nodeElement.appendChild(header);
+        
+        // Tier badge
+        const tierBadge = document.createElement('div');
+        tierBadge.style.cssText = 'position: absolute; top: 5px; right: 5px; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;';
+        tierBadge.textContent = node.tier;
+        const tierColors = { BASIC: '#4CAF50', ADVANCED: '#FF9800', ELITE: '#9C27B0' };
+        tierBadge.style.background = tierColors[node.tier] || '#666';
+        tierBadge.style.color = 'white';
+        nodeElement.appendChild(tierBadge);
+        
+        // Description
+        if (node.description) {
+            const desc = document.createElement('div');
+            desc.className = 'research-node-effect';
+            desc.textContent = node.description;
+            nodeElement.appendChild(desc);
+        }
+        
+        // Unit unlock info
+        if (node.unlocksUnit) {
+            const unitInfo = document.createElement('div');
+            unitInfo.style.cssText = 'font-size: 12px; color: #4CAF50; margin: 5px 0;';
+            unitInfo.textContent = '✅ Unlocks: ' + node.unlocksUnit;
+            if (node.replacesUnit) {
+                unitInfo.textContent += ' (Replaces: ' + node.replacesUnit + ')';
+            }
+            nodeElement.appendChild(unitInfo);
+        }
+        
+        // Cost
+        const cost = document.createElement('div');
+        cost.className = 'research-node-cost';
+        cost.innerHTML = `<span>💰 ${node.creditCost}</span><span>⏱️ ${node.researchTimeSeconds}s</span>`;
+        nodeElement.appendChild(cost);
+        
+        // Lock reasons (if locked)
+        if (node.state === 'LOCKED' && node.lockReasons && node.lockReasons.length > 0) {
+            const lockBox = document.createElement('div');
+            lockBox.style.cssText = 'background: rgba(255,0,0,0.1); border: 1px solid #FF4444; padding: 5px; margin: 5px 0; font-size: 11px; color: #FF8888;';
+            lockBox.innerHTML = node.lockReasons.map(r => '❌ ' + r).join('<br>');
+            nodeElement.appendChild(lockBox);
+        }
+        
+        // Progress bar (if researching)
+        if (node.state === 'RESEARCHING' && node.progressPercent != null) {
+            const progressBar = document.createElement('div');
+            progressBar.style.cssText = 'height: 20px; background: #333; border-radius: 4px; overflow: hidden; margin: 5px 0;';
+            const progressFill = document.createElement('div');
+            progressFill.style.cssText = `height: 100%; background: linear-gradient(90deg, #FFD700, #FFA500); width: ${node.progressPercent}%; transition: width 0.3s;`;
+            progressBar.appendChild(progressFill);
+            const progressText = document.createElement('div');
+            progressText.style.cssText = 'position: absolute; width: 100%; text-align: center; margin-top: -18px; font-size: 11px; color: white; text-shadow: 0 0 3px black;';
+            progressText.textContent = `${Math.round(node.progressPercent)}% (${node.remainingSeconds}s)`;
+            progressBar.appendChild(progressText);
+            nodeElement.appendChild(progressBar);
+        }
+        
+        // Status
+        const status = document.createElement('div');
+        status.className = 'research-node-status ' + node.state.toLowerCase();
+        const statusText = {
+            COMPLETED: '✅ Researched',
+            RESEARCHING: '⏳ Researching...',
+            AVAILABLE: '📖 Click to Research',
+            LOCKED: '🔒 Locked'
+        };
+        status.textContent = statusText[node.state] || node.state;
+        nodeElement.appendChild(status);
+        
+        // Click handler for AVAILABLE nodes
+        if (node.state === 'AVAILABLE') {
+            nodeElement.style.cursor = 'pointer';
+            nodeElement.onclick = async () => {
+                // Find appropriate building based on tier
+                const buildingType = node.tier === 'ELITE' ? 'TECH_CENTER' : 
+                                   node.tier === 'ADVANCED' ? 'RESEARCH_LAB' : 
+                                   node.category === 'INFANTRY' ? 'BARRACKS' :
+                                   node.category === 'VEHICLE' ? 'FACTORY' : 'AIRFIELD';
+                
+                const building = this.findResearchBuilding(buildingType);
+                if (!building) {
+                    alert(`You need a ${buildingType} to research this!`);
+                    return;
+                }
+                if (this.myMoney < node.creditCost) {
+                    alert(`Insufficient credits! Need ${node.creditCost}, have ${this.myMoney}`);
+                    return;
+                }
+                await this.startUnitResearch(building.id, node.id);
+            };
+        }
+        
+        container.appendChild(nodeElement);
+    }
+    
+    /**
+    async showUnitTechTree() {
+        const container = document.getElementById('research-nodes-container');
+        if (!container) return;
+        container.innerHTML = '';
+        const gameId = this.websocket?.url?.match(/games\/([^\/]+)/)?.[1];
+        if (!gameId || !this.myPlayerId) {
+            container.innerHTML = '<div style="color: white; text-align: center; padding: 50px;">Unable to load unit tech tree</div>';
+            return;
+        }
+        try {
+            const response = await fetch(`/api/rts/games/${gameId}/players/${this.myPlayerId}/tech-tree`);
+            if (!response.ok) throw new Error('Failed to fetch unit tech tree');
+            const techTreeData = await response.json();
+            const nodesByCategory = { 'WORKER': [], 'INFANTRY': [], 'VEHICLE': [], 'FLYER': [] };
+            techTreeData.nodes.forEach(node => { if (nodesByCategory[node.category]) nodesByCategory[node.category].push(node); });
+            let yOffset = 50;
+            const categories = ['INFANTRY', 'VEHICLE', 'FLYER'];
+            categories.forEach(category => {
+                const nodes = nodesByCategory[category];
+                if (nodes.length === 0) return;
+                const categoryHeader = document.createElement('div');
+                categoryHeader.style.cssText = `position: absolute; left: 30px; top: ${yOffset}px; font-size: 20px; font-weight: bold; color: #FFD700;`;
+                const icons = {'INFANTRY': '🪖', 'VEHICLE': '🚙', 'FLYER': '✈️'};
+                categoryHeader.textContent = (icons[category] || '📦') + ' ' + category;
+                container.appendChild(categoryHeader);
+                yOffset += 40;
+                const tiers = { 'BASIC': [], 'ADVANCED': [], 'ELITE': [] };
+                nodes.forEach(node => { if (tiers[node.tier]) tiers[node.tier].push(node); });
+                Object.keys(tiers).forEach(tier => {
+                    const tierNodes = tiers[tier];
+                    if (tierNodes.length === 0) return;
+                    const xSpacing = 250;
+                    const startX = 100;
+                    tierNodes.forEach((node, index) => {
+                        const x = startX + (index * xSpacing);
+                        const y = yOffset;
+                        this.createUnitResearchNode(node, x, y, container, techTreeData);
+                    });
+                    yOffset += 180;
+                });
+                yOffset += 20;
+            });
+        } catch (error) {
+            console.error('Failed to load unit tech tree:', error);
+            container.innerHTML = '<div style="color: #FF4444; text-align: center; padding: 50px;">Failed to load unit tech tree</div>';
+        }
+    }
+    
+    /**
+     * Create a unit research node element
+     */
+    createUnitResearchNode(node, x, y, container, techTreeData) {
+        const nodeElement = document.createElement('div');
+        nodeElement.className = 'research-node';
+        nodeElement.style.left = x + 'px';
+        nodeElement.style.top = y + 'px';
+        let state = 'locked';
+        if (node.isResearched) state = 'completed';
+        else if (node.isInProgress) state = 'researching';
+        else if (node.canResearch) state = 'available';
+        nodeElement.classList.add(state);
+        const header = document.createElement('div');
+        header.className = 'research-node-header';
+        const icon = document.createElement('div');
+        icon.className = 'research-node-icon';
+        icon.textContent = '🎖️';
+        const title = document.createElement('div');
+        title.className = 'research-node-title';
+        title.textContent = node.displayName;
+        header.appendChild(icon);
+        header.appendChild(title);
+        nodeElement.appendChild(header);
+        if (node.description) {
+            const effect = document.createElement('div');
+            effect.className = 'research-node-effect';
+            effect.textContent = node.description;
+            nodeElement.appendChild(effect);
+        }
+        if (node.unitToUnlock) {
+            const unitInfo = document.createElement('div');
+            unitInfo.style.cssText = 'font-size: 12px; color: #4CAF50; margin: 5px 0;';
+            unitInfo.textContent = '✅ Unlocks: ' + this.getUnitDisplayName(node.unitToUnlock);
+            nodeElement.appendChild(unitInfo);
+        }
+        const cost = document.createElement('div');
+        cost.className = 'research-node-cost';
+        cost.innerHTML = `<span>💰 ${node.creditCost}</span><span>⏱️ ${node.researchTimeSeconds}s</span>`;
+        nodeElement.appendChild(cost);
+        const status = document.createElement('div');
+        status.className = 'research-node-status ' + state;
+        status.textContent = state === 'completed' ? '✓ Researched' : state === 'researching' ? '⏳ Researching...' : state === 'available' ? '📖 Click to Research' : '🔒 Locked';
+        nodeElement.appendChild(status);
+        if (state === 'available') {
+            nodeElement.onclick = async () => {
+                const building = this.findResearchBuilding(node.tier === 'ELITE' ? 'TECH_CENTER' : 'RESEARCH_LAB');
+                if (!building) { alert('You need a ' + (node.tier === 'ELITE' ? 'TECH_CENTER' : 'RESEARCH_LAB')); return; }
+                if (this.myMoney < node.creditCost) { alert(`Insufficient credits! Need ${node.creditCost}, have ${this.myMoney}`); return; }
+                await this.startUnitResearch(building.id, node.id);
+                this.closeResearchTreeModal();
+            };
+        }
+        container.appendChild(nodeElement);
+    }
+    
+    /**
+     * Group research by tier (based on prerequisite depth)
+     */
+    groupResearchByTier(research) {
+        const tiers = {};
+        
+        research.forEach(r => {
+            const tier = this.calculateResearchTier(r, research);
+            if (!tiers[tier]) {
+                tiers[tier] = [];
+            }
+            tiers[tier].push(r);
+        });
+        
+        return tiers;
+    }
+    
+    /**
+     * Calculate research tier based on prerequisite depth
+     */
+    calculateResearchTier(research, allResearch) {
+        if (!research.prerequisites || research.prerequisites.length === 0) {
+            return 0;
+        }
+        
+        let maxTier = 0;
+        research.prerequisites.forEach(prereqId => {
+            const prereq = allResearch.find(r => r.researchId === prereqId);
+            if (prereq) {
+                const prereqTier = this.calculateResearchTier(prereq, allResearch);
+                maxTier = Math.max(maxTier, prereqTier + 1);
+            }
+        });
+        
+        return maxTier;
+    }
+    
+    /**
+     * Create a research card element (grid-based, matches unit research style)
+     */
+    createResearchCard(research, container) {
+        const card = document.createElement('div');
+        const state = this.getResearchState(research);
+        card.className = 'research-node ' + state;
+        card.style.cssText = 'margin-bottom: 15px; position: relative;';
+        
+        // Header with icon and title
+        const header = document.createElement('div');
+        header.className = 'research-node-header';
+        const icon = document.createElement('div');
+        icon.className = 'research-node-icon';
+        icon.textContent = research.icon || '🔬';
+        const title = document.createElement('div');
+        title.className = 'research-node-title';
+        title.textContent = research.displayName;
+        header.appendChild(icon);
+        header.appendChild(title);
+        card.appendChild(header);
+        
+        // Tier badge (based on required building)
+        const tierBadge = document.createElement('div');
+        tierBadge.style.cssText = 'position: absolute; top: 5px; right: 5px; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;';
+        let tierLabel = 'BASIC';
+        let tierColor = '#4CAF50';
+        if (research.requiredBuilding === 'TECH_CENTER') {
+            tierLabel = 'ELITE';
+            tierColor = '#9C27B0';
+        } else if (research.requiredBuilding === 'RESEARCH_LAB') {
+            tierLabel = 'ADVANCED';
+            tierColor = '#FF9800';
+        }
+        tierBadge.textContent = tierLabel;
+        tierBadge.style.background = tierColor;
+        tierBadge.style.color = 'white';
+        card.appendChild(tierBadge);
+        
+        // Effect description
+        const effect = document.createElement('div');
+        effect.className = 'research-node-effect';
+        effect.textContent = research.effectSummary;
+        card.appendChild(effect);
+        
+        // Cost
+        const cost = document.createElement('div');
+        cost.className = 'research-node-cost';
+        cost.innerHTML = `<span>💰 ${research.creditCost}</span><span>⏱️ ${research.researchTimeSeconds}s</span>`;
+        card.appendChild(cost);
+        
+        // Lock reasons (if locked)
+        if (state === 'locked') {
+            const lockReasons = this.getResearchLockReasons(research);
+            if (lockReasons.length > 0) {
+                const lockBox = document.createElement('div');
+                lockBox.style.cssText = 'background: rgba(255,0,0,0.1); border: 1px solid #FF4444; padding: 5px; margin: 5px 0; font-size: 11px; color: #FF8888;';
+                lockBox.innerHTML = lockReasons.map(r => '❌ ' + r).join('<br>');
+                card.appendChild(lockBox);
+            }
+        }
+        
+        // Progress bar (if researching)
+        if (state === 'researching') {
+            const activeResearch = this.getActiveResearchByType(research.researchId);
+            if (activeResearch && activeResearch.progress != null) {
+                const progressBar = document.createElement('div');
+                progressBar.style.cssText = 'height: 20px; background: #333; border-radius: 4px; overflow: hidden; margin: 5px 0;';
+                const progressFill = document.createElement('div');
+                progressFill.style.cssText = `height: 100%; background: linear-gradient(90deg, #FFD700, #FFA500); width: ${activeResearch.progress}%; transition: width 0.3s;`;
+                progressBar.appendChild(progressFill);
+                const progressText = document.createElement('div');
+                progressText.style.cssText = 'position: absolute; width: 100%; text-align: center; margin-top: -18px; font-size: 11px; color: white; text-shadow: 0 0 3px black;';
+                const remaining = activeResearch.timeRemaining || Math.ceil((100 - activeResearch.progress) * research.researchTimeSeconds / 100);
+                progressText.textContent = `${Math.round(activeResearch.progress)}% (${remaining}s)`;
+                progressBar.appendChild(progressText);
+                card.appendChild(progressBar);
+            }
+        }
+        
+        // Status badge
+        const status = document.createElement('div');
+        status.className = 'research-node-status ' + state;
+        const statusText = {
+            completed: '✅ Researched',
+            researching: '⏳ Researching...',
+            available: '📖 Click to Research',
+            locked: '🔒 Locked'
+        };
+        status.textContent = statusText[state] || state;
+        card.appendChild(status);
+        
+        // Click handler for available research
+        if (state === 'available') {
+            card.style.cursor = 'pointer';
+            card.onclick = async () => {
+                await this.onResearchNodeClick(research);
+            };
+        }
+        
+        container.appendChild(card);
+    }
+    
+    /**
+     * Get lock reasons for a research (for display)
+     */
+    getResearchLockReasons(research) {
+        const reasons = [];
+        
+        if (!this.lastGameState || !this.lastGameState.factions || !this.lastGameState.factions[this.myPlayerId]) {
+            return reasons;
+        }
+        
+        const myFaction = this.lastGameState.factions[this.myPlayerId];
+        const completedResearch = myFaction.completedResearch || [];
+        
+        // Check required building
+        const hasRequiredBuilding = this.playerHasBuilding(research.requiredBuilding);
+        if (!hasRequiredBuilding) {
+            const buildingName = research.requiredBuilding.replace(/_/g, ' ');
+            reasons.push(`Requires: ${buildingName}`);
+        }
+        
+        // Check prerequisites
+        if (research.prerequisites && research.prerequisites.length > 0) {
+            research.prerequisites.forEach(prereqId => {
+                if (!completedResearch.includes(prereqId)) {
+                    // Find the prereq research to get its name
+                    const prereq = this.myFactionData.availableResearch?.find(r => r.researchId === prereqId);
+                    const prereqName = prereq ? prereq.displayName : prereqId;
+                    reasons.push(`Requires: ${prereqName}`);
+                }
+            });
+        }
+        
+        return reasons;
+    }
+    
+    /**
+     * Get research state (completed, available, locked, researching)
+     */
+    getResearchState(research) {
+        if (!this.lastGameState || !this.lastGameState.factions || !this.lastGameState.factions[this.myPlayerId]) {
+            return 'locked';
+        }
+        
+        const myFaction = this.lastGameState.factions[this.myPlayerId];
+        const completedResearch = myFaction.completedResearch || [];
+        
+        // Check if completed
+        if (completedResearch.includes(research.researchId)) {
+            return 'completed';
+        }
+        
+        // Check if currently researching
+        if (myFaction.activeResearch) {
+            const isResearching = Object.values(myFaction.activeResearch).some(
+                active => active.researchType === research.researchId
+            );
+            if (isResearching) {
+                return 'researching';
+            }
+        }
+        
+        // Check if player has the required building (completed, not under construction)
+        const hasRequiredBuilding = this.playerHasBuilding(research.requiredBuilding);
+        if (!hasRequiredBuilding) {
+            return 'locked';
+        }
+        
+        // Check if available (prerequisites met)
+        if (research.prerequisites && research.prerequisites.length > 0) {
+            const prereqsMet = research.prerequisites.every(prereq => 
+                completedResearch.includes(prereq)
+            );
+            if (!prereqsMet) {
+                return 'locked';
+            }
+        }
+        
+        return 'available';
+    }
+    
+    /**
+     * Check if player has a specific building type (completed, not under construction)
+     */
+    playerHasBuilding(buildingType) {
+        if (!this.lastGameState || !this.lastGameState.buildings) {
+            console.log('playerHasBuilding: No game state or buildings');
+            return false;
+        }
+        
+        // Convert buildings array to object if needed
+        let buildingsObj = this.lastGameState.buildings;
+        if (Array.isArray(buildingsObj)) {
+            console.log('playerHasBuilding: Buildings is an array, converting to object');
+            const temp = {};
+            buildingsObj.forEach(b => temp[b.id] = b);
+            buildingsObj = temp;
+        }
+        
+        for (const buildingId in buildingsObj) {
+            const building = buildingsObj[buildingId];
+            
+            console.log(`Checking building ${buildingId}: type=${building.type}, owner=${building.ownerId}, myId=${this.myPlayerId}, active=${building.active}, underConstruction=${building.underConstruction}`);
+            
+            if (building.type === buildingType &&
+                building.ownerId === this.myPlayerId &&
+                building.active &&
+                !building.underConstruction) {
+                console.log(`playerHasBuilding: Found ${buildingType}!`);
+                return true;
+            }
+        }
+        
+        console.log(`playerHasBuilding: No ${buildingType} found for player ${this.myPlayerId}`);
+        return false;
+    }
+    
+    /**
+     * Get status text for research node
+     */
+    getResearchStatusText(state, research) {
+        switch (state) {
+            case 'completed': return '✓ Completed';
+            case 'researching': return '⏳ Researching...';
+            case 'available': return '📖 Click to Research';
+            case 'locked': return '🔒 Locked';
+            default: return '';
+        }
+    }
+    
+    /**
+     * Get active research by research type
+     */
+    getActiveResearchByType(researchType) {
+        if (!this.lastGameState || !this.lastGameState.factions || !this.lastGameState.factions[this.myPlayerId]) {
+            return null;
+        }
+        
+        const myFaction = this.lastGameState.factions[this.myPlayerId];
+        if (!myFaction.activeResearch) {
+            return null;
+        }
+        
+        for (const buildingId in myFaction.activeResearch) {
+            const research = myFaction.activeResearch[buildingId];
+            if (research.researchType === researchType) {
+                return research;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Handle research node click
+     */
+    onResearchNodeClick(research) {
+        // Check simultaneous research limit first
+        const activeResearchCount = this.getActiveResearchCount();
+        const maxSimultaneous = this.getMaxSimultaneousResearch();
+        
+        if (activeResearchCount >= maxSimultaneous) {
+            alert(`Maximum simultaneous research limit reached (${activeResearchCount}/${maxSimultaneous})!\n\nComplete or cancel existing research, or research Parallel Research upgrades to increase capacity.`);
+            return;
+        }
+        
+        // Find a suitable building to research at
+        const building = this.findResearchBuilding(research.requiredBuilding);
+        
+        if (!building) {
+            alert(`You need a ${research.requiredBuilding} to research this!`);
+            return;
+        }
+        
+        // Check if can afford
+        if (this.myMoney < research.creditCost) {
+            alert(`Insufficient credits! Need ${research.creditCost}, have ${this.myMoney}`);
+            return;
+        }
+        
+        // Start research
+        this.startResearch(building.id, research.researchId);
+        
+        // Close modal
+        this.closeResearchTreeModal();
+    }
+    
+    /**
+     * Get the number of active research projects
+     */
+    getActiveResearchCount() {
+        if (!this.lastGameState || !this.lastGameState.factions || !this.lastGameState.factions[this.myPlayerId]) {
+            return 0;
+        }
+        
+        const myFaction = this.lastGameState.factions[this.myPlayerId];
+        if (!myFaction.activeResearch) {
+            return 0;
+        }
+        
+        return Object.keys(myFaction.activeResearch).length;
+    }
+    
+    /**
+     * Get the maximum simultaneous research allowed
+     */
+    getMaxSimultaneousResearch() {
+        if (!this.lastGameState || !this.lastGameState.factions || !this.lastGameState.factions[this.myPlayerId]) {
+            return 1; // Base limit
+        }
+        
+        const myFaction = this.lastGameState.factions[this.myPlayerId];
+        const completedResearch = myFaction.completedResearch || [];
+        
+        let max = 1; // Base limit
+        
+        // Check for Parallel Research upgrades
+        if (completedResearch.includes('PARALLEL_RESEARCH_1')) {
+            max += 1;
+        }
+        if (completedResearch.includes('PARALLEL_RESEARCH_2')) {
+            max += 1;
+        }
+        
+        return max;
+    }
+    
+    /**
+     * Find a suitable research building
+     */
+    findResearchBuilding(requiredBuildingType) {
+        if (!this.lastGameState || !this.lastGameState.buildings) {
+            return null;
+        }
+        
+        // Find a building of the required type that:
+        // 1. Belongs to the player
+        // 2. Is not under construction
+        for (const buildingId in this.lastGameState.buildings) {
+            const building = this.lastGameState.buildings[buildingId];
+            if (building.type === requiredBuildingType &&
+                building.ownerId === this.myPlayerId &&
+                !building.underConstruction) {
+                return building;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Show research tooltip
+     */
+    showResearchTooltip(research) {
+        const tooltip = document.getElementById('research-tooltip');
+        if (!tooltip) return;
+        
+        const state = this.getResearchState(research);
+        const prereqText = research.prerequisites && research.prerequisites.length > 0
+            ? research.prerequisites.map(p => {
+                const prereq = this.myFactionData.availableResearch.find(r => r.researchId === p);
+                return prereq ? prereq.displayName : p;
+            }).join(', ')
+            : 'None';
+        
+        // Check if player has required building
+        const hasBuilding = this.playerHasBuilding(research.requiredBuilding);
+        const buildingStatus = hasBuilding 
+            ? `<span style="color: #4CAF50;">✓ Available</span>`
+            : `<span style="color: #FF4444;">✗ Not Built</span>`;
+        
+        // Check prerequisites status
+        let prereqStatus = '';
+        if (research.prerequisites && research.prerequisites.length > 0) {
+            const completedResearch = this.lastGameState?.factions?.[this.myPlayerId]?.completedResearch || [];
+            const allMet = research.prerequisites.every(p => completedResearch.includes(p));
+            prereqStatus = allMet
+                ? `<span style="color: #4CAF50;">✓ Met</span>`
+                : `<span style="color: #FF4444;">✗ Not Met</span>`;
+        } else {
+            prereqStatus = `<span style="color: #4CAF50;">✓ None Required</span>`;
+        }
+        
+        tooltip.innerHTML = `
+            <div style="font-weight: bold; font-size: 16px; margin-bottom: 10px;">
+                ${research.icon} ${research.displayName}
+            </div>
+            <div style="color: #AAA; margin-bottom: 10px;">
+                ${research.description}
+            </div>
+            <div style="display: flex; gap: 20px; margin-bottom: 10px;">
+                <span>💰 Cost: ${research.creditCost}</span>
+                <span>⏱️ Time: ${research.researchTimeSeconds}s</span>
+            </div>
+            <div style="margin-bottom: 5px;">
+                🏗️ Required Building: ${research.requiredBuilding} ${buildingStatus}
+            </div>
+            <div>
+                📋 Prerequisites: ${prereqText} ${prereqStatus}
+            </div>
+        `;
+        
+        tooltip.style.display = 'block';
+    }
+    
+    /**
+     * Hide research tooltip
+     */
+    hideResearchTooltip() {
+        const tooltip = document.getElementById('research-tooltip');
+        if (tooltip) {
+            tooltip.style.display = 'none';
+        }
+    }
+    
+    /**
      * Fetch faction data from API
      */
     async fetchFactionData(factionType) {
@@ -2757,80 +5153,192 @@ class RTSEngine {
                 throw new Error(`Failed to fetch faction data for ${factionType}`);
             }
             this.myFactionData = await response.json();
-            console.log('Loaded faction data:', this.myFactionData);
+            
+            // Generate build menu dynamically based on faction data
+            this.generateBuildMenu();
         } catch (error) {
             console.error('Error fetching faction data:', error);
         }
     }
     
     /**
-     * Get available units for a building, filtered by faction
+     * Generate build menu dynamically based on faction's available buildings
      */
-    getAvailableUnits(buildingType) {
-        console.log(`getAvailableUnits called for ${buildingType}, myFactionData:`, this.myFactionData ? 'loaded' : 'null');
-        
-        // If we have faction data, use it
-        if (this.myFactionData) {
-            // Get the building info from faction data
-            const building = this.myFactionData.availableBuildings.find(b => b.buildingType === buildingType);
-            console.log(`getAvailableUnits(${buildingType}):`, building);
-            
-            if (!building || !building.producedUnits || building.producedUnits.length === 0) {
-                console.warn(`No units found for ${buildingType}`, building);
-                return [];
-            }
-            
-            console.log(`${buildingType} produces:`, building.producedUnits);
-            
-            // Map produced units to the format expected by UI
-            const units = building.producedUnits.map(unitType => {
-                const unitInfo = this.myFactionData.availableUnits.find(u => u.unitType === unitType);
-                console.log(`Looking for unit ${unitType}:`, unitInfo);
-                if (!unitInfo) return null;
-                
-                return {
-                    type: unitInfo.unitType,
-                    name: this.getUnitDisplayName(unitInfo.unitType),
-                    cost: unitInfo.cost, // Faction-modified cost
-                    baseCost: unitInfo.baseCost,
-                    costModifier: unitInfo.costModifier
-                };
-            }).filter(u => u !== null);
-            
-            console.log(`Returning ${units.length} units for ${buildingType}:`, units);
-            return units;
+    generateBuildMenu() {
+        if (!this.myFactionData || !this.myFactionData.availableBuildings) {
+            console.warn('Cannot generate build menu: faction data not loaded');
+            return;
         }
         
-        // Fallback to hardcoded data if faction data not loaded
-        const unitsByBuilding = {
-            'HEADQUARTERS': [
-                { type: 'WORKER', name: '👷 Worker', cost: 50 },
-                { type: 'MINER', name: '⛏️ Miner', cost: 100 }
-            ],
-            'BARRACKS': [
-                { type: 'INFANTRY', name: '🪖 Infantry', cost: 75 },
-                { type: 'MEDIC', name: '⚕️ Medic', cost: 100 }
-            ],
-            'WEAPONS_DEPOT': [
-                { type: 'ROCKET_SOLDIER', name: '🚀 Rocket Soldier', cost: 150 },
-                { type: 'SNIPER', name: '🎯 Sniper', cost: 200 },
-                { type: 'ENGINEER', name: '🔧 Engineer', cost: 150 }
-            ],
-            'FACTORY': [
-                { type: 'JEEP', name: '🚙 Jeep', cost: 200 },
-                { type: 'TANK', name: '🛡️ Tank', cost: 400 }
-            ],
-            'ADVANCED_FACTORY': [
-                { type: 'ARTILLERY', name: '💣 Artillery', cost: 500 },
-                { type: 'GIGANTONAUT', name: '🏔️ Gigantonaut', cost: 1200 },
-                { type: 'CRAWLER', name: '🦂 Crawler', cost: 1500 },
-                { type: 'STEALTH_TANK', name: '👻 Stealth Tank', cost: 800 },
-                { type: 'MAMMOTH_TANK', name: '🦣 Mammoth Tank', cost: 1200 }
-            ]
+        const buildMenu = document.getElementById('build-menu');
+        if (!buildMenu) return;
+        
+        // Clear existing content except title
+        const title = buildMenu.querySelector('.build-menu-title');
+        buildMenu.innerHTML = '';
+        if (title) {
+            buildMenu.appendChild(title);
+        } else {
+            buildMenu.innerHTML = '<div class="build-menu-title">Build Menu</div>';
+        }
+        
+        // Group buildings by tier
+        const buildingsByTier = {
+            1: [],
+            2: [],
+            3: []
         };
         
-        return unitsByBuilding[buildingType] || [];
+        this.myFactionData.availableBuildings.forEach(building => {
+            if (building.buildingType !== 'HEADQUARTERS') {
+                const tier = building.requiredTechTier || 1;
+                buildingsByTier[tier].push(building);
+            }
+        });
+        
+        // Define tier categories
+        const tierCategories = {
+            1: 'Basic',
+            2: 'Advanced (T2)',
+            3: 'Elite (T3)'
+        };
+        
+        // Create buttons for each tier
+        [1, 2, 3].forEach(tier => {
+            if (buildingsByTier[tier].length === 0) return;
+            
+            // Add category header
+            const category = document.createElement('div');
+            category.className = 'build-category';
+            category.textContent = tierCategories[tier];
+            buildMenu.appendChild(category);
+            
+            // Add building buttons
+            buildingsByTier[tier].forEach(building => {
+                const button = document.createElement('button');
+                button.className = 'build-button';
+                button.setAttribute('data-building', building.buildingType);
+                
+                // Get building icon
+                const icon = this.getBuildingIcon(building.buildingType);
+                const name = this.getBuildingDisplayName(building.buildingType);
+                const cost = building.cost;
+                
+                button.innerHTML = `${icon} ${name} <span class="build-cost">(${cost})</span>`;
+                
+                button.addEventListener('click', () => {
+                    this.enterBuildMode(building.buildingType);
+                });
+                
+                buildMenu.appendChild(button);
+            });
+        });
+        
     }
+    
+    /**
+     * Get display icon for a building type
+     */
+    getBuildingIcon(buildingType) {
+        const icons = {
+            'HEADQUARTERS': '🏛️',
+            'POWER_PLANT': '⚡',
+            'BARRACKS': '🏰',
+            'REFINERY': '🏭',
+            'WALL': '🧱',
+            'RESEARCH_LAB': '🔬',
+            'FACTORY': '🚗',
+            'TURRET': '🎯',
+            'ROCKET_TURRET': '🚀',
+            'LASER_TURRET': '🔷',
+            'SHIELD_GENERATOR': '🛡️',
+            'TECH_CENTER': '🧪',
+            'BANK': '💰',
+            'BUNKER': '🏰',
+            'AIRFIELD': '✈️',
+            'HANGAR': '🛩️',
+            'SANDSTORM_GENERATOR': '🌪️',
+            'QUANTUM_NEXUS': '⚛️',
+            'PHOTON_SPIRE': '💎',
+            'ANDROID_FACTORY': '🤖',
+            'COMMAND_CITADEL': '🏰',
+            'TEMPEST_SPIRE': '⛈️'
+        };
+        return icons[buildingType] || '🏢';
+    }
+    
+    /**
+     * Get display name for a building type
+     */
+    getBuildingDisplayName(buildingType) {
+        const names = {
+            'HEADQUARTERS': 'Headquarters',
+            'POWER_PLANT': 'Power Plant',
+            'BARRACKS': 'Barracks',
+            'REFINERY': 'Refinery',
+            'WALL': 'Wall',
+            'RESEARCH_LAB': 'Research Lab',
+            'FACTORY': 'Factory',
+            'TURRET': 'Turret',
+            'ROCKET_TURRET': 'Rocket Turret',
+            'LASER_TURRET': 'Laser Turret',
+            'SHIELD_GENERATOR': 'Shield Generator',
+            'TECH_CENTER': 'Tech Center',
+            'BANK': 'Bank',
+            'BUNKER': 'Bunker',
+            'AIRFIELD': 'Airfield',
+            'HANGAR': 'Hangar',
+            'SANDSTORM_GENERATOR': 'Sandstorm Generator',
+            'QUANTUM_NEXUS': 'Quantum Nexus',
+            'PHOTON_SPIRE': 'Photon Spire',
+            'ANDROID_FACTORY': 'Android Factory',
+            'COMMAND_CITADEL': 'Command Citadel',
+            'TEMPEST_SPIRE': 'Tempest Spire'
+        };
+        return names[buildingType] || buildingType.replace(/_/g, ' ');
+    }
+    
+    /**
+     * Get available units for a building, filtered by faction AND tech tree
+     */
+    getAvailableUnits(buildingType) {
+        // Get player's available units from game state (includes tech tree unlocks)
+        const myFactionState = this.lastGameState?.factions?.[this.myPlayerId];
+        const unlockedUnits = myFactionState?.availableUnits || [];
+        
+        if (!this.myFactionData) {
+            // No faction data loaded yet - shouldn't happen, but fallback gracefully
+            return [];
+        }
+        
+        // Convert unlocked units to Set for O(1) lookup
+        const unlockedUnitsSet = new Set(unlockedUnits);
+        
+        // Filter faction's unit list by:
+        // 1. Unit is unlocked (in game state's availableUnits)
+        // 2. Unit is produced by this building
+        const units = this.myFactionData.availableUnits
+            .filter(unitInfo => {
+                // Check if unlocked via tech tree
+                if (!unlockedUnitsSet.has(unitInfo.unitType)) {
+                    return false;
+                }
+                
+                // Check if this building produces this unit
+                return unitInfo.producedBy === buildingType;
+            })
+            .map(unitInfo => ({
+                type: unitInfo.unitType,
+                name: this.getUnitDisplayName(unitInfo.unitType),
+                cost: unitInfo.cost, // Faction-modified cost
+                baseCost: unitInfo.baseCost,
+                costModifier: unitInfo.costModifier,
+                upkeep: unitInfo.upkeep
+            }));
+        
+        return units;
+    }
+    
     
     /**
      * Get display name for a unit type
@@ -2838,25 +5346,41 @@ class RTSEngine {
     getUnitDisplayName(unitType) {
         const names = {
             'WORKER': '👷 Worker',
-            'MINER': '⛏️ Miner',
             'INFANTRY': '🪖 Infantry',
+            'LASER_INFANTRY': '⚡ Laser Infantry',
             'MEDIC': '⚕️ Medic',
             'ROCKET_SOLDIER': '🚀 Rocket Soldier',
             'SNIPER': '🎯 Sniper',
             'ENGINEER': '🔧 Engineer',
             'JEEP': '🚙 Jeep',
             'TANK': '🛡️ Tank',
+            'FLAK_TANK': '💥 Flak Tank',
             'ARTILLERY': '💣 Artillery',
             'GIGANTONAUT': '🏔️ Gigantonaut',
+            'CLOAK_TANK': '👻 Cloak Tank',
+            'MAMMOTH_TANK': '🦣 Mammoth Tank',
+            // Hero units
             'CRAWLER': '🦂 Crawler',
-            'STEALTH_TANK': '👻 Stealth Tank',
-            'MAMMOTH_TANK': '🦣 Mammoth Tank'
+            'RAIDER': '🏇 Raider',
+            'COLOSSUS': '🗿 Colossus',
+            'PHOTON_TITAN': '💎 Photon Titan',
+            // Beam units
+            'PLASMA_TROOPER': '⚡ Plasma Trooper',
+            'ION_RANGER': '🔫 Ion Ranger',
+            'PHOTON_SCOUT': '✨ Photon Scout',
+            'BEAM_TANK': '💠 Beam Tank',
+            'PULSE_ARTILLERY': '🌟 Pulse Artillery',
+            // Air units
+            'SCOUT_DRONE': '🪽 Scout Drone',
+            'HELICOPTER': '🚁 Helicopter',
+            'BOMBER': '✈️ Bomber',
+            'INTERCEPTOR': '🛩️ Interceptor',
+            'GUNSHIP': '👾 Gunship'
         };
         return names[unitType] || unitType;
     }
     
     queueUnitProduction(buildingId, unitType) {
-        console.log(`Queueing unit production: ${unitType} at building ${buildingId}`);
         this.sendInput({
             produceUnitOrder: unitType,
             produceBuildingId: buildingId
@@ -2864,7 +5388,6 @@ class RTSEngine {
     }
     
     setRallyPoint(buildingId, worldPos) {
-        console.log(`Setting rally point for building ${buildingId} to (${worldPos.x.toFixed(1)}, ${worldPos.y.toFixed(1)})`);
         this.sendInput({
             setRallyBuildingId: buildingId,
             rallyPoint: { x: worldPos.x, y: worldPos.y }
@@ -2885,6 +5408,9 @@ class RTSEngine {
             
             this.fieldEffects.set(effectData.id, effectContainer);
             this.gameContainer.addChild(effectContainer);
+            
+            // Field effects render above ground units but below aircraft (z-index 1.5)
+            effectContainer.zIndex = 1.5;
         }
         
         // Update effect visuals based on type and progress
@@ -2909,7 +5435,431 @@ class RTSEngine {
                 graphics.circle(0, 0, effectData.radius * 1.2);
                 graphics.fill({ color: 0xFFFFFF, alpha: (1.0 - effectData.progress / 0.2) * 0.5 });
             }
+        } else if (effectData.type === 'ELECTRIC') {
+            // Electric field - pulsing blue/cyan area with arcs
+            const time = Date.now() / 1000; // Current time in seconds
+            const pulseSpeed = 2.0; // Pulses per second
+            const pulse = Math.sin(time * pulseSpeed * Math.PI * 2) * 0.5 + 0.5; // 0 to 1
+            
+            // Base alpha fades out over lifetime
+            const baseAlpha = Math.max(0.3, 1.0 - effectData.progress * 0.7);
+            
+            // Outer glow (cyan)
+            graphics.circle(0, 0, effectData.radius);
+            graphics.fill({ color: 0x00FFFF, alpha: baseAlpha * 0.2 * (0.5 + pulse * 0.5) });
+            
+            // Inner core (bright blue)
+            graphics.circle(0, 0, effectData.radius * 0.7);
+            graphics.fill({ color: 0x0088FF, alpha: baseAlpha * 0.3 * (0.5 + pulse * 0.5) });
+            
+            // Pulsing ring
+            const ringRadius = effectData.radius * (0.6 + pulse * 0.3);
+            graphics.circle(0, 0, ringRadius);
+            graphics.stroke({ width: 2, color: 0x00FFFF, alpha: baseAlpha * (0.6 + pulse * 0.4) });
+            
+            // Electric arcs (draw some lightning-like lines)
+            const numArcs = 6;
+            const arcAlpha = baseAlpha * (0.4 + pulse * 0.6);
+            
+            for (let i = 0; i < numArcs; i++) {
+                const angle = (time * 0.5 + i / numArcs) * Math.PI * 2;
+                const arcLength = effectData.radius * (0.7 + Math.sin(time * 3 + i) * 0.2);
+                
+                // Start point (near center)
+                const startX = Math.cos(angle) * effectData.radius * 0.2;
+                const startY = Math.sin(angle) * effectData.radius * 0.2;
+                
+                // End point (at edge)
+                const endX = Math.cos(angle) * arcLength;
+                const endY = Math.sin(angle) * arcLength;
+                
+                // Draw jagged line (lightning effect)
+                graphics.moveTo(startX, startY);
+                
+                // Add some zigzag points
+                const segments = 3;
+                for (let j = 1; j <= segments; j++) {
+                    const t = j / segments;
+                    const midX = startX + (endX - startX) * t;
+                    const midY = startY + (endY - startY) * t;
+                    
+                    // Add random offset perpendicular to the line
+                    const perpAngle = angle + Math.PI / 2;
+                    const offset = (Math.sin(time * 5 + i * 3 + j) * 0.5) * effectData.radius * 0.15;
+                    const offsetX = midX + Math.cos(perpAngle) * offset;
+                    const offsetY = midY + Math.sin(perpAngle) * offset;
+                    
+                    graphics.lineTo(offsetX, offsetY);
+                }
+                
+                graphics.stroke({ width: 1.5, color: 0xFFFFFF, alpha: arcAlpha });
+            }
+            
+            // Center spark
+            if (pulse > 0.7) {
+                graphics.circle(0, 0, 3);
+                graphics.fill({ color: 0xFFFFFF, alpha: baseAlpha * (pulse - 0.7) * 3 });
+            }
+        } else if (effectData.type === 'SANDSTORM') {
+            // Sandstorm - swirling sandy/brown particles with rotating vortex
+            const time = Date.now() / 1000; // Current time in seconds
+            const swirl1 = time * 0.3; // Slow rotation
+            const swirl2 = time * 0.5; // Medium rotation
+            const swirl3 = time * 0.7; // Fast rotation
+            
+            // Sandstorm is persistent, so alpha stays constant
+            const baseAlpha = 0.4;
+            
+            // Base sandy cloud (tan/brown)
+            graphics.circle(0, 0, effectData.radius);
+            graphics.fill({ color: 0xDEB887, alpha: baseAlpha * 0.15 });
+            
+            // Middle layer (darker brown)
+            graphics.circle(0, 0, effectData.radius * 0.75);
+            graphics.fill({ color: 0xD2691E, alpha: baseAlpha * 0.2 });
+            
+            // Inner vortex (light sandy)
+            graphics.circle(0, 0, effectData.radius * 0.4);
+            graphics.fill({ color: 0xF4A460, alpha: baseAlpha * 0.25 });
+            
+            // Draw swirling particle streams (3 layers at different speeds)
+            const drawSwirlLayer = (numStreams, rotationOffset, radiusMultiplier, color, alpha) => {
+                for (let i = 0; i < numStreams; i++) {
+                    const baseAngle = (i / numStreams) * Math.PI * 2 + rotationOffset;
+                    
+                    // Draw spiral from center to edge
+                    const numPoints = 8;
+                    for (let j = 0; j < numPoints - 1; j++) {
+                        const t1 = j / numPoints;
+                        const t2 = (j + 1) / numPoints;
+                        
+                        // Spiral outward with clockwise rotation (negative angle for inward vortex look)
+                        const r1 = effectData.radius * t1 * radiusMultiplier;
+                        const r2 = effectData.radius * t2 * radiusMultiplier;
+                        const a1 = baseAngle - t1 * Math.PI * 1.5; // Negative for clockwise spiral
+                        const a2 = baseAngle - t2 * Math.PI * 1.5;
+                        
+                        const x1 = Math.cos(a1) * r1;
+                        const y1 = Math.sin(a1) * r1;
+                        const x2 = Math.cos(a2) * r2;
+                        const y2 = Math.sin(a2) * r2;
+                        
+                        // Fade out towards edge
+                        const fadeAlpha = alpha * (1.0 - t1 * 0.5);
+                        
+                        graphics.moveTo(x1, y1);
+                        graphics.lineTo(x2, y2);
+                        graphics.stroke({ width: 2, color: color, alpha: fadeAlpha });
+                    }
+                }
+            };
+            
+            // Three layers of swirls at different speeds and colors
+            drawSwirlLayer(8, swirl1, 0.9, 0xF4A460, baseAlpha * 0.4); // Sandy outer
+            drawSwirlLayer(6, swirl2, 0.7, 0xD2691E, baseAlpha * 0.5); // Brown middle
+            drawSwirlLayer(4, swirl3, 0.5, 0xDEB887, baseAlpha * 0.6); // Tan inner
+            
+            // Pulsing danger ring (subtle red tint to indicate damage)
+            const dangerPulse = Math.sin(time * 1.5) * 0.5 + 0.5;
+            graphics.circle(0, 0, effectData.radius);
+            graphics.stroke({ width: 2, color: 0xFF6347, alpha: baseAlpha * 0.3 * (0.3 + dangerPulse * 0.2) });
+            
+            // Center eye of the storm (darker, calmer)
+            const eyeRadius = effectData.radius * 0.15;
+            graphics.circle(0, 0, eyeRadius);
+            graphics.fill({ color: 0x8B4513, alpha: baseAlpha * 0.4 });
+            graphics.circle(0, 0, eyeRadius);
+            graphics.stroke({ width: 1, color: 0xD2691E, alpha: baseAlpha * 0.6 });
+        } else if (effectData.type === 'FLAK_EXPLOSION') {
+            // Flak explosion - angular burst pattern with shrapnel (anti-air)
+            const alpha = 1.0 - effectData.progress;
+            const time = Date.now() / 1000;
+            
+            // Main burst (gray-black smoke cloud)
+            graphics.circle(0, 0, effectData.radius);
+            graphics.fill({ color: 0x404040, alpha: alpha * 0.5 });
+            
+            // Inner blast (orange-red)
+            const innerRadius = effectData.radius * (0.6 + effectData.progress * 0.4);
+            graphics.circle(0, 0, innerRadius);
+            graphics.fill({ color: 0xFF4500, alpha: alpha * 0.7 });
+            
+            // Bright flash at center (white-yellow)
+            if (effectData.progress < 0.3) {
+                const flashAlpha = (1.0 - effectData.progress / 0.3) * alpha;
+                graphics.circle(0, 0, effectData.radius * 0.4);
+                graphics.fill({ color: 0xFFFF88, alpha: flashAlpha });
+            }
+            
+            // Shrapnel burst pattern (angular, directional)
+            const numShards = 12;
+            const shardAlpha = alpha * 0.8;
+            
+            for (let i = 0; i < numShards; i++) {
+                const angle = (i / numShards) * Math.PI * 2 + time * 0.5;
+                const shardLength = effectData.radius * (0.7 + effectData.progress * 0.5);
+                const shardWidth = 2;
+                
+                // Start point (near center)
+                const startDist = effectData.radius * 0.2;
+                const startX = Math.cos(angle) * startDist;
+                const startY = Math.sin(angle) * startDist;
+                
+                // End point (expanding outward)
+                const endX = Math.cos(angle) * shardLength;
+                const endY = Math.sin(angle) * shardLength;
+                
+                // Draw angular shard line
+                graphics.moveTo(startX, startY);
+                graphics.lineTo(endX, endY);
+                graphics.stroke({ width: shardWidth, color: 0xFFAA00, alpha: shardAlpha });
+                
+                // Add spark at tip
+                if (effectData.progress < 0.5) {
+                    graphics.circle(endX, endY, 2);
+                    graphics.fill({ color: 0xFFFFFF, alpha: shardAlpha * 0.7 });
+                }
+            }
+            
+            // Secondary smoke rings (darker gray expanding outward)
+            const numRings = 3;
+            for (let i = 0; i < numRings; i++) {
+                const ringProgress = (effectData.progress * 1.5 - i * 0.2);
+                if (ringProgress > 0 && ringProgress < 1) {
+                    const ringRadius = effectData.radius * (0.5 + ringProgress * 0.7);
+                    const ringAlpha = alpha * (1.0 - ringProgress) * 0.4;
+                    graphics.circle(0, 0, ringRadius);
+                    graphics.stroke({ width: 3, color: 0x303030, alpha: ringAlpha });
+                }
+            }
         }
+    }
+    
+    /**
+     * Enter sortie targeting mode for a hangar
+     * @param {number} hangarId - ID of the hangar issuing the sortie
+     * @param {string} aircraftType - Type of aircraft (BOMBER or INTERCEPTOR)
+     */
+    enterSortieTargetingMode(hangarId, aircraftType) {
+        this.sortieTargetingMode = true;
+        this.sortieHangarId = hangarId;
+        this.sortieAircraftType = aircraftType; // Store for different targeting messages
+        
+        // Visual feedback based on aircraft type
+        const message = aircraftType === 'INTERCEPTOR' 
+            ? 'Click location for interceptor patrol station'
+            : 'Click target location for bombing run';
+        this.showGameEvent(message, 'info');
+        
+        // Change cursor (could be enhanced with custom cursor)
+        document.body.style.cursor = 'crosshair';
+    }
+    
+    /**
+     * Exit sortie targeting mode
+     */
+    exitSortieTargetingMode() {
+        this.sortieTargetingMode = false;
+        this.sortieHangarId = null;
+        document.body.style.cursor = 'default';
+    }
+    
+    /**
+     * Issue sortie order to bomber
+     * Called when player clicks target location while in sortie targeting mode
+     * @param {number} targetX - World X coordinate
+     * @param {number} targetY - World Y coordinate
+     */
+    issueSortieOrder(targetX, targetY) {
+        if (!this.sortieTargetingMode || !this.sortieHangarId) {
+            return;
+        }
+        
+        const input = {
+            sortieHangarId: this.sortieHangarId,
+            sortieTargetLocation: {
+                x: targetX,
+                y: targetY
+            }
+        };
+        
+        this.sendInput(input);
+        this.exitSortieTargetingMode();
+        this.showGameEvent('Sortie order issued', 'info');
+    }
+    
+    /**
+     * Issue RTB (Return To Base) order to recall aircraft
+     * @param {number} hangarId - ID of the hangar to recall aircraft to
+     */
+    issueRTBOrder(hangarId) {
+        const input = {
+            rtbHangarId: hangarId
+        };
+        
+        this.sendInput(input);
+        this.showGameEvent('Aircraft returning to base', 'info');
+    }
+    
+    /**
+     * Draw sortie flight path on bomber unit graphics
+     * @param {PIXI.Container} container - Bomber unit container
+     * @param {object} sortieData - Sortie command data from server
+     */
+    drawSortiePath(container, sortieData) {
+        if (!container.sortiePath || !sortieData) {
+            return;
+        }
+        
+        const graphics = container.sortiePath;
+        graphics.clear();
+        graphics.visible = true;
+        
+        const currentPos = container.position;
+        const targetPos = sortieData.targetLocation;
+        const homePos = sortieData.homeLocation;
+        
+        // Determine current phase and draw appropriate path
+        const phase = sortieData.phase || 'OUTBOUND';
+        
+        if (phase === 'OUTBOUND' || phase === 'ATTACK') {
+            // Draw path to target
+            graphics.moveTo(-currentPos.x, -currentPos.y);
+            graphics.lineTo(targetPos.x - currentPos.x, targetPos.y - currentPos.y);
+            graphics.stroke({ width: 2, color: 0xFF6600, alpha: 0.6, dash: [10, 5] });
+            
+            // Draw target marker
+            graphics.circle(targetPos.x - currentPos.x, targetPos.y - currentPos.y, 15);
+            graphics.stroke({ width: 2, color: 0xFF0000, alpha: 0.8 });
+            
+        } else if (phase === 'INBOUND' || phase === 'LANDING') {
+            // Draw path back to home
+            graphics.moveTo(-currentPos.x, -currentPos.y);
+            graphics.lineTo(homePos.x - currentPos.x, homePos.y - currentPos.y);
+            graphics.stroke({ width: 2, color: 0x00AAFF, alpha: 0.6, dash: [10, 5] });
+            
+            // Draw home marker
+            graphics.circle(homePos.x - currentPos.x, homePos.y - currentPos.y, 15);
+            graphics.stroke({ width: 2, color: 0x00FF00, alpha: 0.8 });
+        }
+    }
+    
+    /**
+     * Update hangar building panel to show bomber status
+     * @param {object} buildingData - Hangar building data from server
+     */
+    updateHangarPanel(buildingData) {
+        const panel = document.getElementById('unit-info-panel');
+        if (!panel) return;
+        
+        // Remove existing hangar status if present
+        const existingStatus = panel.querySelector('.hangar-status');
+        if (existingStatus) {
+            existingStatus.remove();
+        }
+        
+        // Create hangar status section
+        const hangarStatusDiv = document.createElement('div');
+        hangarStatusDiv.className = 'hangar-status';
+        hangarStatusDiv.style.marginTop = '15px';
+        hangarStatusDiv.style.padding = '10px';
+        hangarStatusDiv.style.background = 'rgba(0,0,0,0.5)';
+        hangarStatusDiv.style.borderRadius = '5px';
+        
+        // Title
+        const title = document.createElement('div');
+        title.style.fontWeight = 'bold';
+        title.style.color = '#00CED1';
+        title.style.marginBottom = '8px';
+        title.textContent = '🛩️ Hangar Status';
+        hangarStatusDiv.appendChild(title);
+        
+        // Aircraft status
+        const aircraftStatus = document.createElement('div');
+        aircraftStatus.className = 'unit-stat';
+        const hasAircraft = buildingData.hangarOccupied > 0;
+        
+        // Get aircraft type name (from backend) or default to 'Empty'
+        let aircraftText = 'Empty';
+        if (hasAircraft && buildingData.hangarAircraftType) {
+            aircraftText = this.getUnitDisplayName(buildingData.hangarAircraftType);
+        } else if (hasAircraft) {
+            aircraftText = 'Aircraft'; // Fallback if type not provided
+        }
+        
+        aircraftStatus.innerHTML = `<span>Housed Unit:</span><span>${aircraftText}</span>`;
+        hangarStatusDiv.appendChild(aircraftStatus);
+        
+        // Mission status (if aircraft exists)
+        if (hasAircraft) {
+            const missionStatus = document.createElement('div');
+            missionStatus.className = 'unit-stat';
+            const onSortie = buildingData.hangarOnSortie || false;
+            const statusText = onSortie ? 'ON SORTIE' : 'READY';
+            const statusColor = onSortie ? '#FF6600' : '#00FF00';
+            missionStatus.innerHTML = `<span>Status:</span><span style="color: ${statusColor}">${statusText}</span>`;
+            hangarStatusDiv.appendChild(missionStatus);
+            
+            // Aircraft health (if housed and not on sortie)
+            if (!onSortie && buildingData.hangarAircraftHealth !== undefined) {
+                const healthStatus = document.createElement('div');
+                healthStatus.className = 'unit-stat';
+                healthStatus.innerHTML = `<span>Aircraft HP:</span><span>${Math.floor(buildingData.hangarAircraftHealth)}/${buildingData.hangarAircraftMaxHealth}</span>`;
+                hangarStatusDiv.appendChild(healthStatus);
+            }
+            
+            // Sortie button (only if ready - not on sortie) OR RTB button (if on sortie)
+            if (!onSortie) {
+                const sortieButton = document.createElement('button');
+                sortieButton.className = 'build-button';
+                
+                // Different button text based on aircraft type
+                const aircraftType = buildingData.hangarAircraftType || 'BOMBER';
+                const buttonText = aircraftType === 'INTERCEPTOR' ? '🛩️ DEPLOY ON STATION' : '📍 LAUNCH SORTIE';
+                
+                sortieButton.textContent = buttonText;
+                sortieButton.style.marginTop = '10px';
+                sortieButton.style.width = '100%';
+                sortieButton.style.background = '#FF6600';
+                sortieButton.style.border = '2px solid #FF8833';
+                sortieButton.onclick = () => this.enterSortieTargetingMode(buildingData.id, aircraftType);
+                hangarStatusDiv.appendChild(sortieButton);
+            } else {
+                // RTB (Return To Base) button - recall aircraft
+                const rtbButton = document.createElement('button');
+                rtbButton.className = 'build-button';
+                
+                // Different button text based on aircraft type
+                const aircraftType = buildingData.hangarAircraftType || 'BOMBER';
+                const buttonText = (aircraftType === 'INTERCEPTOR' || aircraftType === 'GUNSHIP') 
+                    ? '🏠 RECALL' 
+                    : '🏠 RETURN TO BASE';
+                
+                rtbButton.textContent = buttonText;
+                rtbButton.style.marginTop = '10px';
+                rtbButton.style.width = '100%';
+                rtbButton.style.background = '#00AA00';
+                rtbButton.style.border = '2px solid #00CC00';
+                rtbButton.onclick = () => this.issueRTBOrder(buildingData.id);
+                hangarStatusDiv.appendChild(rtbButton);
+            }
+        } else if (buildingData.hangarProducing) {
+            // Show production status
+            const productionStatus = document.createElement('div');
+            productionStatus.className = 'unit-stat';
+            const progress = Math.floor((buildingData.hangarProductionPercent || 0) * 100);
+            
+            // Show what type is being produced
+            let producingText = 'Aircraft';
+            if (buildingData.hangarProducingType) {
+                producingText = this.getUnitDisplayName(buildingData.hangarProducingType);
+            }
+            
+            productionStatus.innerHTML = `<span>Producing ${producingText}:</span><span>${progress}%</span>`;
+            hangarStatusDiv.appendChild(productionStatus);
+        }
+        
+        panel.appendChild(hangarStatusDiv);
     }
 }
 
