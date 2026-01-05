@@ -8,6 +8,7 @@ import lombok.Data;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Represents a player's faction/base in the RTS game.
@@ -23,8 +24,8 @@ public class PlayerFaction {
     private Faction faction = Faction.TERRAN; // Default faction
     private FactionDefinition factionDefinition;
 
-    // Research system
-    private final ResearchManager researchManager;
+    // Unified research system (handles both building and unit tech tree research)
+    private ResearchManager researchManager;
 
     // Resources
     private final Map<ResourceType, Integer> resources = new HashMap<>();
@@ -52,9 +53,6 @@ public class PlayerFaction {
         this.teamNumber = teamNumber;
         this.playerName = playerName;
 
-        // Initialize research manager
-        this.researchManager = new ResearchManager(playerId);
-
         // Initialize faction (default to TERRAN for backward compatibility)
         setFaction(Faction.TERRAN);
 
@@ -69,9 +67,6 @@ public class PlayerFaction {
         this.playerId = playerId;
         this.teamNumber = teamNumber;
         this.playerName = playerName;
-
-        // Initialize research manager
-        this.researchManager = new ResearchManager(playerId);
 
         // Initialize faction
         setFaction(faction);
@@ -89,6 +84,9 @@ public class PlayerFaction {
 
         // Apply faction-specific upkeep limit
         this.maxUpkeep = factionDefinition.getUpkeepLimit(250); // Base 250
+        
+        // Initialize unified research manager (handles both building and unit research)
+        this.researchManager = new ResearchManager(playerId, faction);
     }
 
     /**
@@ -165,7 +163,9 @@ public class PlayerFaction {
 
     /**
      * Check if this faction can build a specific unit type
+     * @deprecated Use canProduceUnit() which respects research unlocks instead
      */
+    @Deprecated
     public boolean canBuildUnit(UnitType unitType) {
         return factionDefinition.getTechTree().canBuildUnit(unitType);
     }
@@ -207,9 +207,34 @@ public class PlayerFaction {
 
     /**
      * Check if a building can produce a specific unit for this faction
+     * @deprecated Use canProduceUnit() + UnitType.getProducedBy() validation instead
      */
+    @Deprecated
     public boolean canBuildingProduceUnit(BuildingType buildingType, UnitType unitType) {
         return factionDefinition.getTechTree().canBuildingProduceUnit(buildingType, unitType);
+    }
+    
+    // ===== Unit Tech Tree Methods =====
+    
+    /**
+     * Get available units for a specific category (from tech tree)
+     */
+    public Set<UnitType> getAvailableUnits(UnitCategory category) {
+        if (researchManager == null) {
+            return Set.of();
+        }
+        return researchManager.getAvailableUnits(category);
+    }
+    
+    /**
+     * Check if a unit can be produced (based on tech tree research)
+     */
+    public boolean canProduceUnit(UnitType unitType) {
+        if (researchManager == null) {
+            return false;
+        }
+        UnitCategory category = unitType.getCategory();
+        return researchManager.getAvailableUnits(category).contains(unitType);
     }
 }
 

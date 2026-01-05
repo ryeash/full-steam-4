@@ -71,7 +71,6 @@ public class FactionInfoDTO {
         private boolean canAttack;
         private boolean canBuild;
         private boolean canHarvest;
-        private boolean canMine;
         private boolean isSupport;
 
         // Modifiers applied (for tooltip display)
@@ -108,7 +107,8 @@ public class FactionInfoDTO {
 
         // Capabilities
         private boolean canProduceUnits;
-        private List<String> producedUnits; // Unit types this building can produce
+        // NOTE: producedUnits removed - superseded by game state's availableUnits list
+        // which includes dynamically unlocked units from research
         private int requiredTechTier;
         private List<String> techRequirements; // Building types required before this can be built
 

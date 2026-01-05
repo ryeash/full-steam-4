@@ -53,21 +53,11 @@ public class FactionRegistry {
                                 UnitType.ARTILLERY,
                                 UnitType.FLAK_TANK
                         )),
-                        Map.entry(BuildingType.WEAPONS_DEPOT, List.of(
-                                UnitType.ROCKET_SOLDIER,
-                                UnitType.SNIPER,
-                                UnitType.ENGINEER
-                        )),
                         Map.entry(BuildingType.TURRET, List.of()),
                         Map.entry(BuildingType.ROCKET_TURRET, List.of()),
                         Map.entry(BuildingType.BUNKER, List.of()),
                         Map.entry(BuildingType.SHIELD_GENERATOR, List.of()),
                         Map.entry(BuildingType.TECH_CENTER, List.of()),
-                        Map.entry(BuildingType.ADVANCED_FACTORY, List.of(
-                                UnitType.GIGANTONAUT,
-                                UnitType.CLOAK_TANK,
-                                UnitType.CRAWLER
-                        )),
                         Map.entry(BuildingType.AIRFIELD, List.of(
                                 UnitType.SCOUT_DRONE,
                                 UnitType.HELICOPTER
@@ -112,20 +102,11 @@ public class FactionRegistry {
                                 UnitType.TANK,
                                 UnitType.FLAK_TANK
                         )),
-                        Map.entry(BuildingType.WEAPONS_DEPOT, List.of(
-                                UnitType.ROCKET_SOLDIER,
-                                UnitType.SNIPER,
-                                UnitType.ENGINEER
-                        )),
                         Map.entry(BuildingType.TURRET, List.of()),
                         Map.entry(BuildingType.ROCKET_TURRET, List.of()),
                         Map.entry(BuildingType.BUNKER, List.of()),
                         Map.entry(BuildingType.SHIELD_GENERATOR, List.of()),
                         Map.entry(BuildingType.TECH_CENTER, List.of()),
-                        Map.entry(BuildingType.ADVANCED_FACTORY, List.of(
-                                UnitType.CLOAK_TANK,
-                                UnitType.RAIDER
-                        )),
                         Map.entry(BuildingType.BANK, List.of()),
                         Map.entry(BuildingType.SANDSTORM_GENERATOR, List.of())
                 ))
@@ -176,21 +157,11 @@ public class FactionRegistry {
                                 UnitType.ARTILLERY,
                                 UnitType.FLAK_TANK
                         )),
-                        Map.entry(BuildingType.WEAPONS_DEPOT, List.of(
-                                UnitType.ROCKET_SOLDIER,
-                                UnitType.SNIPER,
-                                UnitType.ENGINEER
-                        )),
                         Map.entry(BuildingType.TURRET, List.of()),
                         Map.entry(BuildingType.LASER_TURRET, List.of()),
                         Map.entry(BuildingType.BUNKER, List.of()),
                         Map.entry(BuildingType.SHIELD_GENERATOR, List.of()),
                         Map.entry(BuildingType.TECH_CENTER, List.of()),
-                        Map.entry(BuildingType.ADVANCED_FACTORY, List.of(
-                                UnitType.GIGANTONAUT,
-                                UnitType.CLOAK_TANK,
-                                UnitType.COLOSSUS
-                        )),
                         Map.entry(BuildingType.AIRFIELD, List.of(
                                 UnitType.SCOUT_DRONE,
                                 UnitType.HELICOPTER
@@ -237,14 +208,6 @@ public class FactionRegistry {
                         Map.entry(BuildingType.TURRET, List.of()),
                         Map.entry(BuildingType.LASER_TURRET, List.of()),
                         Map.entry(BuildingType.BUNKER, List.of()),
-                        Map.entry(BuildingType.WEAPONS_DEPOT, List.of(
-                                UnitType.ION_RANGER,
-                                UnitType.ENGINEER
-                        )),
-                        Map.entry(BuildingType.ADVANCED_FACTORY, List.of(
-                                UnitType.PULSE_ARTILLERY,
-                                UnitType.PHOTON_TITAN
-                        )),
                         Map.entry(BuildingType.AIRFIELD, List.of(
                                 UnitType.SCOUT_DRONE,
                                 UnitType.HELICOPTER
@@ -294,12 +257,6 @@ public class FactionRegistry {
                                 UnitType.JEEP,      // ONLY scout vehicle
                                 UnitType.FLAK_TANK  // Anti-air vehicle (important for faction theme)
                         )),
-                        Map.entry(BuildingType.WEAPONS_DEPOT, List.of(
-                                UnitType.ROCKET_SOLDIER,  // Keep for anti-air
-                                UnitType.ENGINEER         // Keep for repairs
-                        )),
-
-                        // NO ADVANCED_FACTORY - forces reliance on air power
 
                         // Strong air presence
                         Map.entry(BuildingType.RESEARCH_LAB, List.of()),

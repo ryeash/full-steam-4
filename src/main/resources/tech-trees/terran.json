@@ -1,0 +1,234 @@
+{
+  "faction": "TERRAN",
+  "starterUnits": ["WORKER", "INFANTRY", "JEEP", "SCOUT_DRONE"],
+  
+  "infantryNodes": [
+    {
+      "id": "TERRAN_INF_MEDIC",
+      "displayName": "Medic Training",
+      "description": "Unlock Medic units that can heal nearby friendly infantry",
+      "unitToUnlock": "MEDIC",
+      "unitToReplace": null,
+      "creditCost": 250,
+      "researchTimeSeconds": 35,
+      "tier": "BASIC",
+      "category": "INFANTRY",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TERRAN_INF_ENGINEER",
+      "displayName": "Engineer Training",
+      "description": "Unlock Engineer units that can repair vehicles and buildings",
+      "unitToUnlock": "ENGINEER",
+      "unitToReplace": null,
+      "creditCost": 350,
+      "researchTimeSeconds": 45,
+      "tier": "BASIC",
+      "category": "INFANTRY",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TERRAN_INF_ROCKET_SOLDIER",
+      "displayName": "Rocket Soldier Training",
+      "description": "Unlock Rocket Soldiers with anti-vehicle and anti-air capabilities",
+      "unitToUnlock": "ROCKET_SOLDIER",
+      "unitToReplace": null,
+      "creditCost": 400,
+      "researchTimeSeconds": 50,
+      "tier": "BASIC",
+      "category": "INFANTRY",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TERRAN_INF_SPECIALIZATION",
+      "displayName": "Infantry Specialization",
+      "description": "Unlock advanced infantry specialization paths",
+      "unitToUnlock": null,
+      "unitToReplace": null,
+      "creditCost": 300,
+      "researchTimeSeconds": 40,
+      "tier": "ADVANCED",
+      "category": "INFANTRY",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TERRAN_INF_SNIPER",
+      "displayName": "Sniper Training",
+      "description": "Unlock Sniper units with long-range precision attacks",
+      "unitToUnlock": "SNIPER",
+      "unitToReplace": null,
+      "creditCost": 450,
+      "researchTimeSeconds": 55,
+      "tier": "ADVANCED",
+      "category": "INFANTRY",
+      "prerequisiteIds": ["TERRAN_INF_SPECIALIZATION"],
+      "mutuallyExclusiveIds": []
+    }
+  ],
+  
+  "vehicleNodes": [
+    {
+      "id": "TERRAN_VEH_TANK",
+      "displayName": "Main Battle Tank",
+      "description": "Unlock tank production",
+      "unitToUnlock": "TANK",
+      "unitToReplace": null,
+      "creditCost": 400,
+      "researchTimeSeconds": 50,
+      "tier": "BASIC",
+      "category": "VEHICLE",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TERRAN_VEH_ARTILLERY",
+      "displayName": "Artillery",
+      "description": "Unlock long-range artillery units",
+      "unitToUnlock": "ARTILLERY",
+      "unitToReplace": null,
+      "creditCost": 500,
+      "researchTimeSeconds": 60,
+      "tier": "BASIC",
+      "category": "VEHICLE",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TERRAN_VEH_FLAK_TANK",
+      "displayName": "Flak Tank",
+      "description": "Unlock anti-aircraft vehicles",
+      "unitToUnlock": "FLAK_TANK",
+      "unitToReplace": null,
+      "creditCost": 450,
+      "researchTimeSeconds": 55,
+      "tier": "BASIC",
+      "category": "VEHICLE",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TERRAN_VEH_TANK_UPGRADE",
+      "displayName": "Tank Upgrade",
+      "description": "Enhance tank armor and firepower",
+      "unitToUnlock": null,
+      "unitToReplace": null,
+      "creditCost": 600,
+      "researchTimeSeconds": 70,
+      "tier": "ADVANCED",
+      "category": "VEHICLE",
+      "prerequisiteIds": ["TERRAN_VEH_TANK"],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TERRAN_VEH_ELITE_ACCESS",
+      "displayName": "Elite Vehicle Access",
+      "description": "Unlock elite vehicle production capabilities",
+      "unitToUnlock": null,
+      "unitToReplace": null,
+      "creditCost": 800,
+      "researchTimeSeconds": 90,
+      "tier": "ELITE",
+      "category": "VEHICLE",
+      "prerequisiteIds": ["TERRAN_VEH_TANK_UPGRADE"],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TERRAN_VEH_CLOAK_TANK",
+      "displayName": "Cloak Tank",
+      "description": "Unlock stealth-capable Cloak Tanks",
+      "unitToUnlock": "CLOAK_TANK",
+      "unitToReplace": null,
+      "creditCost": 900,
+      "researchTimeSeconds": 100,
+      "tier": "ELITE",
+      "category": "VEHICLE",
+      "prerequisiteIds": ["TERRAN_VEH_ELITE_ACCESS"],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TERRAN_VEH_GIGANTONAUT",
+      "displayName": "Gigantonaut",
+      "description": "Unlock massive Gigantonaut siege units",
+      "unitToUnlock": "GIGANTONAUT",
+      "unitToReplace": null,
+      "creditCost": 1000,
+      "researchTimeSeconds": 110,
+      "tier": "ELITE",
+      "category": "VEHICLE",
+      "prerequisiteIds": ["TERRAN_VEH_ELITE_ACCESS"],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TERRAN_VEH_CRAWLER",
+      "displayName": "Crawler Deployment System",
+      "description": "Unlock the Crawler - elite mobile command vehicle that can deploy into a forward turret",
+      "unitToUnlock": "CRAWLER",
+      "unitToReplace": null,
+      "creditCost": 1500,
+      "researchTimeSeconds": 150,
+      "tier": "ELITE",
+      "category": "VEHICLE",
+      "prerequisiteIds": ["TERRAN_VEH_ELITE_ACCESS", "TERRAN_VEH_TANK_UPGRADE", "TERRAN_VEH_TANK"],
+      "mutuallyExclusiveIds": []
+    }
+  ],
+  
+  "flyerNodes": [
+    {
+      "id": "TERRAN_AIR_HELICOPTER",
+      "displayName": "Helicopter Gunship",
+      "description": "Unlock attack helicopter production",
+      "unitToUnlock": "HELICOPTER",
+      "unitToReplace": null,
+      "creditCost": 500,
+      "researchTimeSeconds": 60,
+      "tier": "BASIC",
+      "category": "FLYER",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TERRAN_AIR_FIXED_WING",
+      "displayName": "Fixed-Wing Aircraft Access",
+      "description": "Unlock fixed-wing aircraft technology (requires Hangar)",
+      "unitToUnlock": null,
+      "unitToReplace": null,
+      "creditCost": 600,
+      "researchTimeSeconds": 70,
+      "tier": "ADVANCED",
+      "category": "FLYER",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TERRAN_AIR_BOMBER",
+      "displayName": "Bomber",
+      "description": "Unlock long-range bomber aircraft",
+      "unitToUnlock": "BOMBER",
+      "unitToReplace": null,
+      "creditCost": 700,
+      "researchTimeSeconds": 80,
+      "tier": "ADVANCED",
+      "category": "FLYER",
+      "prerequisiteIds": ["TERRAN_AIR_FIXED_WING"],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "TERRAN_AIR_INTERCEPTOR",
+      "displayName": "Interceptor",
+      "description": "Unlock air superiority interceptor aircraft",
+      "unitToUnlock": "INTERCEPTOR",
+      "unitToReplace": null,
+      "creditCost": 750,
+      "researchTimeSeconds": 85,
+      "tier": "ELITE",
+      "category": "FLYER",
+      "prerequisiteIds": ["TERRAN_AIR_FIXED_WING"],
+      "mutuallyExclusiveIds": []
+    }
+  ]
+}

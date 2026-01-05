@@ -2,10 +2,12 @@ package com.fullsteam.model.component;
 
 import com.fullsteam.games.IdGenerator;
 import com.fullsteam.model.Building;
+import com.fullsteam.model.BuildingType;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.PlayerFaction;
 import com.fullsteam.model.RTSCollisionProcessor;
 import com.fullsteam.model.Unit;
+import com.fullsteam.model.UnitCategory;
 import com.fullsteam.model.UnitType;
 import com.fullsteam.model.command.MoveCommand;
 import com.fullsteam.model.research.ResearchModifier;
@@ -124,8 +126,44 @@ public class ProductionComponent extends AbstractBuildingComponent {
      * @return true if successfully queued
      */
     public boolean queueUnitProduction(UnitType unitType) {
+        // Get player faction for tech tree validation
+        PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
+        if (faction == null) {
+            log.warn("Cannot queue production: faction not found for building owner {}", building.getOwnerId());
+            return false;
+        }
+
+        // Validate unit is unlocked via tech tree
+        if (faction.getResearchManager() != null) {
+            if (!faction.canProduceUnit(unitType)) {
+                log.warn("Unit {} not unlocked for player {} - requires research",
+                        unitType, building.getOwnerId());
+                return false;
+            }
+        }
+
+        // Validate building category matches unit category
+        if (!validateBuildingCategory(building.getBuildingType(), unitType.getCategory())) {
+            log.warn("Building {} cannot produce {} (category mismatch)",
+                    building.getBuildingType(), unitType);
+            return false;
+        }
+
         productionQueue.add(new ProductionOrder(unitType));
         return true;
+    }
+
+    /**
+     * Validate that a building can produce units of a given category
+     */
+    private boolean validateBuildingCategory(BuildingType buildingType, UnitCategory unitCategory) {
+        return switch (unitCategory) {
+            case WORKER -> buildingType == BuildingType.HEADQUARTERS;
+            case INFANTRY -> buildingType == BuildingType.BARRACKS;
+            case VEHICLE -> buildingType == BuildingType.FACTORY;
+            case FLYER -> buildingType == BuildingType.AIRFIELD ||
+                    buildingType == BuildingType.HANGAR;
+        };
     }
 
     /**

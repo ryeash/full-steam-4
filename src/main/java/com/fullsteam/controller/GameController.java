@@ -1,8 +1,11 @@
 package com.fullsteam.controller;
 
 import com.fullsteam.dto.FactionInfoDTO;
+import com.fullsteam.dto.UnitTechTreeDTO;
 import com.fullsteam.games.FactionInfoService;
+import com.fullsteam.model.BuildingType;
 import com.fullsteam.model.GameConfig;
+import com.fullsteam.model.PlayerFaction;
 import com.fullsteam.model.RTSGameManager;
 import com.fullsteam.model.factions.Faction;
 import io.micronaut.context.annotation.Context;
@@ -196,11 +199,11 @@ public class GameController {
                     result.getAvailableUnits().size(),
                     result.getAvailableBuildings().size());
 
-            // Log HEADQUARTERS specifically
+            // Log HEADQUARTERS info
             result.getAvailableBuildings().stream()
                     .filter(b -> "HEADQUARTERS".equals(b.getBuildingType()))
                     .findFirst()
-                    .ifPresent(hq -> log.info("HEADQUARTERS produces: {}", hq.getProducedUnits()));
+                    .ifPresent(hq -> log.info("HEADQUARTERS found for faction {}", factionName));
 
             return result;
         } catch (IllegalArgumentException e) {
@@ -210,6 +213,128 @@ public class GameController {
             log.error("Error fetching faction info for {}", factionName, e);
             throw new HttpStatusException(io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR,
                     "Failed to fetch faction information: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get unit tech tree for a specific player
+     */
+    @Get("/api/rts/games/{gameId}/players/{playerId}/tech-tree")
+    @Produces(MediaType.APPLICATION_JSON)
+    public UnitTechTreeDTO getPlayerTechTree(
+            @PathVariable String gameId, 
+            @PathVariable int playerId) {
+        try {
+            RTSGameManager game = rtsLobby.getGame(gameId);
+            if (game == null) {
+                throw new HttpStatusException(io.micronaut.http.HttpStatus.NOT_FOUND,
+                        "Game not found: " + gameId);
+            }
+
+            PlayerFaction faction = game.getGameEntities().getPlayerFactions().get(playerId);
+            if (faction == null) {
+                throw new HttpStatusException(io.micronaut.http.HttpStatus.NOT_FOUND,
+                        "Player not found: " + playerId);
+            }
+
+            if (faction.getResearchManager() == null) {
+                throw new HttpStatusException(io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Research manager not initialized for player");
+            }
+
+            // Get player's buildings for tier validation
+            java.util.Set<BuildingType> playerBuildings = game.getGameEntities().getBuildings().values().stream()
+                    .filter(b -> b.belongsTo(playerId))
+                    .filter(b -> b.isActive() && !b.isUnderConstruction())
+                    .map(b -> b.getBuildingType())
+                    .collect(java.util.stream.Collectors.toSet());
+
+            // Build DTO with player state
+            UnitTechTreeDTO dto = UnitTechTreeDTO.fromTechTree(
+                    faction.getResearchManager().getUnitTechTree(),
+                    faction.getResearchManager(),
+                    playerBuildings
+            );
+
+            return dto;
+        } catch (HttpStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error fetching tech tree for player {} in game {}", playerId, gameId, e);
+            throw new HttpStatusException(io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to fetch tech tree: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Start unit research
+     */
+    @Post("/api/rts/games/{gameId}/research/start")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Map<String, Object> startUnitResearch(
+            @PathVariable String gameId,
+            @Body Map<String, Object> request) {
+        try {
+            RTSGameManager game = rtsLobby.getGame(gameId);
+            if (game == null) {
+                throw new HttpStatusException(io.micronaut.http.HttpStatus.NOT_FOUND,
+                        "Game not found: " + gameId);
+            }
+
+            int playerId = (int) request.get("playerId");
+            String researchId = (String) request.get("researchId");
+            int buildingId = (int) request.get("buildingId");
+
+            // Call game manager to handle research
+            game.handleStartUnitResearch(playerId, researchId, buildingId);
+
+            return Map.of(
+                    "success", true,
+                    "message", "Research started",
+                    "researchId", researchId
+            );
+        } catch (HttpStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error starting research in game {}", gameId, e);
+            throw new HttpStatusException(io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to start research: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Cancel unit research
+     */
+    @Post("/api/rts/games/{gameId}/research/cancel")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Map<String, String> cancelUnitResearch(
+            @PathVariable String gameId,
+            @Body Map<String, Object> request) {
+        try {
+            RTSGameManager game = rtsLobby.getGame(gameId);
+            if (game == null) {
+                throw new HttpStatusException(io.micronaut.http.HttpStatus.NOT_FOUND,
+                        "Game not found: " + gameId);
+            }
+
+            int playerId = (int) request.get("playerId");
+            int buildingId = (int) request.get("buildingId");
+
+            // Call game manager to handle cancellation
+            game.handleCancelUnitResearch(playerId, buildingId);
+
+            return Map.of(
+                    "success", "true",
+                    "message", "Research cancelled"
+            );
+        } catch (HttpStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error cancelling research in game {}", gameId, e);
+            throw new HttpStatusException(io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to cancel research: " + e.getMessage());
         }
     }
 

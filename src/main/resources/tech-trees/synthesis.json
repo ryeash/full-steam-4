@@ -1,0 +1,169 @@
+{
+  "faction": "SYNTHESIS",
+  "starterUnits": ["WORKER", "INFANTRY", "JEEP", "SCOUT_DRONE"],
+  
+  "infantryNodes": [
+    {
+      "id": "SYNTH_INF_MEDIC",
+      "displayName": "Medical Nanites",
+      "description": "Unlock Medic units with advanced healing technology",
+      "unitToUnlock": "MEDIC",
+      "unitToReplace": null,
+      "creditCost": 300,
+      "researchTimeSeconds": 40,
+      "tier": "BASIC",
+      "category": "INFANTRY",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "SYNTH_INF_ENGINEER",
+      "displayName": "Field Technician",
+      "description": "Unlock Engineer units with advanced repair capabilities",
+      "unitToUnlock": "ENGINEER",
+      "unitToReplace": null,
+      "creditCost": 350,
+      "researchTimeSeconds": 45,
+      "tier": "BASIC",
+      "category": "INFANTRY",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "SYNTH_INF_ANDROID_FACTORY",
+      "displayName": "Android Production",
+      "description": "Unlock advanced Android infantry units",
+      "unitToUnlock": "ANDROID",
+      "unitToReplace": null,
+      "creditCost": 800,
+      "researchTimeSeconds": 90,
+      "tier": "ELITE",
+      "category": "INFANTRY",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    }
+  ],
+  
+  "vehicleNodes": [
+    {
+      "id": "SYNTH_VEH_TANK",
+      "displayName": "Hover Tank",
+      "description": "Unlock advanced hover tank technology",
+      "unitToUnlock": "TANK",
+      "unitToReplace": null,
+      "creditCost": 450,
+      "researchTimeSeconds": 55,
+      "tier": "BASIC",
+      "category": "VEHICLE",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "SYNTH_VEH_ARTILLERY",
+      "displayName": "Plasma Artillery",
+      "description": "Unlock long-range plasma artillery",
+      "unitToUnlock": "ARTILLERY",
+      "unitToReplace": null,
+      "creditCost": 550,
+      "researchTimeSeconds": 65,
+      "tier": "BASIC",
+      "category": "VEHICLE",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "SYNTH_VEH_SHIELD_TECH",
+      "displayName": "Shield Technology",
+      "description": "Unlock energy shield systems for vehicles",
+      "unitToUnlock": null,
+      "unitToReplace": null,
+      "creditCost": 700,
+      "researchTimeSeconds": 80,
+      "tier": "ADVANCED",
+      "category": "VEHICLE",
+      "prerequisiteIds": ["SYNTH_VEH_TANK"],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "SYNTH_VEH_HEAVY_WALKER",
+      "displayName": "Heavy Walker Technology",
+      "description": "Unlock heavy walker platform access",
+      "unitToUnlock": null,
+      "unitToReplace": null,
+      "creditCost": 900,
+      "researchTimeSeconds": 100,
+      "tier": "ELITE",
+      "category": "VEHICLE",
+      "prerequisiteIds": ["SYNTH_VEH_SHIELD_TECH"],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "SYNTH_VEH_COLOSSUS",
+      "displayName": "Colossus Walker",
+      "description": "Unlock the Colossus - massive super-heavy walker",
+      "unitToUnlock": "COLOSSUS",
+      "unitToReplace": null,
+      "creditCost": 1600,
+      "researchTimeSeconds": 160,
+      "tier": "ELITE",
+      "category": "VEHICLE",
+      "prerequisiteIds": ["SYNTH_VEH_HEAVY_WALKER", "SYNTH_VEH_SHIELD_TECH", "SYNTH_VEH_TANK"],
+      "mutuallyExclusiveIds": []
+    }
+  ],
+  
+  "flyerNodes": [
+    {
+      "id": "SYNTH_AIR_HELICOPTER",
+      "displayName": "Hover Gunship",
+      "description": "Unlock advanced hover gunship",
+      "unitToUnlock": "HELICOPTER",
+      "unitToReplace": null,
+      "creditCost": 500,
+      "researchTimeSeconds": 60,
+      "tier": "BASIC",
+      "category": "FLYER",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "SYNTH_AIR_FIXED_WING",
+      "displayName": "Jet Aircraft",
+      "description": "Unlock jet aircraft technology",
+      "unitToUnlock": null,
+      "unitToReplace": null,
+      "creditCost": 600,
+      "researchTimeSeconds": 70,
+      "tier": "ADVANCED",
+      "category": "FLYER",
+      "prerequisiteIds": [],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "SYNTH_AIR_BOMBER",
+      "displayName": "Plasma Bomber",
+      "description": "Unlock plasma bombing aircraft",
+      "unitToUnlock": "BOMBER",
+      "unitToReplace": null,
+      "creditCost": 700,
+      "researchTimeSeconds": 80,
+      "tier": "ADVANCED",
+      "category": "FLYER",
+      "prerequisiteIds": ["SYNTH_AIR_FIXED_WING"],
+      "mutuallyExclusiveIds": []
+    },
+    {
+      "id": "SYNTH_AIR_INTERCEPTOR",
+      "displayName": "Fusion Interceptor",
+      "description": "Unlock advanced interceptor with fusion weapons",
+      "unitToUnlock": "INTERCEPTOR",
+      "unitToReplace": null,
+      "creditCost": 750,
+      "researchTimeSeconds": 85,
+      "tier": "ELITE",
+      "category": "FLYER",
+      "prerequisiteIds": ["SYNTH_AIR_FIXED_WING"],
+      "mutuallyExclusiveIds": []
+    }
+  ]
+}

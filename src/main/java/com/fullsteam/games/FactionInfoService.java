@@ -44,9 +44,12 @@ public class FactionInfoService {
         FactionDefinition definition = FactionRegistry.getDefinition(faction);
 
         // Build unit info list
+        // Include ALL units that this faction can potentially build (including research-locked ones)
+        // The client will filter based on actual unlock status from game state
         List<FactionInfoDTO.UnitInfo> units = new ArrayList<>();
         for (UnitType unitType : UnitType.values()) {
-            if (definition.getTechTree().canBuildUnit(unitType)) {
+            // Check if this unit is available to this faction at all (excluding units blocked by faction design)
+            if (isFactionUnit(unitType, faction)) {
                 units.add(buildUnitInfo(unitType, definition));
             }
         }
@@ -133,7 +136,6 @@ public class FactionInfoService {
                 .canAttack(unitType.canAttack())
                 .canBuild(unitType.canBuild())
                 .canHarvest(unitType.canHarvest())
-                .canMine(unitType.canMine())
                 .isSupport(unitType.isSupport())
                 // Modifiers (for display)
                 .costModifier(costMod)
@@ -164,15 +166,6 @@ public class FactionInfoService {
         int basePower = buildingType.getPowerValue();
         int factionPower = definition.getPowerValue(basePower);
 
-        // Get produced units directly from faction tech tree (single source of truth)
-        List<String> producedUnits = new ArrayList<>();
-        if (buildingType.isCanProduceUnits()) {
-            List<UnitType> factionUnits = definition.getTechTree().getUnitsProducedBy(buildingType);
-            for (UnitType unitType : factionUnits) {
-                producedUnits.add(unitType.name());
-            }
-        }
-
         // Get tech requirements (buildings required before this can be built)
         List<String> techReqs = getTechRequirements(buildingType);
 
@@ -194,7 +187,7 @@ public class FactionInfoService {
                 .size(buildingType.getSize())
                 // Capabilities
                 .canProduceUnits(buildingType.isCanProduceUnits())
-                .producedUnits(producedUnits)
+                // NOTE: producedUnits removed - frontend now uses game state's availableUnits list
                 .requiredTechTier(buildingType.getRequiredTechTier())
                 .techRequirements(techReqs)
                 // Modifiers (for display)
@@ -214,11 +207,11 @@ public class FactionInfoService {
             case HEADQUARTERS, POWER_PLANT, BARRACKS, REFINERY, BUNKER, WALL -> List.of();
 
             // T2 - Requires Power Plant
-            case RESEARCH_LAB, FACTORY, WEAPONS_DEPOT, TURRET, ROCKET_TURRET, SHIELD_GENERATOR ->
+            case RESEARCH_LAB, FACTORY, TURRET, ROCKET_TURRET, SHIELD_GENERATOR ->
                     List.of("POWER_PLANT");
 
             // T3 - Requires Power Plant + Research Lab
-            case TECH_CENTER, ADVANCED_FACTORY, BANK, LASER_TURRET, AIRFIELD, HANGAR ->
+            case TECH_CENTER, BANK, LASER_TURRET, AIRFIELD, HANGAR ->
                     List.of("POWER_PLANT", "RESEARCH_LAB");
 
             // Monument Buildings - Requires Power Plant + Research Lab (T3)
@@ -288,6 +281,19 @@ public class FactionInfoService {
             case TECH_ALLIANCE -> "🔬";
             case STORM_WINGS -> "✈️";
         };
+    }
+
+    /**
+     * Check if a unit is available to a faction (accounting for faction-specific exclusions)
+     * This includes both starter units and research-unlocked units.
+     * For now, keep this simple - factions can access all units.
+     * Faction-specific exclusions can be enforced via tech tree JSON files.
+     */
+    private boolean isFactionUnit(UnitType unitType, Faction faction) {
+        // For simplicity, all units are potentially available to all factions
+        // Actual restrictions are defined in the faction's tech tree JSON
+        // The tech tree JSON controls which units appear in research nodes
+        return true;
     }
 }
 

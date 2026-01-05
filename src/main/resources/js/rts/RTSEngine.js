@@ -18,6 +18,7 @@ class RTSEngine {
         this.wallSegments = new Map();
         
         // Player state
+        this.gameId = null;
         this.myPlayerId = null;
         this.myFaction = null;
         this.myFactionData = null; // Faction data from API
@@ -26,6 +27,9 @@ class RTSEngine {
         this.visionRange = 400; // Default, updated from server
         this.lastFogUpdate = 0; // Timestamp of last fog update
         this.fogUpdateInterval = 200; // Update fog every 200ms (5 times per second)
+        
+        // UI state
+        this.currentResearchTab = 'COMBAT'; // Track current research tab
         
         // Biome
         this.biome = null;
@@ -257,6 +261,9 @@ class RTSEngine {
         if (!gameId) {
             throw new Error('Failed to get game ID');
         }
+        
+        // Store game ID for later use
+        this.gameId = gameId;
         
         // Get session token from URL or sessionStorage
         let sessionToken = urlParams.get('sessionToken');
@@ -1990,9 +1997,7 @@ class RTSEngine {
             'POWER_PLANT': { sides: 6, size: 40, color: 0xFFFF00, rotation: 0 },
             'FACTORY': { sides: 4, size: 55, color: 0x696969, rotation: 0 },
             'RESEARCH_LAB': { sides: 6, size: 50, color: 0x00CED1, rotation: Math.PI / 6 },
-            'WEAPONS_DEPOT': { sides: 5, size: 48, color: 0x8B0000, rotation: Math.PI / 5 },
             'TECH_CENTER': { sides: 8, size: 60, color: 0x4169E1, rotation: Math.PI / 8 },
-            'ADVANCED_FACTORY': { sides: 6, size: 65, color: 0x2F4F4F, rotation: 0 },
             'WALL': { sides: 4, size: 15, color: 0x708090, rotation: 0 },
             'TURRET': { sides: 5, size: 25, color: 0xFF4500, rotation: 0 },
             'ROCKET_TURRET': { sides: 6, size: 25, color: 0xFF6347, rotation: 0 },
@@ -2075,9 +2080,7 @@ class RTSEngine {
             'RESEARCH_LAB': 'RL',
             'AIRFIELD': 'AF',
             'HANGAR': 'H',
-            'WEAPONS_DEPOT': 'WD',
             'TECH_CENTER': 'TC',
-            'ADVANCED_FACTORY': 'AF',
             'SHIELD_GENERATOR': 'SG',
             'BANK': '$',
             'BUNKER': '⚔',
@@ -2658,15 +2661,7 @@ class RTSEngine {
                 decorations.circle(0, -typeInfo.size * 0.25, typeInfo.size * 0.1);
                 decorations.fill({ color: 0x000000, alpha: 0.3 });
                 break;
-                
-            case 'WEAPONS_DEPOT':
-                // Add crosshair
-                decorations.rect(-typeInfo.size * 0.3, -typeInfo.size * 0.05, typeInfo.size * 0.6, typeInfo.size * 0.1);
-                decorations.fill({ color: 0x000000, alpha: 0.3 });
-                decorations.rect(-typeInfo.size * 0.05, -typeInfo.size * 0.3, typeInfo.size * 0.1, typeInfo.size * 0.6);
-                decorations.fill({ color: 0x000000, alpha: 0.3 });
-                break;
-                
+
             case 'TECH_CENTER':
                 // Add star pattern
                 for (let i = 0; i < 4; i++) {
@@ -2681,10 +2676,8 @@ class RTSEngine {
                 break;
                 
             case 'FACTORY':
-            case 'ADVANCED_FACTORY':
                 // Add gear teeth pattern on edges
-                const isAdvanced = buildingType === 'ADVANCED_FACTORY';
-                const teethCount = isAdvanced ? 6 : 4;
+                const teethCount = 6;
                 const teethSize = typeInfo.size * 0.15;
                 for (let i = 0; i < teethCount; i++) {
                     const angle = (i * 2 * Math.PI / teethCount);
@@ -3251,6 +3244,22 @@ class RTSEngine {
         return { x: localPos.x, y: localPos.y }; // toLocal already handles the transform
     }
     
+    /**
+     * Immediately clear unit selection (local state + visual indicators)
+     * Used for instant UI feedback before server confirmation
+     */
+    clearUnitSelectionImmediate() {
+        // Clear the local set
+        this.selectedUnits.clear();
+        
+        // Hide all selection circles immediately
+        this.units.forEach((container) => {
+            if (container.selectionCircle) {
+                container.selectionCircle.visible = false;
+            }
+        });
+    }
+    
     finishSelection() {
         // Calculate selection box size
         const minX = Math.min(this.selectionStart.x, this.mouseWorldPos.x);
@@ -3291,8 +3300,9 @@ class RTSEngine {
                 // Auto-show build menu if worker is selected
                 this.checkAndShowBuildMenu([clickedUnit]);
             } else {
-                // Clicked on empty space - deselect all
+                // Clicked on empty space - deselect all units
                 this.sendInput({ selectUnits: [] });
+                this.clearUnitSelectionImmediate(); // Clear local state and hide visual indicators
                 this.hideBuildMenu();
             }
         } else {
@@ -3579,11 +3589,9 @@ class RTSEngine {
             'WALL': { size: 20, cost: 50, name: 'Wall' },
             'POWER_PLANT': { size: 40, cost: 250, name: 'Power Plant' },
             'RESEARCH_LAB': { size: 50, cost: 500, name: 'Research Lab' },
-            'WEAPONS_DEPOT': { size: 48, cost: 400, name: 'Weapons Depot' },
             'TECH_CENTER': { size: 60, cost: 800, name: 'Tech Center' },
             'AIRFIELD': { size: 60, cost: 600, name: 'Airfield' },
             'HANGAR': { size: 35, cost: 400, name: 'Hangar' },
-            'ADVANCED_FACTORY': { size: 65, cost: 1000, name: 'Advanced Factory' },
             'BANK': { size: 35, cost: 600, name: 'Bank' }
         };
         return buildings[buildingType] || { size: 40, cost: 100, name: 'Building' };
@@ -3852,8 +3860,9 @@ class RTSEngine {
     selectBuilding(buildingData) {
         this.selectedBuilding = buildingData;
         
-        // Clear unit selection
+        // Clear unit selection (both send to server and clear local state immediately)
         this.sendInput({ selectUnits: [] });
+        this.clearUnitSelectionImmediate(); // Clear local state and hide visual indicators
         
         // Hide build menu when selecting a building
         this.hideBuildMenu();
@@ -4216,6 +4225,86 @@ class RTSEngine {
     }
     
     /**
+     * Get active unit research at a specific building
+     */
+    getActiveUnitResearchAtBuilding(buildingId) {
+        if (!this.lastGameState || !this.lastGameState.factions || !this.lastGameState.factions[this.myPlayerId]) {
+            return null;
+        }
+        const myFaction = this.lastGameState.factions[this.myPlayerId];
+        if (!myFaction.activeUnitResearch) return null;
+        return myFaction.activeUnitResearch[buildingId] || null;
+    }
+    
+    /**
+     * Start unit research at a building
+     */
+    async startUnitResearch(buildingId, researchNodeId) {
+        console.log(`Starting unit research ${researchNodeId} at building ${buildingId}`);
+        
+        try {
+            const response = await fetch(`/api/rts/games/${this.gameId}/research/start`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    playerId: this.myPlayerId,
+                    researchId: researchNodeId,
+                    buildingId: buildingId
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.text();
+                console.error('Failed to start unit research:', error);
+                alert('Failed to start research: ' + error);
+                return;
+            }
+            
+            const result = await response.json();
+            console.log('Unit research started:', result);
+            
+            // Refresh tech tree to show new state
+            this.showUnitTechTree();
+        } catch (error) {
+            console.error('Error starting unit research:', error);
+            alert('Error starting research: ' + error.message);
+        }
+    }
+    
+    /**
+     * Cancel unit research at a building
+     */
+    cancelUnitResearch(buildingId) {
+        console.log(`Cancelling unit research at building ${buildingId}`);
+        this.sendInput({
+            cancelUnitResearchBuildingId: buildingId
+        });
+    }
+    
+    /**
+     * Open unit tech tree modal (integrated with main research modal)
+     */
+    openUnitTechTreeModal() {
+        const modal = document.getElementById('research-tree-modal');
+        if (!modal) return;
+        modal.style.display = 'flex';
+        this.initializeResearchTabs();
+        
+        // Set active tab to UNITS
+        const tabs = document.querySelectorAll('.research-tab');
+        tabs.forEach(tab => {
+            if (tab.getAttribute('data-category') === 'UNITS') {
+                tab.classList.add('active');
+            } else {
+                tab.classList.remove('active');
+            }
+        });
+        
+        // Show UNITS category (this will also store it in currentResearchTab)
+        this.showResearchCategory('UNITS');
+    }
+    
+    /**
      * Open research tree modal
      */
     openResearchTreeModal() {
@@ -4227,8 +4316,18 @@ class RTSEngine {
         // Initialize tabs
         this.initializeResearchTabs();
         
-        // Show default category (Combat)
-        this.showResearchCategory('COMBAT');
+        // Update tab visual state to match currentResearchTab
+        const tabs = document.querySelectorAll('.research-tab');
+        tabs.forEach(tab => {
+            if (tab.getAttribute('data-category') === this.currentResearchTab) {
+                tab.classList.add('active');
+            } else {
+                tab.classList.remove('active');
+            }
+        });
+        
+        // Show the previously selected category (or COMBAT by default)
+        this.showResearchCategory(this.currentResearchTab);
     }
     
     /**
@@ -4263,6 +4362,14 @@ class RTSEngine {
      * Show research for a specific category
      */
     showResearchCategory(category) {
+        // Store the current tab selection
+        this.currentResearchTab = category;
+        
+        // Handle UNITS category separately
+        if (category === 'UNITS') {
+            this.showUnitTechTree();
+            return;
+        }
         if (!this.myFactionData || !this.myFactionData.availableResearch) {
             console.warn('Cannot show research category: faction data not loaded');
             return;
@@ -4278,27 +4385,308 @@ class RTSEngine {
         if (!container) return;
         container.innerHTML = '';
         
-        // Group research by tiers (based on prerequisites)
+        // Set container to grid layout (same as unit research)
+        container.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; padding: 15px;';
+        
+        // Group research by tiers
         const researchByTier = this.groupResearchByTier(categoryResearch);
         
-        // Layout research nodes
-        let yOffset = 50;
-        
+        // Render each tier's research as cards
         Object.keys(researchByTier).sort().forEach(tier => {
             const tierResearch = researchByTier[tier];
-            const xSpacing = 250;
-            const startX = (container.offsetWidth - (tierResearch.length * xSpacing)) / 2;
             
-            tierResearch.forEach((research, index) => {
-                const x = startX + (index * xSpacing);
-                const y = yOffset;
-                
-                // Create node
-                this.createResearchNode(research, x, y, container);
+            tierResearch.forEach(research => {
+                this.createResearchCard(research, container);
             });
-            
-            yOffset += 180;
         });
+    }
+    
+    /**
+     * Show the unit tech tree in the research modal
+     */
+    async showUnitTechTree() {
+        const container = document.getElementById('research-nodes-container');
+        if (!container) return;
+        container.innerHTML = '<div style="color: white; text-align: center; padding: 50px;">Loading unit tech tree...</div>';
+        
+        // Use stored gameId instead of extracting from WebSocket URL
+        const gameId = this.gameId;
+        console.log('Unit Tech Tree - gameId:', gameId, 'myPlayerId:', this.myPlayerId);
+        
+        if (!gameId) {
+            container.innerHTML = '<div style="color: #FF4444; text-align: center; padding: 50px;">Error: Not connected to a game<br><small>Please start or join a game first</small></div>';
+            return;
+        }
+        if (!this.myPlayerId) {
+            container.innerHTML = '<div style="color: #FF4444; text-align: center; padding: 50px;">Error: Player ID not found<br><small>Please wait for game to initialize</small></div>';
+            return;
+        }
+        
+        try {
+            const apiUrl = `/api/rts/games/${gameId}/players/${this.myPlayerId}/tech-tree`;
+            console.log('Fetching unit tech tree from:', apiUrl);
+            const response = await fetch(apiUrl);
+            console.log('Unit tech tree response status:', response.status);
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Unit tech tree fetch failed:', response.status, errorText);
+                throw new Error(`Failed to fetch unit tech tree: ${response.status}`);
+            }
+            const techTreeData = await response.json();
+            console.log('Unit tech tree data:', techTreeData);
+            
+            // Render tech tree in 3 columns (Infantry, Vehicles, Aircraft)
+            container.innerHTML = '';
+            container.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; padding: 20px;';
+            
+            // Infantry column
+            const infantryCol = document.createElement('div');
+            infantryCol.innerHTML = '<h3 style="color: #FFD700; margin-bottom: 15px;">🪖 Infantry</h3>';
+            techTreeData.infantryNodes.forEach(node => {
+                this.renderTechTreeNode(node, infantryCol, techTreeData);
+            });
+            container.appendChild(infantryCol);
+            
+            // Vehicles column
+            const vehicleCol = document.createElement('div');
+            vehicleCol.innerHTML = '<h3 style="color: #FFD700; margin-bottom: 15px;">🚙 Vehicles</h3>';
+            techTreeData.vehicleNodes.forEach(node => {
+                this.renderTechTreeNode(node, vehicleCol, techTreeData);
+            });
+            container.appendChild(vehicleCol);
+            
+            // Aircraft column
+            const flyerCol = document.createElement('div');
+            flyerCol.innerHTML = '<h3 style="color: #FFD700; margin-bottom: 15px;">✈️ Aircraft</h3>';
+            techTreeData.flyerNodes.forEach(node => {
+                this.renderTechTreeNode(node, flyerCol, techTreeData);
+            });
+            container.appendChild(flyerCol);
+        } catch (error) {
+            console.error('Failed to load unit tech tree:', error);
+            container.innerHTML = `<div style="color: #FF4444; text-align: center; padding: 50px;">Failed to load unit tech tree<br><small>${error.message}</small><br><br><small>Check browser console for details</small></div>`;
+        }
+    }
+    
+    /**
+     * Render a single tech tree node (for grid layout)
+     */
+    renderTechTreeNode(node, container, techTreeData) {
+        const nodeElement = document.createElement('div');
+        nodeElement.className = 'research-node';
+        nodeElement.classList.add(node.state.toLowerCase());
+        nodeElement.style.cssText = 'margin-bottom: 15px; position: relative;';
+        
+        // Header with icon and title
+        const header = document.createElement('div');
+        header.className = 'research-node-header';
+        const icon = document.createElement('div');
+        icon.className = 'research-node-icon';
+        icon.textContent = '🎖️';
+        const title = document.createElement('div');
+        title.className = 'research-node-title';
+        title.textContent = node.displayName;
+        header.appendChild(icon);
+        header.appendChild(title);
+        nodeElement.appendChild(header);
+        
+        // Tier badge
+        const tierBadge = document.createElement('div');
+        tierBadge.style.cssText = 'position: absolute; top: 5px; right: 5px; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;';
+        tierBadge.textContent = node.tier;
+        const tierColors = { BASIC: '#4CAF50', ADVANCED: '#FF9800', ELITE: '#9C27B0' };
+        tierBadge.style.background = tierColors[node.tier] || '#666';
+        tierBadge.style.color = 'white';
+        nodeElement.appendChild(tierBadge);
+        
+        // Description
+        if (node.description) {
+            const desc = document.createElement('div');
+            desc.className = 'research-node-effect';
+            desc.textContent = node.description;
+            nodeElement.appendChild(desc);
+        }
+        
+        // Unit unlock info
+        if (node.unlocksUnit) {
+            const unitInfo = document.createElement('div');
+            unitInfo.style.cssText = 'font-size: 12px; color: #4CAF50; margin: 5px 0;';
+            unitInfo.textContent = '✅ Unlocks: ' + node.unlocksUnit;
+            if (node.replacesUnit) {
+                unitInfo.textContent += ' (Replaces: ' + node.replacesUnit + ')';
+            }
+            nodeElement.appendChild(unitInfo);
+        }
+        
+        // Cost
+        const cost = document.createElement('div');
+        cost.className = 'research-node-cost';
+        cost.innerHTML = `<span>💰 ${node.creditCost}</span><span>⏱️ ${node.researchTimeSeconds}s</span>`;
+        nodeElement.appendChild(cost);
+        
+        // Lock reasons (if locked)
+        if (node.state === 'LOCKED' && node.lockReasons && node.lockReasons.length > 0) {
+            const lockBox = document.createElement('div');
+            lockBox.style.cssText = 'background: rgba(255,0,0,0.1); border: 1px solid #FF4444; padding: 5px; margin: 5px 0; font-size: 11px; color: #FF8888;';
+            lockBox.innerHTML = node.lockReasons.map(r => '❌ ' + r).join('<br>');
+            nodeElement.appendChild(lockBox);
+        }
+        
+        // Progress bar (if researching)
+        if (node.state === 'RESEARCHING' && node.progressPercent != null) {
+            const progressBar = document.createElement('div');
+            progressBar.style.cssText = 'height: 20px; background: #333; border-radius: 4px; overflow: hidden; margin: 5px 0;';
+            const progressFill = document.createElement('div');
+            progressFill.style.cssText = `height: 100%; background: linear-gradient(90deg, #FFD700, #FFA500); width: ${node.progressPercent}%; transition: width 0.3s;`;
+            progressBar.appendChild(progressFill);
+            const progressText = document.createElement('div');
+            progressText.style.cssText = 'position: absolute; width: 100%; text-align: center; margin-top: -18px; font-size: 11px; color: white; text-shadow: 0 0 3px black;';
+            progressText.textContent = `${Math.round(node.progressPercent)}% (${node.remainingSeconds}s)`;
+            progressBar.appendChild(progressText);
+            nodeElement.appendChild(progressBar);
+        }
+        
+        // Status
+        const status = document.createElement('div');
+        status.className = 'research-node-status ' + node.state.toLowerCase();
+        const statusText = {
+            COMPLETED: '✅ Researched',
+            RESEARCHING: '⏳ Researching...',
+            AVAILABLE: '📖 Click to Research',
+            LOCKED: '🔒 Locked'
+        };
+        status.textContent = statusText[node.state] || node.state;
+        nodeElement.appendChild(status);
+        
+        // Click handler for AVAILABLE nodes
+        if (node.state === 'AVAILABLE') {
+            nodeElement.style.cursor = 'pointer';
+            nodeElement.onclick = async () => {
+                // Find appropriate building based on tier
+                const buildingType = node.tier === 'ELITE' ? 'TECH_CENTER' : 
+                                   node.tier === 'ADVANCED' ? 'RESEARCH_LAB' : 
+                                   node.category === 'INFANTRY' ? 'BARRACKS' :
+                                   node.category === 'VEHICLE' ? 'FACTORY' : 'AIRFIELD';
+                
+                const building = this.findResearchBuilding(buildingType);
+                if (!building) {
+                    alert(`You need a ${buildingType} to research this!`);
+                    return;
+                }
+                if (this.myMoney < node.creditCost) {
+                    alert(`Insufficient credits! Need ${node.creditCost}, have ${this.myMoney}`);
+                    return;
+                }
+                await this.startUnitResearch(building.id, node.id);
+            };
+        }
+        
+        container.appendChild(nodeElement);
+    }
+    
+    /**
+    async showUnitTechTree() {
+        const container = document.getElementById('research-nodes-container');
+        if (!container) return;
+        container.innerHTML = '';
+        const gameId = this.websocket?.url?.match(/games\/([^\/]+)/)?.[1];
+        if (!gameId || !this.myPlayerId) {
+            container.innerHTML = '<div style="color: white; text-align: center; padding: 50px;">Unable to load unit tech tree</div>';
+            return;
+        }
+        try {
+            const response = await fetch(`/api/rts/games/${gameId}/players/${this.myPlayerId}/tech-tree`);
+            if (!response.ok) throw new Error('Failed to fetch unit tech tree');
+            const techTreeData = await response.json();
+            const nodesByCategory = { 'WORKER': [], 'INFANTRY': [], 'VEHICLE': [], 'FLYER': [] };
+            techTreeData.nodes.forEach(node => { if (nodesByCategory[node.category]) nodesByCategory[node.category].push(node); });
+            let yOffset = 50;
+            const categories = ['INFANTRY', 'VEHICLE', 'FLYER'];
+            categories.forEach(category => {
+                const nodes = nodesByCategory[category];
+                if (nodes.length === 0) return;
+                const categoryHeader = document.createElement('div');
+                categoryHeader.style.cssText = `position: absolute; left: 30px; top: ${yOffset}px; font-size: 20px; font-weight: bold; color: #FFD700;`;
+                const icons = {'INFANTRY': '🪖', 'VEHICLE': '🚙', 'FLYER': '✈️'};
+                categoryHeader.textContent = (icons[category] || '📦') + ' ' + category;
+                container.appendChild(categoryHeader);
+                yOffset += 40;
+                const tiers = { 'BASIC': [], 'ADVANCED': [], 'ELITE': [] };
+                nodes.forEach(node => { if (tiers[node.tier]) tiers[node.tier].push(node); });
+                Object.keys(tiers).forEach(tier => {
+                    const tierNodes = tiers[tier];
+                    if (tierNodes.length === 0) return;
+                    const xSpacing = 250;
+                    const startX = 100;
+                    tierNodes.forEach((node, index) => {
+                        const x = startX + (index * xSpacing);
+                        const y = yOffset;
+                        this.createUnitResearchNode(node, x, y, container, techTreeData);
+                    });
+                    yOffset += 180;
+                });
+                yOffset += 20;
+            });
+        } catch (error) {
+            console.error('Failed to load unit tech tree:', error);
+            container.innerHTML = '<div style="color: #FF4444; text-align: center; padding: 50px;">Failed to load unit tech tree</div>';
+        }
+    }
+    
+    /**
+     * Create a unit research node element
+     */
+    createUnitResearchNode(node, x, y, container, techTreeData) {
+        const nodeElement = document.createElement('div');
+        nodeElement.className = 'research-node';
+        nodeElement.style.left = x + 'px';
+        nodeElement.style.top = y + 'px';
+        let state = 'locked';
+        if (node.isResearched) state = 'completed';
+        else if (node.isInProgress) state = 'researching';
+        else if (node.canResearch) state = 'available';
+        nodeElement.classList.add(state);
+        const header = document.createElement('div');
+        header.className = 'research-node-header';
+        const icon = document.createElement('div');
+        icon.className = 'research-node-icon';
+        icon.textContent = '🎖️';
+        const title = document.createElement('div');
+        title.className = 'research-node-title';
+        title.textContent = node.displayName;
+        header.appendChild(icon);
+        header.appendChild(title);
+        nodeElement.appendChild(header);
+        if (node.description) {
+            const effect = document.createElement('div');
+            effect.className = 'research-node-effect';
+            effect.textContent = node.description;
+            nodeElement.appendChild(effect);
+        }
+        if (node.unitToUnlock) {
+            const unitInfo = document.createElement('div');
+            unitInfo.style.cssText = 'font-size: 12px; color: #4CAF50; margin: 5px 0;';
+            unitInfo.textContent = '✅ Unlocks: ' + this.getUnitDisplayName(node.unitToUnlock);
+            nodeElement.appendChild(unitInfo);
+        }
+        const cost = document.createElement('div');
+        cost.className = 'research-node-cost';
+        cost.innerHTML = `<span>💰 ${node.creditCost}</span><span>⏱️ ${node.researchTimeSeconds}s</span>`;
+        nodeElement.appendChild(cost);
+        const status = document.createElement('div');
+        status.className = 'research-node-status ' + state;
+        status.textContent = state === 'completed' ? '✓ Researched' : state === 'researching' ? '⏳ Researching...' : state === 'available' ? '📖 Click to Research' : '🔒 Locked';
+        nodeElement.appendChild(status);
+        if (state === 'available') {
+            nodeElement.onclick = async () => {
+                const building = this.findResearchBuilding(node.tier === 'ELITE' ? 'TECH_CENTER' : 'RESEARCH_LAB');
+                if (!building) { alert('You need a ' + (node.tier === 'ELITE' ? 'TECH_CENTER' : 'RESEARCH_LAB')); return; }
+                if (this.myMoney < node.creditCost) { alert(`Insufficient credits! Need ${node.creditCost}, have ${this.myMoney}`); return; }
+                await this.startUnitResearch(building.id, node.id);
+                this.closeResearchTreeModal();
+            };
+        }
+        container.appendChild(nodeElement);
     }
     
     /**
@@ -4339,76 +4727,141 @@ class RTSEngine {
     }
     
     /**
-     * Create a research node element
+     * Create a research card element (grid-based, matches unit research style)
      */
-    createResearchNode(research, x, y, container) {
-        const node = document.createElement('div');
-        node.className = 'research-node';
-        node.style.left = x + 'px';
-        node.style.top = y + 'px';
-        
-        // Determine node state
+    createResearchCard(research, container) {
+        const card = document.createElement('div');
         const state = this.getResearchState(research);
-        node.classList.add(state);
+        card.className = 'research-node ' + state;
+        card.style.cssText = 'margin-bottom: 15px; position: relative;';
         
-        // Node header
+        // Header with icon and title
         const header = document.createElement('div');
         header.className = 'research-node-header';
-        
         const icon = document.createElement('div');
         icon.className = 'research-node-icon';
-        icon.textContent = research.icon;
-        
+        icon.textContent = research.icon || '🔬';
         const title = document.createElement('div');
         title.className = 'research-node-title';
         title.textContent = research.displayName;
-        
         header.appendChild(icon);
         header.appendChild(title);
-        node.appendChild(header);
+        card.appendChild(header);
+        
+        // Tier badge (based on required building)
+        const tierBadge = document.createElement('div');
+        tierBadge.style.cssText = 'position: absolute; top: 5px; right: 5px; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;';
+        let tierLabel = 'BASIC';
+        let tierColor = '#4CAF50';
+        if (research.requiredBuilding === 'TECH_CENTER') {
+            tierLabel = 'ELITE';
+            tierColor = '#9C27B0';
+        } else if (research.requiredBuilding === 'RESEARCH_LAB') {
+            tierLabel = 'ADVANCED';
+            tierColor = '#FF9800';
+        }
+        tierBadge.textContent = tierLabel;
+        tierBadge.style.background = tierColor;
+        tierBadge.style.color = 'white';
+        card.appendChild(tierBadge);
         
         // Effect description
         const effect = document.createElement('div');
         effect.className = 'research-node-effect';
         effect.textContent = research.effectSummary;
-        node.appendChild(effect);
+        card.appendChild(effect);
         
         // Cost
         const cost = document.createElement('div');
         cost.className = 'research-node-cost';
         cost.innerHTML = `<span>💰 ${research.creditCost}</span><span>⏱️ ${research.researchTimeSeconds}s</span>`;
-        node.appendChild(cost);
+        card.appendChild(cost);
         
-        // Status badge
-        const status = document.createElement('div');
-        status.className = 'research-node-status ' + state;
-        status.textContent = this.getResearchStatusText(state, research);
-        node.appendChild(status);
+        // Lock reasons (if locked)
+        if (state === 'locked') {
+            const lockReasons = this.getResearchLockReasons(research);
+            if (lockReasons.length > 0) {
+                const lockBox = document.createElement('div');
+                lockBox.style.cssText = 'background: rgba(255,0,0,0.1); border: 1px solid #FF4444; padding: 5px; margin: 5px 0; font-size: 11px; color: #FF8888;';
+                lockBox.innerHTML = lockReasons.map(r => '❌ ' + r).join('<br>');
+                card.appendChild(lockBox);
+            }
+        }
         
         // Progress bar (if researching)
         if (state === 'researching') {
             const activeResearch = this.getActiveResearchByType(research.researchId);
-            if (activeResearch) {
+            if (activeResearch && activeResearch.progress != null) {
                 const progressBar = document.createElement('div');
-                progressBar.className = 'research-node-progress';
+                progressBar.style.cssText = 'height: 20px; background: #333; border-radius: 4px; overflow: hidden; margin: 5px 0;';
                 const progressFill = document.createElement('div');
-                progressFill.className = 'research-node-progress-fill';
-                progressFill.style.width = activeResearch.progress + '%';
+                progressFill.style.cssText = `height: 100%; background: linear-gradient(90deg, #FFD700, #FFA500); width: ${activeResearch.progress}%; transition: width 0.3s;`;
                 progressBar.appendChild(progressFill);
-                node.appendChild(progressBar);
+                const progressText = document.createElement('div');
+                progressText.style.cssText = 'position: absolute; width: 100%; text-align: center; margin-top: -18px; font-size: 11px; color: white; text-shadow: 0 0 3px black;';
+                const remaining = activeResearch.timeRemaining || Math.ceil((100 - activeResearch.progress) * research.researchTimeSeconds / 100);
+                progressText.textContent = `${Math.round(activeResearch.progress)}% (${remaining}s)`;
+                progressBar.appendChild(progressText);
+                card.appendChild(progressBar);
             }
         }
         
-        // Click handler
+        // Status badge
+        const status = document.createElement('div');
+        status.className = 'research-node-status ' + state;
+        const statusText = {
+            completed: '✅ Researched',
+            researching: '⏳ Researching...',
+            available: '📖 Click to Research',
+            locked: '🔒 Locked'
+        };
+        status.textContent = statusText[state] || state;
+        card.appendChild(status);
+        
+        // Click handler for available research
         if (state === 'available') {
-            node.onclick = () => this.onResearchNodeClick(research);
+            card.style.cursor = 'pointer';
+            card.onclick = async () => {
+                await this.onResearchNodeClick(research);
+            };
         }
         
-        // Hover tooltip
-        node.onmouseenter = () => this.showResearchTooltip(research);
-        node.onmouseleave = () => this.hideResearchTooltip();
+        container.appendChild(card);
+    }
+    
+    /**
+     * Get lock reasons for a research (for display)
+     */
+    getResearchLockReasons(research) {
+        const reasons = [];
         
-        container.appendChild(node);
+        if (!this.lastGameState || !this.lastGameState.factions || !this.lastGameState.factions[this.myPlayerId]) {
+            return reasons;
+        }
+        
+        const myFaction = this.lastGameState.factions[this.myPlayerId];
+        const completedResearch = myFaction.completedResearch || [];
+        
+        // Check required building
+        const hasRequiredBuilding = this.playerHasBuilding(research.requiredBuilding);
+        if (!hasRequiredBuilding) {
+            const buildingName = research.requiredBuilding.replace(/_/g, ' ');
+            reasons.push(`Requires: ${buildingName}`);
+        }
+        
+        // Check prerequisites
+        if (research.prerequisites && research.prerequisites.length > 0) {
+            research.prerequisites.forEach(prereqId => {
+                if (!completedResearch.includes(prereqId)) {
+                    // Find the prereq research to get its name
+                    const prereq = this.myFactionData.availableResearch?.find(r => r.researchId === prereqId);
+                    const prereqName = prereq ? prereq.displayName : prereqId;
+                    reasons.push(`Requires: ${prereqName}`);
+                }
+            });
+        }
+        
+        return reasons;
     }
     
     /**
@@ -4795,13 +5248,11 @@ class RTSEngine {
             'WALL': '🧱',
             'RESEARCH_LAB': '🔬',
             'FACTORY': '🚗',
-            'WEAPONS_DEPOT': '🔫',
             'TURRET': '🎯',
             'ROCKET_TURRET': '🚀',
             'LASER_TURRET': '🔷',
             'SHIELD_GENERATOR': '🛡️',
             'TECH_CENTER': '🧪',
-            'ADVANCED_FACTORY': '🏭',
             'BANK': '💰',
             'BUNKER': '🏰',
             'AIRFIELD': '✈️',
@@ -4828,13 +5279,11 @@ class RTSEngine {
             'WALL': 'Wall',
             'RESEARCH_LAB': 'Research Lab',
             'FACTORY': 'Factory',
-            'WEAPONS_DEPOT': 'Weapons Depot',
             'TURRET': 'Turret',
             'ROCKET_TURRET': 'Rocket Turret',
             'LASER_TURRET': 'Laser Turret',
             'SHIELD_GENERATOR': 'Shield Generator',
             'TECH_CENTER': 'Tech Center',
-            'ADVANCED_FACTORY': 'Advanced Factory',
             'BANK': 'Bank',
             'BUNKER': 'Bunker',
             'AIRFIELD': 'Airfield',
@@ -4850,73 +5299,46 @@ class RTSEngine {
     }
     
     /**
-     * Get available units for a building, filtered by faction
+     * Get available units for a building, filtered by faction AND tech tree
      */
     getAvailableUnits(buildingType) {
-        // If we have faction data, use it
-        if (this.myFactionData) {
-            // Get the building info from faction data
-            const building = this.myFactionData.availableBuildings.find(b => b.buildingType === buildingType);
-            
-            if (!building || !building.producedUnits || building.producedUnits.length === 0) {
-                return [];
-            }
-            
-            // Map produced units to the format expected by UI
-            const units = building.producedUnits.map(unitType => {
-                const unitInfo = this.myFactionData.availableUnits.find(u => u.unitType === unitType);
-                if (!unitInfo) return null;
-                
-                return {
-                    type: unitInfo.unitType,
-                    name: this.getUnitDisplayName(unitInfo.unitType),
-                    cost: unitInfo.cost, // Faction-modified cost
-                    baseCost: unitInfo.baseCost,
-                    costModifier: unitInfo.costModifier,
-                    upkeep: unitInfo.upkeep // Upkeep cost
-                };
-            }).filter(u => u !== null);
-            
-            return units;
+        // Get player's available units from game state (includes tech tree unlocks)
+        const myFactionState = this.lastGameState?.factions?.[this.myPlayerId];
+        const unlockedUnits = myFactionState?.availableUnits || [];
+        
+        if (!this.myFactionData) {
+            // No faction data loaded yet - shouldn't happen, but fallback gracefully
+            return [];
         }
         
-        // Fallback to hardcoded data if faction data not loaded
-        const unitsByBuilding = {
-            'HEADQUARTERS': [
-                { type: 'WORKER', name: '👷 Worker', cost: 50 }
-            ],
-            'BARRACKS': [
-                { type: 'INFANTRY', name: '🪖 Infantry', cost: 75 },
-                { type: 'MEDIC', name: '⚕️ Medic', cost: 100 }
-            ],
-            'WEAPONS_DEPOT': [
-                { type: 'ROCKET_SOLDIER', name: '🚀 Rocket Soldier', cost: 150 },
-                { type: 'SNIPER', name: '🎯 Sniper', cost: 200 },
-                { type: 'ENGINEER', name: '🔧 Engineer', cost: 150 }
-            ],
-            'FACTORY': [
-                { type: 'JEEP', name: '🚙 Jeep', cost: 200 },
-                { type: 'TANK', name: '🛡️ Tank', cost: 400 }
-            ],
-            'ADVANCED_FACTORY': [
-                { type: 'ARTILLERY', name: '💣 Artillery', cost: 500 },
-                { type: 'GIGANTONAUT', name: '🏔️ Gigantonaut', cost: 1200 },
-                { type: 'CRAWLER', name: '🦂 Crawler', cost: 1500 },
-                { type: 'CLOAK_TANK', name: '👻 Cloak Tank', cost: 800 },
-                { type: 'MAMMOTH_TANK', name: '🦣 Mammoth Tank', cost: 1200 }
-            ],
-            'AIRFIELD': [
-                { type: 'SCOUT_DRONE', name: '🚁 Scout Drone', cost: 300, upkeep: 2 },
-                { type: 'HELICOPTER', name: '🚁 Helicopter', cost: 350, upkeep: 25 }
-            ],
-            'HANGAR': [
-                { type: 'BOMBER', name: '✈️ Bomber', cost: 600, upkeep: 4 },
-                { type: 'INTERCEPTOR', name: '🛩️ Interceptor', cost: 600, upkeep: 40 }
-            ]
-        };
+        // Convert unlocked units to Set for O(1) lookup
+        const unlockedUnitsSet = new Set(unlockedUnits);
         
-        return unitsByBuilding[buildingType] || [];
+        // Filter faction's unit list by:
+        // 1. Unit is unlocked (in game state's availableUnits)
+        // 2. Unit is produced by this building
+        const units = this.myFactionData.availableUnits
+            .filter(unitInfo => {
+                // Check if unlocked via tech tree
+                if (!unlockedUnitsSet.has(unitInfo.unitType)) {
+                    return false;
+                }
+                
+                // Check if this building produces this unit
+                return unitInfo.producedBy === buildingType;
+            })
+            .map(unitInfo => ({
+                type: unitInfo.unitType,
+                name: this.getUnitDisplayName(unitInfo.unitType),
+                cost: unitInfo.cost, // Faction-modified cost
+                baseCost: unitInfo.baseCost,
+                costModifier: unitInfo.costModifier,
+                upkeep: unitInfo.upkeep
+            }));
+        
+        return units;
     }
+    
     
     /**
      * Get display name for a unit type

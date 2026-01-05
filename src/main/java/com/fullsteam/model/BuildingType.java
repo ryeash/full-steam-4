@@ -97,20 +97,6 @@ public enum BuildingType {
             400.0    // vision range (good, tech building)
     ),
 
-    // Advanced infantry production - requires Research Lab
-    WEAPONS_DEPOT(
-            "Weapons Depot",
-            400,     // resource cost
-            25,      // build time (seconds)
-            700,     // max health
-            48.0,    // size (radius)
-            5,       // sides (pentagon)
-            0x8B0000, // dark red
-            true,    // can produce units
-            -25,     // power consumption
-            390.0    // vision range (good, production building)
-    ),
-
     // Elite tech unlocking - unlocks T3
     TECH_CENTER(
             "Tech Center",
@@ -123,20 +109,6 @@ public enum BuildingType {
             false,   // cannot produce units
             -50,     // power consumption
             420.0    // vision range (excellent, advanced tech)
-    ),
-
-    // Heavy vehicle production - requires Tech Center
-    ADVANCED_FACTORY(
-            "Advanced Factory",
-            1000,    // resource cost
-            45,      // build time (seconds)
-            1000,     // max health
-            65.0,    // size (radius)
-            6,       // sides (hexagon)
-            0x2F4F4F, // dark slate gray
-            true,    // can produce units
-            -45,     // power consumption
-            400.0    // vision range (good, advanced production)
     ),
 
     // Defensive structure - blocks movement
@@ -407,8 +379,8 @@ public enum BuildingType {
     public int getRequiredTechTier() {
         return switch (this) {
             case HEADQUARTERS, REFINERY, BARRACKS, POWER_PLANT, BUNKER, WALL -> 1;
-            case FACTORY, RESEARCH_LAB, WEAPONS_DEPOT, TURRET, SHIELD_GENERATOR, ROCKET_TURRET -> 2;
-            case TECH_CENTER, ADVANCED_FACTORY, BANK, SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE,
+            case FACTORY, RESEARCH_LAB, TURRET, SHIELD_GENERATOR, ROCKET_TURRET -> 2;
+            case TECH_CENTER, BANK, SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE,
                  COMMAND_CITADEL, LASER_TURRET, AIRFIELD, HANGAR, TEMPEST_SPIRE -> 3;
         };
     }
@@ -441,14 +413,8 @@ public enum BuildingType {
             // Research Lab - hexagonal research facility
             case RESEARCH_LAB -> List.of(Geometry.createPolygonalCircle(6, size));
 
-            // Weapons Depot - pentagonal armory
-            case WEAPONS_DEPOT -> List.of(Geometry.createPolygonalCircle(5, size));
-
             // Tech Center - large octagon (advanced tech)
             case TECH_CENTER -> List.of(Geometry.createPolygonalCircle(8, size));
-
-            // Advanced Factory - massive rectangular production facility
-            case ADVANCED_FACTORY -> List.of(Geometry.createRectangle(size * 2.2, size * 1.5));
 
             // Wall - small square segment
             case WALL -> List.of(Geometry.createSquare(size * 2.0));
