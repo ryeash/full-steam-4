@@ -23,6 +23,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CustomFactionConfig {
+    // TODO: reduce to 100 after balancing
     private static final int MAX_POINTS = 1000;
 
     /**
