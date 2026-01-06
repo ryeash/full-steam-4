@@ -244,8 +244,12 @@ class RTSEngine {
         let factionConfig = null;
         if (factionConfigParam) {
             try {
-                factionConfig = JSON.parse(decodeURIComponent(factionConfigParam));
-                console.log('Loaded faction config from URL:', factionConfig);
+                // Decode from base64 (UTF-8 safe)
+                const binaryString = atob(factionConfigParam);
+                const bytes = Uint8Array.from(binaryString, char => char.charCodeAt(0));
+                const configJson = new TextDecoder().decode(bytes);
+                factionConfig = JSON.parse(configJson);
+                console.log('Loaded faction config from URL (base64):', factionConfig);
             } catch (e) {
                 console.error('Failed to parse faction config from URL:', e);
             }

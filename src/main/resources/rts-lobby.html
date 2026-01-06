@@ -430,6 +430,85 @@
             font-size: 1.8em;
             margin-bottom: 8px;
         }
+        
+        /* Inline Faction Customizer Styles */
+        .customizer-category {
+            margin-bottom: 30px;
+        }
+        
+        .selection-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+        
+        .selection-item {
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid #444;
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .selection-item:hover {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .selection-item.selected {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.15);
+        }
+        
+        .selection-item.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        
+        .selection-item.disabled:hover {
+            border-color: #444;
+            background: rgba(0, 0, 0, 0.4);
+            transform: none;
+        }
+        
+        .item-name {
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 4px;
+            font-size: 0.95em;
+        }
+        
+        .item-cost {
+            color: #00ff88;
+            font-size: 0.85em;
+            margin-bottom: 4px;
+        }
+        
+        .item-description {
+            color: #aaa;
+            font-size: 0.8em;
+            line-height: 1.3;
+        }
+        
+        .selection-item.required {
+            border-color: #ff9900;
+        }
+        
+        .required-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #ff9900;
+            color: #000;
+            font-size: 0.7em;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -455,22 +534,49 @@
     <!-- Faction Customization Section -->
     <div class="matchmaking-section" id="faction-section">
         <h2>🎨 Customize Your Faction</h2>
-        <p id="faction-summary">Select units, buildings, and perks to create your custom faction</p>
+        <p>Select units, buildings, and perks to create your custom faction (<span id="points-display">0/100</span> points)</p>
         
-        <div id="faction-preview" style="margin: 20px 0; display: none;">
-            <div class="config-group">
-                <div class="config-label">Current Configuration:</div>
-                <div class="config-description" id="faction-preview-text"></div>
+        <!-- Preset Selection -->
+        <div style="margin: 20px 0;">
+            <label style="color: #00ff88; margin-right: 10px;">Quick Start:</label>
+            <select id="preset-select" onchange="loadPresetInline(this.value)" style="padding: 8px; background: rgba(0,0,0,0.5); border: 1px solid #00ff88; border-radius: 4px; color: #fff;">
+                <option value="">Custom Configuration</option>
+                <option value="TERRAN_STANDARD">Terran Standard</option>
+                <option value="NOMADS_RAIDERS">Nomads Raiders</option>
+                <option value="SYNTHESIS_ENERGY">Synthesis Energy</option>
+                <option value="TECH_ALLIANCE_PRECISION">Tech Alliance Precision</option>
+                <option value="STORM_WINGS_AIR">Storm Wings Air Superiority</option>
+            </select>
+        </div>
+        
+        <!-- Units Section -->
+        <div class="customizer-category">
+            <h3 style="color: #00ff88; border-bottom: 2px solid #00ff88; padding-bottom: 10px; margin-bottom: 15px;">
+                Units (<span id="unit-count">0</span> selected)
+            </h3>
+            <div id="units-grid" class="selection-grid">
+                <!-- Units will be populated here -->
             </div>
         </div>
         
-        <div class="button-group">
-            <button class="primary-button" onclick="openFactionCustomizer()">
-                ⚙️ Customize Faction
-            </button>
-            <button class="secondary-button" onclick="resetToDefault()">
-                🔄 Reset to Terran
-            </button>
+        <!-- Buildings Section -->
+        <div class="customizer-category" style="margin-top: 30px;">
+            <h3 style="color: #00ff88; border-bottom: 2px solid #00ff88; padding-bottom: 10px; margin-bottom: 15px;">
+                Buildings (<span id="building-count">0</span> selected)
+            </h3>
+            <div id="buildings-grid" class="selection-grid">
+                <!-- Buildings will be populated here -->
+            </div>
+        </div>
+        
+        <!-- Perks Section -->
+        <div class="customizer-category" style="margin-top: 30px;">
+            <h3 style="color: #00ff88; border-bottom: 2px solid #00ff88; padding-bottom: 10px; margin-bottom: 15px;">
+                Perks (<span id="perk-count">0</span> selected)
+            </h3>
+            <div id="perks-grid" class="selection-grid">
+                <!-- Perks will be populated here -->
+            </div>
         </div>
     </div>
 
@@ -551,10 +657,6 @@
     </div>
 </div>
 
-<!-- Load FactionCustomizer -->
-<link rel="stylesheet" href="css/faction-customizer.css">
-<script src="js/rts/FactionCustomizer.js"></script>
-
 <script type="text/javascript">
     const gamesList = document.getElementById('games-list');
     const playerCountValue = document.getElementById('player-count-value');
@@ -571,94 +673,321 @@
     let pollInterval = null;
     // factionCustomizer is declared globally in FactionCustomizer.js
 
-    // Initialize faction customizer
-    async function initializeFactionCustomizer() {
-        if (!factionCustomizer.unitTemplates.length) {
-            await factionCustomizer.initialize();
-            updateFactionPreview();
-        }
-    }
-
-    // Open customizer modal
-    async function openFactionCustomizer() {
-        await initializeFactionCustomizer();
-        factionCustomizer.openCustomizer();
-    }
-
-    // Reset to default (Terran standard)
-    async function resetToDefault() {
-        if (!factionCustomizer) {
-            await initializeFactionCustomizer();
-        }
-        
-        // Load Terran Standard preset
-        await factionCustomizer.loadPreset('TERRAN_STANDARD');
-        updateFactionPreview();
-        
-        alert('Reset to Terran Standard faction');
-    }
-
-    // Update faction preview in lobby
-    function updateFactionPreview() {
-        if (!factionCustomizer) return;
-        
-        const config = factionCustomizer.getCurrentConfig();
-        const preview = document.getElementById('faction-preview');
-        const previewText = document.getElementById('faction-preview-text');
-        
-        const unitCount = config.selectedUnits.length;
-        const buildingCount = config.selectedBuildings.length;
-        const perkCount = config.selectedPerks.length;
-        const points = factionCustomizer.spentPoints;
-        
-        previewText.textContent = `⚙️ ${config.displayName} - ${unitCount} units, ${buildingCount} buildings, ${perkCount} perks (${points}/100 points)`;
-        preview.style.display = 'block';
-    }
-
-    // Apply custom faction when creating/joining game
-    async function applyCustomFactionToGame(gameId, playerId = 1) {
-        console.log(`[applyCustomFactionToGame] Called for game ${gameId}, player ${playerId}`);
-        
-        if (!factionCustomizer) {
-            console.warn('No faction customizer initialized, loading default');
-            await initializeFactionCustomizer();
-        }
-        
-        const config = factionCustomizer.getCurrentConfig();
-        console.log('[applyCustomFactionToGame] Config:', config);
-        
+    // ============================================
+    // INLINE FACTION CUSTOMIZER
+    // ============================================
+    
+    let inlineCustomizer = {
+        unitTemplates: [],
+        buildingTemplates: [],
+        perks: [],
+        selectedUnits: new Set(['WORKER']), // WORKER is required
+        selectedBuildings: new Set(['HEADQUARTERS']), // HQ is required
+        selectedPerks: new Set(),
+        maxPoints: 100,
+        spentPoints: 0
+    };
+    
+    // Initialize inline faction customizer
+    async function initializeInlineCustomizer() {
         try {
-            const url = `/api/rts/customization/games/${gameId}/players/${playerId}/apply`;
-            console.log('[applyCustomFactionToGame] Sending POST to:', url);
+            // Load all customization data in parallel
+            const [units, buildings, perks] = await Promise.all([
+                fetch('/api/rts/customization/templates/units').then(r => r.json()),
+                fetch('/api/rts/customization/templates/buildings').then(r => r.json()),
+                fetch('/api/rts/customization/perks').then(r => r.json())
+            ]);
             
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(config)
+            inlineCustomizer.unitTemplates = units;
+            inlineCustomizer.buildingTemplates = buildings;
+            inlineCustomizer.perks = perks;
+            
+            console.log('Inline customizer initialized:', {
+                units: units.length,
+                buildings: buildings.length,
+                perks: perks.length
             });
             
-            console.log('[applyCustomFactionToGame] Response status:', response.status);
+            // Load from localStorage or use default
+            loadInlineCustomizerFromStorage();
             
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('[applyCustomFactionToGame] Failed:', errorText);
-                let error;
-                try {
-                    error = JSON.parse(errorText);
-                } catch (e) {
-                    error = { message: errorText };
-                }
-                throw new Error('Failed to apply custom faction: ' + (error.errors?.join(', ') || error.message || errorText));
-            }
-            
-            console.log('Custom faction applied successfully to game', gameId);
+            // Render the UI
+            renderInlineCustomizer();
             
         } catch (error) {
-            console.error('Error applying custom faction:', error);
-            // Don't fail the game join, but warn user
-            console.warn('Warning: Failed to apply custom faction. Using default configuration.');
+            console.error('Failed to load inline customization data:', error);
+            alert('Failed to load faction customization data. Please refresh.');
         }
     }
+    
+    // Render the inline customizer UI
+    function renderInlineCustomizer() {
+        renderUnitsGrid();
+        renderBuildingsGrid();
+        renderPerksGrid();
+        updateInlinePointsDisplay();
+    }
+    
+    // Render units grid
+    function renderUnitsGrid() {
+        const grid = document.getElementById('units-grid');
+        if (!grid) return;
+        
+        grid.innerHTML = '';
+        
+        inlineCustomizer.unitTemplates.forEach(unit => {
+            const isSelected = inlineCustomizer.selectedUnits.has(unit.unitType);
+            const isRequired = unit.unitType === 'WORKER';
+            const canAfford = isSelected || (inlineCustomizer.spentPoints + unit.pointCost <= inlineCustomizer.maxPoints);
+            
+            const div = document.createElement('div');
+            div.className = `selection-item ${isSelected ? 'selected' : ''} ${!canAfford ? 'disabled' : ''} ${isRequired ? 'required' : ''}`;
+            if (!isRequired && canAfford) {
+                div.onclick = () => toggleInlineUnit(unit.unitType);
+            }
+            
+            const description = unit.description || `${unit.displayName} unit`;
+            div.title = description; // Tooltip on hover
+            
+            div.innerHTML = `
+                ${isRequired ? '<span class="required-badge">REQUIRED</span>' : ''}
+                <div class="item-name">${unit.displayName}</div>
+                <div class="item-cost">${unit.pointCost} points</div>
+                <div class="item-description">${description.substring(0, 60)}${description.length > 60 ? '...' : ''}</div>
+            `;
+            
+            grid.appendChild(div);
+        });
+        
+        document.getElementById('unit-count').textContent = inlineCustomizer.selectedUnits.size;
+    }
+    
+    // Render buildings grid
+    function renderBuildingsGrid() {
+        const grid = document.getElementById('buildings-grid');
+        if (!grid) return;
+        
+        grid.innerHTML = '';
+        
+        inlineCustomizer.buildingTemplates.forEach(building => {
+            const isSelected = inlineCustomizer.selectedBuildings.has(building.buildingType);
+            const isRequired = building.buildingType === 'HEADQUARTERS';
+            const canAfford = isSelected || (inlineCustomizer.spentPoints + building.pointCost <= inlineCustomizer.maxPoints);
+            
+            const div = document.createElement('div');
+            div.className = `selection-item ${isSelected ? 'selected' : ''} ${!canAfford ? 'disabled' : ''} ${isRequired ? 'required' : ''}`;
+            if (!isRequired && canAfford) {
+                div.onclick = () => toggleInlineBuilding(building.buildingType);
+            }
+            
+            const description = building.description || `${building.displayName} building`;
+            div.title = description; // Tooltip on hover
+            
+            div.innerHTML = `
+                ${isRequired ? '<span class="required-badge">REQUIRED</span>' : ''}
+                <div class="item-name">${building.displayName}</div>
+                <div class="item-cost">${building.pointCost} points</div>
+                <div class="item-description">${description.substring(0, 60)}${description.length > 60 ? '...' : ''}</div>
+            `;
+            
+            grid.appendChild(div);
+        });
+        
+        document.getElementById('building-count').textContent = inlineCustomizer.selectedBuildings.size;
+    }
+    
+    // Render perks grid
+    function renderPerksGrid() {
+        const grid = document.getElementById('perks-grid');
+        if (!grid) return;
+        
+        grid.innerHTML = '';
+        
+        inlineCustomizer.perks.forEach(perk => {
+            const isSelected = inlineCustomizer.selectedPerks.has(perk.name);
+            const canAfford = isSelected || (inlineCustomizer.spentPoints + perk.pointCost <= inlineCustomizer.maxPoints);
+            
+            const div = document.createElement('div');
+            div.className = `selection-item ${isSelected ? 'selected' : ''} ${!canAfford ? 'disabled' : ''}`;
+            if (canAfford) {
+                div.onclick = () => toggleInlinePerk(perk.name);
+            }
+            
+            div.title = perk.description; // Tooltip on hover
+            
+            div.innerHTML = `
+                <div class="item-name">${perk.displayName}</div>
+                <div class="item-cost">${perk.pointCost} points</div>
+                <div class="item-description">${perk.description.substring(0, 60)}${perk.description.length > 60 ? '...' : ''}</div>
+            `;
+            
+            grid.appendChild(div);
+        });
+        
+        document.getElementById('perk-count').textContent = inlineCustomizer.selectedPerks.size;
+    }
+    
+    // Toggle unit selection
+    function toggleInlineUnit(unitType) {
+        const unit = inlineCustomizer.unitTemplates.find(u => u.unitType === unitType);
+        if (!unit) return;
+        
+        if (inlineCustomizer.selectedUnits.has(unitType)) {
+            inlineCustomizer.selectedUnits.delete(unitType);
+            inlineCustomizer.spentPoints -= unit.pointCost;
+        } else {
+            inlineCustomizer.selectedUnits.add(unitType);
+            inlineCustomizer.spentPoints += unit.pointCost;
+        }
+        
+        saveInlineCustomizerToStorage();
+        renderInlineCustomizer();
+    }
+    
+    // Toggle building selection
+    function toggleInlineBuilding(buildingType) {
+        const building = inlineCustomizer.buildingTemplates.find(b => b.buildingType === buildingType);
+        if (!building) return;
+        
+        if (inlineCustomizer.selectedBuildings.has(buildingType)) {
+            inlineCustomizer.selectedBuildings.delete(buildingType);
+            inlineCustomizer.spentPoints -= building.pointCost;
+        } else {
+            inlineCustomizer.selectedBuildings.add(buildingType);
+            inlineCustomizer.spentPoints += building.pointCost;
+        }
+        
+        saveInlineCustomizerToStorage();
+        renderInlineCustomizer();
+    }
+    
+    // Toggle perk selection
+    function toggleInlinePerk(perkName) {
+        const perk = inlineCustomizer.perks.find(p => p.name === perkName);
+        if (!perk) return;
+        
+        if (inlineCustomizer.selectedPerks.has(perkName)) {
+            inlineCustomizer.selectedPerks.delete(perkName);
+            inlineCustomizer.spentPoints -= perk.pointCost;
+        } else {
+            inlineCustomizer.selectedPerks.add(perkName);
+            inlineCustomizer.spentPoints += perk.pointCost;
+        }
+        
+        saveInlineCustomizerToStorage();
+        renderInlineCustomizer();
+    }
+    
+    // Update points display
+    function updateInlinePointsDisplay() {
+        const display = document.getElementById('points-display');
+        if (!display) return;
+        
+        display.textContent = `${inlineCustomizer.spentPoints}/${inlineCustomizer.maxPoints}`;
+        display.style.color = inlineCustomizer.spentPoints > inlineCustomizer.maxPoints ? '#ff4444' : '#00ff88';
+    }
+    
+    // Load preset
+    async function loadPresetInline(presetId) {
+        if (!presetId) {
+            // Reset to minimal config
+            inlineCustomizer.selectedUnits = new Set(['WORKER']);
+            inlineCustomizer.selectedBuildings = new Set(['HEADQUARTERS']);
+            inlineCustomizer.selectedPerks = new Set();
+            recalculateInlinePoints();
+            renderInlineCustomizer();
+            saveInlineCustomizerToStorage();
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/rts/customization/presets/${presetId}`);
+            const preset = await response.json();
+            
+            inlineCustomizer.selectedUnits = new Set(preset.selectedUnits);
+            inlineCustomizer.selectedBuildings = new Set(preset.selectedBuildings);
+            inlineCustomizer.selectedPerks = new Set(preset.selectedPerks);
+            
+            recalculateInlinePoints();
+            renderInlineCustomizer();
+            saveInlineCustomizerToStorage();
+            
+            console.log('Loaded preset:', preset.displayName);
+        } catch (error) {
+            console.error('Failed to load preset:', error);
+            alert('Failed to load preset. Please try again.');
+        }
+    }
+    
+    // Recalculate points
+    function recalculateInlinePoints() {
+        let total = 0;
+        
+        inlineCustomizer.selectedUnits.forEach(unitType => {
+            const unit = inlineCustomizer.unitTemplates.find(u => u.unitType === unitType);
+            if (unit) total += unit.pointCost;
+        });
+        
+        inlineCustomizer.selectedBuildings.forEach(buildingType => {
+            const building = inlineCustomizer.buildingTemplates.find(b => b.buildingType === buildingType);
+            if (building) total += building.pointCost;
+        });
+        
+        inlineCustomizer.selectedPerks.forEach(perkName => {
+            const perk = inlineCustomizer.perks.find(p => p.name === perkName);
+            if (perk) total += perk.pointCost;
+        });
+        
+        inlineCustomizer.spentPoints = total;
+    }
+    
+    // Save to localStorage
+    function saveInlineCustomizerToStorage() {
+        const config = {
+            selectedUnits: Array.from(inlineCustomizer.selectedUnits),
+            selectedBuildings: Array.from(inlineCustomizer.selectedBuildings),
+            selectedPerks: Array.from(inlineCustomizer.selectedPerks),
+            spentPoints: inlineCustomizer.spentPoints
+        };
+        localStorage.setItem('customFactionConfig', JSON.stringify(config));
+    }
+    
+    // Load from localStorage
+    function loadInlineCustomizerFromStorage() {
+        const saved = localStorage.getItem('customFactionConfig');
+        if (saved) {
+            try {
+                const config = JSON.parse(saved);
+                inlineCustomizer.selectedUnits = new Set(config.selectedUnits || ['WORKER']);
+                inlineCustomizer.selectedBuildings = new Set(config.selectedBuildings || ['HEADQUARTERS']);
+                inlineCustomizer.selectedPerks = new Set(config.selectedPerks || []);
+                recalculateInlinePoints();
+            } catch (e) {
+                console.error('Failed to load saved config:', e);
+            }
+        }
+    }
+    
+    // Get current config for game start
+    function getInlineCustomizerConfig() {
+        return {
+            displayName: 'Custom Faction',
+            themeColor: '#800080',
+            icon: '⚙️',
+            selectedUnits: Array.from(inlineCustomizer.selectedUnits),
+            selectedBuildings: Array.from(inlineCustomizer.selectedBuildings),
+            selectedPerks: Array.from(inlineCustomizer.selectedPerks),
+            totalPointsSpent: inlineCustomizer.spentPoints,
+            maxPoints: inlineCustomizer.maxPoints
+        };
+    }
+    
+    // ============================================
+    // MATCHMAKING & GAME FUNCTIONS
+    // ============================================
+    
+    // Initialize on page load
+    initializeInlineCustomizer();
 
     function fetchLobbyInfo() {
         fetch('/api/rts/lobby')
@@ -825,9 +1154,12 @@
                 clearInterval(pollInterval);
                 const sessionToken = sessionStorage.getItem('rts_session_token');
                 
-                // Encode custom faction config as URL parameter
-                const customConfig = factionCustomizer.getCurrentConfig();
-                const configParam = encodeURIComponent(JSON.stringify(customConfig));
+                // Encode custom faction config as base64 for URL parameter
+                const customConfig = getInlineCustomizerConfig();
+                const configJson = JSON.stringify(customConfig);
+                const utf8Bytes = new TextEncoder().encode(configJson);
+                const binaryString = Array.from(utf8Bytes, byte => String.fromCharCode(byte)).join('');
+                const configParam = btoa(binaryString);
                 
                 const url = sessionToken 
                     ? `/rts.html?gameId=${currentGameId}&sessionToken=${sessionToken}&factionConfig=${configParam}`
@@ -983,9 +1315,12 @@
 
             const result = await response.json();
             
-            // Encode custom faction config as URL parameter
-            const customConfig = factionCustomizer.getCurrentConfig();
-            const configParam = encodeURIComponent(JSON.stringify(customConfig));
+            // Encode custom faction config as base64 for URL parameter
+            const customConfig = getInlineCustomizerConfig();
+            const configJson = JSON.stringify(customConfig);
+            const utf8Bytes = new TextEncoder().encode(configJson);
+            const binaryString = Array.from(utf8Bytes, byte => String.fromCharCode(byte)).join('');
+            const configParam = btoa(binaryString);
             
             console.log('Game created, redirecting to game page with faction config...');
             

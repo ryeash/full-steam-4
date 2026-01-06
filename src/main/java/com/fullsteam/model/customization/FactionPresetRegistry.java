@@ -106,7 +106,6 @@ public class FactionPresetRegistry {
                 FactionPerk.UPKEEP_INCREASE_1, // 3 pt
                 FactionPerk.VETERAN_UNITS_1    // 3 pt
             )))
-            .maxPoints(100)
             .basedOnPreset(null)
             .build();
         
@@ -151,7 +150,6 @@ public class FactionPresetRegistry {
                 FactionPerk.UPKEEP_INCREASE_2,    // 6 pt (requires level 1)
                 FactionPerk.UPKEEP_INCREASE_1     // 3 pt (prerequisite)
             )))
-            .maxPoints(100)
             .basedOnPreset("TERRAN_STANDARD")
             .build();
         
@@ -195,7 +193,6 @@ public class FactionPresetRegistry {
                 FactionPerk.RAPID_DEPLOYMENT_1,    // 3 pt
                 FactionPerk.LOGISTICS_NETWORK      // 6 pt
             )))
-            .maxPoints(100)
             .basedOnPreset("TERRAN_STANDARD")
             .build();
         
@@ -241,7 +238,6 @@ public class FactionPresetRegistry {
                 FactionPerk.MECHANIZED_WARFARE_1,  // 4 pt
                 FactionPerk.COST_REDUCTION_1       // 5 pt
             )))
-            .maxPoints(100)
             .basedOnPreset(null)
             .build();
         
@@ -285,7 +281,6 @@ public class FactionPresetRegistry {
                 FactionPerk.DAMAGE_BOOST_1,        // 4 pt
                 FactionPerk.SALVAGE_OPERATIONS     // 5 pt
             )))
-            .maxPoints(100)
             .basedOnPreset("NOMADS_RAIDERS")
             .build();
         
@@ -333,7 +328,6 @@ public class FactionPresetRegistry {
                 FactionPerk.SHIELD_MASTERY_2,      // 6 pt
                 FactionPerk.FORTIFIED_1            // 3 pt
             )))
-            .maxPoints(100)
             .basedOnPreset(null)
             .build();
         
@@ -378,7 +372,6 @@ public class FactionPresetRegistry {
                 FactionPerk.FORTIFIED_2,           // 6 pt (with prerequisite)
                 FactionPerk.FORTIFIED_1            // 3 pt
             )))
-            .maxPoints(100)
             .basedOnPreset("SYNTHESIS_SHIELDED")
             .build();
         
@@ -425,7 +418,6 @@ public class FactionPresetRegistry {
                 FactionPerk.COST_REDUCTION_1,      // 5 pt
                 FactionPerk.DAMAGE_BOOST_1         // 4 pt
             )))
-            .maxPoints(100)
             .basedOnPreset(null)
             .build();
         
@@ -472,7 +464,6 @@ public class FactionPresetRegistry {
                 FactionPerk.RAPID_DEPLOYMENT_1,  // 3 pt
                 FactionPerk.COST_REDUCTION_1     // 5 pt
             )))
-            .maxPoints(100)
             .basedOnPreset(null)
             .build();
         
@@ -517,7 +508,6 @@ public class FactionPresetRegistry {
                 FactionPerk.ADVANCED_RESEARCH_1,   // 3 pt
                 FactionPerk.LOGISTICS_NETWORK      // 6 pt
             )))
-            .maxPoints(100)
             .basedOnPreset("STORM_WINGS_BOMBERS")
             .build();
         

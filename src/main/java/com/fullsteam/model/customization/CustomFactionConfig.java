@@ -8,7 +8,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -21,6 +23,8 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CustomFactionConfig {
+    private static final int MAX_POINTS = 1000;
+
     /**
      * Unique identifier for this faction configuration
      */
@@ -71,12 +75,6 @@ public class CustomFactionConfig {
     private int totalPointsSpent;
 
     /**
-     * Maximum allowed points
-     */
-    @Builder.Default
-    private int maxPoints = 100;
-
-    /**
      * Optional: ID of preset this was based on
      */
     private String basedOnPreset;
@@ -87,7 +85,7 @@ public class CustomFactionConfig {
      * Check if this configuration is valid
      */
     public boolean isValid() {
-        return totalPointsSpent <= maxPoints
+        return totalPointsSpent <= MAX_POINTS
                 && hasRequiredBuildings()
                 && hasRequiredUnits()
                 && allPerksValid();
@@ -175,24 +173,24 @@ public class CustomFactionConfig {
      * Get remaining points in budget
      */
     public int getRemainingPoints() {
-        return maxPoints - totalPointsSpent;
+        return MAX_POINTS - totalPointsSpent;
     }
 
     /**
      * Check if we can afford to add an entity with the given cost
      */
     public boolean canAfford(int pointCost) {
-        return (totalPointsSpent + pointCost) <= maxPoints;
+        return (totalPointsSpent + pointCost) <= MAX_POINTS;
     }
 
     /**
      * Get validation errors (if any)
      */
     public ValidationResult validate() {
-        java.util.List<String> errors = new java.util.ArrayList<>();
+        List<String> errors = new ArrayList<>();
 
-        if (totalPointsSpent > maxPoints) {
-            errors.add(String.format("Over budget: %d / %d points", totalPointsSpent, maxPoints));
+        if (totalPointsSpent > MAX_POINTS) {
+            errors.add(String.format("Over budget: %d / %d points", totalPointsSpent, MAX_POINTS));
         }
 
         if (!selectedBuildings.contains(BuildingType.HEADQUARTERS)) {
@@ -241,7 +239,7 @@ public class CustomFactionConfig {
                 selectedBuildings.size(),
                 selectedPerks.size(),
                 totalPointsSpent,
-                maxPoints
+                MAX_POINTS
         );
     }
 }

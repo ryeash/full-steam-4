@@ -145,7 +145,6 @@ public class FactionCustomizationController {
             .selectedUnits(units)
             .selectedBuildings(buildings)
             .selectedPerks(perks)
-            .maxPoints(dto.getMaxPoints())
             .basedOnPreset(dto.getBasedOnPreset())
             .build();
         

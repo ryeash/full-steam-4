@@ -89,39 +89,37 @@ public class RTSPlayerConnectionService {
         session.put(SESSION_KEY, playerSession);
 
         // Apply custom faction config if provided
-        if (factionConfigJson != null && "CUSTOM".equals(factionName)) {
-            try {
-                log.info("Applying custom faction config for player {} in game {}", playerId, gameId);
+        try {
+            log.info("Applying custom faction config for player {} in game {}", playerId, gameId);
 
-                // Parse the faction config JSON
-                CustomFactionConfig config = objectMapper.readValue(factionConfigJson, CustomFactionConfig.class);
+            // Parse the faction config JSON
+            CustomFactionConfig config = objectMapper.readValue(factionConfigJson, CustomFactionConfig.class);
 
-                // Validate the config
-                ValidationResult validation = config.validate();
-                if (!validation.isValid()) {
-                    log.warn("Invalid custom faction config for player {}: {}", playerId, validation.getErrors());
+            // Validate the config
+            ValidationResult validation = config.validate();
+            if (!validation.isValid()) {
+                log.warn("Invalid custom faction config for player {}: {}", playerId, validation.getErrors());
+            } else {
+                // Build FactionDefinition from config
+                CustomFactionBuilder builder = new CustomFactionBuilder();
+                FactionDefinition customDefinition = builder.buildFromConfig(config);
+
+                // Apply to player faction
+                PlayerFaction playerFaction = game.getPlayerFactions().get(playerId);
+                if (playerFaction != null) {
+                    playerFaction.applyCustomFaction(customDefinition);
+                    log.info("Custom faction '{}' applied successfully for player {} ({} units, {} buildings, {} perks)",
+                            config.getDisplayName(), playerId,
+                            config.getSelectedUnits().size(),
+                            config.getSelectedBuildings().size(),
+                            config.getSelectedPerks().size());
                 } else {
-                    // Build FactionDefinition from config
-                    CustomFactionBuilder builder = new CustomFactionBuilder();
-                    FactionDefinition customDefinition = builder.buildFromConfig(config);
-
-                    // Apply to player faction
-                    PlayerFaction playerFaction = game.getPlayerFactions().get(playerId);
-                    if (playerFaction != null) {
-                        playerFaction.applyCustomFaction(customDefinition);
-                        log.info("Custom faction '{}' applied successfully for player {} ({} units, {} buildings, {} perks)",
-                                config.getDisplayName(), playerId,
-                                config.getSelectedUnits().size(),
-                                config.getSelectedBuildings().size(),
-                                config.getSelectedPerks().size());
-                    } else {
-                        log.error("Player faction not found for player {} in game {}", playerId, gameId);
-                    }
+                    log.error("Player faction not found for player {} in game {}", playerId, gameId);
                 }
-            } catch (Exception e) {
-                log.error("Failed to apply custom faction config for player {} in game {}", playerId, gameId, e);
-                return false;
             }
+        } catch (Exception e) {
+            log.error("Failed to apply custom faction config for player {} in game {}", playerId, gameId, e);
+            return false;
         }
 
         // Send player their ID

@@ -49,7 +49,6 @@ public class CustomFactionConfigDTO {
                 .map(Enum::name)
                 .collect(Collectors.toList()))
             .totalPointsSpent(config.getTotalPointsSpent())
-            .maxPoints(config.getMaxPoints())
             .basedOnPreset(config.getBasedOnPreset())
             .remainingPoints(config.getRemainingPoints())
             .isValid(validation.isValid())
