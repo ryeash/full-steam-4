@@ -22,6 +22,7 @@ class RTSEngine {
         this.myPlayerId = null;
         this.myFaction = null;
         this.myFactionData = null; // Faction data from API
+        this.buildMenuGenerated = false; // Track if build menu has been generated
         this.myTeam = null;
         this.hasCenteredCamera = false;
         this.visionRange = 400; // Default, updated from server
@@ -238,6 +239,18 @@ class RTSEngine {
         const urlParams = new URLSearchParams(window.location.search);
         let gameId = urlParams.get('gameId');
         
+        // Get faction config from URL if present (will be passed to WebSocket)
+        const factionConfigParam = urlParams.get('factionConfig');
+        let factionConfig = null;
+        if (factionConfigParam) {
+            try {
+                factionConfig = JSON.parse(decodeURIComponent(factionConfigParam));
+                console.log('Loaded faction config from URL:', factionConfig);
+            } catch (e) {
+                console.error('Failed to parse faction config from URL:', e);
+            }
+        }
+        
         if (!gameId) {
             // Create new game
             const response = await fetch('/api/rts/games', {
@@ -271,12 +284,28 @@ class RTSEngine {
             sessionToken = sessionStorage.getItem('rts_session_token');
         }
         
-        // Connect via WebSocket with session token
+        // Connect via WebSocket with session token and faction config
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         let wsUrl = `${protocol}//${window.location.host}/rts/${gameId}`;
+        
+        const params = new URLSearchParams();
         if (sessionToken) {
-            wsUrl += `?sessionToken=${sessionToken}`;
+            params.append('sessionToken', sessionToken);
             console.log('Connecting with session token:', sessionToken);
+        }
+        if (factionConfig) {
+            // Encode faction config as base64 (UTF-8 safe)
+            const configJson = JSON.stringify(factionConfig);
+            // Use TextEncoder to handle UTF-8, then convert to base64
+            const utf8Bytes = new TextEncoder().encode(configJson);
+            const binaryString = Array.from(utf8Bytes, byte => String.fromCharCode(byte)).join('');
+            const configBase64 = btoa(binaryString);
+            params.append('factionConfig', configBase64);
+            console.log('Passing faction config via WebSocket (base64):', factionConfig.displayName);
+        }
+        
+        if (params.toString()) {
+            wsUrl += `?${params.toString()}`;
         }
         
         this.websocket = new WebSocket(wsUrl);
@@ -305,6 +334,9 @@ class RTSEngine {
                 break;
             case 'playerId':
                 this.myPlayerId = data.playerId;
+                console.log('Received player ID:', this.myPlayerId);
+                // Faction config is now applied during WebSocket connection
+                // No separate API call needed
                 break;
             case 'gameOver':
                 this.handleGameOver(data);
@@ -576,11 +608,42 @@ class RTSEngine {
         if (state.factions && this.myPlayerId) {
             this.myFaction = state.factions[this.myPlayerId];
             if (this.myFaction) {
+                console.log('myFaction updated:', {
+                    factionType: this.myFaction.factionType,
+                    hasBuildingInfo: !!this.myFaction.buildingInfo,
+                    hasUnitInfo: !!this.myFaction.unitInfo,
+                    buildingInfoLength: this.myFaction.buildingInfo?.length,
+                    unitInfoLength: this.myFaction.unitInfo?.length
+                });
                 this.myTeam = this.myFaction.team;
                 this.updateResourceDisplay();
                 
-                // Fetch faction data from API if we don't have it yet
-                if (this.myFaction.factionType && !this.myFactionData) {
+                // For CUSTOM factions, use building/unit info from game state
+                if (this.myFaction.factionType === 'CUSTOM' && this.myFaction.buildingInfo) {
+                    console.log('Setting up CUSTOM faction data from game state');
+                    console.log('buildingInfo:', this.myFaction.buildingInfo);
+                    console.log('unitInfo:', this.myFaction.unitInfo);
+                    
+                    // Build myFactionData from game state for custom factions
+                    this.myFactionData = {
+                        factionType: 'CUSTOM',
+                        displayName: 'Custom Faction',
+                        description: 'Player-designed faction',
+                        availableBuildings: this.myFaction.buildingInfo,
+                        availableUnits: this.myFaction.unitInfo || []
+                    };
+                    
+                    console.log('myFactionData set:', this.myFactionData);
+                    
+                    // Generate build menu if we haven't already
+                    if (!this.buildMenuGenerated) {
+                        console.log('Generating build menu for CUSTOM faction');
+                        this.generateBuildMenu();
+                        this.buildMenuGenerated = true;
+                    }
+                } else if (this.myFaction.factionType && !this.myFactionData) {
+                    // Fetch faction data from API for preset factions
+                    console.log('Fetching faction data for:', this.myFaction.factionType);
                     this.fetchFactionData(this.myFaction.factionType);
                 }
                 
@@ -5156,6 +5219,7 @@ class RTSEngine {
             
             // Generate build menu dynamically based on faction data
             this.generateBuildMenu();
+            this.buildMenuGenerated = true;
         } catch (error) {
             console.error('Error fetching faction data:', error);
         }

@@ -62,6 +62,16 @@ public enum Faction {
                     "Air units are cheaper and more powerful, but ground forces are limited. " +
                     "Relies on air dominance to control the battlefield.",
             0x4682B4  // Steel blue (sky theme)
+    ),
+    
+    /**
+     * CUSTOM - Player-created custom faction.
+     * Theme: Fully customizable units, buildings, and perks.
+     */
+    CUSTOM(
+            "Custom Faction",
+            "A custom faction created by the player with hand-picked units, buildings, and perks.",
+            0x9370DB  // Medium purple
     );
 
     private final String displayName;

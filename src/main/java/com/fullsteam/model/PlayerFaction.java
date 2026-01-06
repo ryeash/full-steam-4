@@ -88,6 +88,25 @@ public class PlayerFaction {
         // Initialize unified research manager (handles both building and unit research)
         this.researchManager = new ResearchManager(playerId, faction);
     }
+    
+    /**
+     * Apply a custom faction definition (for player-created factions)
+     */
+    public void applyCustomFaction(FactionDefinition customDefinition) {
+        this.faction = Faction.CUSTOM;
+        this.factionDefinition = customDefinition;
+        
+        // Apply faction-specific upkeep limit
+        this.maxUpkeep = customDefinition.getUpkeepLimit(250); // Base 250
+        
+        // Initialize unified research manager (handles both building and unit research)
+        this.researchManager = new ResearchManager(playerId, Faction.CUSTOM);
+        
+        // Set available units for custom faction (no research required)
+        if (!customDefinition.getCustomSelectedUnits().isEmpty()) {
+            this.researchManager.setCustomFactionUnits(customDefinition.getCustomSelectedUnits());
+        }
+    }
 
     /**
      * Add resources to this faction

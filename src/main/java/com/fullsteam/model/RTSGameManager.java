@@ -25,8 +25,6 @@ import com.fullsteam.model.component.ShieldComponent;
 import com.fullsteam.model.factions.Faction;
 import com.fullsteam.model.research.ResearchManager;
 import com.fullsteam.model.research.ResearchType;
-import com.fullsteam.model.research.UnitResearchNode;
-import com.fullsteam.model.UnitCategory;
 import io.micronaut.websocket.WebSocketSession;
 import io.micronaut.websocket.exceptions.WebSocketSessionException;
 import lombok.Getter;
@@ -96,6 +94,7 @@ public class RTSGameManager {
     private final GameEntities gameEntities;
 
     // Convenience accessors for internal use
+    @Getter
     private final Map<Integer, PlayerFaction> playerFactions;
     private final Map<Integer, Unit> units;
     private final Map<Integer, Building> buildings;
@@ -213,7 +212,7 @@ public class RTSGameManager {
 
             // Update research progress for all players
             updateResearch(deltaTime);
-            
+
             // Update unit tech tree research progress for all players
             updateUnitResearch(deltaTime);
 
@@ -988,7 +987,7 @@ public class RTSGameManager {
                                 playerId, unitType);
                         return;
                     }
-                    
+
                     // Check if this building type can produce this unit type
                     if (unitType.getProducedBy() != building.getBuildingType()) {
                         log.warn("Player {} tried to produce {} at {} but that building can't produce it (requires {})",
@@ -1642,23 +1641,23 @@ public class RTSGameManager {
         // Get the research node details from tech tree
         var techTree = faction.getResearchManager().getUnitTechTree();
         var nodeOpt = techTree.getNode(researchId);
-        
+
         if (nodeOpt.isEmpty()) {
             log.warn("Completed research {} not found in tech tree for player {}", researchId, playerId);
             return;
         }
 
         var node = nodeOpt.get();
-        log.info("Player {} completed unit research: {} ({})", 
-                 playerId, node.getDisplayName(), researchId);
+        log.info("Player {} completed unit research: {} ({})",
+                playerId, node.getDisplayName(), researchId);
 
         // Build completion message
         StringBuilder message = new StringBuilder("🔬 Research Complete: " + node.getDisplayName());
-        
+
         if (node.getUnitToUnlock() != null) {
             String unitName = node.getUnitToUnlock().getDisplayName();
             message.append(" - ").append(unitName).append(" now available!");
-            
+
             if (node.getUnitToReplace() != null) {
                 String replacedName = node.getUnitToReplace().getDisplayName();
                 message.append(" (Replaces ").append(replacedName).append(")");
@@ -2187,8 +2186,6 @@ public class RTSGameManager {
                         data.put("turrets", turretsData);
                     }
                 });
-
-        // Mining removed - workers now harvest resources from obstacles
         return data;
     }
 
@@ -2298,8 +2295,7 @@ public class RTSGameManager {
         // Research information
         if (faction.getResearchManager() != null) {
             List<String> completedResearch = new ArrayList<>();
-            for (ResearchType research :
-                    faction.getResearchManager().getCompletedResearch()) {
+            for (ResearchType research : faction.getResearchManager().getCompletedResearch()) {
                 completedResearch.add(research.name());
             }
             data.put("completedResearch", completedResearch);
@@ -2326,18 +2322,9 @@ public class RTSGameManager {
         List<String> availableUnits = new ArrayList<>();
         if (faction.getResearchManager() != null) {
             // Get units from tech tree (includes starter units + researched units)
-            Map<UnitCategory, Set<UnitType>> availableByCategory = 
-                faction.getResearchManager().getAllAvailableUnits();
-            
+            Map<UnitCategory, Set<UnitType>> availableByCategory = faction.getResearchManager().getAllAvailableUnits();
             for (Set<UnitType> units : availableByCategory.values()) {
                 for (UnitType unitType : units) {
-                    availableUnits.add(unitType.name());
-                }
-            }
-        } else {
-            // Fallback to old system if research manager not initialized
-            for (UnitType unitType : UnitType.values()) {
-                if (faction.canBuildUnit(unitType)) {
                     availableUnits.add(unitType.name());
                 }
             }
@@ -2351,6 +2338,59 @@ public class RTSGameManager {
             }
         }
         data.put("availableBuildings", availableBuildings);
+
+        // For CUSTOM factions, include full building info (since they don't have static faction data)
+        if (faction.getFaction() == Faction.CUSTOM) {
+            List<Map<String, Object>> buildingInfo = new ArrayList<>();
+            for (BuildingType buildingType : BuildingType.values()) {
+                if (faction.canBuildBuilding(buildingType)) {
+                    Map<String, Object> building = new HashMap<>();
+                    building.put("buildingType", buildingType.name());
+                    building.put("displayName", buildingType.getDisplayName());
+                    building.put("cost", faction.getBuildingCost(buildingType));
+                    building.put("requiredTechTier", buildingType.getRequiredTechTier());
+                    building.put("maxHealth", (int) buildingType.getMaxHealth());
+                    building.put("powerValue", buildingType.getPowerValue());
+                    building.put("buildTimeSeconds", buildingType.getBuildTimeSeconds());
+                    building.put("canProduceUnits", buildingType.isCanProduceUnits());
+                    building.put("visionRange", buildingType.getVisionRange());
+
+                    // Tech requirements (empty for now, could be enhanced)
+                    building.put("techRequirements", new ArrayList<>());
+
+                    buildingInfo.add(building);
+                }
+            }
+            data.put("buildingInfo", buildingInfo);
+
+            // Also include full unit info for custom factions
+            List<Map<String, Object>> unitInfo = new ArrayList<>();
+            for (String unitName : availableUnits) {
+                try {
+                    UnitType unitType = UnitType.valueOf(unitName);
+                    Map<String, Object> unit = new HashMap<>();
+                    unit.put("unitType", unitType.name());
+                    unit.put("displayName", unitType.getDisplayName());
+                    unit.put("cost", faction.getUnitCost(unitType));
+                    unit.put("upkeep", unitType.getUpkeepCost());
+                    unit.put("maxHealth", (int) unitType.getMaxHealth());
+                    unit.put("damage", (int) unitType.getDamage());
+                    unit.put("speed", unitType.getMovementSpeed());
+                    unit.put("range", (int) unitType.getAttackRange());
+                    unit.put("buildTimeSeconds", unitType.getBuildTimeSeconds());
+                    unit.put("producedBy", unitType.getProducedBy().name());
+                    unit.put("category", unitType.getCategory().name());
+
+                    unitInfo.add(unit);
+                } catch (IllegalArgumentException e) {
+                    log.warn("Invalid unit type in availableUnits: {}", unitName);
+                }
+            }
+            data.put("unitInfo", unitInfo);
+        } else {
+            log.debug("Player {} - Faction is {}, not CUSTOM, skipping buildingInfo/unitInfo",
+                    faction.getPlayerId(), faction.getFaction());
+        }
 
         // Faction-modified costs for units (client needs this for UI)
         // Only include costs for units that are actually available (via research)
@@ -2740,7 +2780,7 @@ public class RTSGameManager {
                     case ADVANCED -> "Research Lab";
                     case ELITE -> "Research Lab and Tech Center";
                 };
-                
+
                 sendGameEvent(GameEvent.createPlayerEvent(
                         "⚠️ Cannot research " + node.getDisplayName() + " - requires: " + tierRequirement,
                         playerId,
@@ -2783,8 +2823,8 @@ public class RTSGameManager {
 
         // Start the research
         boolean success = faction.getResearchManager().startUnitResearch(
-                researchId, 
-                buildingId, 
+                researchId,
+                buildingId,
                 playerBuildings
         );
 

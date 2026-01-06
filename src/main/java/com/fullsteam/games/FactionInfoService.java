@@ -280,6 +280,7 @@ public class FactionInfoService {
             case SYNTHESIS -> "⚡";
             case TECH_ALLIANCE -> "🔬";
             case STORM_WINGS -> "✈️";
+            case CUSTOM -> "⚙️"; // Gear icon for custom factions
         };
     }
 

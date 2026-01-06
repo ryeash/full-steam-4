@@ -61,8 +61,16 @@ public class ResearchManager {
     public ResearchManager(int playerId, Faction faction) {
         this.playerId = playerId;
         this.faction = faction;
-        this.unitTechTree = UnitTechTreeRegistry.getTechTree(faction);
-        this.cachedAvailableUnits = computeAvailableUnits();
+        
+        // Custom factions don't use the tech tree research system
+        // They have all their selected units available from the start
+        if (faction == Faction.CUSTOM) {
+            this.unitTechTree = null;
+            this.cachedAvailableUnits = new HashMap<>();
+        } else {
+            this.unitTechTree = UnitTechTreeRegistry.getTechTree(faction);
+            this.cachedAvailableUnits = computeAvailableUnits();
+        }
     }
 
     /**
@@ -565,5 +573,26 @@ public class ResearchManager {
             }
         }
         return unitResearch;
+    }
+    
+    /**
+     * Set available units for custom factions (called after applyCustomFaction)
+     * Custom factions don't use the tech tree system - they have all selected units from the start
+     */
+    public void setCustomFactionUnits(Set<UnitType> selectedUnits) {
+        if (faction != Faction.CUSTOM) {
+            log.warn("Attempted to set custom units for non-CUSTOM faction: {}", faction);
+            return;
+        }
+        
+        // Group units by category
+        Map<UnitCategory, Set<UnitType>> unitsByCategory = new HashMap<>();
+        for (UnitType unit : selectedUnits) {
+            unitsByCategory.computeIfAbsent(unit.getCategory(), k -> new HashSet<>())
+                .add(unit);
+        }
+        
+        this.cachedAvailableUnits = unitsByCategory;
+        log.info("Player {} - Set custom faction units: {}", playerId, unitsByCategory);
     }
 }

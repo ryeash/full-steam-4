@@ -1,0 +1,247 @@
+package com.fullsteam.model.customization;
+
+import com.fullsteam.model.BuildingType;
+import com.fullsteam.model.UnitType;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * Configuration for a custom faction created by a player.
+ * Contains all selections (units, buildings, perks) and validates against point budget.
+ */
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class CustomFactionConfig {
+    /**
+     * Unique identifier for this faction configuration
+     */
+    @Builder.Default
+    private String factionId = UUID.randomUUID().toString();
+
+    /**
+     * Display name chosen by player
+     */
+    private String displayName;
+
+    /**
+     * Theme color (hex string, e.g., "#4A90E2")
+     */
+    private String themeColor;
+
+    /**
+     * Icon emoji or path
+     */
+    private String icon;
+
+    // ===== SELECTIONS =====
+
+    /**
+     * Selected unit types
+     */
+    @Builder.Default
+    private Set<UnitType> selectedUnits = new HashSet<>();
+
+    /**
+     * Selected building types
+     */
+    @Builder.Default
+    private Set<BuildingType> selectedBuildings = new HashSet<>();
+
+    /**
+     * Selected faction perks
+     */
+    @Builder.Default
+    private Set<FactionPerk> selectedPerks = new HashSet<>();
+
+    // ===== BUDGET =====
+
+    /**
+     * Total points spent (calculated)
+     */
+    @Setter
+    private int totalPointsSpent;
+
+    /**
+     * Maximum allowed points
+     */
+    @Builder.Default
+    private int maxPoints = 100;
+
+    /**
+     * Optional: ID of preset this was based on
+     */
+    private String basedOnPreset;
+
+    // ===== VALIDATION =====
+
+    /**
+     * Check if this configuration is valid
+     */
+    public boolean isValid() {
+        return totalPointsSpent <= maxPoints
+                && hasRequiredBuildings()
+                && hasRequiredUnits()
+                && allPerksValid();
+    }
+
+    /**
+     * Check if required buildings are present
+     */
+    private boolean hasRequiredBuildings() {
+        // Must have HEADQUARTERS (always required)
+        if (!selectedBuildings.contains(BuildingType.HEADQUARTERS)) {
+            return false;
+        }
+
+        // Must have at least one production building
+        return hasAtLeastOneProduction();
+    }
+
+    /**
+     * Check if at least one production building is present
+     */
+    private boolean hasAtLeastOneProduction() {
+        return selectedBuildings.stream()
+                .anyMatch(BuildingType::isCanProduceUnits);
+    }
+
+    /**
+     * Check if required units are present
+     */
+    private boolean hasRequiredUnits() {
+        // Must have WORKER (always required)
+        if (!selectedUnits.contains(UnitType.WORKER)) {
+            return false;
+        }
+
+        // Must have at least one combat unit
+        return hasAtLeastOneCombat();
+    }
+
+    /**
+     * Check if at least one combat unit is present
+     */
+    private boolean hasAtLeastOneCombat() {
+        return selectedUnits.stream()
+                .anyMatch(unit -> unit.canAttack() && unit != UnitType.WORKER);
+    }
+
+    /**
+     * Check if all perk dependencies are satisfied
+     */
+    private boolean allPerksValid() {
+        for (FactionPerk perk : selectedPerks) {
+            if (!perk.canSelect(selectedPerks)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Calculate total points spent
+     */
+    public int calculateTotalPoints() {
+        int total = 0;
+
+        // Units
+        for (UnitType unit : selectedUnits) {
+            total += UnitTemplate.fromUnitType(unit).getPointCost();
+        }
+
+        // Buildings
+        for (BuildingType building : selectedBuildings) {
+            total += BuildingTemplate.fromBuildingType(building).getPointCost();
+        }
+
+        // Perks
+        for (FactionPerk perk : selectedPerks) {
+            total += perk.getPointCost();
+        }
+
+        return total;
+    }
+
+    /**
+     * Get remaining points in budget
+     */
+    public int getRemainingPoints() {
+        return maxPoints - totalPointsSpent;
+    }
+
+    /**
+     * Check if we can afford to add an entity with the given cost
+     */
+    public boolean canAfford(int pointCost) {
+        return (totalPointsSpent + pointCost) <= maxPoints;
+    }
+
+    /**
+     * Get validation errors (if any)
+     */
+    public ValidationResult validate() {
+        java.util.List<String> errors = new java.util.ArrayList<>();
+
+        if (totalPointsSpent > maxPoints) {
+            errors.add(String.format("Over budget: %d / %d points", totalPointsSpent, maxPoints));
+        }
+
+        if (!selectedBuildings.contains(BuildingType.HEADQUARTERS)) {
+            errors.add("HEADQUARTERS is required");
+        }
+
+        if (!hasAtLeastOneProduction()) {
+            errors.add("At least one production building is required");
+        }
+
+        if (!selectedUnits.contains(UnitType.WORKER)) {
+            errors.add("WORKER is required");
+        }
+
+        if (!hasAtLeastOneCombat()) {
+            errors.add("At least one combat unit is required");
+        }
+
+        // Check perk dependencies
+        for (FactionPerk perk : selectedPerks) {
+            if (!perk.canSelect(selectedPerks)) {
+                Set<FactionPerk> missing = new HashSet<>(perk.getDependsOn());
+                missing.removeAll(selectedPerks);
+                errors.add(String.format(
+                        "%s requires: %s",
+                        perk.getDisplayName(),
+                        missing.stream()
+                                .map(FactionPerk::getDisplayName)
+                                .reduce((a, b) -> a + ", " + b)
+                                .orElse("(unknown)")
+                ));
+            }
+        }
+
+        return new ValidationResult(errors.isEmpty(), errors);
+    }
+
+    /**
+     * Get a summary of this faction configuration
+     */
+    public String getSummary() {
+        return String.format(
+                "%s: %d units, %d buildings, %d perks (%d/%d points)",
+                displayName,
+                selectedUnits.size(),
+                selectedBuildings.size(),
+                selectedPerks.size(),
+                totalPointsSpent,
+                maxPoints
+        );
+    }
+}

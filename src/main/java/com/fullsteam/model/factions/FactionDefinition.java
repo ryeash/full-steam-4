@@ -6,7 +6,9 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Complete definition of a faction including tech tree, modifiers, and bonuses.
@@ -28,6 +30,13 @@ public class FactionDefinition {
      * Monument building unique to this faction (null if none)
      */
     private final BuildingType monumentBuilding;
+    
+    /**
+     * Selected units for custom factions (null for preset factions)
+     * Custom factions have all these units available from the start
+     */
+    @Builder.Default
+    private final Set<UnitType> customSelectedUnits = new HashSet<>();
 
     /**
      * Upkeep limit multiplier (1.0 = normal, 1.5 = +50% upkeep)

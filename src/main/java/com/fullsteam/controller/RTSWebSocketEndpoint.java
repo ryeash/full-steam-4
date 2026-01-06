@@ -14,7 +14,12 @@ import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
 import static com.fullsteam.controller.RTSPlayerConnectionService.SESSION_KEY;
 
@@ -38,24 +43,15 @@ public class RTSWebSocketEndpoint {
     @OnOpen
     public void onOpen(WebSocketSession session, String gameId) {
         log.info("RTS WebSocket connection opened for gameId: {}", gameId);
+        // Extract query parameters from URI
+        String sessionToken = Objects.requireNonNull(session.getRequestParameters().get("sessionToken"));
+        String factionConfigJson = Optional.of(session.getRequestParameters().get("factionConfig"))
+                .map(p -> URLDecoder.decode(p, StandardCharsets.UTF_8))
+                .map(Base64.getDecoder()::decode)
+                .map(b -> new String(b, StandardCharsets.UTF_8))
+                .orElseThrow();
 
-        // Extract session token from query parameters
-        // Query parameters are in the URI, not in URI variables (which are path variables)
-        String sessionToken = null;
-        String uri = session.getRequestURI().toString();
-
-        // Parse query string manually
-        if (uri.contains("?sessionToken=")) {
-            int startIndex = uri.indexOf("?sessionToken=") + "?sessionToken=".length();
-            int endIndex = uri.indexOf("&", startIndex);
-            if (endIndex == -1) {
-                sessionToken = uri.substring(startIndex);
-            } else {
-                sessionToken = uri.substring(startIndex, endIndex);
-            }
-        }
-
-        if (!connectionService.connectPlayer(session, gameId, sessionToken)) {
+        if (!connectionService.connectPlayer(session, gameId, sessionToken, factionConfigJson)) {
             log.warn("Failed to connect player to RTS game {}, closing session", gameId);
             session.close();
         } else {

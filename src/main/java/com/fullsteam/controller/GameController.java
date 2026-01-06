@@ -344,6 +344,7 @@ public class GameController {
             "/rts.html",
             "/rts-lobby.html",
             "/js/rts/{file}",
+            "/css/{file}",
             "/unified.css",
             "/favicon.ico",
             "/robots.txt"

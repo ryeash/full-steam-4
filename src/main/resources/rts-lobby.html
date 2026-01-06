@@ -452,35 +452,25 @@
         </div>
     </div>
 
-    <!-- Faction Selection Section -->
+    <!-- Faction Customization Section -->
     <div class="matchmaking-section" id="faction-section">
-        <h2>🏛️ Choose Your Faction</h2>
-        <p>Select a faction to determine your available units, buildings, and strategic bonuses</p>
-        <div class="faction-selector">
-            <div class="faction-card selected" data-faction="TERRAN" onclick="selectFaction('TERRAN')">
-                <div class="faction-icon">🛡️</div>
-                <div class="faction-name" style="color: #4169E1;">Terran Coalition</div>
-                <div class="faction-description">
-                    Balanced military force with access to all standard units and buildings.
-                    Versatile and adaptable to any situation. +10% building health.
-                </div>
+        <h2>🎨 Customize Your Faction</h2>
+        <p id="faction-summary">Select units, buildings, and perks to create your custom faction</p>
+        
+        <div id="faction-preview" style="margin: 20px 0; display: none;">
+            <div class="config-group">
+                <div class="config-label">Current Configuration:</div>
+                <div class="config-description" id="faction-preview-text"></div>
             </div>
-            <div class="faction-card" data-faction="NOMADS" onclick="selectFaction('NOMADS')">
-                <div class="faction-icon">🏎️</div>
-                <div class="faction-name" style="color: #FF8C00;">Nomad Clans</div>
-                <div class="faction-description">
-                    Fast and mobile warfare specialists. Vehicles are 20% cheaper and faster,
-                    but buildings are 20% weaker. +50% upkeep limit.
-                </div>
-            </div>
-            <div class="faction-card" data-faction="SYNTHESIS" onclick="selectFaction('SYNTHESIS')">
-                <div class="faction-icon">⚡</div>
-                <div class="faction-name" style="color: #00CED1;">Synthesis Collective</div>
-                <div class="faction-description">
-                    Advanced technology faction with powerful units and 30% better power efficiency.
-                    Units are 30% more expensive but buildings are 15% stronger.
-                </div>
-            </div>
+        </div>
+        
+        <div class="button-group">
+            <button class="primary-button" onclick="openFactionCustomizer()">
+                ⚙️ Customize Faction
+            </button>
+            <button class="secondary-button" onclick="resetToDefault()">
+                🔄 Reset to Terran
+            </button>
         </div>
     </div>
 
@@ -561,6 +551,10 @@
     </div>
 </div>
 
+<!-- Load FactionCustomizer -->
+<link rel="stylesheet" href="css/faction-customizer.css">
+<script src="js/rts/FactionCustomizer.js"></script>
+
 <script type="text/javascript">
     const gamesList = document.getElementById('games-list');
     const playerCountValue = document.getElementById('player-count-value');
@@ -575,69 +569,95 @@
     let queueStartTime = null;
     let queueTimerInterval = null;
     let pollInterval = null;
-    let selectedFaction = 'TERRAN'; // Default faction
-    let factionData = null; // Cached faction data from API
+    // factionCustomizer is declared globally in FactionCustomizer.js
 
-    // Fetch faction data from API
-    async function fetchFactionData() {
-        try {
-            const response = await fetch('/api/rts/factions');
-            if (!response.ok) {
-                throw new Error('Failed to fetch faction data');
-            }
-            factionData = await response.json();
-            console.log('Loaded faction data:', factionData);
-            renderFactionCards();
-        } catch (error) {
-            console.error('Error fetching faction data:', error);
-            // Fall back to hardcoded faction cards if API fails
+    // Initialize faction customizer
+    async function initializeFactionCustomizer() {
+        if (!factionCustomizer.unitTemplates.length) {
+            await factionCustomizer.initialize();
+            updateFactionPreview();
         }
     }
 
-    // Render faction cards from API data
-    function renderFactionCards() {
-        if (!factionData) return;
-        
-        const factionSelector = document.querySelector('.faction-selector');
-        factionSelector.innerHTML = ''; // Clear existing cards
-        
-        factionData.forEach((faction, index) => {
-            const card = document.createElement('div');
-            card.className = 'faction-card' + (index === 0 ? ' selected' : '');
-            card.dataset.faction = faction.factionId;
-            card.onclick = () => selectFaction(faction.factionId);
-            
-            const colorHex = '#' + faction.themeColor.toString(16).padStart(6, '0');
-            
-            // Build bonuses/penalties HTML
-            const bonusesHtml = faction.bonuses.map(b => `<div style="color: #00ff88; font-size: 0.85em; margin: 2px 0;">✓ ${b}</div>`).join('');
-            const penaltiesHtml = faction.penalties.map(p => `<div style="color: #ff6666; font-size: 0.85em; margin: 2px 0;">✗ ${p}</div>`).join('');
-            
-            card.innerHTML = `
-                <div class="faction-icon">${faction.icon}</div>
-                <div class="faction-name" style="color: ${colorHex};">${faction.displayName}</div>
-                <div class="faction-description">
-                    ${faction.description}
-                </div>
-                ${bonusesHtml ? `<div style="margin-top: 10px;">${bonusesHtml}</div>` : ''}
-                ${penaltiesHtml ? `<div style="margin-top: 5px;">${penaltiesHtml}</div>` : ''}
-            `;
-            
-            factionSelector.appendChild(card);
-        });
+    // Open customizer modal
+    async function openFactionCustomizer() {
+        await initializeFactionCustomizer();
+        factionCustomizer.openCustomizer();
     }
 
-    // Faction selection
-    function selectFaction(factionName) {
-        selectedFaction = factionName;
+    // Reset to default (Terran standard)
+    async function resetToDefault() {
+        if (!factionCustomizer) {
+            await initializeFactionCustomizer();
+        }
         
-        // Update UI
-        document.querySelectorAll('.faction-card').forEach(card => {
-            card.classList.remove('selected');
-        });
-        document.querySelector(`.faction-card[data-faction="${factionName}"]`).classList.add('selected');
+        // Load Terran Standard preset
+        await factionCustomizer.loadPreset('TERRAN_STANDARD');
+        updateFactionPreview();
         
-        console.log('Selected faction:', factionName);
+        alert('Reset to Terran Standard faction');
+    }
+
+    // Update faction preview in lobby
+    function updateFactionPreview() {
+        if (!factionCustomizer) return;
+        
+        const config = factionCustomizer.getCurrentConfig();
+        const preview = document.getElementById('faction-preview');
+        const previewText = document.getElementById('faction-preview-text');
+        
+        const unitCount = config.selectedUnits.length;
+        const buildingCount = config.selectedBuildings.length;
+        const perkCount = config.selectedPerks.length;
+        const points = factionCustomizer.spentPoints;
+        
+        previewText.textContent = `⚙️ ${config.displayName} - ${unitCount} units, ${buildingCount} buildings, ${perkCount} perks (${points}/100 points)`;
+        preview.style.display = 'block';
+    }
+
+    // Apply custom faction when creating/joining game
+    async function applyCustomFactionToGame(gameId, playerId = 1) {
+        console.log(`[applyCustomFactionToGame] Called for game ${gameId}, player ${playerId}`);
+        
+        if (!factionCustomizer) {
+            console.warn('No faction customizer initialized, loading default');
+            await initializeFactionCustomizer();
+        }
+        
+        const config = factionCustomizer.getCurrentConfig();
+        console.log('[applyCustomFactionToGame] Config:', config);
+        
+        try {
+            const url = `/api/rts/customization/games/${gameId}/players/${playerId}/apply`;
+            console.log('[applyCustomFactionToGame] Sending POST to:', url);
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+            
+            console.log('[applyCustomFactionToGame] Response status:', response.status);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('[applyCustomFactionToGame] Failed:', errorText);
+                let error;
+                try {
+                    error = JSON.parse(errorText);
+                } catch (e) {
+                    error = { message: errorText };
+                }
+                throw new Error('Failed to apply custom faction: ' + (error.errors?.join(', ') || error.message || errorText));
+            }
+            
+            console.log('Custom faction applied successfully to game', gameId);
+            
+        } catch (error) {
+            console.error('Error applying custom faction:', error);
+            // Don't fail the game join, but warn user
+            console.warn('Warning: Failed to apply custom faction. Using default configuration.');
+        }
     }
 
     function fetchLobbyInfo() {
@@ -737,7 +757,7 @@
                 body: JSON.stringify({
                     biome: biome,
                     obstacleDensity: obstacleDensity,
-                    faction: selectedFaction,
+                    faction: 'CUSTOM', // Always use CUSTOM faction
                     maxPlayers: playerCount
                 })
             });
@@ -755,6 +775,9 @@
                 sessionStorage.setItem('rts_session_token', sessionToken);
                 console.log('Stored session token:', sessionToken);
             }
+            
+            // Custom faction will be passed via URL when game starts
+            // (see checkGameStatus function)
             
             // Show matchmaking status
             createGameSection.style.display = 'none';
@@ -801,9 +824,14 @@
                 clearInterval(queueTimerInterval);
                 clearInterval(pollInterval);
                 const sessionToken = sessionStorage.getItem('rts_session_token');
+                
+                // Encode custom faction config as URL parameter
+                const customConfig = factionCustomizer.getCurrentConfig();
+                const configParam = encodeURIComponent(JSON.stringify(customConfig));
+                
                 const url = sessionToken 
-                    ? `/rts.html?gameId=${currentGameId}&sessionToken=${sessionToken}`
-                    : `/rts.html?gameId=${currentGameId}`;
+                    ? `/rts.html?gameId=${currentGameId}&sessionToken=${sessionToken}&factionConfig=${configParam}`
+                    : `/rts.html?gameId=${currentGameId}&factionConfig=${configParam}`;
                 window.location.href = url;
             }
         } catch (error) {
@@ -879,13 +907,13 @@
         try {
             createGameButton.disabled = true;
             
-            // Join the existing game with our selected faction
+            // Join the existing game with our custom faction
             const response = await fetch('/api/rts/matchmaking/join', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     gameId: gameId,  // Specify which game to join
-                    faction: selectedFaction
+                    faction: 'CUSTOM' // Always use CUSTOM faction
                 })
             });
 
@@ -902,6 +930,9 @@
                 sessionStorage.setItem('rts_session_token', sessionToken);
                 console.log('Stored session token:', sessionToken);
             }
+            
+            // Custom faction will be passed via URL when game starts
+            // (see checkGameStatus function)
             
             // Show matchmaking status
             createGameSection.style.display = 'none';
@@ -937,7 +968,7 @@
                 worldHeight: 3000,
                 biome: biome,
                 obstacleDensity: obstacleDensity,
-                faction: selectedFaction
+                faction: 'CUSTOM' // Always use CUSTOM faction
             };
 
             const response = await fetch('/api/rts/games', {
@@ -951,7 +982,15 @@
             }
 
             const result = await response.json();
-            window.location.href = `/rts.html?gameId=${result.gameId}&sessionToken=${result.sessionToken}`;
+            
+            // Encode custom faction config as URL parameter
+            const customConfig = factionCustomizer.getCurrentConfig();
+            const configParam = encodeURIComponent(JSON.stringify(customConfig));
+            
+            console.log('Game created, redirecting to game page with faction config...');
+            
+            // Join game with faction config
+            window.location.href = `/rts.html?gameId=${result.gameId}&sessionToken=${result.sessionToken}&factionConfig=${configParam}`;
         } catch (error) {
             console.error('Error creating debug game:', error);
             alert('Failed to create debug game. Please try again.');
@@ -974,7 +1013,7 @@
     });
     
     // Initialize
-    fetchFactionData(); // Load faction data from API
+    initializeFactionCustomizer(); // Load customizer and restore from localStorage
     fetchLobbyInfo();
     setInterval(fetchLobbyInfo, 3000);
 </script>

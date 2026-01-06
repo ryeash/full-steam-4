@@ -25,9 +25,32 @@ public class FactionRegistry {
 
     /**
      * Get the definition for a faction
+     * Note: CUSTOM faction definitions are created dynamically and not stored here
      */
     public static FactionDefinition getDefinition(Faction faction) {
+        if (faction == Faction.CUSTOM) {
+            // Custom factions are built dynamically, not stored in registry
+            // Return a default/empty definition for CUSTOM
+            // The actual custom definition will be applied via PlayerFaction.applyCustomFaction()
+            return createEmptyCustomDefinition();
+        }
         return FACTION_DEFINITIONS.get(faction);
+    }
+    
+    /**
+     * Create an empty definition for CUSTOM faction (placeholder)
+     */
+    private static FactionDefinition createEmptyCustomDefinition() {
+        FactionTechTree emptyTechTree = FactionTechTree.builder()
+            .buildingsAndUnits(Map.of())
+            .build();
+        
+        return FactionDefinition.builder()
+            .faction(Faction.CUSTOM)
+            .techTree(emptyTechTree)
+            .heroUnit(null)
+            .monumentBuilding(null)
+            .build();
     }
 
     /**

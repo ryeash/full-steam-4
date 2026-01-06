@@ -3,13 +3,20 @@ package com.fullsteam.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.RTSLobby;
 import com.fullsteam.games.IdGenerator;
+import com.fullsteam.model.PlayerFaction;
 import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.RTSGameManager;
+import com.fullsteam.model.customization.CustomFactionBuilder;
+import com.fullsteam.model.customization.CustomFactionConfig;
+import com.fullsteam.model.customization.ValidationResult;
+import com.fullsteam.model.factions.FactionDefinition;
 import io.micronaut.websocket.WebSocketSession;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Map;
 
 /**
  * Service for managing RTS player connections.
@@ -31,11 +38,12 @@ public class RTSPlayerConnectionService {
     /**
      * Connect a player to an RTS game
      *
-     * @param session      The WebSocket session
-     * @param gameId       The game ID
-     * @param sessionToken The session token from matchmaking (optional, for tracking faction)
+     * @param session           The WebSocket session
+     * @param gameId            The game ID
+     * @param sessionToken      The session token from matchmaking (optional, for tracking faction)
+     * @param factionConfigJson The custom faction configuration JSON (optional, for CUSTOM factions)
      */
-    public boolean connectPlayer(WebSocketSession session, String gameId, String sessionToken) {
+    public boolean connectPlayer(WebSocketSession session, String gameId, String sessionToken, String factionConfigJson) {
         RTSGameManager game = rtsLobby.getGame(gameId);
 
         if (game == null) {
@@ -66,7 +74,7 @@ public class RTSPlayerConnectionService {
 
             // Send error message to player
             try {
-                session.sendSync(objectMapper.writeValueAsString(java.util.Map.of(
+                session.sendSync(objectMapper.writeValueAsString(Map.of(
                         "type", "error",
                         "message", "Cannot join game - game is full or has already started with full roster"
                 )));
@@ -80,8 +88,44 @@ public class RTSPlayerConnectionService {
         // Store session
         session.put(SESSION_KEY, playerSession);
 
+        // Apply custom faction config if provided
+        if (factionConfigJson != null && "CUSTOM".equals(factionName)) {
+            try {
+                log.info("Applying custom faction config for player {} in game {}", playerId, gameId);
+
+                // Parse the faction config JSON
+                CustomFactionConfig config = objectMapper.readValue(factionConfigJson, CustomFactionConfig.class);
+
+                // Validate the config
+                ValidationResult validation = config.validate();
+                if (!validation.isValid()) {
+                    log.warn("Invalid custom faction config for player {}: {}", playerId, validation.getErrors());
+                } else {
+                    // Build FactionDefinition from config
+                    CustomFactionBuilder builder = new CustomFactionBuilder();
+                    FactionDefinition customDefinition = builder.buildFromConfig(config);
+
+                    // Apply to player faction
+                    PlayerFaction playerFaction = game.getPlayerFactions().get(playerId);
+                    if (playerFaction != null) {
+                        playerFaction.applyCustomFaction(customDefinition);
+                        log.info("Custom faction '{}' applied successfully for player {} ({} units, {} buildings, {} perks)",
+                                config.getDisplayName(), playerId,
+                                config.getSelectedUnits().size(),
+                                config.getSelectedBuildings().size(),
+                                config.getSelectedPerks().size());
+                    } else {
+                        log.error("Player faction not found for player {} in game {}", playerId, gameId);
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Failed to apply custom faction config for player {} in game {}", playerId, gameId, e);
+                return false;
+            }
+        }
+
         // Send player their ID
-        game.send(session, java.util.Map.of(
+        game.send(session, Map.of(
                 "type", "playerId",
                 "playerId", playerId
         ));

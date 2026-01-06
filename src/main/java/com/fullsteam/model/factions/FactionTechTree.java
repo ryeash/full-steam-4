@@ -42,9 +42,17 @@ public class FactionTechTree {
 
     /**
      * Check if a building is available to this faction
+     * Note: HEADQUARTERS is always available (you start with one), but for
+     * custom factions we check the buildingsAndUnits map to see if they selected it
      */
     public boolean canBuildBuilding(BuildingType buildingType) {
-        return buildingType != BuildingType.HEADQUARTERS && buildingsAndUnits.containsKey(buildingType);
+        // HQ is always available since you start with one
+        if (buildingType == BuildingType.HEADQUARTERS) {
+            return true;
+        }
+        
+        // For other buildings, check if they're in the tech tree
+        return buildingsAndUnits.containsKey(buildingType);
     }
 
     /**
