@@ -500,11 +500,6 @@ class FactionCustomizer {
         const missingDeps = this.getMissingDependencies(perk);
         const dependents = this.getDependentPerks(perk.id);
         
-        // Debug: Log if this perk is selected
-        if (isSelected) {
-            console.log('Rendering selected perk:', perk.id, perk.displayName);
-        }
-        
         let statusClass = '';
         let statusText = '';
         let canToggle = true;
@@ -719,12 +714,7 @@ class FactionCustomizer {
     
     togglePerk(perkId) {
         const perk = this.perks.find(p => p.id === perkId);
-        if (!perk) {
-            console.error('Perk not found:', perkId);
-            return;
-        }
-        
-        console.log('Toggling perk:', perkId, 'Currently selected:', this.selectedPerks.has(perkId));
+        if (!perk) return;
         
         if (this.selectedPerks.has(perkId)) {
             // Removing - check for dependents

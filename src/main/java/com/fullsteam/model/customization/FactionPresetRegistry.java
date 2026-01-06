@@ -324,8 +324,6 @@ public class FactionPresetRegistry {
             .selectedPerks(new HashSet<>(Arrays.asList(
                 FactionPerk.POWER_EFFICIENCY_1,    // 3 pt
                 FactionPerk.POWER_EFFICIENCY_2,    // 6 pt
-                FactionPerk.SHIELD_MASTERY_1,      // 3 pt
-                FactionPerk.SHIELD_MASTERY_2,      // 6 pt
                 FactionPerk.FORTIFIED_1            // 3 pt
             )))
             .basedOnPreset(null)
