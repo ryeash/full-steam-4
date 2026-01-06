@@ -571,8 +571,8 @@ public class Unit extends GameEntity implements Targetable {
         // Notify cloak component of firing (will break cloak temporarily)
         getComponent(CloakComponent.class).ifPresent(CloakComponent::onFire);
 
-        // Fire the weapon with research modifiers applied
-        ResearchModifier modifier = faction.getResearchManager().getCumulativeModifier();
+        // Fire the weapon (research system removed, modifiers now come from FactionDefinition)
+        ResearchModifier modifier = new ResearchModifier(); // Default (no research bonuses)
         List<AbstractOrdinance> ordinances = weapon.fire(
             getPosition(), targetPos, targetElevation, 
             getId(), teamNumber, body, gameEntities, modifier
@@ -1064,7 +1064,7 @@ public class Unit extends GameEntity implements Targetable {
         }
 
         double baseSpeed = unitType.getMovementSpeed();
-        ResearchModifier modifier = faction.getResearchManager().getCumulativeModifier();
+        ResearchModifier modifier = new ResearchModifier(); // Research system removed
         
         if (isInfantry()) {
             return baseSpeed * modifier.getInfantrySpeedMultiplier();
@@ -1079,7 +1079,7 @@ public class Unit extends GameEntity implements Targetable {
      */
     public double getVisionRange() {
         return unitType.getVisionRange() * 
-            faction.getResearchManager().getCumulativeModifier().getVisionRangeMultiplier();
+            new ResearchModifier().getVisionRangeMultiplier(); // Research system removed
     }
 
     /**
@@ -1089,7 +1089,7 @@ public class Unit extends GameEntity implements Targetable {
     @Override
     public double getMaxHealth() {
         return unitType.getMaxHealth() * 
-            faction.getResearchManager().getCumulativeModifier().getUnitHealthMultiplier();
+            new ResearchModifier().getUnitHealthMultiplier(); // Research system removed
     }
 
     /**

@@ -138,19 +138,6 @@ public enum FactionPerk {
         Set.of("FORTIFIED_1")
     ),
     
-    SHIELD_MASTERY_1(
-        "Shield Mastery I", 
-        "+20% shield regen rate", 
-        3,
-        Set.of()
-    ),
-    SHIELD_MASTERY_2(
-        "Shield Mastery II", 
-        "+40% shield regen rate", 
-        6,
-        Set.of("SHIELD_MASTERY_1")
-    ),
-    
     TURRET_EFFICIENCY(
         "Turret Efficiency", 
         "-25% turret cost, +10% turret damage", 
@@ -158,51 +145,11 @@ public enum FactionPerk {
         Set.of()
     ),
     
-    POINT_DEFENSE(
-        "Point Defense System",
-        "Turrets have 15% chance to shoot down incoming projectiles",
-        6,
-        Set.of("TURRET_EFFICIENCY")
-    ),
-    
     BUNKER_MASTERY(
         "Bunker Mastery",
         "Bunkers hold 6 units (up from 4) and have +25% HP",
         4,
         Set.of()
-    ),
-    
-    // ===== TECH PERKS =====
-    ADVANCED_RESEARCH_1(
-        "Advanced Research I", 
-        "+20% research speed", 
-        3,
-        Set.of()
-    ),
-    ADVANCED_RESEARCH_2(
-        "Advanced Research II", 
-        "+40% research speed", 
-        6,
-        Set.of("ADVANCED_RESEARCH_1")
-    ),
-    
-    PARALLEL_RESEARCH_1(
-        "Multi-tasking I", 
-        "2 simultaneous research projects", 
-        3,
-        Set.of()
-    ),
-    PARALLEL_RESEARCH_2(
-        "Multi-tasking II", 
-        "3 simultaneous research projects", 
-        6,
-        Set.of("PARALLEL_RESEARCH_1")
-    ),
-    PARALLEL_RESEARCH_3(
-        "Multi-tasking III", 
-        "4 simultaneous research projects", 
-        10,
-        Set.of("PARALLEL_RESEARCH_2")
     ),
     
     // ===== SPECIALIZED PERKS =====

@@ -30,7 +30,7 @@ class RTSEngine {
         this.fogUpdateInterval = 200; // Update fog every 200ms (5 times per second)
         
         // UI state
-        this.currentResearchTab = 'COMBAT'; // Track current research tab
+        // Research system removed - currentResearchTab field deleted
         
         // Biome
         this.biome = null;
@@ -3265,20 +3265,9 @@ class RTSEngine {
         if (e.key === 'b' || e.key === 'B') {
             this.toggleBuildMenu();
         } else if (e.key === 'r' || e.key === 'R') {
-            // Research tree hotkey
-            const modal = document.getElementById('research-tree-modal');
-            if (modal && modal.style.display === 'flex') {
-                this.closeResearchTreeModal();
-            } else {
-                this.openResearchTreeModal();
-            }
+            // Research system removed - 'R' key does nothing now
         } else if (e.key === 'Escape') {
-            // Close research modal if open
-            const modal = document.getElementById('research-tree-modal');
-            if (modal && modal.style.display === 'flex') {
-                this.closeResearchTreeModal();
-                return;
-            }
+            // Research system removed - Escape research modal handling deleted
             
             if (this.sortieTargetingMode) {
                 this.exitSortieTargetingMode();
@@ -4051,10 +4040,7 @@ class RTSEngine {
             panel.appendChild(statusInfo);
         }
         
-        // Research UI (for RESEARCH_LAB and TECH_CENTER)
-        if ((buildingData.type === 'RESEARCH_LAB' || buildingData.type === 'TECH_CENTER') && !buildingData.underConstruction) {
-            this.showResearchUI(panel, buildingData);
-        }
+        // Research system removed - research UI removed from building panels
         
         // Production buttons
         if (buildingData.canProduceUnits && !buildingData.underConstruction) {

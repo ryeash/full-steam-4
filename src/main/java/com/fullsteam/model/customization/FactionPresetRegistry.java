@@ -368,7 +368,6 @@ public class FactionPresetRegistry {
                 FactionPerk.POWER_EFFICIENCY_2,    // 6 pt (with prerequisite)
                 FactionPerk.POWER_EFFICIENCY_1,    // 3 pt
                 FactionPerk.MONUMENT_MASTERY,      // 8 pt
-                FactionPerk.ADVANCED_RESEARCH_1,   // 3 pt
                 FactionPerk.FORTIFIED_2,           // 6 pt (with prerequisite)
                 FactionPerk.FORTIFIED_1            // 3 pt
             )))
@@ -412,8 +411,6 @@ public class FactionPresetRegistry {
                 BuildingType.PHOTON_SPIRE        // 12 pt (monument)
             )))
             .selectedPerks(new HashSet<>(Arrays.asList(
-                FactionPerk.ADVANCED_RESEARCH_1,   // 3 pt
-                FactionPerk.ADVANCED_RESEARCH_2,   // 6 pt
                 FactionPerk.MONUMENT_MASTERY,      // 8 pt
                 FactionPerk.COST_REDUCTION_1,      // 5 pt
                 FactionPerk.DAMAGE_BOOST_1         // 4 pt
@@ -505,7 +502,6 @@ public class FactionPresetRegistry {
                 FactionPerk.AIR_SUPERIORITY_1,     // 4 pt
                 FactionPerk.UPKEEP_INCREASE_1,     // 3 pt
                 FactionPerk.DAMAGE_BOOST_1,        // 4 pt
-                FactionPerk.ADVANCED_RESEARCH_1,   // 3 pt
                 FactionPerk.LOGISTICS_NETWORK      // 6 pt
             )))
             .basedOnPreset("STORM_WINGS_BOMBERS")

@@ -149,8 +149,8 @@ public class GarrisonComponent extends AbstractBuildingComponent {
             if (target == null || !target.isActive()) {
                 continue;
             }
-            // Fire weapon from bunker position with research modifiers
-            ResearchModifier modifier = garrisonedUnit.getFaction().getResearchManager().getCumulativeModifier();
+            // Fire weapon from bunker position (research system removed)
+            ResearchModifier modifier = new ResearchModifier();
             garrisonedUnit.getWeapon().fire(
                     garrisonedUnit.getPosition(),
                     target.getPosition(),

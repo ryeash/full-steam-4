@@ -191,10 +191,6 @@ public class CustomFactionBuilder {
             case FORTIFIED_1 -> modifiers.put("buildingHealth", 1.15);
             case FORTIFIED_2 -> modifiers.put("buildingHealth", 1.30);
             
-            // Advanced Research
-            case ADVANCED_RESEARCH_1 -> modifiers.put("researchSpeed", 1.20);
-            case ADVANCED_RESEARCH_2 -> modifiers.put("researchSpeed", 1.40);
-            
             // Logistics Network
             case LOGISTICS_NETWORK -> {
                 double currentBuildingCost = modifiers.get("buildingCost");

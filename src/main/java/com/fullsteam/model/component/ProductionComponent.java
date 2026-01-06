@@ -111,11 +111,8 @@ public class ProductionComponent extends AbstractBuildingComponent {
         if (gameEntities == null) {
             return new ResearchModifier(); // Default (no modifiers)
         }
-        PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
-        if (faction != null && faction.getResearchManager() != null) {
-            return faction.getResearchManager().getCumulativeModifier();
-        }
-        return new ResearchModifier(); // Default (no modifiers)
+        // Research system removed - always return default (no modifiers)
+        return new ResearchModifier();
     }
 
     /**
@@ -133,10 +130,10 @@ public class ProductionComponent extends AbstractBuildingComponent {
             return false;
         }
 
-        // Validate unit is unlocked via tech tree
-        if (faction.getResearchManager() != null) {
+        // Validate unit is unlocked via custom faction selection
+        if (faction.getModifierManager() != null) {
             if (!faction.canProduceUnit(unitType)) {
-                log.warn("Unit {} not unlocked for player {} - requires research",
+                log.warn("Unit {} not available for player {} - not selected in faction customization",
                         unitType, building.getOwnerId());
                 return false;
             }

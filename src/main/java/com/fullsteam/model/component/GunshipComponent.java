@@ -155,8 +155,8 @@ public class GunshipComponent extends AbstractUnitComponent {
     }
 
     private void attackEnemies() {
-        // Get research modifiers from unit's faction
-        ResearchModifier modifier = unit.getFaction().getResearchManager().getCumulativeModifier();
+        // Research system removed
+        ResearchModifier modifier = new ResearchModifier();
 
         Targetable airUnit = gameEntities.findNearestEnemyTargetable(unit.getPosition(), unit.getTeamNumber(), airWeapon);
         List<AbstractOrdinance> ordinances = new ArrayList<>();

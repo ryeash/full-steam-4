@@ -467,10 +467,9 @@ public class Building extends GameEntity implements Targetable {
      */
     @Override
     public double getMaxHealth() {
-        // Apply both faction base modifier and research modifiers
+        // Apply faction base modifier (research system removed)
         return buildingType.getMaxHealth() * 
-            faction.getFactionDefinition().getBuildingHealthMultiplier() *
-            faction.getResearchManager().getCumulativeModifier().getBuildingHealthMultiplier();
+            faction.getFactionDefinition().getBuildingHealthMultiplier();
     }
 }
 

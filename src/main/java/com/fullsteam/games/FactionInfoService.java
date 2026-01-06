@@ -1,13 +1,12 @@
 package com.fullsteam.games;
 
 import com.fullsteam.dto.FactionInfoDTO;
-import com.fullsteam.dto.ResearchInfoDTO;
+// Research system removed - ResearchInfoDTO and ResearchType imports deleted
 import com.fullsteam.model.BuildingType;
 import com.fullsteam.model.UnitType;
 import com.fullsteam.model.factions.Faction;
 import com.fullsteam.model.factions.FactionDefinition;
 import com.fullsteam.model.factions.FactionRegistry;
-import com.fullsteam.model.research.ResearchType;
 import jakarta.inject.Singleton;
 
 import java.util.ArrayList;
@@ -64,11 +63,7 @@ public class FactionInfoService {
             }
         }
 
-        // Build research info list (all research available - client filters based on requirements)
-        List<ResearchInfoDTO> research = new ArrayList<>();
-        for (ResearchType researchType : ResearchType.values()) {
-            research.add(ResearchInfoDTO.fromResearchType(researchType));
-        }
+        // Research system removed - research info list removed
 
         // Build bonuses/penalties list
         List<String> bonuses = new ArrayList<>();
@@ -83,7 +78,7 @@ public class FactionInfoService {
                 .icon(getFactionIcon(faction))
                 .availableUnits(units)
                 .availableBuildings(buildings)
-                .availableResearch(research)
+                // Research system removed - availableResearch field removed
                 .powerEfficiencyModifier(definition.getPowerEfficiencyMultiplier())
                 .upkeepLimitModifier(definition.getUpkeepMultiplier())
                 .bonuses(bonuses)

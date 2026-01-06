@@ -55,40 +55,26 @@ public class FactionRegistry {
 
     /**
      * TERRAN - Balanced faction with all standard units
+     * Simplified: Research system removed, unit lists no longer needed
      */
     private static FactionDefinition createTerranDefinition() {
+        // All standard buildings available (empty lists = no preset units, handled by custom system)
         FactionTechTree techTree = FactionTechTree.builder()
                 .buildingsAndUnits(Map.ofEntries(
-                        Map.entry(BuildingType.HEADQUARTERS, List.of(
-                                UnitType.WORKER
-                        )),
+                        Map.entry(BuildingType.HEADQUARTERS, List.of()),
                         Map.entry(BuildingType.POWER_PLANT, List.of()),
-                        Map.entry(BuildingType.BARRACKS, List.of(
-                                UnitType.INFANTRY,
-                                UnitType.MEDIC
-                        )),
+                        Map.entry(BuildingType.BARRACKS, List.of()),
                         Map.entry(BuildingType.REFINERY, List.of()),
                         Map.entry(BuildingType.WALL, List.of()),
                         Map.entry(BuildingType.RESEARCH_LAB, List.of()),
-                        Map.entry(BuildingType.FACTORY, List.of(
-                                UnitType.JEEP,
-                                UnitType.TANK,
-                                UnitType.ARTILLERY,
-                                UnitType.FLAK_TANK
-                        )),
+                        Map.entry(BuildingType.FACTORY, List.of()),
                         Map.entry(BuildingType.TURRET, List.of()),
                         Map.entry(BuildingType.ROCKET_TURRET, List.of()),
                         Map.entry(BuildingType.BUNKER, List.of()),
                         Map.entry(BuildingType.SHIELD_GENERATOR, List.of()),
                         Map.entry(BuildingType.TECH_CENTER, List.of()),
-                        Map.entry(BuildingType.AIRFIELD, List.of(
-                                UnitType.SCOUT_DRONE,
-                                UnitType.HELICOPTER
-                        )),
-                        Map.entry(BuildingType.HANGAR, List.of(
-                                UnitType.BOMBER,
-                                UnitType.INTERCEPTOR
-                        )),
+                        Map.entry(BuildingType.AIRFIELD, List.of()),
+                        Map.entry(BuildingType.HANGAR, List.of()),
                         Map.entry(BuildingType.BANK, List.of()),
                         Map.entry(BuildingType.COMMAND_CITADEL, List.of())
                 ))
@@ -99,32 +85,25 @@ public class FactionRegistry {
                 .techTree(techTree)
                 .heroUnit(UnitType.CRAWLER)
                 .monumentBuilding(BuildingType.COMMAND_CITADEL)
-                .buildingHealthMultiplier(1.1)
+                .buildingHealthMultiplier(1.1)  // +10% building health
                 .build();
     }
 
     /**
      * NOMADS - Mobile warfare faction
+     * Simplified: Research system removed, focuses on vehicle bonuses
      */
     private static FactionDefinition createNomadsDefinition() {
+        // Standard buildings (no air units - Nomads are ground-focused)
         FactionTechTree techTree = FactionTechTree.builder()
                 .buildingsAndUnits(Map.ofEntries(
-                        Map.entry(BuildingType.HEADQUARTERS, List.of(
-                                UnitType.WORKER
-                        )),
+                        Map.entry(BuildingType.HEADQUARTERS, List.of()),
                         Map.entry(BuildingType.POWER_PLANT, List.of()),
-                        Map.entry(BuildingType.BARRACKS, List.of(
-                                UnitType.INFANTRY,
-                                UnitType.MEDIC
-                        )),
+                        Map.entry(BuildingType.BARRACKS, List.of()),
                         Map.entry(BuildingType.REFINERY, List.of()),
                         Map.entry(BuildingType.WALL, List.of()),
                         Map.entry(BuildingType.RESEARCH_LAB, List.of()),
-                        Map.entry(BuildingType.FACTORY, List.of(
-                                UnitType.JEEP,
-                                UnitType.TANK,
-                                UnitType.FLAK_TANK
-                        )),
+                        Map.entry(BuildingType.FACTORY, List.of()),
                         Map.entry(BuildingType.TURRET, List.of()),
                         Map.entry(BuildingType.ROCKET_TURRET, List.of()),
                         Map.entry(BuildingType.BUNKER, List.of()),
@@ -135,13 +114,12 @@ public class FactionRegistry {
                 ))
                 .build();
 
-        // Nomad-specific unit cost modifiers (vehicles cheaper)
+        // Nomad-specific vehicle bonuses
         Map<UnitType, Double> costModifiers = new HashMap<>();
-        costModifiers.put(UnitType.JEEP, 0.8);  // -20%
-        costModifiers.put(UnitType.TANK, 0.8);  // -20%
-        costModifiers.put(UnitType.CLOAK_TANK, 0.8);  // -20%
+        costModifiers.put(UnitType.JEEP, 0.8);  // -20% cost
+        costModifiers.put(UnitType.TANK, 0.8);  // -20% cost
+        costModifiers.put(UnitType.CLOAK_TANK, 0.8);  // -20% cost
 
-        // Nomad-specific unit stat modifiers (vehicles faster)
         Map<UnitType, FactionDefinition.UnitStatModifier> statModifiers = new HashMap<>();
         statModifiers.put(UnitType.JEEP, FactionDefinition.UnitStatModifier.builder()
                 .speedMultiplier(1.2)  // +20% speed
@@ -156,7 +134,7 @@ public class FactionRegistry {
                 .heroUnit(UnitType.RAIDER)
                 .monumentBuilding(BuildingType.SANDSTORM_GENERATOR)
                 .upkeepMultiplier(1.5)  // +50% upkeep limit
-                .buildingHealthMultiplier(0.8)  // -20% building health
+                .buildingHealthMultiplier(0.8)  // -20% building health (mobile, not defensive)
                 .unitCostModifiers(costModifiers)
                 .unitStatModifiers(statModifiers)
                 .build();
@@ -164,37 +142,27 @@ public class FactionRegistry {
 
     /**
      * SYNTHESIS - Advanced technology faction
+     * Simplified: Research system removed, focuses on high-tech bonuses
      */
     private static FactionDefinition createSynthesisDefinition() {
+        // High-tech buildings (no barracks - uses androids)
         FactionTechTree techTree = FactionTechTree.builder()
                 .buildingsAndUnits(Map.ofEntries(
-                        Map.entry(BuildingType.HEADQUARTERS, List.of(
-                                UnitType.WORKER
-                        )),
+                        Map.entry(BuildingType.HEADQUARTERS, List.of()),
                         Map.entry(BuildingType.POWER_PLANT, List.of()),
                         Map.entry(BuildingType.REFINERY, List.of()),
                         Map.entry(BuildingType.WALL, List.of()),
                         Map.entry(BuildingType.RESEARCH_LAB, List.of()),
-                        Map.entry(BuildingType.FACTORY, List.of(
-                                UnitType.TANK,
-                                UnitType.ARTILLERY,
-                                UnitType.FLAK_TANK
-                        )),
+                        Map.entry(BuildingType.FACTORY, List.of()),
                         Map.entry(BuildingType.TURRET, List.of()),
                         Map.entry(BuildingType.LASER_TURRET, List.of()),
                         Map.entry(BuildingType.BUNKER, List.of()),
                         Map.entry(BuildingType.SHIELD_GENERATOR, List.of()),
                         Map.entry(BuildingType.TECH_CENTER, List.of()),
-                        Map.entry(BuildingType.AIRFIELD, List.of(
-                                UnitType.SCOUT_DRONE,
-                                UnitType.HELICOPTER
-                        )),
-                        Map.entry(BuildingType.HANGAR, List.of(
-                                UnitType.BOMBER,
-                                UnitType.INTERCEPTOR
-                        )),
+                        Map.entry(BuildingType.AIRFIELD, List.of()),
+                        Map.entry(BuildingType.HANGAR, List.of()),
                         Map.entry(BuildingType.BANK, List.of()),
-                        Map.entry(BuildingType.ANDROID_FACTORY, List.of(UnitType.ANDROID))
+                        Map.entry(BuildingType.ANDROID_FACTORY, List.of())
                 ))
                 .build();
 
@@ -203,42 +171,30 @@ public class FactionRegistry {
                 .techTree(techTree)
                 .heroUnit(UnitType.COLOSSUS)
                 .monumentBuilding(BuildingType.ANDROID_FACTORY)
-                .powerEfficiencyMultiplier(0.7)  // -30% power consumption
-                .unitCostMultiplier(1.3)  // +30% unit costs
-                .buildingHealthMultiplier(1.15)  // +15% building health
+                .powerEfficiencyMultiplier(0.7)  // -30% power consumption (efficient tech)
+                .unitCostMultiplier(1.3)  // +30% unit costs (expensive advanced units)
+                .buildingHealthMultiplier(1.15)  // +15% building health (durable structures)
                 .build();
     }
 
     /**
      * TECH ALLIANCE - High-tech faction specializing in beam weapons
+     * Simplified: Research system removed, focuses on advanced tech bonuses
      */
     private static FactionDefinition createTechAllianceDefinition() {
+        // Beam weapon-focused buildings
         FactionTechTree techTree = FactionTechTree.builder()
                 .buildingsAndUnits(Map.ofEntries(
-                        Map.entry(BuildingType.HEADQUARTERS, List.of(
-                                UnitType.WORKER
-                        )),
+                        Map.entry(BuildingType.HEADQUARTERS, List.of()),
                         Map.entry(BuildingType.POWER_PLANT, List.of()),
                         Map.entry(BuildingType.REFINERY, List.of()),
-                        Map.entry(BuildingType.BARRACKS, List.of(
-                                UnitType.PLASMA_TROOPER,
-                                UnitType.MEDIC
-                        )),
-                        Map.entry(BuildingType.FACTORY, List.of(
-                                UnitType.PHOTON_SCOUT,
-                                UnitType.BEAM_TANK
-                        )),
+                        Map.entry(BuildingType.BARRACKS, List.of()),
+                        Map.entry(BuildingType.FACTORY, List.of()),
                         Map.entry(BuildingType.TURRET, List.of()),
                         Map.entry(BuildingType.LASER_TURRET, List.of()),
                         Map.entry(BuildingType.BUNKER, List.of()),
-                        Map.entry(BuildingType.AIRFIELD, List.of(
-                                UnitType.SCOUT_DRONE,
-                                UnitType.HELICOPTER
-                        )),
-                        Map.entry(BuildingType.HANGAR, List.of(
-                                UnitType.BOMBER,
-                                UnitType.INTERCEPTOR
-                        )),
+                        Map.entry(BuildingType.AIRFIELD, List.of()),
+                        Map.entry(BuildingType.HANGAR, List.of()),
                         Map.entry(BuildingType.SHIELD_GENERATOR, List.of()),
                         Map.entry(BuildingType.BANK, List.of()),
                         Map.entry(BuildingType.RESEARCH_LAB, List.of()),
@@ -255,57 +211,38 @@ public class FactionRegistry {
                 .monumentBuilding(BuildingType.PHOTON_SPIRE)
                 .unitCostMultiplier(1.15)  // +15% unit costs (advanced tech)
                 .buildingCostMultiplier(0.9)  // -10% building costs
-                .powerEfficiencyMultiplier(1.2)  // +20% power consumption (high-tech energy weapons)
+                .powerEfficiencyMultiplier(1.2)  // +20% power consumption (energy weapons)
                 .build();
     }
 
     /**
      * STORM_WINGS - Air superiority faction focused on aircraft dominance
+     * Simplified: Research system removed, focuses on air unit bonuses
      */
     private static FactionDefinition createStormWingsDefinition() {
+        // Air-focused buildings (limited ground options)
         FactionTechTree techTree = FactionTechTree.builder()
                 .buildingsAndUnits(Map.ofEntries(
-                        Map.entry(BuildingType.HEADQUARTERS, List.of(
-                                UnitType.WORKER
-                        )),
+                        Map.entry(BuildingType.HEADQUARTERS, List.of()),
                         Map.entry(BuildingType.POWER_PLANT, List.of()),
                         Map.entry(BuildingType.REFINERY, List.of()),
                         Map.entry(BuildingType.WALL, List.of()),
-
-                        // LIMITED ground forces - only basic units
-                        Map.entry(BuildingType.BARRACKS, List.of(
-                                UnitType.INFANTRY  // ONLY basic infantry, no medic
-                        )),
-                        Map.entry(BuildingType.FACTORY, List.of(
-                                UnitType.JEEP,      // ONLY scout vehicle
-                                UnitType.FLAK_TANK  // Anti-air vehicle (important for faction theme)
-                        )),
-
-                        // Strong air presence
+                        Map.entry(BuildingType.BARRACKS, List.of()),
+                        Map.entry(BuildingType.FACTORY, List.of()),
                         Map.entry(BuildingType.RESEARCH_LAB, List.of()),
                         Map.entry(BuildingType.TECH_CENTER, List.of()),
                         Map.entry(BuildingType.TURRET, List.of()),
                         Map.entry(BuildingType.ROCKET_TURRET, List.of()),
                         Map.entry(BuildingType.BUNKER, List.of()),
                         Map.entry(BuildingType.SHIELD_GENERATOR, List.of()),
-
-                        // AIR SUPERIORITY - all air units available
-                        Map.entry(BuildingType.AIRFIELD, List.of(
-                                UnitType.SCOUT_DRONE,
-                                UnitType.HELICOPTER
-                        )),
-                        Map.entry(BuildingType.HANGAR, List.of(
-                                UnitType.BOMBER,
-                                UnitType.INTERCEPTOR,
-                                UnitType.GUNSHIP    // Hero unit!
-                        )),
-
+                        Map.entry(BuildingType.AIRFIELD, List.of()),
+                        Map.entry(BuildingType.HANGAR, List.of()),
                         Map.entry(BuildingType.BANK, List.of()),
                         Map.entry(BuildingType.TEMPEST_SPIRE, List.of())
                 ))
                 .build();
 
-        // Storm Wings-specific air unit bonuses
+        // Storm Wings air unit bonuses
         Map<UnitType, Double> costModifiers = new HashMap<>();
         costModifiers.put(UnitType.SCOUT_DRONE, 0.7);     // -30% cost
         costModifiers.put(UnitType.HELICOPTER, 0.8);      // -20% cost
@@ -313,7 +250,6 @@ public class FactionRegistry {
         costModifiers.put(UnitType.INTERCEPTOR, 0.85);    // -15% cost
         costModifiers.put(UnitType.GUNSHIP, 0.9);         // -10% cost (hero)
 
-        // Air unit stat bonuses
         Map<UnitType, FactionDefinition.UnitStatModifier> statModifiers = new HashMap<>();
         statModifiers.put(UnitType.SCOUT_DRONE, FactionDefinition.UnitStatModifier.builder()
                 .speedMultiplier(1.25)   // +25% speed
@@ -336,7 +272,7 @@ public class FactionRegistry {
                 .monumentBuilding(BuildingType.TEMPEST_SPIRE)
                 .unitCostMultiplier(1.1)           // +10% ground unit costs (discourages ground)
                 .buildingCostMultiplier(0.9)       // -10% building costs
-                .upkeepMultiplier(0.9)             // -10% upkeep (more units!)
+                .upkeepMultiplier(0.9)             // -10% upkeep (more air units!)
                 .unitCostModifiers(costModifiers)
                 .unitStatModifiers(statModifiers)
                 .build();

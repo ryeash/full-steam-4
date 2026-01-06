@@ -3,7 +3,7 @@ package com.fullsteam.model;
 import com.fullsteam.model.factions.Faction;
 import com.fullsteam.model.factions.FactionDefinition;
 import com.fullsteam.model.factions.FactionRegistry;
-import com.fullsteam.model.research.ResearchManager;
+import com.fullsteam.model.research.FactionModifierManager;
 import lombok.Data;
 
 import java.util.HashMap;
@@ -24,8 +24,8 @@ public class PlayerFaction {
     private Faction faction = Faction.TERRAN; // Default faction
     private FactionDefinition factionDefinition;
 
-    // Unified research system (handles both building and unit tech tree research)
-    private ResearchManager researchManager;
+    // Unit availability manager (replaces old research system)
+    private FactionModifierManager modifierManager;
 
     // Resources
     private final Map<ResourceType, Integer> resources = new HashMap<>();
@@ -85,8 +85,8 @@ public class PlayerFaction {
         // Apply faction-specific upkeep limit
         this.maxUpkeep = factionDefinition.getUpkeepLimit(250); // Base 250
         
-        // Initialize unified research manager (handles both building and unit research)
-        this.researchManager = new ResearchManager(playerId, faction);
+        // Initialize modifier manager (research system removed)
+        this.modifierManager = new FactionModifierManager(playerId, faction);
     }
     
     /**
@@ -99,12 +99,12 @@ public class PlayerFaction {
         // Apply faction-specific upkeep limit
         this.maxUpkeep = customDefinition.getUpkeepLimit(250); // Base 250
         
-        // Initialize unified research manager (handles both building and unit research)
-        this.researchManager = new ResearchManager(playerId, Faction.CUSTOM);
+        // Initialize modifier manager
+        this.modifierManager = new FactionModifierManager(playerId, Faction.CUSTOM);
         
-        // Set available units for custom faction (no research required)
+        // Set available units for custom faction
         if (!customDefinition.getCustomSelectedUnits().isEmpty()) {
-            this.researchManager.setCustomFactionUnits(customDefinition.getCustomSelectedUnits());
+            this.modifierManager.setAvailableUnits(customDefinition.getCustomSelectedUnits());
         }
     }
 
@@ -239,21 +239,38 @@ public class PlayerFaction {
      * Get available units for a specific category (from tech tree)
      */
     public Set<UnitType> getAvailableUnits(UnitCategory category) {
-        if (researchManager == null) {
+        if (modifierManager == null) {
             return Set.of();
         }
-        return researchManager.getAvailableUnits(category);
+        return modifierManager.getAvailableUnits(category);
     }
     
     /**
-     * Check if a unit can be produced (based on tech tree research)
+     * Check if a unit can be produced (based on custom faction selection)
      */
     public boolean canProduceUnit(UnitType unitType) {
-        if (researchManager == null) {
+        if (modifierManager == null) {
             return false;
         }
         UnitCategory category = unitType.getCategory();
-        return researchManager.getAvailableUnits(category).contains(unitType);
+        return modifierManager.getAvailableUnits(category).contains(unitType);
+    }
+    
+    /**
+     * Check if the player has all required tech buildings to produce this unit.
+     * This is separate from faction selection - even if a unit is selected in the
+     * custom faction, the player must build the required tech buildings first.
+     * 
+     * @param unitType The unit type to check
+     * @param playerBuildings Set of building types the player has constructed
+     * @return true if all required buildings are present (or no requirements)
+     */
+    public boolean hasRequiredTechBuildings(UnitType unitType, Set<BuildingType> playerBuildings) {
+        Set<BuildingType> required = unitType.getRequiredBuildings();
+        if (required.isEmpty()) {
+            return true; // No tech requirements
+        }
+        return playerBuildings.containsAll(required);
     }
 }
 

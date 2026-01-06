@@ -6,6 +6,7 @@ import org.dyn4j.geometry.Geometry;
 import org.dyn4j.geometry.Vector2;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Defines the different types of units available in the RTS game.
@@ -31,7 +32,8 @@ public enum UnitType {
             5,       // upkeep cost
             300.0,   // vision range (moderate)
             Elevation.GROUND, // elevation
-            UnitCategory.WORKER // category
+            UnitCategory.WORKER, // category
+            Set.of() // no tech requirements (basic unit)
     ),
 
     // Infantry - basic combat unit
@@ -51,7 +53,8 @@ public enum UnitType {
             10,      // upkeep cost
             350.0,   // vision range (standard infantry),
             Elevation.GROUND,
-            UnitCategory.INFANTRY // category
+            UnitCategory.INFANTRY, // category
+            Set.of() // no tech requirements (basic unit)
     ),
 
     // Laser Infantry - advanced infantry with beam weapons
@@ -71,7 +74,8 @@ public enum UnitType {
             12,      // upkeep cost (higher than infantry)
             360.0,   // vision range (slightly better than infantry),
             Elevation.GROUND,
-            UnitCategory.INFANTRY // category
+            UnitCategory.INFANTRY, // category
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 advanced unit
     ),
 
     // Medic - support unit that heals nearby friendlies
@@ -91,7 +95,8 @@ public enum UnitType {
             8,       // upkeep cost
             340.0,  // vision range (support unit, moderate),
             Elevation.GROUND,
-            UnitCategory.INFANTRY // category
+            UnitCategory.INFANTRY, // category
+            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 support unit
     ),
 
     // Rocket Soldier - anti-vehicle infantry
@@ -111,7 +116,8 @@ public enum UnitType {
             15,      // upkeep cost
             370.0,    // vision range (good, needs to spot vehicles),
             Elevation.GROUND,
-            UnitCategory.INFANTRY // category
+            UnitCategory.INFANTRY, // category
+            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 specialist
     ),
 
     // Sniper - long-range precision unit
@@ -131,7 +137,8 @@ public enum UnitType {
             12,      // upkeep cost
             500.0,    // vision range (excellent, sniper needs vision),
             Elevation.GROUND,
-            UnitCategory.INFANTRY // category
+            UnitCategory.INFANTRY, // category
+            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 specialist
     ),
 
     // Engineer - repairs buildings and vehicles
@@ -151,7 +158,8 @@ public enum UnitType {
             10,      // upkeep cost
             330.0,    // vision range (support unit),
             Elevation.GROUND,
-            UnitCategory.INFANTRY // category
+            UnitCategory.INFANTRY, // category
+            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 support unit
     ),
 
     // Jeep - fast light vehicle
@@ -171,7 +179,8 @@ public enum UnitType {
             20,      // upkeep cost
             450.0,    // vision range (scout vehicle, excellent vision),
             Elevation.GROUND,
-            UnitCategory.VEHICLE // category
+            UnitCategory.VEHICLE, // category
+            Set.of() // no tech requirements (basic scout)
     ),
 
     // Tank - heavy armored vehicle
@@ -191,7 +200,8 @@ public enum UnitType {
             30,      // upkeep cost
             400.0,    // vision range (good, main battle tank),
             Elevation.GROUND,
-            UnitCategory.VEHICLE // category
+            UnitCategory.VEHICLE, // category
+            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 main battle tank
     ),
 
     // Flak Tank - early-game anti-air vehicle
@@ -211,7 +221,8 @@ public enum UnitType {
             25,      // upkeep cost
             420.0,    // vision range (good, needs to spot aircraft),
             Elevation.GROUND,
-            UnitCategory.VEHICLE // category
+            UnitCategory.VEHICLE, // category
+            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 anti-air
     ),
 
     // Artillery - long range siege unit
@@ -231,7 +242,8 @@ public enum UnitType {
             40,      // upkeep cost
             420.0,    // vision range (good, needs to spot targets),
             Elevation.GROUND,
-            UnitCategory.VEHICLE // category
+            UnitCategory.VEHICLE, // category
+            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 siege weapon
     ),
 
     // GIGANTONAUT - Super heavy artillery
@@ -251,7 +263,8 @@ public enum UnitType {
             60,      // upkeep cost (VERY HIGH!)
             200.0,    // poor vision, needs a spotter to hit distant targets
             Elevation.GROUND,
-            UnitCategory.VEHICLE // category
+            UnitCategory.VEHICLE, // category
+            Set.of(BuildingType.TECH_CENTER) // Hero unit - requires advanced tech
     ),
 
     // CRAWLER - Mobile fortress with 4 turrets (THE STAR UNIT!)
@@ -271,7 +284,8 @@ public enum UnitType {
             80,      // upkeep cost (HIGHEST!)
             480.0,    // vision range (excellent, mobile fortress),
             Elevation.GROUND,
-            UnitCategory.VEHICLE // category
+            UnitCategory.VEHICLE, // category
+            Set.of(BuildingType.TECH_CENTER) // Hero unit - Terran faction
     ),
 
     // Cloak Tank - invisible until attacking or detected
@@ -291,7 +305,8 @@ public enum UnitType {
             45,      // upkeep cost
             380.0,    // vision range (moderate, cloak unit),
             Elevation.GROUND,
-            UnitCategory.VEHICLE // category
+            UnitCategory.VEHICLE, // category
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 stealth tech
     ),
 
     // ===== HERO UNITS =====
@@ -313,7 +328,8 @@ public enum UnitType {
             45,      // upkeep cost
             520.0,    // vision range (hero scout, exceptional vision),
             Elevation.GROUND,
-            UnitCategory.VEHICLE // category
+            UnitCategory.VEHICLE, // category
+            Set.of(BuildingType.TECH_CENTER) // Hero unit - Nomads faction
     ),
 
     // COLOSSUS - Synthesis hero unit, massive walker
@@ -333,7 +349,8 @@ public enum UnitType {
             75,      // upkeep cost (VERY HIGH!)
             490.0,    // vision range (hero unit, excellent vision),
             Elevation.GROUND,
-            UnitCategory.VEHICLE // category
+            UnitCategory.VEHICLE, // category
+            Set.of(BuildingType.TECH_CENTER) // Hero unit - Synthesis faction
     ),
 
     // ===== TECH ALLIANCE BEAM WEAPON UNITS =====
@@ -355,7 +372,8 @@ public enum UnitType {
             11,      // upkeep cost
             355.0,    // vision range (standard beam infantry),
             Elevation.GROUND,
-            UnitCategory.INFANTRY // category
+            UnitCategory.INFANTRY, // category
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 beam weapons
     ),
 
     // ION_RANGER - Long-range beam sniper
@@ -375,7 +393,8 @@ public enum UnitType {
             14,      // upkeep cost
             500.0,    // vision range (excellent, beam sniper),
             Elevation.GROUND,
-            UnitCategory.INFANTRY // category - FIXED: was VEHICLE, should be INFANTRY
+            UnitCategory.INFANTRY, // category - FIXED: was VEHICLE, should be INFANTRY
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 beam weapons
     ),
 
     // PHOTON_SCOUT - Fast beam vehicle
@@ -395,7 +414,8 @@ public enum UnitType {
             22,      // upkeep cost
             460.0,    // vision range (excellent, scout vehicle),
             Elevation.GROUND,
-            UnitCategory.VEHICLE // category
+            UnitCategory.VEHICLE, // category
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 beam weapons
     ),
 
     // BEAM_TANK - Heavy beam vehicle
@@ -415,7 +435,8 @@ public enum UnitType {
             32,      // upkeep cost
             410.0,    // vision range (good, beam tank),
             Elevation.GROUND,
-            UnitCategory.VEHICLE // category
+            UnitCategory.VEHICLE, // category
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 beam weapons
     ),
 
     // PULSE_ARTILLERY - Long-range beam artillery
@@ -435,7 +456,8 @@ public enum UnitType {
             42,      // upkeep cost
             430.0,    // vision range (good, beam artillery),
             Elevation.GROUND,
-            UnitCategory.VEHICLE // category
+            UnitCategory.VEHICLE, // category
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 beam weapons
     ),
 
     // PHOTON_TITAN - Hero unit, massive beam platform
@@ -455,7 +477,8 @@ public enum UnitType {
             65,      // upkeep cost (VERY HIGH!)
             480.0,    // vision range (hero unit, excellent vision),
             Elevation.GROUND,
-            UnitCategory.VEHICLE // category
+            UnitCategory.VEHICLE, // category
+            Set.of(BuildingType.TECH_CENTER) // Hero unit - Tech Alliance faction
     ),
 
     // ANDROID - Autonomous combat unit produced by Android Factory
@@ -476,7 +499,8 @@ public enum UnitType {
             0,       // upkeep cost (ZERO!)
             340.0,    // vision range (moderate, autonomous unit),
             Elevation.GROUND,
-            UnitCategory.VEHICLE // category
+            UnitCategory.VEHICLE, // category
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 monument unit
     ),
 
     // ===== AIR UNITS =====
@@ -499,7 +523,8 @@ public enum UnitType {
             15,      // upkeep cost
             600.0,   // vision range (EXCELLENT - scout unit!)
             Elevation.LOW, // VTOL - can hover, vulnerable to rockets,
-            UnitCategory.FLYER // category
+            UnitCategory.FLYER, // category
+            Set.of() // no tech requirements (basic scout)
     ),
 
     // HELICOPTER - Attack helicopter with dual rockets
@@ -521,7 +546,8 @@ public enum UnitType {
             25,      // upkeep cost (moderate)
             450.0,   // vision range (good, attack aircraft)
             Elevation.LOW, // VTOL - can hover, vulnerable to rockets,
-            UnitCategory.FLYER // category
+            UnitCategory.FLYER, // category
+            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 attack aircraft
     ),
 
     // BOMBER - Sortie-based heavy bomber aircraft
@@ -543,7 +569,8 @@ public enum UnitType {
             50,      // upkeep cost (HIGH - strategic bomber)
             400.0,   // vision range (good but not scout-level)
             Elevation.HIGH, // Fixed-wing - requires AA weapons,
-            UnitCategory.FLYER // category
+            UnitCategory.FLYER, // category
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 strategic bomber
     ),
 
     // INTERCEPTOR - Sortie-based fighter aircraft
@@ -565,7 +592,8 @@ public enum UnitType {
             40,      // upkeep cost (high)
             500.0,   // vision range (excellent, interceptor)
             Elevation.HIGH, // Fixed-wing - high-altitude fighter,
-            UnitCategory.FLYER // category
+            UnitCategory.FLYER, // category
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 advanced fighter
     ),
 
     // GUNSHIP - Heavy sortie-based attack aircraft with dual weapons
@@ -587,7 +615,8 @@ public enum UnitType {
             55,      // upkeep cost (high, hero unit)
             480.0,   // vision range (excellent, attack helicopter)
             Elevation.HIGH, // Fixed-wing sortie aircraft,
-            UnitCategory.FLYER // category
+            UnitCategory.FLYER, // category
+            Set.of(BuildingType.TECH_CENTER) // Hero unit - Storm Wings faction
     );
 
     private final String displayName;
@@ -623,6 +652,13 @@ public enum UnitType {
      * Determines which production building produces this unit.
      */
     private final UnitCategory category;
+
+    /**
+     * Buildings required to be constructed before this unit can be trained.
+     * Empty set = no tech requirements (basic units)
+     * Example: CLOAK_TANK requires both RESEARCH_LAB and TECH_CENTER
+     */
+    private final Set<BuildingType> requiredBuildings;
 
     /**
      * Create physics fixtures for this unit type
@@ -1844,7 +1880,7 @@ public enum UnitType {
     UnitType(String displayName, int resourceCost, int buildTimeSeconds, double maxHealth,
              double movementSpeed, double damage, double attackRate, double attackRange,
              double size, int sides, int color, BuildingType producedBy, int upkeepCost, double visionRange,
-             Elevation elevation, UnitCategory category) {
+             Elevation elevation, UnitCategory category, Set<BuildingType> requiredBuildings) {
         this.displayName = displayName;
         this.resourceCost = resourceCost;
         this.buildTimeSeconds = buildTimeSeconds;
@@ -1861,6 +1897,7 @@ public enum UnitType {
         this.visionRange = visionRange;
         this.elevation = elevation;
         this.category = category;
+        this.requiredBuildings = requiredBuildings != null ? requiredBuildings : Set.of();
     }
 
     /**

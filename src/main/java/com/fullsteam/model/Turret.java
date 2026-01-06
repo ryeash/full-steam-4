@@ -1,5 +1,6 @@
 package com.fullsteam.model;
 
+import com.fullsteam.model.research.ResearchModifier;
 import com.fullsteam.model.weapon.Weapon;
 import com.fullsteam.model.weapon.WeaponFactory;
 import lombok.Getter;
@@ -72,7 +73,7 @@ public class Turret {
                 parentUnit.getTeamNumber(),
                 parentUnit.getBody(),
                 gameEntities,
-                parentUnit.getFaction().getResearchManager().getCumulativeModifier()
+                new ResearchModifier() // Research system removed
         );
     }
 

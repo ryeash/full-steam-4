@@ -214,6 +214,9 @@ public class FactionCustomizationController {
             // Convert DTO to config
             CustomFactionConfig config = dtoToConfig(configDTO);
             
+            // Ensure bundled units are included (e.g., ANDROID with ANDROID_FACTORY)
+            config.ensureBundledUnits();
+            
             // Validate
             ValidationResult validation = config.validate();
             if (!validation.isValid()) {
@@ -241,7 +244,7 @@ public class FactionCustomizationController {
                     config.getDisplayName(), playerId, gameId);
             playerFaction.applyCustomFaction(customDefinition);
             log.info("Custom faction applied successfully. Player now has {} units available", 
-                    playerFaction.getResearchManager().getAllAvailableUnits().values().stream()
+                    playerFaction.getModifierManager().getAllAvailableUnits().values().stream()
                             .mapToInt(Set::size).sum());
             
             Map<String, Object> response = new HashMap<>();

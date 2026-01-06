@@ -63,7 +63,14 @@ public class UnitTemplate implements CustomizableEntity {
     }
     
     /**
-     * Calculate point cost based on unit stats and power level
+     * Calculate point cost based on unit stats and power level.
+     * Rebalanced for 100-point budget to allow ~10-15 units + buildings + perks.
+     * 
+     * Target distribution:
+     * - Basic units (Infantry, Jeep, Scout): 1-2 points
+     * - Advanced units (Tank, Helicopter): 2-4 points
+     * - Elite units (Bomber, Cloak Tank): 4-6 points
+     * - Hero units: 8-10 points
      */
     private static int calculatePointCost(UnitType unitType) {
         // WORKER is required and free
@@ -71,33 +78,44 @@ public class UnitTemplate implements CustomizableEntity {
             return 0;
         }
         
-        // Hero units get fixed high cost
-        if (isHero(unitType)) {
-            return 10;
+        // ANDROID is bundled with ANDROID_FACTORY (free, auto-included)
+        if (unitType == UnitType.ANDROID) {
+            return 0;
         }
         
-        // Calculate base power from stats
-        double power = 0;
-        power += unitType.getMaxHealth() * 0.01;  // HP contribution
-        power += unitType.getDamage() * 0.2;      // Damage contribution
-        power += unitType.getMovementSpeed() * 0.02; // Speed contribution
-        power += unitType.getAttackRange() * 0.01; // Range contribution
+        // Hero units get fixed high cost (8-10 points)
+        if (isHero(unitType)) {
+            // Differentiate heroes by power level
+            return switch (unitType) {
+                case GIGANTONAUT, COLOSSUS, CRAWLER -> 10; // Strongest heroes
+                case PHOTON_TITAN, GUNSHIP -> 9;           // Strong heroes
+                case RAIDER -> 8;                          // Fast hero
+                default -> 10;
+            };
+        }
         
-        // Category multipliers
+        // Calculate base power from stats (much lower multipliers)
+        double power = 0;
+        power += unitType.getMaxHealth() * 0.002;   // HP contribution (reduced from 0.01)
+        power += unitType.getDamage() * 0.03;       // Damage contribution (reduced from 0.2)
+        power += unitType.getMovementSpeed() * 0.003; // Speed contribution (reduced from 0.02)
+        power += unitType.getAttackRange() * 0.002; // Range contribution (reduced from 0.01)
+        
+        // Category multipliers (adjusted for balance)
         switch (unitType.getCategory()) {
-            case INFANTRY -> power *= 0.8;  // Infantry are cheaper
-            case VEHICLE -> power *= 1.2;   // Vehicles are more expensive
-            case FLYER -> power *= 1.3;     // Flyers are most expensive
+            case INFANTRY -> power *= 0.9;  // Infantry are slightly cheaper
+            case VEHICLE -> power *= 1.1;   // Vehicles are slightly more expensive
+            case FLYER -> power *= 1.2;     // Flyers are more expensive
             case WORKER -> power *= 0.5;    // Workers are cheap
         }
         
         // Support units are cheaper
         if (unitType.isSupport()) {
-            power *= 0.7;
+            power *= 0.6;
         }
         
-        // Minimum cost of 2 points, round up
-        return Math.max(2, (int) Math.ceil(power));
+        // Minimum cost of 1 point for basic units, round up
+        return Math.max(1, (int) Math.ceil(power));
     }
     
     /**

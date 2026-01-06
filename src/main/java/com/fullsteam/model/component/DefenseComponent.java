@@ -65,8 +65,8 @@ public class DefenseComponent extends AbstractBuildingComponent {
             return;
         }
 
-        // Get research modifiers from building's faction
-        ResearchModifier modifier = building.getFaction().getResearchManager().getCumulativeModifier();
+        // Research system removed
+        ResearchModifier modifier = new ResearchModifier();
 
         // Fire weapon with modifiers
         List<AbstractOrdinance> ordinances = weapon.fire(

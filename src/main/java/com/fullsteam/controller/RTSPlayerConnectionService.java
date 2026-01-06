@@ -95,6 +95,9 @@ public class RTSPlayerConnectionService {
             // Parse the faction config JSON
             CustomFactionConfig config = objectMapper.readValue(factionConfigJson, CustomFactionConfig.class);
 
+            // Ensure bundled units are included (e.g., ANDROID with ANDROID_FACTORY)
+            config.ensureBundledUnits();
+
             // Validate the config
             ValidationResult validation = config.validate();
             if (!validation.isValid()) {

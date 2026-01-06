@@ -346,7 +346,35 @@ class FactionCustomizer {
     renderUnitCard(unit) {
         const isSelected = this.selectedUnits.has(unit.unitType);
         const isRequired = unit.unitType === 'WORKER';
+        const isBundled = unit.unitType === 'ANDROID';
+        const hasFactory = this.selectedBuildings.has('ANDROID_FACTORY');
         const canAfford = this.canAfford(unit.pointCost);
+        
+        // ANDROID is auto-included with ANDROID_FACTORY
+        if (isBundled) {
+            return `
+                <div class="entity-card ${hasFactory ? 'selected' : ''} ${!hasFactory ? 'disabled' : ''}">
+                    <div class="card-header">
+                        <span class="card-name">${unit.displayName}</span>
+                        <span class="card-cost">Bundled</span>
+                    </div>
+                    <div class="card-stats">
+                        HP: ${unit.maxHealth} | DMG: ${unit.damage} | RNG: ${unit.range}
+                    </div>
+                    <div class="card-description">Auto-included with Android Factory</div>
+                    <div class="card-tags">
+                        <span class="tag">BUNDLED</span>
+                        <span class="tag">FREE</span>
+                    </div>
+                    <button 
+                        type="button"
+                        class="card-btn"
+                        disabled>
+                        ${hasFactory ? '✓ Included' : 'Requires Factory'}
+                    </button>
+                </div>
+            `;
+        }
         
         return `
             <div class="entity-card ${isSelected ? 'selected' : ''} ${!canAfford && !isSelected ? 'disabled' : ''}">
@@ -471,6 +499,11 @@ class FactionCustomizer {
         const isAvailable = this.isPerkAvailable(perk);
         const missingDeps = this.getMissingDependencies(perk);
         const dependents = this.getDependentPerks(perk.id);
+        
+        // Debug: Log if this perk is selected
+        if (isSelected) {
+            console.log('Rendering selected perk:', perk.id, perk.displayName);
+        }
         
         let statusClass = '';
         let statusText = '';
@@ -661,10 +694,22 @@ class FactionCustomizer {
         if (this.selectedBuildings.has(buildingType)) {
             this.selectedBuildings.delete(buildingType);
             this.spentPoints -= building.pointCost;
+            
+            // Auto-remove bundled units
+            if (buildingType === 'ANDROID_FACTORY') {
+                this.selectedUnits.delete('ANDROID');
+                // ANDROID is free (0 points), no point adjustment needed
+            }
         } else {
             if (this.canAfford(building.pointCost)) {
                 this.selectedBuildings.add(buildingType);
                 this.spentPoints += building.pointCost;
+                
+                // Auto-add bundled units
+                if (buildingType === 'ANDROID_FACTORY') {
+                    this.selectedUnits.add('ANDROID');
+                    // ANDROID is free (0 points), no point adjustment needed
+                }
             }
         }
         
@@ -674,7 +719,12 @@ class FactionCustomizer {
     
     togglePerk(perkId) {
         const perk = this.perks.find(p => p.id === perkId);
-        if (!perk) return;
+        if (!perk) {
+            console.error('Perk not found:', perkId);
+            return;
+        }
+        
+        console.log('Toggling perk:', perkId, 'Currently selected:', this.selectedPerks.has(perkId));
         
         if (this.selectedPerks.has(perkId)) {
             // Removing - check for dependents

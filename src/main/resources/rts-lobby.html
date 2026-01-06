@@ -5,6 +5,7 @@
     <title>Full Steam RTS - Matchmaking</title>
     <meta name="description" content="Full Steam RTS - Real-time strategy multiplayer game">
     <link rel="stylesheet" type="text/css" href="unified.css">
+    <link rel="stylesheet" type="text/css" href="css/faction-customizer.css">
     <style>
         body {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -657,6 +658,7 @@
     </div>
 </div>
 
+<script src="/js/rts/FactionCustomizer.js"></script>
 <script type="text/javascript">
     const gamesList = document.getElementById('games-list');
     const playerCountValue = document.getElementById('player-count-value');
@@ -804,13 +806,13 @@
         grid.innerHTML = '';
         
         inlineCustomizer.perks.forEach(perk => {
-            const isSelected = inlineCustomizer.selectedPerks.has(perk.name);
+            const isSelected = inlineCustomizer.selectedPerks.has(perk.id);
             const canAfford = isSelected || (inlineCustomizer.spentPoints + perk.pointCost <= inlineCustomizer.maxPoints);
             
             const div = document.createElement('div');
             div.className = `selection-item ${isSelected ? 'selected' : ''} ${!canAfford ? 'disabled' : ''}`;
             if (canAfford) {
-                div.onclick = () => toggleInlinePerk(perk.name);
+                div.onclick = () => toggleInlinePerk(perk.id);
             }
             
             div.title = perk.description; // Tooltip on hover
@@ -862,15 +864,15 @@
     }
     
     // Toggle perk selection
-    function toggleInlinePerk(perkName) {
-        const perk = inlineCustomizer.perks.find(p => p.name === perkName);
+    function toggleInlinePerk(perkId) {
+        const perk = inlineCustomizer.perks.find(p => p.id === perkId);
         if (!perk) return;
         
-        if (inlineCustomizer.selectedPerks.has(perkName)) {
-            inlineCustomizer.selectedPerks.delete(perkName);
+        if (inlineCustomizer.selectedPerks.has(perkId)) {
+            inlineCustomizer.selectedPerks.delete(perkId);
             inlineCustomizer.spentPoints -= perk.pointCost;
         } else {
-            inlineCustomizer.selectedPerks.add(perkName);
+            inlineCustomizer.selectedPerks.add(perkId);
             inlineCustomizer.spentPoints += perk.pointCost;
         }
         
@@ -933,8 +935,8 @@
             if (building) total += building.pointCost;
         });
         
-        inlineCustomizer.selectedPerks.forEach(perkName => {
-            const perk = inlineCustomizer.perks.find(p => p.name === perkName);
+        inlineCustomizer.selectedPerks.forEach(perkId => {
+            const perk = inlineCustomizer.perks.find(p => p.id === perkId);
             if (perk) total += perk.pointCost;
         });
         
@@ -1348,7 +1350,13 @@
     });
     
     // Initialize
-    initializeFactionCustomizer(); // Load customizer and restore from localStorage
+    // Initialize FactionCustomizer (loads data from API)
+    if (typeof factionCustomizer !== 'undefined') {
+        factionCustomizer.initialize().catch(err => {
+            console.error('Failed to initialize faction customizer:', err);
+        });
+    }
+    
     fetchLobbyInfo();
     setInterval(fetchLobbyInfo, 3000);
 </script>

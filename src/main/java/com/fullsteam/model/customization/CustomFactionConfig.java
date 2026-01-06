@@ -147,13 +147,32 @@ public class CustomFactionConfig {
     }
 
     /**
+     * Ensure bundled units are included with their buildings.
+     * Some units are tightly coupled to specific buildings and should be auto-included.
+     */
+    public void ensureBundledUnits() {
+        // ANDROID is bundled with ANDROID_FACTORY (monument building)
+        if (selectedBuildings.contains(BuildingType.ANDROID_FACTORY)) {
+            selectedUnits.add(UnitType.ANDROID);
+        }
+        // If factory is removed, remove the android too
+        if (!selectedBuildings.contains(BuildingType.ANDROID_FACTORY)) {
+            selectedUnits.remove(UnitType.ANDROID);
+        }
+    }
+
+    /**
      * Calculate total points spent
      */
     public int calculateTotalPoints() {
         int total = 0;
 
-        // Units
+        // Units (ANDROID is free - bundled with ANDROID_FACTORY)
         for (UnitType unit : selectedUnits) {
+            // Skip ANDROID - it's bundled with the factory
+            if (unit == UnitType.ANDROID) {
+                continue;
+            }
             total += UnitTemplate.fromUnitType(unit).getPointCost();
         }
 
