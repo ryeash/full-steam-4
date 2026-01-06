@@ -96,17 +96,17 @@ public class UnitTemplate implements CustomizableEntity {
         
         // Calculate base power from stats (much lower multipliers)
         double power = 0;
-        power += unitType.getMaxHealth() * 0.002;   // HP contribution (reduced from 0.01)
-        power += unitType.getDamage() * 0.03;       // Damage contribution (reduced from 0.2)
-        power += unitType.getMovementSpeed() * 0.003; // Speed contribution (reduced from 0.02)
-        power += unitType.getAttackRange() * 0.002; // Range contribution (reduced from 0.01)
+        power += unitType.getMaxHealth() * 0.002;   // HP contribution
+        power += unitType.getDamage() * 0.03;       // Damage contribution
+        power += unitType.getMovementSpeed() * 0.003; // Speed contribution
+        power += unitType.getAttackRange() * 0.002; // Range contribution
         
         // Category multipliers (adjusted for balance)
         switch (unitType.getCategory()) {
             case INFANTRY -> power *= 0.9;  // Infantry are slightly cheaper
             case VEHICLE -> power *= 1.1;   // Vehicles are slightly more expensive
             case FLYER -> power *= 1.2;     // Flyers are more expensive
-            case WORKER -> power *= 0.5;    // Workers are cheap
+            case WORKER -> power *= 0.0;    // Workers are free
         }
         
         // Support units are cheaper

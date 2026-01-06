@@ -11,6 +11,7 @@ import lombok.Setter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -23,8 +24,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CustomFactionConfig {
-    // TODO: reduce to 100 after balancing
-    private static final int MAX_POINTS = 1000;
+    private static final int MAX_POINTS = 100;
 
     /**
      * Unique identifier for this faction configuration
@@ -197,6 +197,31 @@ public class CustomFactionConfig {
     }
 
     /**
+     * Get effective perks (highest tier only in each chain).
+     * Filters out lower-tier perks that are superseded by higher tiers.
+     * <p>
+     * Example: If player selected [POWER_EFFICIENCY_1, POWER_EFFICIENCY_2, POWER_EFFICIENCY_3],
+     * this returns only [POWER_EFFICIENCY_3] since it depends on the others.
+     * <p>
+     * This prevents stacking of tiered perks while still requiring players to
+     * select all tiers (and pay for them) to unlock higher tiers.
+     *
+     * @return Set of perks that should actually be applied (highest tier only)
+     */
+    public Set<FactionPerk> getEffectivePerks() {
+        Set<FactionPerk> effective = new HashSet<>(selectedPerks);
+
+        // For each selected perk, remove any perks it depends on
+        // This keeps only the "leaf" perks in each dependency chain
+        for (FactionPerk perk : selectedPerks) {
+            Set<FactionPerk> dependencies = perk.getDependsOn();
+            effective.removeAll(dependencies);
+        }
+
+        return effective;
+    }
+
+    /**
      * Check if we can afford to add an entity with the given cost
      */
     public boolean canAfford(int pointCost) {
@@ -228,6 +253,8 @@ public class CustomFactionConfig {
         if (!hasAtLeastOneCombat()) {
             errors.add("At least one combat unit is required");
         }
+
+        selectedPerks.removeIf(Objects::isNull);
 
         // Check perk dependencies
         for (FactionPerk perk : selectedPerks) {

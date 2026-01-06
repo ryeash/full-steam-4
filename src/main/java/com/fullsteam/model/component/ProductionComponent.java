@@ -90,6 +90,11 @@ public class ProductionComponent extends AbstractBuildingComponent {
                 gameEntities.getUnits().put(unit.getId(), unit);
                 gameEntities.getWorld().addBody(unit.getBody());
 
+                // Trigger perk hooks for unit creation
+                if (faction != null && faction.getModifierManager() != null) {
+                    faction.getModifierManager().onUnitCreated(unit, faction, gameEntities.getRtsGameManager());
+                }
+
                 // Order unit to rally point
                 if (rallyPoint != null) {
                     unit.issueCommand(new MoveCommand(unit, rallyPoint, false), gameEntities);

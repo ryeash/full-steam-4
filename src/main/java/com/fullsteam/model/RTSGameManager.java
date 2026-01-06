@@ -22,7 +22,9 @@ import com.fullsteam.model.component.HangarComponent;
 import com.fullsteam.model.component.IBuildingComponent;
 import com.fullsteam.model.component.InterceptorComponent;
 import com.fullsteam.model.component.ShieldComponent;
+import com.fullsteam.model.customization.CustomFactionConfig;
 import com.fullsteam.model.factions.Faction;
+import com.fullsteam.model.factions.FactionDefinition;
 import io.micronaut.websocket.WebSocketSession;
 import io.micronaut.websocket.exceptions.WebSocketSessionException;
 import lombok.Getter;
@@ -130,6 +132,7 @@ public class RTSGameManager {
         this.gameStartTime = System.currentTimeMillis();
 
         this.gameEntities = new GameEntities(gameConfig, this::sendGameEvent);
+        this.gameEntities.setRtsGameManager(this); // Set reference for perk hooks
         this.playerFactions = gameEntities.getPlayerFactions();
         this.units = gameEntities.getUnits();
         this.buildings = gameEntities.getBuildings();
@@ -950,7 +953,10 @@ public class RTSGameManager {
                 buildings.put(building.getId(), building);
                 world.addBody(building.getBody());
 
-                // Note: Wall segments are created when construction completes, not at placement
+                // Trigger perk hooks for building creation
+                if (faction.getModifierManager() != null) {
+                    faction.getModifierManager().onBuildingCreated(building, faction, this);
+                }
 
                 // Order selected workers to construct it
                 units.values().stream()
@@ -1550,13 +1556,18 @@ public class RTSGameManager {
                     }
                 }
 
-                // Send unit death notification (throttled to avoid spam)
+                // Trigger perk hooks for unit destruction
                 int ownerId = unit.getOwnerId();
+                PlayerFaction faction = playerFactions.get(ownerId);
+                if (faction != null && faction.getModifierManager() != null) {
+                    faction.getModifierManager().onUnitDestroyed(unit, faction, this);
+                }
+
+                // Send unit death notification (throttled to avoid spam)
                 long currentTime = System.currentTimeMillis();
                 Long lastNotification = lastUnitDeathNotification.get(ownerId);
 
                 if (lastNotification == null || (currentTime - lastNotification) >= UNIT_DEATH_NOTIFICATION_COOLDOWN) {
-                    PlayerFaction faction = playerFactions.get(ownerId);
                     if (faction != null) {
                         String unitName = unit.getUnitType().name()
                                 .replace("_", " ")
@@ -1658,6 +1669,12 @@ public class RTSGameManager {
                             world.addBody(unit.getBody());
                         }
                     }
+                }
+
+                // Trigger perk hooks for building destruction
+                PlayerFaction ownerFaction = playerFactions.get(building.getOwnerId());
+                if (ownerFaction != null && ownerFaction.getModifierManager() != null) {
+                    ownerFaction.getModifierManager().onBuildingDestroyed(building, ownerFaction, this);
                 }
 
                 // Call onDestroy for all components (handles sandstorm cleanup, etc.)
@@ -2329,7 +2346,7 @@ public class RTSGameManager {
     /**
      * Add a player to the game
      */
-    public synchronized boolean addPlayer(PlayerSession playerSession, String factionName) {
+    public synchronized boolean addPlayer(PlayerSession playerSession, CustomFactionConfig config, FactionDefinition customDefinition) {
         // Prevent late joins if game has started with full roster
         if (gameStartedWithFullRoster) {
             log.warn("Player {} attempted to join game {} after it started with full roster",
@@ -2362,40 +2379,25 @@ public class RTSGameManager {
             );
         }
 
-        log.info("Adding player {} to game {}, current factions: {}, selected faction: {}",
-                playerSession.getPlayerId(), gameId, playerFactions.keySet(), factionName);
+        log.info("Adding player {} to game {}", playerSession.getPlayerId(), gameId);
 
         // Assign team
         int teamNumber = assignPlayerToTeam();
-
-        log.info("Assigned player {} to team {}", playerSession.getPlayerId(), teamNumber);
-
-        // Parse faction (default to TERRAN if invalid)
-        Faction selectedFaction = Faction.TERRAN;
-        if (factionName != null) {
-            try {
-                selectedFaction = Faction.valueOf(factionName);
-            } catch (IllegalArgumentException e) {
-                log.warn("Invalid faction '{}', defaulting to TERRAN. Valid values: {}",
-                        factionName, Arrays.toString(Faction.values()));
-            }
-        } else {
-            log.warn("factionName is null, defaulting to TERRAN");
-        }
-
         // Create faction with selected faction type
         PlayerFaction faction = new PlayerFaction(
                 playerSession.getPlayerId(),
                 teamNumber,
                 playerSession.getPlayerName(),
-                selectedFaction
+                Faction.CUSTOM
         );
+        faction.applyCustomFaction(customDefinition, config);
+
+        log.info("Assigned player {} to team {}", playerSession.getPlayerId(), teamNumber);
         playerFactions.put(playerSession.getPlayerId(), faction);
         // Create starting base
         Vector2 startPosition = getStartingPosition(teamNumber);
         createStartingBase(playerSession.getPlayerId(), teamNumber, startPosition);
-        log.info("Player {} joined RTS game {} on team {} with faction {}",
-                playerSession.getPlayerName(), gameId, teamNumber, selectedFaction);
+        log.info("Player {} joined RTS game {} on team {}", playerSession.getPlayerName(), gameId, teamNumber);
         return true;
     }
 
@@ -2464,6 +2466,11 @@ public class RTSGameManager {
         buildings.put(hq.getId(), hq);
         world.addBody(hq.getBody());
 
+        // Trigger perk hooks for building creation
+        if (faction != null && faction.getModifierManager() != null) {
+            faction.getModifierManager().onBuildingCreated(hq, faction, this);
+        }
+
         log.info("Created HQ {} for player {} (team {}): active={}, underConstruction={}",
                 hq.getId(), playerId, teamNumber, hq.isActive(), hq.isUnderConstruction());
 
@@ -2490,6 +2497,11 @@ public class RTSGameManager {
 
             units.put(worker.getId(), worker);
             world.addBody(worker.getBody());
+
+            // Trigger perk hooks for unit creation
+            if (faction != null && faction.getModifierManager() != null) {
+                faction.getModifierManager().onUnitCreated(worker, faction, this);
+            }
         }
 
         log.info("Created starting base for player {} at ({}, {})", playerId, position.x, position.y);

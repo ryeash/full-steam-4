@@ -10,7 +10,7 @@ import com.fullsteam.model.component.ProductionComponent;
 import com.fullsteam.model.component.ResearchComponent;
 import com.fullsteam.model.component.SandstormComponent;
 import com.fullsteam.model.component.ShieldComponent;
-import com.fullsteam.model.research.ResearchModifier;
+import com.fullsteam.model.factions.FactionDefinition;
 import com.fullsteam.model.weapon.WeaponFactory;
 import lombok.Getter;
 import lombok.Setter;
@@ -132,7 +132,7 @@ public class Building extends GameEntity implements Targetable {
         if (buildingType == BuildingType.SANDSTORM_GENERATOR) {
             addComponent(new SandstormComponent());
         }
-        
+
         // Tempest Spire (Storm Wings monument) - Anti-air defense tower
         if (buildingType == BuildingType.TEMPEST_SPIRE) {
             addComponent(new DefenseComponent(WeaponFactory.getTempestSpireWeapon()));
@@ -140,7 +140,11 @@ public class Building extends GameEntity implements Targetable {
         }
 
         if (buildingType == BuildingType.BUNKER) {
-            addComponent(new GarrisonComponent(6));
+            int baseGarrisonCapacity = 4;
+            int garrisonCapacityBonus = Optional.ofNullable(faction.getFactionDefinition().getBuildingStatModifiers().get(BuildingType.BUNKER))
+                    .map(FactionDefinition.BuildingStatModifier::getGarrisonCapacityBonus)
+                    .orElse(0);
+            addComponent(new GarrisonComponent(baseGarrisonCapacity + garrisonCapacityBonus));
         }
 
         if (buildingType == BuildingType.HANGAR) {
@@ -468,8 +472,8 @@ public class Building extends GameEntity implements Targetable {
     @Override
     public double getMaxHealth() {
         // Apply faction base modifier (research system removed)
-        return buildingType.getMaxHealth() * 
-            faction.getFactionDefinition().getBuildingHealthMultiplier();
+        return buildingType.getMaxHealth() *
+                faction.getFactionDefinition().getBuildingHealthMultiplier();
     }
 }
 

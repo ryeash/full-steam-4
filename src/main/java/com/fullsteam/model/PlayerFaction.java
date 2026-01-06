@@ -1,5 +1,7 @@
 package com.fullsteam.model;
 
+import com.fullsteam.model.customization.CustomFactionConfig;
+import com.fullsteam.model.customization.FactionPerk;
 import com.fullsteam.model.factions.Faction;
 import com.fullsteam.model.factions.FactionDefinition;
 import com.fullsteam.model.factions.FactionRegistry;
@@ -84,27 +86,53 @@ public class PlayerFaction {
 
         // Apply faction-specific upkeep limit
         this.maxUpkeep = factionDefinition.getUpkeepLimit(250); // Base 250
-        
+
         // Initialize modifier manager (research system removed)
         this.modifierManager = new FactionModifierManager(playerId, faction);
     }
-    
+
     /**
      * Apply a custom faction definition (for player-created factions)
      */
     public void applyCustomFaction(FactionDefinition customDefinition) {
         this.faction = Faction.CUSTOM;
         this.factionDefinition = customDefinition;
-        
+
         // Apply faction-specific upkeep limit
         this.maxUpkeep = customDefinition.getUpkeepLimit(250); // Base 250
-        
+
         // Initialize modifier manager
         this.modifierManager = new FactionModifierManager(playerId, Faction.CUSTOM);
-        
+
         // Set available units for custom faction
         if (!customDefinition.getCustomSelectedUnits().isEmpty()) {
             this.modifierManager.setAvailableUnits(customDefinition.getCustomSelectedUnits());
+        }
+    }
+
+    /**
+     * Apply a custom faction definition with perks (for player-created factions)
+     */
+    public void applyCustomFaction(FactionDefinition customDefinition,
+                                   CustomFactionConfig config) {
+        this.faction = Faction.CUSTOM;
+        this.factionDefinition = customDefinition;
+
+        // Apply faction-specific upkeep limit
+        this.maxUpkeep = customDefinition.getUpkeepLimit(250); // Base 250
+
+        // Initialize modifier manager
+        this.modifierManager = new FactionModifierManager(playerId, Faction.CUSTOM);
+
+        // Set available units for custom faction
+        if (!customDefinition.getCustomSelectedUnits().isEmpty()) {
+            this.modifierManager.setAvailableUnits(customDefinition.getCustomSelectedUnits());
+        }
+
+        // Set active perks (effective perks only - highest tier in each chain)
+        if (config != null && !config.getSelectedPerks().isEmpty()) {
+            Set<FactionPerk> effectivePerks = config.getEffectivePerks();
+            this.modifierManager.setActivePerks(effectivePerks);
         }
     }
 
@@ -182,6 +210,7 @@ public class PlayerFaction {
 
     /**
      * Check if this faction can build a specific unit type
+     *
      * @deprecated Use canProduceUnit() which respects research unlocks instead
      */
     @Deprecated
@@ -226,15 +255,16 @@ public class PlayerFaction {
 
     /**
      * Check if a building can produce a specific unit for this faction
+     *
      * @deprecated Use canProduceUnit() + UnitType.getProducedBy() validation instead
      */
     @Deprecated
     public boolean canBuildingProduceUnit(BuildingType buildingType, UnitType unitType) {
         return factionDefinition.getTechTree().canBuildingProduceUnit(buildingType, unitType);
     }
-    
+
     // ===== Unit Tech Tree Methods =====
-    
+
     /**
      * Get available units for a specific category (from tech tree)
      */
@@ -244,7 +274,7 @@ public class PlayerFaction {
         }
         return modifierManager.getAvailableUnits(category);
     }
-    
+
     /**
      * Check if a unit can be produced (based on custom faction selection)
      */
@@ -255,13 +285,13 @@ public class PlayerFaction {
         UnitCategory category = unitType.getCategory();
         return modifierManager.getAvailableUnits(category).contains(unitType);
     }
-    
+
     /**
      * Check if the player has all required tech buildings to produce this unit.
      * This is separate from faction selection - even if a unit is selected in the
      * custom faction, the player must build the required tech buildings first.
-     * 
-     * @param unitType The unit type to check
+     *
+     * @param unitType        The unit type to check
      * @param playerBuildings Set of building types the player has constructed
      * @return true if all required buildings are present (or no requirements)
      */

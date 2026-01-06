@@ -37,6 +37,9 @@ public class GameEntities {
     @Setter
     private World<Body> world; // The physics world (for raycasting, etc.)
 
+    @Setter
+    private RTSGameManager rtsGameManager; // Reference to game manager (for perk hooks)
+
     public GameEntities(GameConfig gameConfig, Consumer<GameEvent> gameEventSender) {
         this.gameConfig = gameConfig;
         this.gameEventSender = gameEventSender;
@@ -49,6 +52,7 @@ public class GameEntities {
         this.beams = new ConcurrentSkipListMap<>();
         this.fieldEffects = new ConcurrentSkipListMap<>();
         this.world = null; // Set by RTSGameManager
+        this.rtsGameManager = null; // Set by RTSGameManager
     }
 
     public void add(GameEntity e) {

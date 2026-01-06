@@ -3,7 +3,6 @@ package com.fullsteam.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.RTSLobby;
 import com.fullsteam.games.IdGenerator;
-import com.fullsteam.model.PlayerFaction;
 import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.RTSGameManager;
 import com.fullsteam.model.customization.CustomFactionBuilder;
@@ -53,23 +52,37 @@ public class RTSPlayerConnectionService {
 
         // Get faction selection from matchmaking game using session token
         RTSLobby.MatchmakingGame matchmakingGame = rtsLobby.getMatchmakingGame(gameId);
-        String factionName = "TERRAN"; // Default
         if (matchmakingGame != null && sessionToken != null) {
-            // Use session token to get the correct faction
-            factionName = matchmakingGame.getFactionForSession(sessionToken);
             matchmakingGame.markSessionConnected(sessionToken);
         }
-
         // Create player session
         int playerId = IdGenerator.nextPlayerId();
+        CustomFactionConfig config;
+        try {
+            config = objectMapper.readValue(factionConfigJson, CustomFactionConfig.class);
+        } catch (Exception e) {
+            log.error("Failed to apply custom faction config for player {} in game {}", playerId, gameId, e);
+            return false;
+        }
+        config.ensureBundledUnits();
+        ValidationResult validation = config.validate();
+        if (!validation.isValid()) {
+            log.error("Invalid custom faction config for player: {}", validation.getErrors());
+            return false;
+        }
 
+        String factionName = config.getDisplayName();
+        // Build FactionDefinition from config
+        CustomFactionBuilder builder = new CustomFactionBuilder();
+        FactionDefinition customDefinition = builder.buildFromConfig(config);
+
+        // Apply to player faction
         PlayerSession playerSession = new PlayerSession(playerId, session, "Player" + playerId);
-
         // Store game reference in session attributes
         session.put("rtsGame", game);
 
         // Add player to game with faction
-        if (!game.addPlayer(playerSession, factionName)) {
+        if (!game.addPlayer(playerSession, config, customDefinition)) {
             log.warn("Failed to add player {} to RTS game {} (game may be full or started)", playerId, gameId);
 
             // Send error message to player
@@ -87,43 +100,6 @@ public class RTSPlayerConnectionService {
 
         // Store session
         session.put(SESSION_KEY, playerSession);
-
-        // Apply custom faction config if provided
-        try {
-            log.info("Applying custom faction config for player {} in game {}", playerId, gameId);
-
-            // Parse the faction config JSON
-            CustomFactionConfig config = objectMapper.readValue(factionConfigJson, CustomFactionConfig.class);
-
-            // Ensure bundled units are included (e.g., ANDROID with ANDROID_FACTORY)
-            config.ensureBundledUnits();
-
-            // Validate the config
-            ValidationResult validation = config.validate();
-            if (!validation.isValid()) {
-                log.warn("Invalid custom faction config for player {}: {}", playerId, validation.getErrors());
-            } else {
-                // Build FactionDefinition from config
-                CustomFactionBuilder builder = new CustomFactionBuilder();
-                FactionDefinition customDefinition = builder.buildFromConfig(config);
-
-                // Apply to player faction
-                PlayerFaction playerFaction = game.getPlayerFactions().get(playerId);
-                if (playerFaction != null) {
-                    playerFaction.applyCustomFaction(customDefinition);
-                    log.info("Custom faction '{}' applied successfully for player {} ({} units, {} buildings, {} perks)",
-                            config.getDisplayName(), playerId,
-                            config.getSelectedUnits().size(),
-                            config.getSelectedBuildings().size(),
-                            config.getSelectedPerks().size());
-                } else {
-                    log.error("Player faction not found for player {} in game {}", playerId, gameId);
-                }
-            }
-        } catch (Exception e) {
-            log.error("Failed to apply custom faction config for player {} in game {}", playerId, gameId, e);
-            return false;
-        }
 
         // Send player their ID
         game.send(session, Map.of(

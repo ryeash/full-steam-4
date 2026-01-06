@@ -311,6 +311,7 @@ public class RTSLobby {
         /**
          * Get faction for a specific session token
          */
+        @Deprecated // this is no longer needed since everything is customized
         public synchronized String getFactionForSession(String sessionToken) {
             String faction = sessionTokenToFaction.get(sessionToken);
             if (faction != null) {
@@ -387,16 +388,16 @@ public class RTSLobby {
             for (Map.Entry<String, MatchmakingGame> entry : matchmakingGames.entrySet()) {
                 MatchmakingGame mmGame = entry.getValue();
                 RTSGameManager game = activeGames.get(entry.getKey());
-                
+
                 // Remove if:
                 // 1. Older than 10 minutes and not full (stale waiting games), OR
                 // 2. The associated game is over (finished games)
                 if ((now - mmGame.getCreatedTime() > 600000 && !mmGame.isReady()) ||
-                    (game != null && game.isGameOver())) {
+                        (game != null && game.isGameOver())) {
                     oldMatchmakingGames.add(entry.getKey());
-                    log.info("Removing matchmaking entry for game: {} (stale={}, gameOver={})", 
-                            entry.getKey(), 
-                            !mmGame.isReady(), 
+                    log.info("Removing matchmaking entry for game: {} (stale={}, gameOver={})",
+                            entry.getKey(),
+                            !mmGame.isReady(),
                             game != null && game.isGameOver());
                 }
             }

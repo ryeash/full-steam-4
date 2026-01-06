@@ -30,7 +30,7 @@ public class FactionDefinition {
      * Monument building unique to this faction (null if none)
      */
     private final BuildingType monumentBuilding;
-    
+
     /**
      * Selected units for custom factions (null for preset factions)
      * Custom factions have all these units available from the start
@@ -100,7 +100,11 @@ public class FactionDefinition {
      */
     public int getBuildingCost(BuildingType buildingType) {
         double baseCost = buildingType.getResourceCost();
-        return (int) Math.round(baseCost * buildingCostMultiplier);
+        BuildingStatModifier modifier = buildingStatModifiers.get(buildingType);
+        double multiplier = modifier != null && modifier.costMultiplier != 1.0
+                ? modifier.costMultiplier
+                : buildingCostMultiplier;
+        return (int) Math.round(baseCost * multiplier);
     }
 
     /**
@@ -159,5 +163,11 @@ public class FactionDefinition {
         private final double healthMultiplier = 1.0;
         @Builder.Default
         private final double buildTimeMultiplier = 1.0;
+        @Builder.Default
+        private final double costMultiplier = 1.0;
+        @Builder.Default
+        private final double damageMultiplier = 1.0;
+        @Builder.Default
+        private final int garrisonCapacityBonus = 0;
     }
 }
