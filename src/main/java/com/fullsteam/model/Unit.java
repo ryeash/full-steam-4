@@ -84,8 +84,45 @@ public class Unit extends GameEntity implements Targetable {
         this.teamNumber = teamNumber;
         this.faction = faction;
         this.weapon = WeaponFactory.getWeaponForUnitType(unitType);
+        
+        // Apply faction modifiers to weapon
+        applyFactionModifiersToWeapon();
+        
         // Note: Components are initialized via initializeComponents() after construction
         // Note: movementSpeed and visionRange are now calculated dynamically via getters
+    }
+    
+    /**
+     * Apply faction modifiers to this unit's weapon (damage, range, attack rate).
+     * Called during construction and can be called again if modifiers change.
+     */
+    public void applyFactionModifiersToWeapon() {
+        if (weapon == null || faction == null || faction.getFactionDefinition() == null) {
+            return;
+        }
+        
+        com.fullsteam.model.factions.FactionDefinition.UnitStatModifier modifier = 
+                faction.getFactionDefinition().getUnitStatModifiers().get(unitType);
+        
+        if (modifier != null) {
+            // Apply damage multiplier
+            if (modifier.getDamageMultiplier() != 1.0) {
+                double baseDamage = unitType.getDamage();
+                weapon.setDamage(baseDamage * modifier.getDamageMultiplier());
+            }
+            
+            // Apply range multiplier
+            if (modifier.getRangeMultiplier() != 1.0) {
+                double baseRange = unitType.getAttackRange();
+                weapon.setRange(baseRange * modifier.getRangeMultiplier());
+            }
+            
+            // Apply attack rate multiplier
+            if (modifier.getAttackRateMultiplier() != 1.0) {
+                double baseRate = unitType.getAttackRate();
+                weapon.setAttackRate(baseRate * modifier.getAttackRateMultiplier());
+            }
+        }
     }
 
     /**
@@ -681,8 +718,23 @@ public class Unit extends GameEntity implements Targetable {
             // In range - stop and construct
             body.setLinearVelocity(0, 0);
 
-            // Build at rate of 10 health per second
-            double progressAdded = 10 * deltaTime;
+            // Build at rate of 10 health per second (base rate)
+            double baseRate = 10.0;
+            
+            // Apply buildTimeMultiplier from faction (lower multiplier = faster construction)
+            // Note: buildTimeMultiplier of 0.8 means 20% faster, so we divide by it
+            double buildTimeMultiplier = 1.0;
+            if (faction != null && faction.getFactionDefinition() != null) {
+                com.fullsteam.model.factions.FactionDefinition.BuildingStatModifier modifier = 
+                        faction.getFactionDefinition().getBuildingStatModifiers().get(building.getBuildingType());
+                if (modifier != null) {
+                    buildTimeMultiplier = modifier.getBuildTimeMultiplier();
+                }
+            }
+            
+            // Lower multiplier = faster construction (divide by multiplier)
+            double effectiveRate = baseRate / buildTimeMultiplier;
+            double progressAdded = effectiveRate * deltaTime;
             building.addConstructionProgress(progressAdded);
         }
     }
@@ -1051,7 +1103,7 @@ public class Unit extends GameEntity implements Targetable {
     }
 
     /**
-     * Get effective movement speed with research modifiers applied.
+     * Get effective movement speed with faction modifiers applied.
      * Returns 0 if unit is deployed (for CRAWLER).
      */
     public double getMovementSpeed() {
@@ -1061,8 +1113,10 @@ public class Unit extends GameEntity implements Targetable {
             return 0.0; // Deployed units can't move
         }
 
-        // Base speed from unit type (modifiers applied via FactionDefinition)
-        return unitType.getMovementSpeed();
+        // Base speed from unit type with faction modifiers
+        double baseSpeed = unitType.getMovementSpeed();
+        double multiplier = getUnitStatMultiplier(mod -> mod.getSpeedMultiplier());
+        return baseSpeed * multiplier;
     }
 
     /**
@@ -1073,12 +1127,30 @@ public class Unit extends GameEntity implements Targetable {
     }
 
     /**
-     * Get effective max health (base value from unit type).
+     * Get effective max health with faction modifiers applied.
      * Overrides GameEntity.getMaxHealth().
      */
     @Override
     public double getMaxHealth() {
-        return unitType.getMaxHealth();
+        double baseHealth = unitType.getMaxHealth();
+        double multiplier = getUnitStatMultiplier(mod -> mod.getHealthMultiplier());
+        return baseHealth * multiplier;
+    }
+
+    /**
+     * Get a stat multiplier from the faction definition for this unit type.
+     * Uses a function to extract the specific multiplier needed.
+     */
+    private double getUnitStatMultiplier(java.util.function.Function<com.fullsteam.model.factions.FactionDefinition.UnitStatModifier, Double> extractor) {
+        if (faction != null && faction.getFactionDefinition() != null) {
+            com.fullsteam.model.factions.FactionDefinition.UnitStatModifier modifier = faction.getFactionDefinition()
+                    .getUnitStatModifiers()
+                    .get(unitType);
+            if (modifier != null) {
+                return extractor.apply(modifier);
+            }
+        }
+        return 1.0; // Default: no modifier
     }
 
     /**

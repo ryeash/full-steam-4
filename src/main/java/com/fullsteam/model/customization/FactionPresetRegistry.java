@@ -365,7 +365,6 @@ public class FactionPresetRegistry {
             .selectedPerks(new HashSet<>(Arrays.asList(
                 FactionPerk.POWER_EFFICIENCY_2,    // 6 pt (with prerequisite)
                 FactionPerk.POWER_EFFICIENCY_1,    // 3 pt
-                FactionPerk.MONUMENT_MASTERY,      // 8 pt
                 FactionPerk.FORTIFIED_2,           // 6 pt (with prerequisite)
                 FactionPerk.FORTIFIED_1            // 3 pt
             )))
@@ -409,7 +408,6 @@ public class FactionPresetRegistry {
                 BuildingType.PHOTON_SPIRE        // 12 pt (monument)
             )))
             .selectedPerks(new HashSet<>(Arrays.asList(
-                FactionPerk.MONUMENT_MASTERY,      // 8 pt
                 FactionPerk.COST_REDUCTION_1,      // 5 pt
                 FactionPerk.DAMAGE_BOOST_1         // 4 pt
             )))

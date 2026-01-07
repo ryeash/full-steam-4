@@ -238,36 +238,6 @@ public class FactionDefinition {
     }
 
     /**
-     * Modify income produced by a building
-     */
-    public double modifyBuildingIncome(Building building, PlayerFaction faction, double baseIncome) {
-        double modified = baseIncome;
-        for (FactionPerk perk : activePerks) {
-            try {
-                modified = perk.modifyBuildingIncome(building, faction, modified);
-            } catch (Exception e) {
-                log.error("Error in perk {} modifyBuildingIncome", perk, e);
-            }
-        }
-        return modified;
-    }
-
-    /**
-     * Modify monument buff strength
-     */
-    public double modifyMonumentBuffStrength(Building monument, PlayerFaction faction, double baseStrength) {
-        double modified = baseStrength;
-        for (FactionPerk perk : activePerks) {
-            try {
-                modified = perk.modifyMonumentBuffStrength(monument, faction, modified);
-            } catch (Exception e) {
-                log.error("Error in perk {} modifyMonumentBuffStrength", perk, e);
-            }
-        }
-        return modified;
-    }
-
-    /**
      * Stat modifiers for units
      */
     @Getter

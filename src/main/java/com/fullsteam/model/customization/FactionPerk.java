@@ -123,23 +123,6 @@ public enum FactionPerk implements PerkEffect {
         }
     },
 
-    BANK_EFFICIENCY(
-            "Banking Efficiency",
-            "+25% credit income from Banks",
-            4,
-            Set.of()
-    ) {
-        @Override
-        public double modifyBuildingIncome(Building building, PlayerFaction faction, double baseIncome) {
-            if (building.getBuildingType() == BuildingType.BANK) {
-                double modified = baseIncome * 1.25;
-                log.trace("BANK_EFFICIENCY: {} -> {}", baseIncome, modified);
-                return modified;
-            }
-            return baseIncome;
-        }
-    },
-
     // ===== MILITARY PERKS =====
     UPKEEP_INCREASE_1(
             "Increased Upkeep I",
@@ -473,21 +456,6 @@ public enum FactionPerk implements PerkEffect {
             }
             builder.unitCostModifiers(costMods);
             builder.unitStatModifiers(statMods);
-        }
-    },
-
-    MONUMENT_MASTERY(
-            "Monument Mastery",
-            "Monument buildings provide 50% stronger buffs",
-            8,
-            Set.of()
-    ) {
-        @Override
-        public double modifyMonumentBuffStrength(Building monument, PlayerFaction faction, double baseStrength) {
-            double modified = baseStrength * 1.50;
-            log.trace("MONUMENT_MASTERY: Monument {} buff {} -> {}",
-                    monument.getBuildingType(), baseStrength, modified);
-            return modified;
         }
     },
 

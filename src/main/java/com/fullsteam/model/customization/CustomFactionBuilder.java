@@ -7,8 +7,10 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -25,27 +27,73 @@ public class CustomFactionBuilder {
     public FactionDefinition buildFromConfig(CustomFactionConfig config) {
         log.info("Building custom faction: {}", config.getDisplayName());
 
-        // Start with default values
-        FactionDefinition.FactionDefinitionBuilder builder = FactionDefinition.builder()
-                .unitTypes(new HashSet<>(config.getSelectedUnits()))
-                .buildingTypes(new HashSet<>(config.getSelectedBuildings()))
-                .activePerks(config.getEffectivePerks()); // Store selected units
-
         // Get effective perks (highest tier only in each chain)
         Set<FactionPerk> effectivePerks = config.getEffectivePerks();
 
         log.info("Applying {} effective perks (filtered from {} selected)",
                 effectivePerks.size(), config.getSelectedPerks().size());
 
-        // Apply each perk's effects directly (FactionPerk implements PerkEffect)
+        // Accumulate modifiers from all perks
+        Map<UnitType, FactionDefinition.UnitStatModifier> accumulatedUnitMods = new HashMap<>();
+        Map<BuildingType, FactionDefinition.BuildingStatModifier> accumulatedBuildingMods = new HashMap<>();
+        Map<UnitType, Double> accumulatedUnitCosts = new HashMap<>();
+
+        // Start with default values
+        FactionDefinition.FactionDefinitionBuilder builder = FactionDefinition.builder()
+                .unitTypes(new HashSet<>(config.getSelectedUnits()))
+                .buildingTypes(new HashSet<>(config.getSelectedBuildings()))
+                .activePerks(effectivePerks);
+
+        // Apply each perk's effects using a temporary builder to extract modifiers
         for (FactionPerk perk : effectivePerks) {
-            perk.applyToDefinition(builder, config);
+            // Create a temporary builder to capture this perk's modifiers
+            FactionDefinition.FactionDefinitionBuilder tempBuilder = FactionDefinition.builder();
+            perk.applyToDefinition(tempBuilder, config);
+            FactionDefinition tempDef = tempBuilder.build();
+
+            // Merge unit stat modifiers
+            for (Map.Entry<UnitType, FactionDefinition.UnitStatModifier> entry : tempDef.getUnitStatModifiers().entrySet()) {
+                accumulatedUnitMods.merge(entry.getKey(), entry.getValue(), this::mergeUnitModifiers);
+            }
+
+            // Merge building stat modifiers
+            for (Map.Entry<BuildingType, FactionDefinition.BuildingStatModifier> entry : tempDef.getBuildingStatModifiers().entrySet()) {
+                accumulatedBuildingMods.merge(entry.getKey(), entry.getValue(), this::mergeBuildingModifiers);
+            }
+
+            // Merge unit cost modifiers
+            for (Map.Entry<UnitType, Double> entry : tempDef.getUnitCostModifiers().entrySet()) {
+                accumulatedUnitCosts.merge(entry.getKey(), entry.getValue(), (a, b) -> a * b);
+            }
+
+            // Apply scalar multipliers (last one wins for these)
+            if (tempDef.getPowerEfficiencyMultiplier() != 1.0) {
+                builder.powerEfficiencyMultiplier(tempDef.getPowerEfficiencyMultiplier());
+            }
+            if (tempDef.getUnitCostMultiplier() != 1.0) {
+                builder.unitCostMultiplier(tempDef.getUnitCostMultiplier());
+            }
+            if (tempDef.getBuildingCostMultiplier() != 1.0) {
+                builder.buildingCostMultiplier(tempDef.getBuildingCostMultiplier());
+            }
+            if (tempDef.getUpkeepMultiplier() != 1.0) {
+                builder.upkeepMultiplier(tempDef.getUpkeepMultiplier());
+            }
+            if (tempDef.getBuildingHealthMultiplier() != 1.0) {
+                builder.buildingHealthMultiplier(tempDef.getBuildingHealthMultiplier());
+            }
+
             log.debug("Applied perk: {}", perk.getDisplayName());
         }
 
+        // Apply accumulated modifiers to the main builder
+        builder.unitStatModifiers(accumulatedUnitMods);
+        builder.buildingStatModifiers(accumulatedBuildingMods);
+        builder.unitCostModifiers(accumulatedUnitCosts);
+
         FactionDefinition definition = builder.build();
 
-        log.info("Custom faction built: {} with {} units, {} buildings, {} perks ({}effective)",
+        log.info("Custom faction built: {} with {} units, {} buildings, {} perks ({} effective)",
                 config.getDisplayName(),
                 config.getSelectedUnits().size(),
                 config.getSelectedBuildings().size(),
@@ -53,6 +101,38 @@ public class CustomFactionBuilder {
                 effectivePerks.size());
 
         return definition;
+    }
+
+    /**
+     * Merge two UnitStatModifiers by multiplying their values
+     */
+    private FactionDefinition.UnitStatModifier mergeUnitModifiers(
+            FactionDefinition.UnitStatModifier a,
+            FactionDefinition.UnitStatModifier b) {
+        return FactionDefinition.UnitStatModifier.builder()
+                .healthMultiplier(a.getHealthMultiplier() * b.getHealthMultiplier())
+                .speedMultiplier(a.getSpeedMultiplier() * b.getSpeedMultiplier())
+                .damageMultiplier(a.getDamageMultiplier() * b.getDamageMultiplier())
+                .rangeMultiplier(a.getRangeMultiplier() * b.getRangeMultiplier())
+                .attackRateMultiplier(a.getAttackRateMultiplier() * b.getAttackRateMultiplier())
+                .resourceCollectionMultiplier(a.getResourceCollectionMultiplier() * b.getResourceCollectionMultiplier())
+                .build();
+    }
+
+    /**
+     * Merge two BuildingStatModifiers by multiplying their values (additive for garrison capacity)
+     */
+    private FactionDefinition.BuildingStatModifier mergeBuildingModifiers(
+            FactionDefinition.BuildingStatModifier a,
+            FactionDefinition.BuildingStatModifier b) {
+        return FactionDefinition.BuildingStatModifier.builder()
+                .healthMultiplier(a.getHealthMultiplier() * b.getHealthMultiplier())
+                .buildTimeMultiplier(a.getBuildTimeMultiplier() * b.getBuildTimeMultiplier())
+                .productionSpeedMultiplier(a.getProductionSpeedMultiplier() * b.getProductionSpeedMultiplier())
+                .costMultiplier(a.getCostMultiplier() * b.getCostMultiplier())
+                .damageMultiplier(a.getDamageMultiplier() * b.getDamageMultiplier())
+                .garrisonCapacityBonus(a.getGarrisonCapacityBonus() + b.getGarrisonCapacityBonus())
+                .build();
     }
 
     /**

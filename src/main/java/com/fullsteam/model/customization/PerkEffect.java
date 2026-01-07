@@ -64,22 +64,4 @@ public interface PerkEffect {
      */
     default void onUnitDealsDamage(Unit attacker, Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
     }
-
-    /**
-     * Modify income produced by a building (called during income calculation)
-     *
-     * @return the modified income amount
-     */
-    default double modifyBuildingIncome(Building building, PlayerFaction faction, double baseIncome) {
-        return baseIncome;
-    }
-
-    /**
-     * Modify monument buff strength (called when monument effects are applied)
-     *
-     * @return the modified buff multiplier
-     */
-    default double modifyMonumentBuffStrength(Building monument, PlayerFaction faction, double baseStrength) {
-        return baseStrength;
-    }
 }
