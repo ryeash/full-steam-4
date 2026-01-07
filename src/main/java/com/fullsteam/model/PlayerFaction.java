@@ -2,9 +2,8 @@ package com.fullsteam.model;
 
 import com.fullsteam.model.customization.CustomFactionConfig;
 import com.fullsteam.model.customization.FactionPerk;
-import com.fullsteam.model.factions.Faction;
 import com.fullsteam.model.factions.FactionDefinition;
-import com.fullsteam.model.factions.FactionRegistry;
+import com.fullsteam.model.factions.FactionTechTree;
 import com.fullsteam.model.research.FactionModifierManager;
 import lombok.Data;
 
@@ -37,10 +36,6 @@ public class PlayerFaction {
 
     // Upkeep/supply system
     private int currentUpkeep = 0;
-    /**
-     * -- SETTER --
-     * Set max upkeep (base + bonuses from monuments)
-     */
     private int maxUpkeep = 250; // Supply cap (base value, modified by faction)
 
     // Power system
@@ -48,45 +43,23 @@ public class PlayerFaction {
     private int powerConsumed = 0;
     private boolean hasLowPower = false; // True when powerConsumed > powerGenerated
 
-    // Starting resources
+    /**
+     * Constructor with faction selection
+     */
     public PlayerFaction(int playerId, int teamNumber, String playerName) {
         this.playerId = playerId;
         this.teamNumber = teamNumber;
         this.playerName = playerName;
-
-        // Initialize faction (default to TERRAN for backward compatibility)
-        setFaction(Faction.TERRAN);
-
-        // Initialize with starting resources
-        resources.put(ResourceType.CREDITS, 1000); // Starting credits
-    }
-
-    /**
-     * Constructor with faction selection
-     */
-    public PlayerFaction(int playerId, int teamNumber, String playerName, Faction faction) {
-        this.playerId = playerId;
-        this.teamNumber = teamNumber;
-        this.playerName = playerName;
-
-        // Initialize faction
-        setFaction(faction);
-
-        // Initialize with starting resources
-        resources.put(ResourceType.CREDITS, 1000); // Starting credits
-    }
-
-    /**
-     * Set the faction for this player (loads faction definition)
-     */
-    public void setFaction(Faction faction) {
-        this.factionDefinition = FactionRegistry.getDefinition(faction);
-
-        // Apply faction-specific upkeep limit
+        this.factionDefinition = FactionDefinition.builder()
+                .techTree(FactionTechTree.builder()
+                        .buildingsAndUnits(Map.of())
+                        .build())
+                .heroUnit(null)
+                .monumentBuilding(null)
+                .build();
         this.maxUpkeep = factionDefinition.getUpkeepLimit(250); // Base 250
-
-        // Initialize modifier manager (research system removed)
         this.modifierManager = new FactionModifierManager(playerId);
+        this.resources.put(ResourceType.CREDITS, 1000); // Starting credits
     }
 
     /**
@@ -178,15 +151,6 @@ public class PlayerFaction {
     }
 
     /**
-     * Remove upkeep cost
-     */
-    public void removeUpkeep(int upkeepCost) {
-        currentUpkeep = Math.max(0, currentUpkeep - upkeepCost);
-    }
-
-    // ===== Faction-specific methods =====
-
-    /**
      * Check if this faction can build a specific unit type
      *
      * @deprecated Use canProduceUnit() which respects research unlocks instead
@@ -225,13 +189,6 @@ public class PlayerFaction {
     }
 
     /**
-     * Get the effective power value (with faction efficiency applied)
-     */
-    public int getPowerValue(int basePower) {
-        return factionDefinition.getPowerValue(basePower);
-    }
-
-    /**
      * Check if a building can produce a specific unit for this faction
      *
      * @deprecated Use canProduceUnit() + UnitType.getProducedBy() validation instead
@@ -239,18 +196,6 @@ public class PlayerFaction {
     @Deprecated
     public boolean canBuildingProduceUnit(BuildingType buildingType, UnitType unitType) {
         return factionDefinition.getTechTree().canBuildingProduceUnit(buildingType, unitType);
-    }
-
-    // ===== Unit Tech Tree Methods =====
-
-    /**
-     * Get available units for a specific category (from tech tree)
-     */
-    public Set<UnitType> getAvailableUnits(UnitCategory category) {
-        if (modifierManager == null) {
-            return Set.of();
-        }
-        return modifierManager.getAvailableUnits(category);
     }
 
     /**

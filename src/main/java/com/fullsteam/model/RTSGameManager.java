@@ -23,7 +23,6 @@ import com.fullsteam.model.component.IBuildingComponent;
 import com.fullsteam.model.component.InterceptorComponent;
 import com.fullsteam.model.component.ShieldComponent;
 import com.fullsteam.model.customization.CustomFactionConfig;
-import com.fullsteam.model.factions.Faction;
 import com.fullsteam.model.factions.FactionDefinition;
 import io.micronaut.websocket.WebSocketSession;
 import io.micronaut.websocket.exceptions.WebSocketSessionException;
@@ -2374,8 +2373,7 @@ public class RTSGameManager {
         PlayerFaction faction = new PlayerFaction(
                 playerSession.getPlayerId(),
                 teamNumber,
-                playerSession.getPlayerName(),
-                Faction.CUSTOM
+                playerSession.getPlayerName()
         );
         faction.applyCustomFaction(customDefinition, config);
 
