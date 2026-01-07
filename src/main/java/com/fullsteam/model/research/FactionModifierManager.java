@@ -8,7 +8,6 @@ import com.fullsteam.model.Unit;
 import com.fullsteam.model.UnitCategory;
 import com.fullsteam.model.UnitType;
 import com.fullsteam.model.customization.FactionPerk;
-import com.fullsteam.model.factions.Faction;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,7 +27,6 @@ import java.util.Set;
 public class FactionModifierManager {
 
     private final int playerId;
-    private final Faction faction;
 
     // Available units (set by custom faction configuration)
     private Map<UnitCategory, Set<UnitType>> availableUnits = new HashMap<>();
@@ -36,10 +34,9 @@ public class FactionModifierManager {
     // Active perks (FactionPerk enum implements PerkEffect)
     private Set<FactionPerk> activePerks = new HashSet<>();
 
-    public FactionModifierManager(int playerId, Faction faction) {
+    public FactionModifierManager(int playerId) {
         this.playerId = playerId;
-        this.faction = faction;
-        log.info("Player {} - Initialized FactionModifierManager for faction: {}", playerId, faction);
+        log.info("Player {} - Initialized FactionModifierManager", playerId);
     }
 
     /**
@@ -111,7 +108,7 @@ public class FactionModifierManager {
             }
         }
     }
-    
+
     /**
      * Called when a unit belonging to this faction is destroyed
      */
@@ -124,7 +121,7 @@ public class FactionModifierManager {
             }
         }
     }
-    
+
     /**
      * Called when a building is created for this faction
      */
@@ -137,7 +134,7 @@ public class FactionModifierManager {
             }
         }
     }
-    
+
     /**
      * Called when a building belonging to this faction is destroyed
      */
@@ -150,7 +147,7 @@ public class FactionModifierManager {
             }
         }
     }
-    
+
     /**
      * Called when a unit belonging to this faction deals damage
      */
@@ -163,7 +160,7 @@ public class FactionModifierManager {
             }
         }
     }
-    
+
     /**
      * Modify income produced by a building
      */
@@ -178,7 +175,7 @@ public class FactionModifierManager {
         }
         return modified;
     }
-    
+
     /**
      * Modify monument buff strength
      */

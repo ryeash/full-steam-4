@@ -249,7 +249,6 @@ class RTSEngine {
                 const bytes = Uint8Array.from(binaryString, char => char.charCodeAt(0));
                 const configJson = new TextDecoder().decode(bytes);
                 factionConfig = JSON.parse(configJson);
-                console.log('Loaded faction config from URL (base64):', factionConfig);
             } catch (e) {
                 console.error('Failed to parse faction config from URL:', e);
             }
@@ -338,9 +337,6 @@ class RTSEngine {
                 break;
             case 'playerId':
                 this.myPlayerId = data.playerId;
-                console.log('Received player ID:', this.myPlayerId);
-                // Faction config is now applied during WebSocket connection
-                // No separate API call needed
                 break;
             case 'gameOver':
                 this.handleGameOver(data);
@@ -612,19 +608,12 @@ class RTSEngine {
         if (state.factions && this.myPlayerId) {
             this.myFaction = state.factions[this.myPlayerId];
             if (this.myFaction) {
-                console.log('myFaction updated:', {
-                    factionType: this.myFaction.factionType,
-                    hasBuildingInfo: !!this.myFaction.buildingInfo,
-                    hasUnitInfo: !!this.myFaction.unitInfo,
-                    buildingInfoLength: this.myFaction.buildingInfo?.length,
-                    unitInfoLength: this.myFaction.unitInfo?.length
-                });
                 this.myTeam = this.myFaction.team;
                 this.updateResourceDisplay();
                 
                 // For CUSTOM factions, use building/unit info from game state
-                if (this.myFaction.factionType === 'CUSTOM' && this.myFaction.buildingInfo) {
-                    console.log('Setting up CUSTOM faction data from game state');
+                if (this.myFaction.buildingInfo) {
+                    console.log('Setting up faction data from game state');
                     console.log('buildingInfo:', this.myFaction.buildingInfo);
                     console.log('unitInfo:', this.myFaction.unitInfo);
                     

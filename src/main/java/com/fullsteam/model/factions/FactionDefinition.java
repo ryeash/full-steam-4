@@ -18,7 +18,6 @@ import java.util.Set;
 @Builder
 public class FactionDefinition {
 
-    private final Faction faction;
     private final FactionTechTree techTree;
 
     /**

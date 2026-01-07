@@ -23,7 +23,6 @@ public class PlayerFaction {
     private final String playerName;
 
     // Faction system
-    private Faction faction = Faction.TERRAN; // Default faction
     private FactionDefinition factionDefinition;
 
     // Unit availability manager (replaces old research system)
@@ -81,33 +80,13 @@ public class PlayerFaction {
      * Set the faction for this player (loads faction definition)
      */
     public void setFaction(Faction faction) {
-        this.faction = faction;
         this.factionDefinition = FactionRegistry.getDefinition(faction);
 
         // Apply faction-specific upkeep limit
         this.maxUpkeep = factionDefinition.getUpkeepLimit(250); // Base 250
 
         // Initialize modifier manager (research system removed)
-        this.modifierManager = new FactionModifierManager(playerId, faction);
-    }
-
-    /**
-     * Apply a custom faction definition (for player-created factions)
-     */
-    public void applyCustomFaction(FactionDefinition customDefinition) {
-        this.faction = Faction.CUSTOM;
-        this.factionDefinition = customDefinition;
-
-        // Apply faction-specific upkeep limit
-        this.maxUpkeep = customDefinition.getUpkeepLimit(250); // Base 250
-
-        // Initialize modifier manager
-        this.modifierManager = new FactionModifierManager(playerId, Faction.CUSTOM);
-
-        // Set available units for custom faction
-        if (!customDefinition.getCustomSelectedUnits().isEmpty()) {
-            this.modifierManager.setAvailableUnits(customDefinition.getCustomSelectedUnits());
-        }
+        this.modifierManager = new FactionModifierManager(playerId);
     }
 
     /**
@@ -115,14 +94,13 @@ public class PlayerFaction {
      */
     public void applyCustomFaction(FactionDefinition customDefinition,
                                    CustomFactionConfig config) {
-        this.faction = Faction.CUSTOM;
         this.factionDefinition = customDefinition;
 
         // Apply faction-specific upkeep limit
         this.maxUpkeep = customDefinition.getUpkeepLimit(250); // Base 250
 
         // Initialize modifier manager
-        this.modifierManager = new FactionModifierManager(playerId, Faction.CUSTOM);
+        this.modifierManager = new FactionModifierManager(playerId);
 
         // Set available units for custom faction
         if (!customDefinition.getCustomSelectedUnits().isEmpty()) {

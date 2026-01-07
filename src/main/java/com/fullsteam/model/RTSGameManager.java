@@ -2108,13 +2108,6 @@ public class RTSGameManager {
         data.put("powerConsumed", faction.getPowerConsumed());
         data.put("hasLowPower", faction.isHasLowPower());
 
-        // Faction-specific information
-        data.put("factionType", faction.getFaction().name());
-        data.put("factionName", faction.getFaction().getDisplayName());
-        data.put("factionColor", faction.getFaction().getThemeColor());
-
-        // Research system removed - no completed/active research to serialize
-
         // Available units and buildings for this faction
         List<String> availableUnits = new ArrayList<>();
         if (faction.getModifierManager() != null) {
@@ -2136,58 +2129,52 @@ public class RTSGameManager {
         }
         data.put("availableBuildings", availableBuildings);
 
-        // For CUSTOM factions, include full building info (since they don't have static faction data)
-        if (faction.getFaction() == Faction.CUSTOM) {
-            List<Map<String, Object>> buildingInfo = new ArrayList<>();
-            for (BuildingType buildingType : BuildingType.values()) {
-                if (faction.canBuildBuilding(buildingType)) {
-                    Map<String, Object> building = new HashMap<>();
-                    building.put("buildingType", buildingType.name());
-                    building.put("displayName", buildingType.getDisplayName());
-                    building.put("cost", faction.getBuildingCost(buildingType));
-                    building.put("requiredTechTier", buildingType.getRequiredTechTier());
-                    building.put("maxHealth", (int) buildingType.getMaxHealth());
-                    building.put("powerValue", buildingType.getPowerValue());
-                    building.put("buildTimeSeconds", buildingType.getBuildTimeSeconds());
-                    building.put("canProduceUnits", buildingType.isCanProduceUnits());
-                    building.put("visionRange", buildingType.getVisionRange());
+        List<Map<String, Object>> buildingInfo = new ArrayList<>();
+        for (BuildingType buildingType : BuildingType.values()) {
+            if (faction.canBuildBuilding(buildingType)) {
+                Map<String, Object> building = new HashMap<>();
+                building.put("buildingType", buildingType.name());
+                building.put("displayName", buildingType.getDisplayName());
+                building.put("cost", faction.getBuildingCost(buildingType));
+                building.put("requiredTechTier", buildingType.getRequiredTechTier());
+                building.put("maxHealth", (int) buildingType.getMaxHealth());
+                building.put("powerValue", buildingType.getPowerValue());
+                building.put("buildTimeSeconds", buildingType.getBuildTimeSeconds());
+                building.put("canProduceUnits", buildingType.isCanProduceUnits());
+                building.put("visionRange", buildingType.getVisionRange());
 
-                    // Tech requirements (empty for now, could be enhanced)
-                    building.put("techRequirements", new ArrayList<>());
+                // Tech requirements (empty for now, could be enhanced)
+                building.put("techRequirements", new ArrayList<>());
 
-                    buildingInfo.add(building);
-                }
+                buildingInfo.add(building);
             }
-            data.put("buildingInfo", buildingInfo);
-
-            // Also include full unit info for custom factions
-            List<Map<String, Object>> unitInfo = new ArrayList<>();
-            for (String unitName : availableUnits) {
-                try {
-                    UnitType unitType = UnitType.valueOf(unitName);
-                    Map<String, Object> unit = new HashMap<>();
-                    unit.put("unitType", unitType.name());
-                    unit.put("displayName", unitType.getDisplayName());
-                    unit.put("cost", faction.getUnitCost(unitType));
-                    unit.put("upkeep", unitType.getUpkeepCost());
-                    unit.put("maxHealth", (int) unitType.getMaxHealth());
-                    unit.put("damage", (int) unitType.getDamage());
-                    unit.put("speed", unitType.getMovementSpeed());
-                    unit.put("range", (int) unitType.getAttackRange());
-                    unit.put("buildTimeSeconds", unitType.getBuildTimeSeconds());
-                    unit.put("producedBy", unitType.getProducedBy().name());
-                    unit.put("category", unitType.getCategory().name());
-
-                    unitInfo.add(unit);
-                } catch (IllegalArgumentException e) {
-                    log.warn("Invalid unit type in availableUnits: {}", unitName);
-                }
-            }
-            data.put("unitInfo", unitInfo);
-        } else {
-            log.debug("Player {} - Faction is {}, not CUSTOM, skipping buildingInfo/unitInfo",
-                    faction.getPlayerId(), faction.getFaction());
         }
+        data.put("buildingInfo", buildingInfo);
+
+        // Also include full unit info for custom factions
+        List<Map<String, Object>> unitInfo = new ArrayList<>();
+        for (String unitName : availableUnits) {
+            try {
+                UnitType unitType = UnitType.valueOf(unitName);
+                Map<String, Object> unit = new HashMap<>();
+                unit.put("unitType", unitType.name());
+                unit.put("displayName", unitType.getDisplayName());
+                unit.put("cost", faction.getUnitCost(unitType));
+                unit.put("upkeep", unitType.getUpkeepCost());
+                unit.put("maxHealth", (int) unitType.getMaxHealth());
+                unit.put("damage", (int) unitType.getDamage());
+                unit.put("speed", unitType.getMovementSpeed());
+                unit.put("range", (int) unitType.getAttackRange());
+                unit.put("buildTimeSeconds", unitType.getBuildTimeSeconds());
+                unit.put("producedBy", unitType.getProducedBy().name());
+                unit.put("category", unitType.getCategory().name());
+
+                unitInfo.add(unit);
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid unit type in availableUnits: {}", unitName);
+            }
+        }
+        data.put("unitInfo", unitInfo);
 
         // Faction-modified costs for units (client needs this for UI)
         // Only include costs for units that are actually available (via research)

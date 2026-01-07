@@ -2,7 +2,6 @@ package com.fullsteam.model.customization;
 
 import com.fullsteam.model.BuildingType;
 import com.fullsteam.model.UnitType;
-import com.fullsteam.model.factions.Faction;
 import com.fullsteam.model.factions.FactionDefinition;
 import com.fullsteam.model.factions.FactionTechTree;
 import jakarta.inject.Singleton;
@@ -32,7 +31,6 @@ public class CustomFactionBuilder {
 
         // Start with default values
         FactionDefinition.FactionDefinitionBuilder builder = FactionDefinition.builder()
-                .faction(Faction.CUSTOM)
                 .techTree(buildTechTree(config))
                 .heroUnit(findHeroUnit(config))
                 .monumentBuilding(findMonument(config))
@@ -40,9 +38,9 @@ public class CustomFactionBuilder {
 
         // Get effective perks (highest tier only in each chain)
         Set<FactionPerk> effectivePerks = config.getEffectivePerks();
-        
-        log.info("Applying {} effective perks (filtered from {} selected)", 
-            effectivePerks.size(), config.getSelectedPerks().size());
+
+        log.info("Applying {} effective perks (filtered from {} selected)",
+                effectivePerks.size(), config.getSelectedPerks().size());
 
         // Apply each perk's effects directly (FactionPerk implements PerkEffect)
         for (FactionPerk perk : effectivePerks) {

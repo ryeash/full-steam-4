@@ -46,7 +46,6 @@ public class FactionRegistry {
             .build();
         
         return FactionDefinition.builder()
-            .faction(Faction.CUSTOM)
             .techTree(emptyTechTree)
             .heroUnit(null)
             .monumentBuilding(null)
@@ -81,7 +80,6 @@ public class FactionRegistry {
                 .build();
 
         return FactionDefinition.builder()
-                .faction(Faction.TERRAN)
                 .techTree(techTree)
                 .heroUnit(UnitType.CRAWLER)
                 .monumentBuilding(BuildingType.COMMAND_CITADEL)
@@ -129,7 +127,6 @@ public class FactionRegistry {
                 .build());
 
         return FactionDefinition.builder()
-                .faction(Faction.NOMADS)
                 .techTree(techTree)
                 .heroUnit(UnitType.RAIDER)
                 .monumentBuilding(BuildingType.SANDSTORM_GENERATOR)
@@ -167,7 +164,6 @@ public class FactionRegistry {
                 .build();
 
         return FactionDefinition.builder()
-                .faction(Faction.SYNTHESIS)
                 .techTree(techTree)
                 .heroUnit(UnitType.COLOSSUS)
                 .monumentBuilding(BuildingType.ANDROID_FACTORY)
@@ -205,7 +201,6 @@ public class FactionRegistry {
                 .build();
 
         return FactionDefinition.builder()
-                .faction(Faction.TECH_ALLIANCE)
                 .techTree(techTree)
                 .heroUnit(UnitType.PHOTON_TITAN)
                 .monumentBuilding(BuildingType.PHOTON_SPIRE)
@@ -266,7 +261,6 @@ public class FactionRegistry {
                 .build());
 
         return FactionDefinition.builder()
-                .faction(Faction.STORM_WINGS)
                 .techTree(techTree)
                 .heroUnit(UnitType.GUNSHIP)
                 .monumentBuilding(BuildingType.TEMPEST_SPIRE)

@@ -1,17 +1,13 @@
 package com.fullsteam.controller;
 
-import com.fullsteam.dto.FactionInfoDTO;
-// Research system removed - UnitTechTreeDTO import deleted
-import com.fullsteam.games.FactionInfoService;
-import com.fullsteam.model.BuildingType;
+import com.fullsteam.RTSLobby;
 import com.fullsteam.model.GameConfig;
-import com.fullsteam.model.PlayerFaction;
 import com.fullsteam.model.RTSGameManager;
-import com.fullsteam.model.factions.Faction;
 import io.micronaut.context.annotation.Context;
 import io.micronaut.core.io.ResourceResolver;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Consumes;
@@ -43,16 +39,14 @@ public class GameController {
 
     private static final Logger log = LoggerFactory.getLogger(GameController.class);
 
-    private final com.fullsteam.RTSLobby rtsLobby;
+    private final RTSLobby rtsLobby;
     private final ResourceResolver resourceResolver;
-    private final FactionInfoService factionInfoService;
 
     @Inject
-    public GameController(com.fullsteam.RTSLobby rtsLobby, ResourceResolver resourceResolver,
-                          FactionInfoService factionInfoService) {
+    public GameController(RTSLobby rtsLobby,
+                          ResourceResolver resourceResolver) {
         this.rtsLobby = rtsLobby;
         this.resourceResolver = resourceResolver;
-        this.factionInfoService = factionInfoService;
     }
 
     @Post("/api/rts/games")
@@ -81,7 +75,7 @@ public class GameController {
                     "status", "created"
             );
         } catch (IllegalStateException e) {
-            throw new HttpStatusException(io.micronaut.http.HttpStatus.SERVICE_UNAVAILABLE,
+            throw new HttpStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Failed to create RTS game: " + e.getMessage());
         }
     }
@@ -133,7 +127,7 @@ public class GameController {
             return result;
         } catch (Exception e) {
             log.error("Error joining matchmaking", e);
-            throw new HttpStatusException(io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR,
+            throw new HttpStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Failed to join matchmaking: " + e.getMessage());
         }
     }
@@ -147,7 +141,7 @@ public class GameController {
             return Map.of("status", "left");
         } catch (Exception e) {
             log.error("Error leaving matchmaking", e);
-            throw new HttpStatusException(io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR,
+            throw new HttpStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Failed to leave matchmaking: " + e.getMessage());
         }
     }
@@ -155,9 +149,9 @@ public class GameController {
     @Get("/api/rts/matchmaking/status/{gameId}")
     @Produces(MediaType.APPLICATION_JSON)
     public Map<String, Object> getMatchmakingStatus(String gameId) {
-        com.fullsteam.RTSLobby.MatchmakingGame game = rtsLobby.getMatchmakingGame(gameId);
+        RTSLobby.MatchmakingGame game = rtsLobby.getMatchmakingGame(gameId);
         if (game == null) {
-            throw new HttpStatusException(io.micronaut.http.HttpStatus.NOT_FOUND,
+            throw new HttpStatusException(HttpStatus.NOT_FOUND,
                     "Matchmaking game not found");
         }
 
@@ -169,56 +163,6 @@ public class GameController {
         status.put("createdTime", game.getCreatedTime());
         return status;
     }
-
-    /**
-     * Get information about all available factions
-     */
-    @Get("/api/rts/factions")
-    @Produces(MediaType.APPLICATION_JSON)
-    public List<FactionInfoDTO> getAllFactions() {
-        try {
-            return factionInfoService.getAllFactions();
-        } catch (Exception e) {
-            log.error("Error fetching faction info", e);
-            throw new HttpStatusException(io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Failed to fetch faction information: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Get detailed information about a specific faction
-     */
-    @Get("/api/rts/factions/{factionName}")
-    @Produces(MediaType.APPLICATION_JSON)
-    public FactionInfoDTO getFactionInfo(@PathVariable String factionName) {
-        try {
-            log.info("Fetching faction info for: {}", factionName);
-            Faction faction = Faction.valueOf(factionName.toUpperCase());
-            FactionInfoDTO result = factionInfoService.getFactionInfo(faction);
-            log.info("Returning faction info with {} units and {} buildings",
-                    result.getAvailableUnits().size(),
-                    result.getAvailableBuildings().size());
-
-            // Log HEADQUARTERS info
-            result.getAvailableBuildings().stream()
-                    .filter(b -> "HEADQUARTERS".equals(b.getBuildingType()))
-                    .findFirst()
-                    .ifPresent(hq -> log.info("HEADQUARTERS found for faction {}", factionName));
-
-            return result;
-        } catch (IllegalArgumentException e) {
-            throw new HttpStatusException(io.micronaut.http.HttpStatus.NOT_FOUND,
-                    "Faction not found: " + factionName);
-        } catch (Exception e) {
-            log.error("Error fetching faction info for {}", factionName, e);
-            throw new HttpStatusException(io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Failed to fetch faction information: " + e.getMessage());
-        }
-    }
-
-    // Research system removed - tech tree endpoint deleted
-    // Research system removed - start/cancel research endpoints deleted
-    // Units are now selected during faction customization, not unlocked through research
 
     @Get(uris = {
             "/",
