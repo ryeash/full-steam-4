@@ -6,7 +6,6 @@ import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.UnitType;
 import com.fullsteam.model.command.AttackTargetableCommand;
-import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -47,7 +46,6 @@ public class HangarComponent extends AbstractBuildingComponent {
     private boolean producingAircraft = false;
     private UnitType producingType = null; // Type currently being produced
     private double productionProgress = 0; // seconds
-    private ResearchModifier modifier = new ResearchModifier();
 
     @Setter
     private Vector2 rallyPoint;
@@ -96,7 +94,7 @@ public class HangarComponent extends AbstractBuildingComponent {
         if (!producingAircraft || producingType == null) {
             return 0.0;
         }
-        return Math.min(1.0, productionProgress / (producingType.getBuildTimeSeconds() / modifier.getProductionSpeedMultiplier()));
+        return Math.min(1.0, productionProgress / producingType.getBuildTimeSeconds());
     }
 
     @Override
@@ -116,7 +114,7 @@ public class HangarComponent extends AbstractBuildingComponent {
             productionProgress += deltaTime;
 
             // Check if production is complete
-            if ((productionProgress * modifier.getProductionSpeedMultiplier()) >= producingType.getBuildTimeSeconds()) {
+            if (productionProgress >= producingType.getBuildTimeSeconds()) {
                 // Create the aircraft unit (but keep it housed, not in world)
                 Vector2 hangarPos = building.getPosition();
 
@@ -330,8 +328,8 @@ public class HangarComponent extends AbstractBuildingComponent {
     }
 
     @Override
-    public void applyResearchModifiers(ResearchModifier modifier) {
-        this.modifier = modifier;
+    public void applyResearchModifiers(com.fullsteam.model.research.ResearchModifier modifier) {
+        // Research system removed - no-op
     }
 
     /**

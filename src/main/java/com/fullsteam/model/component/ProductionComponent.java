@@ -10,7 +10,6 @@ import com.fullsteam.model.Unit;
 import com.fullsteam.model.UnitCategory;
 import com.fullsteam.model.UnitType;
 import com.fullsteam.model.command.MoveCommand;
-import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.dyn4j.geometry.Vector2;
@@ -54,17 +53,25 @@ public class ProductionComponent extends AbstractBuildingComponent {
 
         // Update current production (only if not low power)
         if (currentProduction != null && !hasLowPower) {
-            productionProgress += deltaTime;
+            // Get player faction for modifiers and unit creation
+            PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
 
-            // Check if production is complete (with research modifier applied dynamically)
-            ResearchModifier modifier = getResearchModifier();
-            if ((productionProgress * modifier.getProductionSpeedMultiplier()) >= currentProduction.unitType.getBuildTimeSeconds()) {
+            // Apply production speed multiplier from faction perks
+            double effectiveSpeed = 1.0;
+            if (faction != null) {
+                var buildingMods = faction.getFactionDefinition().getBuildingStatModifiers();
+                if (buildingMods != null && buildingMods.containsKey(building.getBuildingType())) {
+                    effectiveSpeed = buildingMods.get(building.getBuildingType()).getProductionSpeedMultiplier();
+                }
+            }
+
+            productionProgress += deltaTime * effectiveSpeed;
+
+            // Check if production is complete
+            if (productionProgress >= currentProduction.unitType.getBuildTimeSeconds()) {
                 UnitType unitType = currentProduction.unitType;
                 currentProduction = null;
                 productionProgress = 0;
-
-                // Get player faction for research modifiers
-                PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
 
                 // Create unit with faction reference
                 Unit unit = new Unit(
@@ -106,17 +113,6 @@ public class ProductionComponent extends AbstractBuildingComponent {
         }
     }
 
-    /**
-     * Get research modifier from building's faction for production speed calculations.
-     * This allows dynamic access to research modifiers without caching.
-     */
-    private ResearchModifier getResearchModifier() {
-        if (gameEntities == null) {
-            return new ResearchModifier(); // Default (no modifiers)
-        }
-        // Research system removed - always return default (no modifiers)
-        return new ResearchModifier();
-    }
 
     /**
      * Queue a unit for production.

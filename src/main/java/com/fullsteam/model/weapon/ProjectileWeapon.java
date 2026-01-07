@@ -6,7 +6,6 @@ import com.fullsteam.model.Elevation;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Ordinance;
 import com.fullsteam.model.Projectile;
-import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.dynamics.Body;
@@ -55,23 +54,18 @@ public class ProjectileWeapon extends Weapon {
                                                        int ownerId,
                                                        int ownerTeam,
                                                        Body ignoredBody,
-                                                       GameEntities gameEntities,
-                                                       ResearchModifier modifier) {
+                                                       GameEntities gameEntities) {
         Vector2 velocity = targetPosition.copy()
                 .subtract(position)
                 .getNormalized()
                 .multiply(projectileSpeed);
 
-        // Apply research modifiers to damage and range
-        double effectiveDamage = damage * modifier.getProjectileDamageMultiplier();
-        double effectiveRange = range * modifier.getAttackRangeMultiplier();
-
         // Create and return projectile in a list (single projectile for standard weapons)
         Projectile projectile = new Projectile(
                 position,
                 velocity,
-                effectiveDamage,
-                effectiveRange,
+                damage,
+                range,
                 ownerId,
                 ownerTeam,
                 linearDamping,

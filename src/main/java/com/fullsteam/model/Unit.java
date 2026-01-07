@@ -13,7 +13,6 @@ import com.fullsteam.model.component.HealComponent;
 import com.fullsteam.model.component.IUnitComponent;
 import com.fullsteam.model.component.InterceptorComponent;
 import com.fullsteam.model.component.RepairComponent;
-import com.fullsteam.model.research.ResearchModifier;
 import com.fullsteam.model.weapon.ProjectileWeapon;
 import com.fullsteam.model.weapon.Weapon;
 import com.fullsteam.model.weapon.WeaponFactory;
@@ -571,11 +570,10 @@ public class Unit extends GameEntity implements Targetable {
         // Notify cloak component of firing (will break cloak temporarily)
         getComponent(CloakComponent.class).ifPresent(CloakComponent::onFire);
 
-        // Fire the weapon (research system removed, modifiers now come from FactionDefinition)
-        ResearchModifier modifier = new ResearchModifier(); // Default (no research bonuses)
+        // Fire the weapon (modifiers come from FactionDefinition via weapon stats)
         List<AbstractOrdinance> ordinances = weapon.fire(
             getPosition(), targetPos, targetElevation, 
-            getId(), teamNumber, body, gameEntities, modifier
+            getId(), teamNumber, body, gameEntities
         );
 
         // Notify interceptor component of weapon fire (consumes ammo)
@@ -1063,33 +1061,24 @@ public class Unit extends GameEntity implements Targetable {
             return 0.0; // Deployed units can't move
         }
 
-        double baseSpeed = unitType.getMovementSpeed();
-        ResearchModifier modifier = new ResearchModifier(); // Research system removed
-        
-        if (isInfantry()) {
-            return baseSpeed * modifier.getInfantrySpeedMultiplier();
-        } else if (isVehicle()) {
-            return baseSpeed * modifier.getVehicleSpeedMultiplier();
-        }
-        return baseSpeed;
+        // Base speed from unit type (modifiers applied via FactionDefinition)
+        return unitType.getMovementSpeed();
     }
 
     /**
-     * Get effective vision range with research modifiers applied.
+     * Get effective vision range (base value from unit type).
      */
     public double getVisionRange() {
-        return unitType.getVisionRange() * 
-            new ResearchModifier().getVisionRangeMultiplier(); // Research system removed
+        return unitType.getVisionRange();
     }
 
     /**
-     * Get effective max health with research modifiers applied.
-     * Overrides GameEntity.getMaxHealth() to apply research bonuses.
+     * Get effective max health (base value from unit type).
+     * Overrides GameEntity.getMaxHealth().
      */
     @Override
     public double getMaxHealth() {
-        return unitType.getMaxHealth() * 
-            new ResearchModifier().getUnitHealthMultiplier(); // Research system removed
+        return unitType.getMaxHealth();
     }
 
     /**

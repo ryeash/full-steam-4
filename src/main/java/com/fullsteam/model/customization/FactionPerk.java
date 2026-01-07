@@ -9,7 +9,6 @@ import com.fullsteam.model.ResourceType;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.UnitCategory;
 import com.fullsteam.model.UnitType;
-import com.fullsteam.model.customization.perk.PerkEffect;
 import com.fullsteam.model.factions.FactionDefinition;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -74,9 +73,12 @@ public enum FactionPerk implements PerkEffect {
     ) {
         @Override
         public void applyToDefinition(FactionDefinition.FactionDefinitionBuilder builder, CustomFactionConfig config) {
-            // Note: This would need to be applied through ResearchModifier or similar
-            // For now, this is a placeholder - harvesting speed isn't in FactionDefinition yet
-            log.warn("RESOURCE_BOOST_1 not yet implemented in FactionDefinition");
+            // Apply to WORKER unit (the only harvester)
+            Map<UnitType, FactionDefinition.UnitStatModifier> unitMods = new HashMap<>();
+            unitMods.put(UnitType.WORKER, FactionDefinition.UnitStatModifier.builder()
+                    .resourceCollectionMultiplier(1.15)
+                    .build());
+            builder.unitStatModifiers(unitMods);
         }
     },
     RESOURCE_BOOST_2(
@@ -87,7 +89,12 @@ public enum FactionPerk implements PerkEffect {
     ) {
         @Override
         public void applyToDefinition(FactionDefinition.FactionDefinitionBuilder builder, CustomFactionConfig config) {
-            log.warn("RESOURCE_BOOST_2 not yet implemented in FactionDefinition");
+            // Apply to WORKER unit (the only harvester)
+            Map<UnitType, FactionDefinition.UnitStatModifier> unitMods = new HashMap<>();
+            unitMods.put(UnitType.WORKER, FactionDefinition.UnitStatModifier.builder()
+                    .resourceCollectionMultiplier(1.30)
+                    .build());
+            builder.unitStatModifiers(unitMods);
         }
     },
 
@@ -560,6 +567,68 @@ public enum FactionPerk implements PerkEffect {
         }
     },
 
+    INFANTRY_TRAINING_1(
+            "Infantry Training I",
+            "Barracks train infantry 20% faster",
+            3,
+            Set.of()
+    ) {
+        @Override
+        public void applyToDefinition(FactionDefinition.FactionDefinitionBuilder builder, CustomFactionConfig config) {
+            Map<BuildingType, FactionDefinition.BuildingStatModifier> buildingMods = new HashMap<>();
+            buildingMods.put(BuildingType.BARRACKS, FactionDefinition.BuildingStatModifier.builder()
+                    .productionSpeedMultiplier(1.20) // 20% faster
+                    .build());
+            builder.buildingStatModifiers(buildingMods);
+        }
+    },
+    INFANTRY_TRAINING_2(
+            "Infantry Training II",
+            "Barracks train infantry 40% faster",
+            6,
+            Set.of("INFANTRY_TRAINING_1")
+    ) {
+        @Override
+        public void applyToDefinition(FactionDefinition.FactionDefinitionBuilder builder, CustomFactionConfig config) {
+            Map<BuildingType, FactionDefinition.BuildingStatModifier> buildingMods = new HashMap<>();
+            buildingMods.put(BuildingType.BARRACKS, FactionDefinition.BuildingStatModifier.builder()
+                    .productionSpeedMultiplier(1.40) // 40% faster
+                    .build());
+            builder.buildingStatModifiers(buildingMods);
+        }
+    },
+    
+    VEHICLE_PRODUCTION_1(
+            "Vehicle Production I",
+            "Factories produce vehicles 20% faster",
+            3,
+            Set.of()
+    ) {
+        @Override
+        public void applyToDefinition(FactionDefinition.FactionDefinitionBuilder builder, CustomFactionConfig config) {
+            Map<BuildingType, FactionDefinition.BuildingStatModifier> buildingMods = new HashMap<>();
+            buildingMods.put(BuildingType.FACTORY, FactionDefinition.BuildingStatModifier.builder()
+                    .productionSpeedMultiplier(1.20) // 20% faster
+                    .build());
+            builder.buildingStatModifiers(buildingMods);
+        }
+    },
+    VEHICLE_PRODUCTION_2(
+            "Vehicle Production II",
+            "Factories produce vehicles 40% faster",
+            6,
+            Set.of("VEHICLE_PRODUCTION_1")
+    ) {
+        @Override
+        public void applyToDefinition(FactionDefinition.FactionDefinitionBuilder builder, CustomFactionConfig config) {
+            Map<BuildingType, FactionDefinition.BuildingStatModifier> buildingMods = new HashMap<>();
+            buildingMods.put(BuildingType.FACTORY, FactionDefinition.BuildingStatModifier.builder()
+                    .productionSpeedMultiplier(1.40) // 40% faster
+                    .build());
+            builder.buildingStatModifiers(buildingMods);
+        }
+    },
+    
     LOGISTICS_NETWORK(
             "Logistics Network",
             "Buildings cost 15% less, build 20% faster",

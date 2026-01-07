@@ -3,7 +3,6 @@ package com.fullsteam.model.component;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.command.ReturnToHangarCommand;
-import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -185,7 +184,7 @@ public class InterceptorComponent extends AbstractUnitComponent {
     }
 
     @Override
-    public void applyResearchModifiers(ResearchModifier modifier) {
+    public void applyResearchModifiers(com.fullsteam.model.research.ResearchModifier modifier) {
         // Future: Could apply research bonuses to fuel capacity or ammo count
         // For now, interceptor stats are fixed
     }

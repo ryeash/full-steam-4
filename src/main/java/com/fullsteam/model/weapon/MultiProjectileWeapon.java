@@ -7,7 +7,6 @@ import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Ordinance;
 import com.fullsteam.model.Projectile;
 import com.fullsteam.model.Unit;
-import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.dynamics.Body;
@@ -93,13 +92,8 @@ public class MultiProjectileWeapon extends Weapon {
                                                        int ownerId,
                                                        int ownerTeam,
                                                        Body ignoredBody,
-                                                       GameEntities gameEntities,
-                                                       ResearchModifier modifier) {
+                                                       GameEntities gameEntities) {
         List<AbstractOrdinance> ordinances = new ArrayList<>();
-
-        // Apply research modifiers to damage and range
-        double effectiveDamage = damage * modifier.getProjectileDamageMultiplier();
-        double effectiveRange = range * modifier.getAttackRangeMultiplier();
 
         // Calculate direction to target
         Vector2 direction = targetPosition.copy().subtract(position);
@@ -125,8 +119,8 @@ public class MultiProjectileWeapon extends Weapon {
                 Projectile projectile = new Projectile(
                         spawnPos,
                         velocity,
-                        effectiveDamage / projectileCount, // Split damage among projectiles
-                        effectiveRange,
+                        damage / projectileCount, // Split damage among projectiles
+                        range,
                         ownerId,
                         ownerTeam,
                         linearDamping,
@@ -165,8 +159,8 @@ public class MultiProjectileWeapon extends Weapon {
                 Projectile projectile = new Projectile(
                         position.copy(),
                         velocity,
-                        effectiveDamage / projectileCount, // Split damage among projectiles
-                        effectiveRange,
+                        damage / projectileCount, // Split damage among projectiles
+                        range,
                         ownerId,
                         ownerTeam,
                         linearDamping,
@@ -185,8 +179,8 @@ public class MultiProjectileWeapon extends Weapon {
             Projectile projectile = new Projectile(
                     position,
                     velocity,
-                    effectiveDamage,
-                    effectiveRange,
+                    damage,
+                    range,
                     ownerId,
                     ownerTeam,
                     linearDamping,

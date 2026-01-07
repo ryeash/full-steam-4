@@ -7,7 +7,6 @@ import com.fullsteam.model.Ordinance;
 import com.fullsteam.model.Targetable;
 import com.fullsteam.model.command.OnStationCommand;
 import com.fullsteam.model.command.ReturnToHangarCommand;
-import com.fullsteam.model.research.ResearchModifier;
 import com.fullsteam.model.weapon.ElevationTargeting;
 import com.fullsteam.model.weapon.ProjectileWeapon;
 import com.fullsteam.model.weapon.Weapon;
@@ -155,8 +154,6 @@ public class GunshipComponent extends AbstractUnitComponent {
     }
 
     private void attackEnemies() {
-        // Research system removed
-        ResearchModifier modifier = new ResearchModifier();
 
         Targetable airUnit = gameEntities.findNearestEnemyTargetable(unit.getPosition(), unit.getTeamNumber(), airWeapon);
         List<AbstractOrdinance> ordinances = new ArrayList<>();
@@ -168,8 +165,7 @@ public class GunshipComponent extends AbstractUnitComponent {
                     unit.getOwnerId(),
                     unit.getTeamNumber(),
                     unit.getBody(),
-                    gameEntities,
-                    modifier);
+                    gameEntities);
             ordinances.addAll(list);
             currentAmmoAir -= list.size();
         }
@@ -183,8 +179,7 @@ public class GunshipComponent extends AbstractUnitComponent {
                     unit.getOwnerId(),
                     unit.getTeamNumber(),
                     unit.getBody(),
-                    gameEntities,
-                    modifier);
+                    gameEntities);
             ordinances.addAll(list);
             currentAmmoGround -= list.size();
         }

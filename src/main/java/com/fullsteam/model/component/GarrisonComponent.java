@@ -4,7 +4,6 @@ import com.fullsteam.model.Building;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Unit;
-import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.geometry.Vector2;
@@ -149,8 +148,7 @@ public class GarrisonComponent extends AbstractBuildingComponent {
             if (target == null || !target.isActive()) {
                 continue;
             }
-            // Fire weapon from bunker position (research system removed)
-            ResearchModifier modifier = new ResearchModifier();
+            // Fire weapon from bunker position
             garrisonedUnit.getWeapon().fire(
                     garrisonedUnit.getPosition(),
                     target.getPosition(),
@@ -158,8 +156,7 @@ public class GarrisonComponent extends AbstractBuildingComponent {
                     garrisonedUnit.getId(),
                     garrisonedUnit.getTeamNumber(),
                     garrisonedUnit.getBody(),
-                    gameEntities,
-                    modifier
+                    gameEntities
             ).forEach(gameEntities::add);
         }
     }

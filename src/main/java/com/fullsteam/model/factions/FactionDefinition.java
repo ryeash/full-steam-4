@@ -283,6 +283,8 @@ public class FactionDefinition {
         private final double rangeMultiplier = 1.0;
         @Builder.Default
         private final double attackRateMultiplier = 1.0;
+        @Builder.Default
+        private final double resourceCollectionMultiplier = 1.0;
     }
 
     /**
@@ -294,7 +296,9 @@ public class FactionDefinition {
         @Builder.Default
         private final double healthMultiplier = 1.0;
         @Builder.Default
-        private final double buildTimeMultiplier = 1.0;
+        private final double buildTimeMultiplier = 1.0; // Time to construct the building itself
+        @Builder.Default
+        private final double productionSpeedMultiplier = 1.0; // Speed of unit production (higher = faster)
         @Builder.Default
         private final double costMultiplier = 1.0;
         @Builder.Default

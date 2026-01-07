@@ -1,6 +1,5 @@
 package com.fullsteam.model;
 
-import com.fullsteam.model.research.ResearchModifier;
 import com.fullsteam.model.weapon.Weapon;
 import com.fullsteam.model.weapon.WeaponFactory;
 import lombok.Getter;
@@ -64,7 +63,6 @@ public class Turret {
                 targetPos.y - turretWorldPos.y,
                 targetPos.x - turretWorldPos.x
         );
-        // Get research modifiers from parent unit's faction
         return weapon.fire(
                 turretWorldPos,
                 targetPos,
@@ -72,8 +70,7 @@ public class Turret {
                 parentUnit.getId(),
                 parentUnit.getTeamNumber(),
                 parentUnit.getBody(),
-                gameEntities,
-                new ResearchModifier() // Research system removed
+                gameEntities
         );
     }
 

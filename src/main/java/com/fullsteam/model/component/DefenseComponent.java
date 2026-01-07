@@ -4,7 +4,6 @@ import com.fullsteam.model.AbstractOrdinance;
 import com.fullsteam.model.Building;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Targetable;
-import com.fullsteam.model.research.ResearchModifier;
 import com.fullsteam.model.weapon.Weapon;
 import lombok.Getter;
 import lombok.Setter;
@@ -65,10 +64,8 @@ public class DefenseComponent extends AbstractBuildingComponent {
             return;
         }
 
-        // Research system removed
-        ResearchModifier modifier = new ResearchModifier();
 
-        // Fire weapon with modifiers
+        // Fire weapon
         List<AbstractOrdinance> ordinances = weapon.fire(
                 turretPos,
                 targetPos,
@@ -76,8 +73,7 @@ public class DefenseComponent extends AbstractBuildingComponent {
                 building.getId(),
                 building.getTeamNumber(),
                 building.getBody(),
-                gameEntities,
-                modifier
+                gameEntities
         );
 
         // Add ordinances to game world (defensive buildings can fire projectiles or beams)

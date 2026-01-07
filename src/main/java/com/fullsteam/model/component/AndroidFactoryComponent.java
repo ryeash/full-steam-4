@@ -6,7 +6,6 @@ import com.fullsteam.model.PlayerFaction;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.UnitType;
 import com.fullsteam.model.command.MoveCommand;
-import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +31,6 @@ public class AndroidFactoryComponent extends AbstractBuildingComponent {
     private final Set<Integer> controlledAndroidIds = new HashSet<>();
     private double productionProgress = 0; // seconds
     private boolean producingAndroid = false;
-    private ResearchModifier modifier = new ResearchModifier();
     @Setter
     private Vector2 rallyPoint;
 
@@ -63,7 +61,7 @@ public class AndroidFactoryComponent extends AbstractBuildingComponent {
             productionProgress += deltaTime;
 
             // Check if production is complete
-            if ((productionProgress * modifier.getProductionSpeedMultiplier()) >= ANDROID_TYPE.getBuildTimeSeconds()) {
+            if (productionProgress >= ANDROID_TYPE.getBuildTimeSeconds()) {
                 // Spawn the android
                 Vector2 spawnPos = findSpawnPosition(building);
 
@@ -143,8 +141,8 @@ public class AndroidFactoryComponent extends AbstractBuildingComponent {
     }
 
     @Override
-    public void applyResearchModifiers(ResearchModifier modifier) {
-        this.modifier = modifier;
+    public void applyResearchModifiers(com.fullsteam.model.research.ResearchModifier modifier) {
+        // Research system removed - no-op
     }
 
     /**
@@ -176,7 +174,7 @@ public class AndroidFactoryComponent extends AbstractBuildingComponent {
         if (!producingAndroid) {
             return 0.0;
         }
-        return Math.min(1.0, productionProgress / (ANDROID_TYPE.getBuildTimeSeconds() * modifier.getProductionSpeedMultiplier()));
+        return Math.min(1.0, productionProgress / ANDROID_TYPE.getBuildTimeSeconds());
     }
 }
 

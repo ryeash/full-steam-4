@@ -1,12 +1,10 @@
-package com.fullsteam.model.customization.perk;
+package com.fullsteam.model.customization;
 
 import com.fullsteam.model.Building;
 import com.fullsteam.model.PlayerFaction;
 import com.fullsteam.model.RTSGameManager;
 import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Unit;
-import com.fullsteam.model.customization.CustomFactionConfig;
-import com.fullsteam.model.customization.FactionPerk;
 import com.fullsteam.model.factions.FactionDefinition;
 
 /**

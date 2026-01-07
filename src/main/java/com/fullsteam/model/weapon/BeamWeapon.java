@@ -10,7 +10,6 @@ import com.fullsteam.model.Ordinance;
 import com.fullsteam.model.ShieldSensor;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.component.ShieldComponent;
-import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.dynamics.Body;
@@ -65,17 +64,12 @@ public class BeamWeapon extends Weapon {
                                                        int ownerId,
                                                        int ownerTeam,
                                                        Body ignoredBody,
-                                                       GameEntities gameEntities,
-                                                       ResearchModifier modifier) {
+                                                       GameEntities gameEntities) {
         // Beams require the world for raycasting
         World<Body> world = gameEntities.getWorld();
         if (world == null) {
             return List.of();
         }
-
-        // Apply research modifiers to damage and range
-        double effectiveDamage = damage * modifier.getBeamDamageMultiplier();
-        double effectiveRange = range * modifier.getAttackRangeMultiplier();
 
         // Calculate direction to target
         Vector2 direction = targetPosition.copy().subtract(position);
@@ -83,19 +77,19 @@ public class BeamWeapon extends Weapon {
         direction.normalize();
 
         // Use the minimum of weapon range and distance to target
-        double raycastRange = Math.min(effectiveRange, distanceToTarget);
+        double raycastRange = Math.min(range, distanceToTarget);
 
         // Perform raycast to find actual beam endpoint (respecting elevation)
-        Vector2 end = performRaycast(world, position, direction, raycastRange, ignoredBody, ownerTeam, targetElevation, effectiveDamage);
+        Vector2 end = performRaycast(world, position, direction, raycastRange, ignoredBody, ownerTeam, targetElevation, damage);
 
         // Create and return beam with raycast results in a list (single beam for standard weapons)
         Beam beam = new Beam(
                 position.copy(),
                 end,
-                effectiveRange,
+                range,
                 ownerId,
                 ownerTeam,
-                effectiveDamage,
+                damage,
                 bulletEffects,
                 ordinanceType,
                 beamType,

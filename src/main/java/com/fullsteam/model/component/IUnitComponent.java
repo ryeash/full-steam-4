@@ -2,7 +2,6 @@ package com.fullsteam.model.component;
 
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Unit;
-import com.fullsteam.model.research.ResearchModifier;
 
 /**
  * Interface for unit components.
@@ -49,8 +48,8 @@ public interface IUnitComponent {
      *
      * @param modifier The cumulative modifiers from completed research
      */
-    default void applyResearchModifiers(ResearchModifier modifier) {
-        // Default: do nothing
+    default void applyResearchModifiers(com.fullsteam.model.research.ResearchModifier modifier) {
+        // Default: do nothing (research system removed)
     }
 
     /**

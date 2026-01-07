@@ -5,7 +5,6 @@ import com.fullsteam.model.BuildingType;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.PlayerFaction;
 import com.fullsteam.model.ResourceType;
-import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -51,7 +50,16 @@ public class HarvestComponent extends AbstractUnitComponent {
             return true; // Can't harvest, stop trying
         }
 
-        double harvestAmount = HARVEST_RATE * getDeltaTime();
+        // Apply resource collection multiplier from faction perks
+        double effectiveHarvestRate = HARVEST_RATE;
+        if (unit.getFaction() != null && unit.getFaction().getFactionDefinition() != null) {
+            var unitMods = unit.getFaction().getFactionDefinition().getUnitStatModifiers();
+            if (unitMods != null && unitMods.containsKey(unit.getUnitType())) {
+                effectiveHarvestRate *= unitMods.get(unit.getUnitType()).getResourceCollectionMultiplier();
+            }
+        }
+        
+        double harvestAmount = effectiveHarvestRate * getDeltaTime();
         double actualHarvested = obstacle.harvest(harvestAmount);
         carriedResources += actualHarvested;
 
@@ -138,9 +146,9 @@ public class HarvestComponent extends AbstractUnitComponent {
     }
 
     @Override
-    public void applyResearchModifiers(ResearchModifier modifier) {
-        // Apply worker capacity research
-        maxCarriedResources = BASE_MAX_CARRIED_RESOURCES + modifier.getWorkerCapacityBonus();
+    public void applyResearchModifiers(com.fullsteam.model.research.ResearchModifier modifier) {
+        // Apply worker capacity research (currently unused - research system removed)
+        maxCarriedResources = BASE_MAX_CARRIED_RESOURCES + (int) modifier.getWorkerCapacityBonus();
         log.debug("Unit {} harvest capacity updated to {}", unit.getId(), maxCarriedResources);
     }
 
