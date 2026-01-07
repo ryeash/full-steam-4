@@ -73,6 +73,19 @@ public class WeaponFactory {
                     elevationTargeting
             );
 
+            case SHOTGUN_INFANTRY -> new MultiProjectileWeapon(
+                    damage, range, attackRate,
+                    450,  // projectile speed (slower than rifle)
+                    0.4,  // linear damping (pellets slow down faster)
+                    1.8,  // size (smaller pellets)
+                    Ordinance.BULLET,
+                    Set.of(),
+                    6,    // projectile count (6 pellets per shot)
+                    Math.toRadians(20), // spread angle (20 degree cone)
+                    true, // angular spread (shotgun pattern)
+                    elevationTargeting
+            );
+
             case ROCKET_SOLDIER -> new ProjectileWeapon(
                     damage, range, attackRate,
                     400,  // projectile speed (slower)

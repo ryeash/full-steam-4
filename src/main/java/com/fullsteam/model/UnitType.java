@@ -57,6 +57,27 @@ public enum UnitType {
             Set.of() // no tech requirements (basic unit)
     ),
 
+    // Shotgun Infantry - powerful close-range infantry
+    SHOTGUN_INFANTRY(
+            "Shotgun Infantry",
+            120,     // resource cost (60% more than infantry)
+            7,       // build time (seconds)
+            140,     // max health (slightly more durable)
+            115.0,   // movement speed (slightly slower)
+            35,      // damage (high damage, split across multiple pellets)
+            1.5,     // attack rate (slower than rifle)
+            130,     // attack range (shorter than rifle - close range weapon)
+            12.0,    // size (radius)
+            3,       // sides (triangle)
+            0x228B22, // forest green (darker than regular infantry)
+            BuildingType.BARRACKS,
+            13,      // upkeep cost (higher than infantry)
+            340.0,   // vision range (standard infantry),
+            Elevation.GROUND,
+            UnitCategory.INFANTRY, // category
+            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 specialist
+    ),
+
     // Laser Infantry - advanced infantry with beam weapons
     LASER_INFANTRY(
             "Laser Infantry",
@@ -698,6 +719,37 @@ public enum UnitType {
                 Convex plateRight = Geometry.createPolygon(rightPlate);
 
                 yield List.of(torso, plateLeft, plateRight);
+            }
+
+            // Shotgun Infantry - heavy assault trooper with wide barrel and reinforced stance
+            case SHOTGUN_INFANTRY -> {
+                // Main body: wider, more aggressive pentagon (heavy assault build)
+                Vector2[] mainBody = new Vector2[]{
+                        new Vector2(-size * 0.7, -size * 0.5),  // Back left (wider stance)
+                        new Vector2(-size * 0.2, -size * 0.8),  // Left shoulder (heavy armor)
+                        new Vector2(size * 0.7, 0),             // Front point (wide barrel)
+                        new Vector2(-size * 0.2, size * 0.8),   // Right shoulder (heavy armor)
+                        new Vector2(-size * 0.7, size * 0.5)    // Back right (wider stance)
+                };
+                Convex torso = Geometry.createPolygon(mainBody);
+
+                // Left barrel extension (shotgun spread indicator)
+                Vector2[] leftBarrel = new Vector2[]{
+                        new Vector2(size * 0.3, -size * 0.4),
+                        new Vector2(size * 0.9, -size * 0.3),
+                        new Vector2(size * 0.7, -size * 0.1)
+                };
+                Convex barrelLeft = Geometry.createPolygon(leftBarrel);
+
+                // Right barrel extension (shotgun spread indicator)
+                Vector2[] rightBarrel = new Vector2[]{
+                        new Vector2(size * 0.3, size * 0.4),
+                        new Vector2(size * 0.7, size * 0.1),
+                        new Vector2(size * 0.9, size * 0.3)
+                };
+                Convex barrelRight = Geometry.createPolygon(rightBarrel);
+
+                yield List.of(torso, barrelLeft, barrelRight);
             }
 
             // Laser Infantry - angular prism design with crystalline focusing arrays
