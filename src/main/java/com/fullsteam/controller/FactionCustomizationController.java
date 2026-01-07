@@ -256,14 +256,6 @@ public class FactionCustomizationController {
                 error.put("errors", List.of("Player not found in game"));
                 return HttpResponse.badRequest(error);
             }
-
-            log.info("Applying custom faction '{}' to player {} in game {}", 
-                    config.getDisplayName(), playerId, gameId);
-            playerFaction.applyCustomFaction(customDefinition, config);
-            log.info("Custom faction applied successfully. Player now has {} units available",
-                    playerFaction.getModifierManager().getAllAvailableUnits().values().stream()
-                            .mapToInt(Set::size).sum());
-
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Custom faction applied successfully");

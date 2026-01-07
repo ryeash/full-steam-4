@@ -1,10 +1,6 @@
 package com.fullsteam.model;
 
-import com.fullsteam.model.customization.CustomFactionConfig;
-import com.fullsteam.model.customization.FactionPerk;
 import com.fullsteam.model.factions.FactionDefinition;
-import com.fullsteam.model.factions.FactionTechTree;
-import com.fullsteam.model.research.FactionModifierManager;
 import lombok.Data;
 
 import java.util.HashMap;
@@ -23,9 +19,6 @@ public class PlayerFaction {
 
     // Faction system
     private FactionDefinition factionDefinition;
-
-    // Unit availability manager (replaces old research system)
-    private FactionModifierManager modifierManager;
 
     // Resources
     private final Map<ResourceType, Integer> resources = new HashMap<>();
@@ -46,45 +39,13 @@ public class PlayerFaction {
     /**
      * Constructor with faction selection
      */
-    public PlayerFaction(int playerId, int teamNumber, String playerName) {
+    public PlayerFaction(int playerId, int teamNumber, String playerName, FactionDefinition customDefinition) {
         this.playerId = playerId;
         this.teamNumber = teamNumber;
         this.playerName = playerName;
-        this.factionDefinition = FactionDefinition.builder()
-                .techTree(FactionTechTree.builder()
-                        .buildingsAndUnits(Map.of())
-                        .build())
-                .heroUnit(null)
-                .monumentBuilding(null)
-                .build();
-        this.maxUpkeep = factionDefinition.getUpkeepLimit(250); // Base 250
-        this.modifierManager = new FactionModifierManager(playerId);
-        this.resources.put(ResourceType.CREDITS, 1000); // Starting credits
-    }
-
-    /**
-     * Apply a custom faction definition with perks (for player-created factions)
-     */
-    public void applyCustomFaction(FactionDefinition customDefinition,
-                                   CustomFactionConfig config) {
         this.factionDefinition = customDefinition;
-
-        // Apply faction-specific upkeep limit
-        this.maxUpkeep = customDefinition.getUpkeepLimit(250); // Base 250
-
-        // Initialize modifier manager
-        this.modifierManager = new FactionModifierManager(playerId);
-
-        // Set available units for custom faction
-        if (!customDefinition.getCustomSelectedUnits().isEmpty()) {
-            this.modifierManager.setAvailableUnits(customDefinition.getCustomSelectedUnits());
-        }
-
-        // Set active perks (effective perks only - highest tier in each chain)
-        if (config != null && !config.getSelectedPerks().isEmpty()) {
-            Set<FactionPerk> effectivePerks = config.getEffectivePerks();
-            this.modifierManager.setActivePerks(effectivePerks);
-        }
+        this.maxUpkeep = factionDefinition.getUpkeepLimit(250); // Base 250
+        this.resources.put(ResourceType.CREDITS, 1000); // Starting credits
     }
 
     /**
@@ -157,14 +118,14 @@ public class PlayerFaction {
      */
     @Deprecated
     public boolean canBuildUnit(UnitType unitType) {
-        return factionDefinition.getTechTree().canBuildUnit(unitType);
+        return factionDefinition.canBuildUnit(unitType);
     }
 
     /**
      * Check if this faction can build a specific building type
      */
     public boolean canBuildBuilding(BuildingType buildingType) {
-        return factionDefinition.getTechTree().canBuildBuilding(buildingType);
+        return factionDefinition.canBuildBuilding(buildingType);
     }
 
     /**
@@ -189,24 +150,10 @@ public class PlayerFaction {
     }
 
     /**
-     * Check if a building can produce a specific unit for this faction
-     *
-     * @deprecated Use canProduceUnit() + UnitType.getProducedBy() validation instead
-     */
-    @Deprecated
-    public boolean canBuildingProduceUnit(BuildingType buildingType, UnitType unitType) {
-        return factionDefinition.getTechTree().canBuildingProduceUnit(buildingType, unitType);
-    }
-
-    /**
      * Check if a unit can be produced (based on custom faction selection)
      */
     public boolean canProduceUnit(UnitType unitType) {
-        if (modifierManager == null) {
-            return false;
-        }
-        UnitCategory category = unitType.getCategory();
-        return modifierManager.getAvailableUnits(category).contains(unitType);
+        return factionDefinition.getUnitTypes().contains(unitType);
     }
 
     /**

@@ -91,9 +91,7 @@ public class ProductionComponent extends AbstractBuildingComponent {
                 gameEntities.getWorld().addBody(unit.getBody());
 
                 // Trigger perk hooks for unit creation
-                if (faction != null && faction.getModifierManager() != null) {
-                    faction.getModifierManager().onUnitCreated(unit, faction, gameEntities.getRtsGameManager());
-                }
+                faction.getFactionDefinition().onUnitCreated(unit, faction, gameEntities.getRtsGameManager());
 
                 // Order unit to rally point
                 if (rallyPoint != null) {
@@ -136,12 +134,10 @@ public class ProductionComponent extends AbstractBuildingComponent {
         }
 
         // Validate unit is unlocked via custom faction selection
-        if (faction.getModifierManager() != null) {
-            if (!faction.canProduceUnit(unitType)) {
-                log.warn("Unit {} not available for player {} - not selected in faction customization",
-                        unitType, building.getOwnerId());
-                return false;
-            }
+        if (!faction.canProduceUnit(unitType)) {
+            log.warn("Unit {} not available for player {} - not selected in faction customization",
+                    unitType, building.getOwnerId());
+            return false;
         }
 
         // Validate building category matches unit category

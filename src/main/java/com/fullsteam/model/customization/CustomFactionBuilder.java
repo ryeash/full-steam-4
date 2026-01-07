@@ -3,17 +3,13 @@ package com.fullsteam.model.customization;
 import com.fullsteam.model.BuildingType;
 import com.fullsteam.model.UnitType;
 import com.fullsteam.model.factions.FactionDefinition;
-import com.fullsteam.model.factions.FactionTechTree;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Builds a runtime FactionDefinition from a CustomFactionConfig.
@@ -31,10 +27,9 @@ public class CustomFactionBuilder {
 
         // Start with default values
         FactionDefinition.FactionDefinitionBuilder builder = FactionDefinition.builder()
-                .techTree(buildTechTree(config))
-                .heroUnit(findHeroUnit(config))
-                .monumentBuilding(findMonument(config))
-                .customSelectedUnits(new HashSet<>(config.getSelectedUnits())); // Store selected units
+                .unitTypes(new HashSet<>(config.getSelectedUnits()))
+                .buildingTypes(new HashSet<>(config.getSelectedBuildings()))
+                .activePerks(config.getEffectivePerks()); // Store selected units
 
         // Get effective perks (highest tier only in each chain)
         Set<FactionPerk> effectivePerks = config.getEffectivePerks();
@@ -58,30 +53,6 @@ public class CustomFactionBuilder {
                 effectivePerks.size());
 
         return definition;
-    }
-
-    /**
-     * Build a FactionTechTree from selected units and buildings
-     */
-    private FactionTechTree buildTechTree(CustomFactionConfig config) {
-        Map<BuildingType, List<UnitType>> buildingsAndUnits = new LinkedHashMap<>();
-
-        // Group units by their production building
-        // Include ALL selected buildings, even if they don't produce units
-        for (BuildingType building : config.getSelectedBuildings()) {
-            List<UnitType> unitsForBuilding = config.getSelectedUnits().stream()
-                    .filter(unit -> unit.getProducedBy() == building)
-                    .collect(Collectors.toList());
-
-            buildingsAndUnits.put(building, unitsForBuilding);
-            log.info("Tech tree: {} -> {} units", building, unitsForBuilding.size());
-        }
-
-        log.info("Built tech tree with {} buildings", buildingsAndUnits.size());
-
-        return FactionTechTree.builder()
-                .buildingsAndUnits(buildingsAndUnits)
-                .build();
     }
 
     /**
