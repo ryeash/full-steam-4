@@ -80,9 +80,9 @@ public class WeaponFactory {
                     1.8,  // size (smaller pellets)
                     Ordinance.BULLET,
                     Set.of(),
-                    6,    // projectile count (6 pellets per shot)
+                    5,    // projectile count (5 pellets per shot)
+                    0.0,
                     Math.toRadians(20), // spread angle (20 degree cone)
-                    true, // angular spread (shotgun pattern)
                     elevationTargeting
             );
 
@@ -207,6 +207,7 @@ public class WeaponFactory {
                     Set.of(BulletEffect.EXPLOSIVE),
                     3,    // projectile count (3 parallel shots)
                     25.0, // spread distance (parallel barrels)
+                    0.0,
                     elevationTargeting
             );
 
@@ -293,6 +294,7 @@ public class WeaponFactory {
                     Set.of(BulletEffect.EXPLOSIVE),
                     2,    // projectile count (dual rockets)
                     8.0,  // spread distance (mounted on sides of helicopter)
+                    0.0,
                     elevationTargeting
             );
 
@@ -401,7 +403,7 @@ public class WeaponFactory {
                 ElevationTargeting.GROUND_ONLY // Photon Spire - ground only
         );
     }
-    
+
     /**
      * Get the weapon for Tempest Spire (Storm Wings monument).
      * Heavy anti-aircraft flak cannon for air superiority.

@@ -27,7 +27,7 @@ public class FactionPresetRegistry {
         
         // ===== SYNTHESIS VARIANTS =====
         PRESETS.put("SYNTHESIS_SHIELDED", createSynthesisShielded());
-        PRESETS.put("SYNTHESIS_ANDROID_ARMY", createSynthesisAndroids());
+        PRESETS.put("SYNTHESIS_ANDROIDS", createSynthesisAndroids());
         
         // ===== TECH ALLIANCE VARIANTS =====
         PRESETS.put("TECH_ALLIANCE_BEAMS", createTechAllianceBeams());
@@ -84,6 +84,7 @@ public class FactionPresetRegistry {
                 UnitType.JEEP,           // 3 pt
                 UnitType.TANK,           // 5 pt
                 UnitType.ARTILLERY,      // 6 pt
+                UnitType.FLAK_TANK,      // 5 pt - anti-air coverage
                 UnitType.SCOUT_DRONE,    // 2 pt
                 UnitType.HELICOPTER,     // 4 pt
                 UnitType.CRAWLER         // 10 pt (hero)
@@ -104,7 +105,10 @@ public class FactionPresetRegistry {
             .selectedPerks(new HashSet<>(Arrays.asList(
                 FactionPerk.FORTIFIED_1,       // 3 pt
                 FactionPerk.UPKEEP_INCREASE_1, // 3 pt
-                FactionPerk.VETERAN_UNITS_1    // 3 pt
+                FactionPerk.VETERAN_UNITS_1,   // 3 pt
+                FactionPerk.TURRET_EFFICIENCY, // 4 pt - synergizes with turrets
+                FactionPerk.RESOURCE_BOOST_1,  // 4 pt - economy boost
+                FactionPerk.RAPID_DEPLOYMENT_1 // 3 pt - faster building
             )))
             .basedOnPreset(null)
             .build();
@@ -129,7 +133,10 @@ public class FactionPresetRegistry {
                 UnitType.MEDIC,
                 UnitType.SNIPER,         // 3 pt
                 UnitType.ENGINEER,       // 3 pt
+                UnitType.SHOTGUN_INFANTRY, // 3 pt - more infantry variety
                 UnitType.JEEP,
+                UnitType.TANK,           // 5 pt - heavy support
+                UnitType.ARTILLERY,      // 6 pt - siege support
                 UnitType.SCOUT_DRONE,
                 UnitType.CRAWLER
             )))
@@ -137,6 +144,7 @@ public class FactionPresetRegistry {
                 BuildingType.HEADQUARTERS,
                 BuildingType.POWER_PLANT,
                 BuildingType.BARRACKS,
+                BuildingType.FACTORY,    // 5 pt - vehicle support
                 BuildingType.RESEARCH_LAB,
                 BuildingType.REFINERY,
                 BuildingType.TURRET,
@@ -148,7 +156,10 @@ public class FactionPresetRegistry {
                 FactionPerk.INFANTRY_DOCTRINE_2,  // 7 pt (requires level 1)
                 FactionPerk.BUNKER_MASTERY,       // 4 pt
                 FactionPerk.UPKEEP_INCREASE_2,    // 6 pt (requires level 1)
-                FactionPerk.UPKEEP_INCREASE_1     // 3 pt (prerequisite)
+                FactionPerk.UPKEEP_INCREASE_1,    // 3 pt (prerequisite)
+                FactionPerk.INFANTRY_TRAINING_1,  // 3 pt - faster production
+                FactionPerk.VETERAN_UNITS_1,      // 3 pt - tougher units
+                FactionPerk.FORTIFIED_1           // 3 pt - defensive synergy
             )))
             .basedOnPreset("TERRAN_STANDARD")
             .build();
@@ -169,11 +180,13 @@ public class FactionPresetRegistry {
             .selectedUnits(new HashSet<>(Arrays.asList(
                 UnitType.WORKER,
                 UnitType.INFANTRY,
+                UnitType.ENGINEER,       // 3 pt - repair capability
                 UnitType.JEEP,
                 UnitType.TANK,
                 UnitType.ARTILLERY,
                 UnitType.FLAK_TANK,      // 5 pt
                 UnitType.SCOUT_DRONE,
+                UnitType.HELICOPTER,     // 4 pt - air support
                 UnitType.CRAWLER
             )))
             .selectedBuildings(new HashSet<>(Arrays.asList(
@@ -181,6 +194,7 @@ public class FactionPresetRegistry {
                 BuildingType.POWER_PLANT,
                 BuildingType.BARRACKS,
                 BuildingType.FACTORY,
+                BuildingType.AIRFIELD,   // 5 pt - enables helicopter
                 BuildingType.RESEARCH_LAB,
                 BuildingType.TECH_CENTER,
                 BuildingType.REFINERY,
@@ -191,7 +205,8 @@ public class FactionPresetRegistry {
                 FactionPerk.MECHANIZED_WARFARE_1,  // 4 pt
                 FactionPerk.MECHANIZED_WARFARE_2,  // 7 pt
                 FactionPerk.RAPID_DEPLOYMENT_1,    // 3 pt
-                FactionPerk.LOGISTICS_NETWORK      // 6 pt
+                FactionPerk.LOGISTICS_NETWORK,     // 6 pt
+                FactionPerk.VEHICLE_PRODUCTION_1   // 3 pt - faster vehicle production
             )))
             .basedOnPreset("TERRAN_STANDARD")
             .build();
@@ -217,6 +232,7 @@ public class FactionPresetRegistry {
                 UnitType.JEEP,
                 UnitType.TANK,
                 UnitType.CLOAK_TANK,     // 6 pt
+                UnitType.ARTILLERY,      // 6 pt - siege capability
                 UnitType.SCOUT_DRONE,
                 UnitType.RAIDER          // 10 pt (hero)
             )))
@@ -226,6 +242,7 @@ public class FactionPresetRegistry {
                 BuildingType.BARRACKS,
                 BuildingType.FACTORY,
                 BuildingType.RESEARCH_LAB,
+                BuildingType.TECH_CENTER,         // 6 pt - advanced tech
                 BuildingType.REFINERY,
                 BuildingType.TURRET,
                 BuildingType.SANDSTORM_GENERATOR  // 12 pt (monument)
@@ -236,7 +253,9 @@ public class FactionPresetRegistry {
                 FactionPerk.RAPID_DEPLOYMENT_1,    // 3 pt
                 FactionPerk.RAPID_DEPLOYMENT_2,    // 6 pt
                 FactionPerk.MECHANIZED_WARFARE_1,  // 4 pt
-                FactionPerk.COST_REDUCTION_1       // 5 pt
+                FactionPerk.MECHANIZED_WARFARE_2,  // 7 pt - already has level 1
+                FactionPerk.COST_REDUCTION_1,      // 5 pt
+                FactionPerk.DAMAGE_BOOST_1         // 4 pt - more firepower
             )))
             .basedOnPreset(null)
             .build();
@@ -258,7 +277,9 @@ public class FactionPresetRegistry {
                 UnitType.WORKER,
                 UnitType.INFANTRY,
                 UnitType.SNIPER,
+                UnitType.ENGINEER,       // 3 pt - support
                 UnitType.JEEP,
+                UnitType.TANK,           // 5 pt - heavy support
                 UnitType.CLOAK_TANK,
                 UnitType.SCOUT_DRONE,
                 UnitType.RAIDER
@@ -268,6 +289,8 @@ public class FactionPresetRegistry {
                 BuildingType.POWER_PLANT,
                 BuildingType.BARRACKS,
                 BuildingType.FACTORY,
+                BuildingType.RESEARCH_LAB,         // 4 pt - tech access
+                BuildingType.TECH_CENTER,          // 6 pt - advanced tech
                 BuildingType.REFINERY,
                 BuildingType.TURRET,
                 BuildingType.BUNKER,
@@ -279,6 +302,7 @@ public class FactionPresetRegistry {
                 FactionPerk.RAPID_DEPLOYMENT_2,    // 6 pt (with prerequisite)
                 FactionPerk.RAPID_DEPLOYMENT_1,    // 3 pt
                 FactionPerk.DAMAGE_BOOST_1,        // 4 pt
+                FactionPerk.DAMAGE_BOOST_2,        // 8 pt - already has level 1
                 FactionPerk.SALVAGE_OPERATIONS     // 5 pt
             )))
             .basedOnPreset("NOMADS_RAIDERS")
@@ -319,12 +343,15 @@ public class FactionPresetRegistry {
                 BuildingType.REFINERY,
                 BuildingType.SHIELD_GENERATOR,    // 4 pt
                 BuildingType.LASER_TURRET,        // 4 pt
+                BuildingType.BUNKER,              // 3 pt - defense
                 BuildingType.ANDROID_FACTORY      // 12 pt (monument)
             )))
             .selectedPerks(new HashSet<>(Arrays.asList(
                 FactionPerk.POWER_EFFICIENCY_1,    // 3 pt
                 FactionPerk.POWER_EFFICIENCY_2,    // 6 pt
-                FactionPerk.FORTIFIED_1            // 3 pt
+                FactionPerk.POWER_EFFICIENCY_3,    // 10 pt - already has level 2
+                FactionPerk.FORTIFIED_1,           // 3 pt
+                FactionPerk.VETERAN_UNITS_1        // 3 pt - tougher units
             )))
             .basedOnPreset(null)
             .build();
@@ -345,8 +372,10 @@ public class FactionPresetRegistry {
             .selectedUnits(new HashSet<>(Arrays.asList(
                 UnitType.WORKER,
                 UnitType.LASER_INFANTRY,
-                UnitType.ANDROID,        // 4 pt (monument-produced)
+                UnitType.ANDROID,        // 0 pt (bundled with monument)
+                UnitType.JEEP,           // 3 pt - mobility
                 UnitType.TANK,
+                UnitType.HELICOPTER,     // 4 pt - air support
                 UnitType.SCOUT_DRONE,
                 UnitType.COLOSSUS
             )))
@@ -355,18 +384,23 @@ public class FactionPresetRegistry {
                 BuildingType.POWER_PLANT,
                 BuildingType.BARRACKS,
                 BuildingType.FACTORY,
+                BuildingType.AIRFIELD,            // 5 pt - enables helicopter
                 BuildingType.RESEARCH_LAB,
                 BuildingType.TECH_CENTER,
                 BuildingType.REFINERY,
                 BuildingType.SHIELD_GENERATOR,
                 BuildingType.LASER_TURRET,
+                BuildingType.TURRET,              // 2 pt - basic defense
+                BuildingType.BUNKER,              // 3 pt - additional defense
                 BuildingType.ANDROID_FACTORY
             )))
             .selectedPerks(new HashSet<>(Arrays.asList(
                 FactionPerk.POWER_EFFICIENCY_2,    // 6 pt (with prerequisite)
                 FactionPerk.POWER_EFFICIENCY_1,    // 3 pt
                 FactionPerk.FORTIFIED_2,           // 6 pt (with prerequisite)
-                FactionPerk.FORTIFIED_1            // 3 pt
+                FactionPerk.FORTIFIED_1,           // 3 pt
+                FactionPerk.RESOURCE_BOOST_1,      // 4 pt - economy boost
+                FactionPerk.DAMAGE_BOOST_1         // 4 pt - more firepower
             )))
             .basedOnPreset("SYNTHESIS_SHIELDED")
             .build();
@@ -391,8 +425,10 @@ public class FactionPresetRegistry {
                 UnitType.PLASMA_TROOPER, // 3 pt
                 UnitType.ION_RANGER,     // 3 pt
                 UnitType.PHOTON_SCOUT,   // 3 pt
+                UnitType.LASER_INFANTRY, // 3 pt - beam infantry
                 UnitType.BEAM_TANK,      // 5 pt
                 UnitType.SCOUT_DRONE,
+                UnitType.HELICOPTER,     // 4 pt - air unit
                 UnitType.PHOTON_TITAN    // 10 pt (hero)
             )))
             .selectedBuildings(new HashSet<>(Arrays.asList(
@@ -400,16 +436,22 @@ public class FactionPresetRegistry {
                 BuildingType.POWER_PLANT,
                 BuildingType.BARRACKS,
                 BuildingType.FACTORY,
+                BuildingType.AIRFIELD,            // 5 pt - air production
                 BuildingType.RESEARCH_LAB,
                 BuildingType.TECH_CENTER,
                 BuildingType.REFINERY,
                 BuildingType.LASER_TURRET,
                 BuildingType.SHIELD_GENERATOR,
-                BuildingType.PHOTON_SPIRE        // 12 pt (monument)
+                BuildingType.TURRET,              // 2 pt - defense
+                BuildingType.PHOTON_SPIRE         // 12 pt (monument)
             )))
             .selectedPerks(new HashSet<>(Arrays.asList(
                 FactionPerk.COST_REDUCTION_1,      // 5 pt
-                FactionPerk.DAMAGE_BOOST_1         // 4 pt
+                FactionPerk.DAMAGE_BOOST_1,        // 4 pt
+                FactionPerk.DAMAGE_BOOST_2,        // 8 pt - even more firepower
+                FactionPerk.POWER_EFFICIENCY_1,    // 3 pt - beam weapons need power
+                FactionPerk.VETERAN_UNITS_1,       // 3 pt - unit durability
+                FactionPerk.FORTIFIED_1            // 3 pt - building durability
             )))
             .basedOnPreset(null)
             .build();
@@ -432,7 +474,9 @@ public class FactionPresetRegistry {
             .selectedUnits(new HashSet<>(Arrays.asList(
                 UnitType.WORKER,
                 UnitType.INFANTRY,
+                UnitType.ROCKET_SOLDIER, // 3 pt - anti-air infantry
                 UnitType.JEEP,
+                UnitType.FLAK_TANK,      // 5 pt - ground-based anti-air
                 UnitType.SCOUT_DRONE,
                 UnitType.HELICOPTER,
                 UnitType.BOMBER,         // 5 pt
@@ -442,6 +486,7 @@ public class FactionPresetRegistry {
                 BuildingType.HEADQUARTERS,
                 BuildingType.POWER_PLANT,
                 BuildingType.BARRACKS,
+                BuildingType.FACTORY,            // 5 pt - enables Flak Tank
                 BuildingType.AIRFIELD,
                 BuildingType.HANGAR,             // 5 pt
                 BuildingType.RESEARCH_LAB,
@@ -455,7 +500,8 @@ public class FactionPresetRegistry {
                 FactionPerk.AIR_SUPERIORITY_2,   // 7 pt
                 FactionPerk.UPKEEP_INCREASE_1,   // 3 pt
                 FactionPerk.RAPID_DEPLOYMENT_1,  // 3 pt
-                FactionPerk.COST_REDUCTION_1     // 5 pt
+                FactionPerk.COST_REDUCTION_1,    // 5 pt
+                FactionPerk.VETERAN_UNITS_1      // 3 pt - tougher units
             )))
             .basedOnPreset(null)
             .build();
@@ -479,6 +525,7 @@ public class FactionPresetRegistry {
                 UnitType.SCOUT_DRONE,
                 UnitType.HELICOPTER,
                 UnitType.INTERCEPTOR,    // 5 pt
+                UnitType.BOMBER,         // 5 pt - bombing capability
                 UnitType.GUNSHIP
             )))
             .selectedBuildings(new HashSet<>(Arrays.asList(
@@ -498,7 +545,8 @@ public class FactionPresetRegistry {
                 FactionPerk.AIR_SUPERIORITY_1,     // 4 pt
                 FactionPerk.UPKEEP_INCREASE_1,     // 3 pt
                 FactionPerk.DAMAGE_BOOST_1,        // 4 pt
-                FactionPerk.LOGISTICS_NETWORK      // 6 pt
+                FactionPerk.LOGISTICS_NETWORK,     // 6 pt
+                FactionPerk.RAPID_DEPLOYMENT_1     // 3 pt - faster building
             )))
             .basedOnPreset("STORM_WINGS_BOMBERS")
             .build();

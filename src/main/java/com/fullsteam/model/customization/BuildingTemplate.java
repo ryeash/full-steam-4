@@ -61,8 +61,8 @@ public class BuildingTemplate implements CustomizableEntity {
      * Calculate point cost based on building type and utility
      */
     private static int calculatePointCost(BuildingType buildingType) {
-        // HEADQUARTERS is required and free
-        if (buildingType == BuildingType.HEADQUARTERS) {
+        // HEADQUARTERS and POWER_PLANT are required and free
+        if (buildingType == BuildingType.HEADQUARTERS || buildingType == BuildingType.POWER_PLANT) {
             return 0;
         }
         
@@ -101,9 +101,6 @@ public class BuildingTemplate implements CustomizableEntity {
         }
         
         // Economy buildings
-        if (buildingType == BuildingType.POWER_PLANT) {
-            return 2; // Essential, cheap
-        }
         if (buildingType == BuildingType.REFINERY) {
             return 2; // Essential, cheap
         }

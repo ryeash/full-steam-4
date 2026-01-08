@@ -58,7 +58,7 @@ public class UnitTypeTest {
             double x = (unitId % 10) * 100.0;
             double y = (unitId / 10) * 100.0;
             
-            Unit unit = new Unit(unitId, unitType, x, y, playerId, teamNumber);
+            Unit unit = new Unit(unitId, unitType, x, y, playerId, teamNumber, null);
             
             assertNotNull(unit, 
                 String.format("Should be able to create unit of type %s", unitType.name()));
@@ -178,7 +178,7 @@ public class UnitTypeTest {
             double x = (unitId % 10) * spacing;
             double y = (unitId / 10) * spacing;
             
-            Unit unit = new Unit(unitId, unitType, x, y, playerId, teamNumber);
+            Unit unit = new Unit(unitId, unitType, x, y, playerId, teamNumber, null);
             world.addBody(unit.getBody());
             
             unitId++;
@@ -246,7 +246,7 @@ public class UnitTypeTest {
         for (UnitType unitType : UnitType.values()) {
             for (double[] pos : positions) {
                 World<Body> world = new World<>();
-                Unit unit = new Unit(unitId++, unitType, pos[0], pos[1], 1, 1);
+                Unit unit = new Unit(unitId++, unitType, pos[0], pos[1], 1, 1, null);
                 
                 assertNotNull(unit);
                 assertNotNull(unit.getBody());
@@ -276,7 +276,7 @@ public class UnitTypeTest {
         int unitId = 1;
         for (UnitType unitType : UnitType.values()) {
             System.out.println(unitType);
-            Unit unit = new Unit(unitId++, unitType, 0, 0, 1, 1);
+            Unit unit = new Unit(unitId++, unitType, 0, 0, 1, 1, null);
             world.addBody(unit.getBody());
             
             // Rotate the unit to various angles
@@ -312,7 +312,7 @@ public class UnitTypeTest {
             List<Convex> fixtures = unitType.createPhysicsFixtures();
             
             // Create a unit and verify all fixtures are added to the body
-            Unit unit = new Unit(1, unitType, 0, 0, 1, 1);
+            Unit unit = new Unit(1, unitType, 0, 0, 1, 1, null);
             
             assertEquals(fixtures.size(), unit.getBody().getFixtureCount(),
                 String.format("Unit type %s should have %d fixture(s) in its body", 

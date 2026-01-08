@@ -33,32 +33,6 @@ public class MultiProjectileWeapon extends Weapon {
     private double spreadAngle; // Angle spread in radians (0 for parallel)
 
     /**
-     * Create a multi-projectile weapon with parallel projectiles (like COLOSSUS).
-     * Projectiles fire in a parallel pattern perpendicular to the firing direction.
-     */
-    public MultiProjectileWeapon(double damage,
-                                 double range,
-                                 double attackRate,
-                                 double projectileSpeed,
-                                 double linearDamping,
-                                 double projectileSize,
-                                 Ordinance ordinanceType,
-                                 Set<BulletEffect> bulletEffects,
-                                 int projectileCount,
-                                 double spreadDistance,
-                                 ElevationTargeting elevationTargeting) {
-        super(damage, range, attackRate, elevationTargeting);
-        this.projectileSpeed = projectileSpeed;
-        this.linearDamping = linearDamping;
-        this.projectileSize = projectileSize;
-        this.ordinanceType = ordinanceType;
-        this.bulletEffects = bulletEffects != null ? Set.copyOf(bulletEffects) : Set.of();
-        this.projectileCount = Math.max(1, projectileCount);
-        this.spreadDistance = spreadDistance;
-        this.spreadAngle = 0.0; // Parallel by default
-    }
-
-    /**
      * Create a multi-projectile weapon with angular spread (like shotgun).
      * Projectiles fire in a cone pattern from the source.
      */
@@ -71,8 +45,8 @@ public class MultiProjectileWeapon extends Weapon {
                                  Ordinance ordinanceType,
                                  Set<BulletEffect> bulletEffects,
                                  int projectileCount,
+                                 double spreadDistance,
                                  double spreadAngle,
-                                 boolean isAngularSpread,
                                  ElevationTargeting elevationTargeting) {
         super(damage, range, attackRate, elevationTargeting);
         this.projectileSpeed = projectileSpeed;
@@ -81,7 +55,7 @@ public class MultiProjectileWeapon extends Weapon {
         this.ordinanceType = ordinanceType;
         this.bulletEffects = bulletEffects != null ? Set.copyOf(bulletEffects) : Set.of();
         this.projectileCount = Math.max(1, projectileCount);
-        this.spreadDistance = 0.0;
+        this.spreadDistance = spreadDistance;
         this.spreadAngle = spreadAngle; // Cone spread
     }
 
@@ -209,6 +183,7 @@ public class MultiProjectileWeapon extends Weapon {
                 Set.copyOf(bulletEffects),
                 projectileCount,
                 spreadDistance,
+                spreadAngle,
                 elevationTargeting
         );
         copy.spreadAngle = this.spreadAngle;

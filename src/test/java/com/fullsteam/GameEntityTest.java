@@ -22,7 +22,7 @@ public class GameEntityTest {
         double worldHeight = 1000.0;
         
         // Create a unit at the center
-        Unit unit = new Unit(1, UnitType.SCOUT_DRONE, 0, 0, 1, 1);
+        Unit unit = new Unit(1, UnitType.SCOUT_DRONE, 0, 0, 1, 1, null);
         
         // Test clamping when unit is within bounds (should not change position)
         unit.setPosition(new Vector2(100, 100));
@@ -82,7 +82,7 @@ public class GameEntityTest {
         };
         
         for (UnitType airUnitType : airUnits) {
-            Unit airUnit = new Unit(1, airUnitType, 0, 0, 1, 1);
+            Unit airUnit = new Unit(1, airUnitType, 0, 0, 1, 1, null);
             
             // Try to move air unit outside boundaries (far outside)
             airUnit.setPosition(new Vector2(1500, 1000));
@@ -117,7 +117,7 @@ public class GameEntityTest {
         double worldWidth = 1000.0;
         double worldHeight = 1000.0;
         
-        Unit unit = new Unit(1, UnitType.SCOUT_DRONE, 0, 0, 1, 1);
+        Unit unit = new Unit(1, UnitType.SCOUT_DRONE, 0, 0, 1, 1, null);
         
         // Set unit velocity (simulating movement)
         unit.getBody().setLinearVelocity(100, 50);
@@ -149,7 +149,7 @@ public class GameEntityTest {
             double worldWidth = size[0];
             double worldHeight = size[1];
             
-            Unit unit = new Unit(1, UnitType.SCOUT_DRONE, 0, 0, 1, 1);
+            Unit unit = new Unit(1, UnitType.SCOUT_DRONE, 0, 0, 1, 1, null);
             
             // Test all four corners
             unit.setPosition(new Vector2(worldWidth, worldHeight));
@@ -170,7 +170,7 @@ public class GameEntityTest {
         double worldWidth = 1000.0;
         double worldHeight = 1000.0;
         
-        Unit unit = new Unit(1, UnitType.SCOUT_DRONE, 0, 0, 1, 1);
+        Unit unit = new Unit(1, UnitType.SCOUT_DRONE, 0, 0, 1, 1, null);
         
         // Place unit exactly at boundary (should not change)
         unit.setPosition(new Vector2(500.0, 0));

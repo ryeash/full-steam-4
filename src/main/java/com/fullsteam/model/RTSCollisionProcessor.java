@@ -88,14 +88,8 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
      * Handle a projectile hitting a wall segment
      */
     private void handleProjectileWallSegmentHit(Projectile projectile, WallSegment segment, Vector2 hitPosition) {
-        // Mark segment as affected
         projectile.getAffectedPlayers().add(segment.getId());
-
-        // Apply damage and check if destroyed
-        boolean destroyed = segment.takeDamageAndCheckDestroyed(projectile.getDamage());
-
-        log.debug("Projectile {} hit wall segment {} for {} damage (destroyed: {})",
-                projectile.getId(), segment.getId(), projectile.getDamage(), destroyed);
+        segment.takeDamage(projectile.getDamage());
         handleTerminalEffects(projectile);
     }
 

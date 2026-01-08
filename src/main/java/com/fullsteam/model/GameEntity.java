@@ -72,17 +72,6 @@ public abstract class GameEntity {
         }
     }
 
-    /**
-     * Helper method to apply damage and check if the entity was destroyed.
-     *
-     * @return true if the entity became inactive as a result of this damage
-     */
-    public boolean takeDamageAndCheckDestroyed(double damage) {
-        boolean wasActive = active;
-        takeDamage(damage);
-        return wasActive && !active;
-    }
-
     public boolean isExpired() {
         if (!active) {
             return true;
@@ -108,8 +97,8 @@ public abstract class GameEntity {
     /**
      * Clamp entity position to world boundaries.
      * This is especially important for air units which can fly over boundary obstacles.
-     * 
-     * @param worldWidth The width of the world
+     *
+     * @param worldWidth  The width of the world
      * @param worldHeight The height of the world
      */
     public void clampToBounds(double worldWidth, double worldHeight) {
@@ -130,10 +119,10 @@ public abstract class GameEntity {
             // Calculate the offset between world center and transform translation
             Vector2 translation = body.getTransform().getTranslation();
             Vector2 offset = translation.difference(worldCenter);
-            
+
             // Set new translation that will result in the clamped world center
             body.getTransform().setTranslation(clampedX + offset.x, clampedY + offset.y);
-            
+
             // Stop velocity when hitting boundary to prevent pushing against edge
             body.setLinearVelocity(0, 0);
         }
