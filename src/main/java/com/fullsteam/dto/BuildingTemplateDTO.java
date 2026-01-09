@@ -27,6 +27,7 @@ public class BuildingTemplateDTO {
     private List<String> producesUnitCategories;
     private List<String> tags;
     private String iconPath;
+    private List<String> techRequirements; // NEW: Required buildings to unlock this
     
     // Stats
     private int maxHealth;
@@ -34,6 +35,11 @@ public class BuildingTemplateDTO {
     private int powerValue;
     
     public static BuildingTemplateDTO fromTemplate(BuildingTemplate template) {
+        // Get tech requirements from BuildingType
+        List<String> techReqs = template.getBuildingType().getTechRequirements().stream()
+                .map(Enum::name)
+                .collect(Collectors.toList());
+        
         return BuildingTemplateDTO.builder()
             .id(template.getId())
             .buildingType(template.getBuildingType().name())
@@ -47,6 +53,7 @@ public class BuildingTemplateDTO {
                 .collect(Collectors.toList()))
             .tags(template.getTags())
             .iconPath(template.getIconPath())
+            .techRequirements(techReqs)
             .maxHealth(template.getMaxHealth())
             .baseCost(template.getBaseCost())
             .powerValue(template.getPowerValue())

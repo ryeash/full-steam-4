@@ -1,6 +1,7 @@
 package com.fullsteam.model;
 
 import com.fullsteam.model.component.ShieldComponent;
+import com.fullsteam.model.component.ShieldTankComponent;
 import lombok.extern.slf4j.Slf4j;
 import org.dyn4j.dynamics.Body;
 import org.dyn4j.dynamics.BodyFixture;
@@ -523,32 +524,64 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
             // Check for shield sensor collision FIRST
             if (other instanceof ShieldSensor shieldSensor) {
-                Building shieldBuilding = shieldSensor.getBuilding();
-                ShieldComponent shieldComponent = shieldBuilding.getComponent(ShieldComponent.class).orElseThrow();
-
-                // Check if projectile originated inside this shield
                 Vector2 projectileOrigin = projectile.getOrigin();
-                boolean originatedInShield = shieldComponent.isPositionInside(projectileOrigin);
+                boolean originatedInShield;
+                int shieldTeam = shieldSensor.getTeamNumber();
+                Targetable shieldOwner = shieldSensor.shieldOwner();
 
-                if (originatedInShield) {
-                    return false; // Allow projectiles fired from inside the shield to exit
-                }
+                // Handle building shields
+                if (shieldOwner instanceof Building shieldBuilding) {
+                    ShieldComponent shieldComponent = shieldBuilding.getComponent(ShieldComponent.class).orElseThrow();
 
-                // Shield blocks the projectile
-                if (shieldBuilding.getTeamNumber() == projectile.getOwnerTeam()) {
-                    // the projectile is still terminated by the shield, just no damage
+                    // Check if projectile originated inside this shield
+                    originatedInShield = shieldComponent.isPositionInside(projectileOrigin);
+
+                    if (originatedInShield) {
+                        return false; // Allow projectiles fired from inside the shield to exit
+                    }
+
+                    // Shield blocks the projectile
+                    if (shieldTeam == projectile.getOwnerTeam()) {
+                        // the projectile is still terminated by the shield, just no damage
+                        projectile.setActive(false);
+                        return false;
+                    }
+
+                    // Apply reduced damage to the shield generator (10% of projectile damage)
+                    double reducedDamage = projectile.getDamage() * 0.10;
+                    shieldBuilding.takeDamage(reducedDamage);
+
+                    // Deactivate projectile
                     projectile.setActive(false);
-                    return false;
+                    return false; // Sensor collision, no physics response
+                }
+                // Handle unit shields (Shield Tank)
+                else if (shieldOwner instanceof Unit shieldUnit) {
+                    ShieldTankComponent shieldComponent = shieldUnit.getComponent(ShieldTankComponent.class).orElseThrow();
+
+                    // Check if projectile originated inside this shield
+                    originatedInShield = shieldComponent.isPositionInside(projectileOrigin);
+
+                    if (originatedInShield) {
+                        return false; // Allow projectiles fired from inside the shield to exit
+                    }
+
+                    // Shield blocks the projectile
+                    if (shieldTeam == projectile.getOwnerTeam()) {
+                        // the projectile is still terminated by the shield, just no damage
+                        projectile.setActive(false);
+                        return false;
+                    }
+
+                    // Apply damage feedback to the shield tank
+                    shieldComponent.applyShieldDamage(projectile.getDamage());
+
+                    // Deactivate projectile
+                    projectile.setActive(false);
+                    return false; // Sensor collision, no physics response
                 }
 
-                // Apply reduced damage to the shield generator (10% of projectile damage)
-                double reducedDamage = projectile.getDamage() * 0.10;
-                shieldBuilding.takeDamage(reducedDamage);
-
-                // Deactivate projectile
-                projectile.setActive(false);
-
-                return false; // Sensor collision, no physics response
+                return false; // Shouldn't reach here, but handle gracefully
             }
 
             // Get collision position for explosions

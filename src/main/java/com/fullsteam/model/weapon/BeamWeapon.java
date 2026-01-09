@@ -2,6 +2,7 @@ package com.fullsteam.model.weapon;
 
 import com.fullsteam.model.AbstractOrdinance;
 import com.fullsteam.model.Beam;
+import com.fullsteam.model.Building;
 import com.fullsteam.model.BulletEffect;
 import com.fullsteam.model.Elevation;
 import com.fullsteam.model.GameEntities;
@@ -10,6 +11,7 @@ import com.fullsteam.model.Ordinance;
 import com.fullsteam.model.ShieldSensor;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.component.ShieldComponent;
+import com.fullsteam.model.component.ShieldTankComponent;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.dynamics.Body;
@@ -140,23 +142,40 @@ public class BeamWeapon extends Weapon {
             }
             // Resource deposits removed - obstacles now contain harvestable resources
             // Obstacles are handled in the section above
-            // Shields are at GROUND elevation (they protect buildings)
+            // Shields are at GROUND elevation (they protect buildings and units)
             // Only block beams at GROUND elevation
             else if (result.getBody().getUserData() instanceof ShieldSensor s) {
                 if (beamElevation != Elevation.GROUND) {
                     continue; // Beam at higher elevation passes over shields
                 }
 
-                Optional<ShieldComponent> component = s.getBuilding().getComponent(ShieldComponent.class);
-                if (component.isPresent() && !component.get().isPositionInside(start)) {
-                    double distance = result.getRaycast().getDistance();
-                    // Check if this is the closest hit so far
-                    if (distance < closestDistance) {
-                        closestDistance = distance;
-                        closestHit = result;
+                // Handle building shields
+                if (s.shieldOwner() instanceof Building building) {
+                    Optional<ShieldComponent> component = building.getComponent(ShieldComponent.class);
+                    if (component.isPresent() && !component.get().isPositionInside(start)) {
+                        double distance = result.getRaycast().getDistance();
+                        // Check if this is the closest hit so far
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            closestHit = result;
+                        }
+                        // pass damage on to the building
+                        building.takeDamage(beamDamage);
                     }
-                    // pass damage on to the building
-                    s.getBuilding().takeDamage(beamDamage);
+                }
+                // Handle unit shields (Shield Tank)
+                else if (s.shieldOwner() instanceof Unit unit) {
+                    Optional<ShieldTankComponent> component = unit.getComponent(ShieldTankComponent.class);
+                    if (component.isPresent() && !component.get().isPositionInside(start)) {
+                        double distance = result.getRaycast().getDistance();
+                        // Check if this is the closest hit so far
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            closestHit = result;
+                        }
+                        // Apply damage feedback to the shield tank
+                        component.get().applyShieldDamage(beamDamage);
+                    }
                 }
             }
         }

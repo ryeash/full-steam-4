@@ -183,6 +183,27 @@ public enum UnitType {
             Set.of(BuildingType.RESEARCH_LAB) // Tier 2 support unit
     ),
 
+    // Grenadier - AOE infantry, anti-structure specialist
+    GRENADIER(
+            "Grenadier",
+            175,     // resource cost (between rocket soldier and sniper)
+            9,       // build time (seconds)
+            85,      // max health (moderate, less than infantry)
+            95.0,    // movement speed (moderate)
+            25,      // damage (AOE damage)
+            1.2,     // attack rate (slow fire rate - grenades take time)
+            8,       // attack range (medium range, arcing projectile)
+            12.0,    // size (radius)
+            6,       // sides (hexagon)
+            0x8B4513, // saddle brown (explosives/military)
+            BuildingType.BARRACKS,
+            8,       // upkeep cost
+            300.0,   // vision range (standard infantry),
+            Elevation.GROUND,
+            UnitCategory.INFANTRY, // category
+            Set.of() // Tier 1 unit
+    ),
+
     // Jeep - fast light vehicle
     JEEP(
             "Jeep",
@@ -244,6 +265,27 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB) // Tier 2 anti-air
+    ),
+
+    // Shield Tank - mobile shield generator, defensive support
+    SHIELD_TANK(
+            "Shield Tank",
+            550,     // resource cost (expensive support vehicle)
+            22,      // build time (seconds)
+            320,     // max health (durable, needs to survive to project shield)
+            70.0,    // movement speed (slow, defensive unit)
+            0,       // damage (no weapon, pure support)
+            0.0,     // attack rate
+            0,       // attack range
+            26.0,    // size (radius) - larger than normal tank
+            8,       // sides (octagon)
+            0x9370DB, // medium purple (shield/energy color)
+            BuildingType.FACTORY,
+            30,      // upkeep cost (high, powerful support)
+            350.0,   // vision range (standard),
+            Elevation.GROUND,
+            UnitCategory.VEHICLE, // category
+            Set.of(BuildingType.TECH_CENTER) // Tier 3 advanced support
     ),
 
     // Artillery - long range siege unit
@@ -750,6 +792,37 @@ public enum UnitType {
                 Convex barrelRight = Geometry.createPolygon(rightBarrel);
 
                 yield List.of(torso, barrelLeft, barrelRight);
+            }
+
+            // Grenadier - bulky infantry with ammo pouches and grenade launcher
+            case GRENADIER -> {
+                // Main body: stocky pentagon (carrying heavy equipment)
+                Vector2[] mainBody = new Vector2[]{
+                        new Vector2(-size * 0.8, -size * 0.4),  // Back left
+                        new Vector2(-size * 0.3, -size * 0.9),  // Left shoulder (ammo pouch)
+                        new Vector2(size * 0.6, 0),             // Front point (launcher)
+                        new Vector2(-size * 0.3, size * 0.9),   // Right shoulder (ammo pouch)
+                        new Vector2(-size * 0.8, size * 0.4)    // Back right
+                };
+                Convex torso = Geometry.createPolygon(mainBody);
+
+                // Left ammo pouch (bulky equipment)
+                Vector2[] leftPouch = new Vector2[]{
+                        new Vector2(-size * 0.9, -size * 0.6),
+                        new Vector2(-size * 0.5, -size * 0.9),
+                        new Vector2(-size * 0.3, -size * 0.7)
+                };
+                Convex pouchLeft = Geometry.createPolygon(leftPouch);
+
+                // Right ammo pouch (bulky equipment)
+                Vector2[] rightPouch = new Vector2[]{
+                        new Vector2(-size * 0.9, size * 0.6),
+                        new Vector2(-size * 0.3, size * 0.7),
+                        new Vector2(-size * 0.5, size * 0.9)
+                };
+                Convex pouchRight = Geometry.createPolygon(rightPouch);
+
+                yield List.of(torso, pouchLeft, pouchRight);
             }
 
             // Laser Infantry - angular prism design with crystalline focusing arrays
@@ -1332,6 +1405,50 @@ public enum UnitType {
                 Convex stabRight = Geometry.createPolygon(rightStab);
 
                 yield List.of(mainHull, cannonMount, stabLeft, stabRight);
+            }
+
+            // Shield Tank - mobile shield generator with energy projectors
+            case SHIELD_TANK -> {
+                // Main hull: large octagonal platform (bigger than normal tank)
+                Vector2[] hull = new Vector2[]{
+                        new Vector2(-size * 0.95, -size * 0.45),
+                        new Vector2(-size * 0.45, -size * 0.85),
+                        new Vector2(size * 0.45, -size * 0.85),
+                        new Vector2(size * 0.95, -size * 0.45),
+                        new Vector2(size * 0.95, size * 0.45),
+                        new Vector2(size * 0.45, size * 0.85),
+                        new Vector2(-size * 0.45, size * 0.85),
+                        new Vector2(-size * 0.95, size * 0.45)
+                };
+                Convex mainHull = Geometry.createPolygon(hull);
+
+                // Shield generator core (central energy projector)
+                Vector2[] core = new Vector2[]{
+                        new Vector2(-size * 0.3, -size * 0.3),
+                        new Vector2(size * 0.2, -size * 0.4),
+                        new Vector2(size * 0.5, 0),
+                        new Vector2(size * 0.2, size * 0.4),
+                        new Vector2(-size * 0.3, size * 0.3)
+                };
+                Convex shieldCore = Geometry.createPolygon(core);
+
+                // Left energy projector (emits shield field)
+                Vector2[] leftProj = new Vector2[]{
+                        new Vector2(-size * 0.6, -size * 0.7),
+                        new Vector2(-size * 0.2, -size * 0.9),
+                        new Vector2(size * 0.1, -size * 0.75)
+                };
+                Convex projLeft = Geometry.createPolygon(leftProj);
+
+                // Right energy projector (emits shield field)
+                Vector2[] rightProj = new Vector2[]{
+                        new Vector2(-size * 0.6, size * 0.7),
+                        new Vector2(size * 0.1, size * 0.75),
+                        new Vector2(-size * 0.2, size * 0.9)
+                };
+                Convex projRight = Geometry.createPolygon(rightProj);
+
+                yield List.of(mainHull, shieldCore, projLeft, projRight);
             }
 
             // Tank - main battle tank with turret platform and armor plating

@@ -13,6 +13,7 @@ import com.fullsteam.model.component.HealComponent;
 import com.fullsteam.model.component.IUnitComponent;
 import com.fullsteam.model.component.InterceptorComponent;
 import com.fullsteam.model.component.RepairComponent;
+import com.fullsteam.model.component.ShieldTankComponent;
 import com.fullsteam.model.weapon.ProjectileWeapon;
 import com.fullsteam.model.weapon.Weapon;
 import com.fullsteam.model.weapon.WeaponFactory;
@@ -78,18 +79,42 @@ public class Unit extends GameEntity implements Targetable {
     private boolean garrisoned = false; // True if unit is inside a building
 
     public Unit(int id, UnitType unitType, double x, double y, int ownerId, int teamNumber, PlayerFaction faction) {
-        super(id, createUnitBody(x, y, unitType), unitType.getMaxHealth());
+        super(id, createUnitBody(x, y, unitType), calculateModifiedMaxHealth(unitType, faction));
         this.unitType = unitType;
         this.ownerId = ownerId;
         this.teamNumber = teamNumber;
         this.faction = faction;
         this.weapon = WeaponFactory.getWeaponForUnitType(unitType);
         
+        // Set health to full (modified max health)
+        this.health = this.maxHealth;
+        
         // Apply faction modifiers to weapon
         applyFactionModifiersToWeapon();
         
         // Note: Components are initialized via initializeComponents() after construction
         // Note: movementSpeed and visionRange are now calculated dynamically via getters
+    }
+    
+    /**
+     * Calculate the modified max health for this unit type with faction modifiers.
+     * Static helper to avoid calling overridden methods from constructor.
+     */
+    private static double calculateModifiedMaxHealth(UnitType unitType, PlayerFaction faction) {
+        double baseHealth = unitType.getMaxHealth();
+        
+        if (faction == null || faction.getFactionDefinition() == null) {
+            return baseHealth;
+        }
+        
+        com.fullsteam.model.factions.FactionDefinition.UnitStatModifier modifier = 
+                faction.getFactionDefinition().getUnitStatModifiers().get(unitType);
+        
+        if (modifier != null) {
+            return baseHealth * modifier.getHealthMultiplier();
+        }
+        
+        return baseHealth;
     }
     
     /**
@@ -166,6 +191,11 @@ public class Unit extends GameEntity implements Targetable {
 
         if (unitType == UnitType.GUNSHIP) {
             addComponent(new GunshipComponent(), gameEntities);
+        }
+
+        // Shield Tank projects a mobile shield
+        if (unitType == UnitType.SHIELD_TANK) {
+            addComponent(new ShieldTankComponent(), gameEntities);
         }
 
         log.debug("Unit {} initialized with {} components", id, components.size());
@@ -1224,35 +1254,6 @@ public class Unit extends GameEntity implements Targetable {
         }
 
         // Standard weapon check
-        if (weapon == null) {
-            return false;
-        }
-        return weapon.getElevationTargeting().canTarget(Elevation.GROUND);
-    }
-
-    /**
-     * Check if a given weapon can target a unit at its elevation.
-     * Static helper for use by buildings/turrets.
-     *
-     * @param weapon The weapon attempting to target
-     * @param target The potential target unit
-     * @return true if the weapon can hit the target's elevation
-     */
-    public static boolean canWeaponTargetUnit(Weapon weapon, Unit target) {
-        if (weapon == null || target == null) {
-            return false;
-        }
-        return weapon.getElevationTargeting().canTarget(target.getUnitType().getElevation());
-    }
-
-    /**
-     * Check if a given weapon can target buildings (which are always at GROUND elevation).
-     * Static helper for use by buildings/turrets.
-     *
-     * @param weapon The weapon attempting to target
-     * @return true if the weapon can hit GROUND elevation targets (buildings)
-     */
-    public static boolean canWeaponTargetBuildings(Weapon weapon) {
         if (weapon == null) {
             return false;
         }

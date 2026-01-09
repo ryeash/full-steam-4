@@ -106,6 +106,14 @@ public class WeaponFactory {
                     elevationTargeting
             );
 
+            case GRENADIER -> new GrenadeWeapon(
+                    damage, range, attackRate,
+                    350,  // projectile speed (slow, arcing trajectory)
+                    0.15, // linear damping (grenades slow down)
+                    3.5,  // size (larger than bullets)
+                    elevationTargeting
+            );
+
             case JEEP -> new ProjectileWeapon(
                     damage, range, attackRate,
                     600,  // projectile speed (fast)
@@ -135,6 +143,8 @@ public class WeaponFactory {
                     Set.of(BulletEffect.FLAK), // Creates FLAK_EXPLOSION field effects
                     elevationTargeting
             );
+
+            case SHIELD_TANK -> null; // Shield Tank has no weapon, only projects shields
 
             case CLOAK_TANK -> new ProjectileWeapon(
                     damage, range, attackRate,

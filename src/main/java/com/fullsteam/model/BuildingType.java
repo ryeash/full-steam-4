@@ -537,5 +537,31 @@ public enum BuildingType {
             }
         };
     }
+    
+    /**
+     * Get tech requirements for this building type.
+     * Matches the logic in RTSGameManager.hasTechRequirements()
+     */
+    public List<BuildingType> getTechRequirements() {
+        return switch (this) {
+            // T1 - Always available
+            case POWER_PLANT, BARRACKS, REFINERY, BUNKER, WALL -> List.of();
+
+            // T2 - Requires Power Plant
+            case RESEARCH_LAB, FACTORY, TURRET, ROCKET_TURRET, SHIELD_GENERATOR ->
+                    List.of(POWER_PLANT);
+
+            // T3 - Requires Power Plant + Research Lab
+            case TECH_CENTER, BANK, LASER_TURRET, AIRFIELD, HANGAR ->
+                    List.of(POWER_PLANT, RESEARCH_LAB);
+
+            // Monument Buildings - Requires Power Plant + Research Lab (T3)
+            case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL, TEMPEST_SPIRE ->
+                    List.of(POWER_PLANT, RESEARCH_LAB);
+
+            // Headquarters is special (only one, starting building)
+            case HEADQUARTERS -> List.of(); // No requirements but can't build more
+        };
+    }
 }
 

@@ -41,30 +41,4 @@ public interface IUnitComponent {
     default void onDestroy() {
         // Default: do nothing
     }
-
-    /**
-     * Apply research modifiers to this component's behavior.
-     * Called when research completes or when unit is created with existing research.
-     *
-     * @param modifier The cumulative modifiers from completed research
-     */
-    default void applyResearchModifiers(com.fullsteam.model.research.ResearchModifier modifier) {
-        // Default: do nothing (research system removed)
-    }
-
-    /**
-     * Called when the unit is garrisoned (enters a building).
-     * Components can use this to pause behaviors or clean up temporary state.
-     */
-    default void onGarrison() {
-        // Default: do nothing
-    }
-
-    /**
-     * Called when the unit ungarrisons (exits a building).
-     * Components can use this to resume behaviors.
-     */
-    default void onUngarrison() {
-        // Default: do nothing
-    }
 }

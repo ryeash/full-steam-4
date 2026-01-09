@@ -32,6 +32,9 @@ public class CustomFactionConfigDTO {
     private List<String> validationErrors;
     
     public static CustomFactionConfigDTO fromConfig(CustomFactionConfig config) {
+        // Ensure required items before validation
+        config.ensureRequiredItems();
+        config.ensureBundledUnits();
         var validation = config.validate();
         
         return CustomFactionConfigDTO.builder()

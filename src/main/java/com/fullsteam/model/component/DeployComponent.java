@@ -20,7 +20,6 @@ public class DeployComponent extends AbstractUnitComponent {
     private static final double RANGE_MULTIPLIER = 1.5;   // +50% range when deployed
     private static final double DAMAGE_MULTIPLIER = 1.5;   // +50% damage when deployed
     private static final double TURRET_OFFSET_PERCENT = 0.6; // Turret placement at 60% of unit size
-
     private boolean deployed = false;
     private long lastToggleTime = 0;
     private List<Turret> turrets = new ArrayList<>();
@@ -100,15 +99,6 @@ public class DeployComponent extends AbstractUnitComponent {
     }
 
     /**
-     * Check if this unit is currently deployed.
-     *
-     * @return true if deployed
-     */
-    public boolean isDeployed() {
-        return deployed;
-    }
-
-    /**
      * Check if the unit can currently attack.
      * Crawlers can only attack when deployed.
      *
@@ -118,30 +108,11 @@ public class DeployComponent extends AbstractUnitComponent {
         return deployed && !turrets.isEmpty();
     }
 
-    /**
-     * Get the turrets (for combat/rendering).
-     *
-     * @return List of turrets, empty if not deployed
-     */
-    public List<Turret> getTurrets() {
-        return turrets;
-    }
-
     @Override
     public void onDestroy() {
         // Clean up turrets
         turrets.clear();
         log.debug("DeployComponent destroyed for unit {}", unit.getId());
-    }
-
-    @Override
-    public void onGarrison() {
-        // Force undeploy if garrisoned
-        if (deployed) {
-            deployed = false;
-            undeploy();
-            log.debug("Crawler {} undeployed due to garrison", unit.getId());
-        }
     }
 }
 

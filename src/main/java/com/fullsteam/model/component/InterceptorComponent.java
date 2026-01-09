@@ -175,18 +175,5 @@ public class InterceptorComponent extends AbstractUnitComponent {
         lowAmmoWarning = false;
         log.info("Interceptor {} refueled and rearmed - Ready for deployment", unit.getId());
     }
-
-    /**
-     * Get remaining flight time in seconds.
-     */
-    public int getRemainingFlightTime() {
-        return (int) Math.max(0, currentFuel);
-    }
-
-    @Override
-    public void applyResearchModifiers(com.fullsteam.model.research.ResearchModifier modifier) {
-        // Future: Could apply research bonuses to fuel capacity or ammo count
-        // For now, interceptor stats are fixed
-    }
 }
 

@@ -1980,6 +1980,13 @@ public class RTSGameManager {
         // Cloak status (for Cloak Tank)
         data.put("cloaked", unit.isCloaked());
 
+        // Shield status (for Shield Tank)
+        unit.getComponent(com.fullsteam.model.component.ShieldTankComponent.class)
+                .ifPresent(shieldComp -> {
+                    data.put("shieldActive", shieldComp.shieldActive());
+                    data.put("shieldRadius", shieldComp.getRadius());
+                });
+
         // Add physics body vertices for accurate client-side rendering
         data.put("vertices", extractBodyVertices(unit.getBody()));
 

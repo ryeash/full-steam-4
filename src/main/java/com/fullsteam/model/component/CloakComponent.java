@@ -120,15 +120,6 @@ public class CloakComponent extends AbstractUnitComponent {
     }
 
     /**
-     * Check if cloak is currently active (toggle is on, even if temporarily broken by firing).
-     *
-     * @return true if cloak is toggled on
-     */
-    public boolean isCloakActive() {
-        return cloaked;
-    }
-
-    /**
      * Get the detection range for cloaked units.
      *
      * @return Detection range in world units
@@ -142,15 +133,5 @@ public class CloakComponent extends AbstractUnitComponent {
         // Clean up
         cloaked = false;
         preCloakAIStance = null;
-    }
-
-    @Override
-    public void onGarrison() {
-        // Force decloak if garrisoned
-        if (cloaked) {
-            cloaked = false;
-            deactivateCloak();
-            log.debug("Unit {} decloaked due to garrison", unit.getId());
-        }
     }
 }

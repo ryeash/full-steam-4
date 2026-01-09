@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -57,8 +58,26 @@ public class FactionCustomizationController {
      */
     @Get("/presets")
     public List<CustomFactionConfigDTO> getPresets() {
-        return FactionPresetRegistry.getAllPresets().stream()
+        return FactionPresetRegistry.getAllPresets()
+                .stream()
                 .map(CustomFactionConfigDTO::fromConfig)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get preset metadata (lightweight) for dropdown menus
+     */
+    @Get("/presets/list")
+    public List<Map<String, String>> getPresetList() {
+        return FactionPresetRegistry.getAllPresets().stream()
+                .map(preset -> {
+                    Map<String, String> metadata = new HashMap<>();
+                    metadata.put("id", preset.getFactionId());
+                    metadata.put("displayName", preset.getDisplayName());
+                    metadata.put("icon", preset.getIcon());
+                    metadata.put("themeColor", preset.getThemeColor());
+                    return metadata;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -77,23 +96,25 @@ public class FactionCustomizationController {
     }
 
     /**
-     * Get all available unit templates
+     * Get all available unit templates (excludes zero-point required units)
      */
     @Get("/templates/units")
     public List<UnitTemplateDTO> getUnitTemplates() {
         return Arrays.stream(UnitType.values())
                 .map(UnitTemplate::fromUnitType)
+                .filter(template -> template.getPointCost() > 0) // Exclude zero-point units (WORKER, ANDROID)
                 .map(UnitTemplateDTO::fromTemplate)
                 .collect(Collectors.toList());
     }
 
     /**
-     * Get all available building templates
+     * Get all available building templates (excludes zero-point required buildings)
      */
     @Get("/templates/buildings")
     public List<BuildingTemplateDTO> getBuildingTemplates() {
         return Arrays.stream(BuildingType.values())
                 .map(BuildingTemplate::fromBuildingType)
+                .filter(template -> template.getPointCost() > 0) // Exclude zero-point buildings (HEADQUARTERS, POWER_PLANT)
                 .map(BuildingTemplateDTO::fromTemplate)
                 .collect(Collectors.toList());
     }
@@ -118,6 +139,10 @@ public class FactionCustomizationController {
         try {
             // Convert DTO to config
             CustomFactionConfig config = dtoToConfig(configDTO);
+
+            // Ensure required items and bundled units
+            config.ensureRequiredItems();
+            config.ensureBundledUnits();
 
             // Validate
             ValidationResult validation = config.validate();
@@ -159,7 +184,7 @@ public class FactionCustomizationController {
                 .displayName(dto.getDisplayName())
                 .themeColor(dto.getThemeColor())
                 .icon(dto.getIcon())
-                .selectedUnits(units)
+                .selectedUnits(new HashSet<>(units))
                 .selectedBuildings(buildings)
                 .selectedPerks(perks)
                 .basedOnPreset(dto.getBasedOnPreset())
@@ -231,7 +256,8 @@ public class FactionCustomizationController {
             // Convert DTO to config
             CustomFactionConfig config = dtoToConfig(configDTO);
 
-            // Ensure bundled units are included (e.g., ANDROID with ANDROID_FACTORY)
+            // Ensure required items and bundled units
+            config.ensureRequiredItems();
             config.ensureBundledUnits();
 
             // Validate

@@ -28,6 +28,7 @@ public class UnitTemplateDTO {
     private List<String> tags;
     private boolean isHeroUnit;
     private String iconPath;
+    private List<String> techRequirements; // NEW: Required buildings to unlock this
     
     // Stats
     private int maxHealth;
@@ -38,6 +39,11 @@ public class UnitTemplateDTO {
     private int upkeep;
     
     public static UnitTemplateDTO fromTemplate(UnitTemplate template) {
+        // Get tech requirements from UnitType
+        List<String> techReqs = template.getUnitType().getRequiredBuildings().stream()
+                .map(Enum::name)
+                .collect(Collectors.toList());
+        
         return UnitTemplateDTO.builder()
             .id(template.getId())
             .unitType(template.getUnitType().name())
@@ -49,6 +55,7 @@ public class UnitTemplateDTO {
             .tags(template.getTags())
             .isHeroUnit(template.isHeroUnit())
             .iconPath(template.getIconPath())
+            .techRequirements(techReqs)
             .maxHealth(template.getMaxHealth())
             .damage(template.getDamage())
             .speed(template.getSpeed())

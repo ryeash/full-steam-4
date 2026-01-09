@@ -2,6 +2,7 @@ package com.fullsteam.model.component;
 
 import com.fullsteam.model.Building;
 import com.fullsteam.model.BuildingType;
+import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.PlayerFaction;
 import com.fullsteam.model.ResourceType;
@@ -26,7 +27,7 @@ public class HarvestComponent extends AbstractUnitComponent {
     private Building targetRefinery = null;
 
     @Override
-    public void update(com.fullsteam.model.GameEntities gameEntities) {
+    public void update(GameEntities gameEntities) {
         // Component doesn't do passive harvesting - harvesting is command-driven
         // This method is here for future enhancements (e.g., auto-return when full)
     }
@@ -143,13 +144,6 @@ public class HarvestComponent extends AbstractUnitComponent {
      */
     public double getCapacityPercent() {
         return carriedResources / maxCarriedResources;
-    }
-
-    @Override
-    public void applyResearchModifiers(com.fullsteam.model.research.ResearchModifier modifier) {
-        // Apply worker capacity research (currently unused - research system removed)
-        maxCarriedResources = BASE_MAX_CARRIED_RESOURCES + (int) modifier.getWorkerCapacityBonus();
-        log.debug("Unit {} harvest capacity updated to {}", unit.getId(), maxCarriedResources);
     }
 
     @Override

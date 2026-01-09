@@ -542,11 +542,7 @@
             <label style="color: #00ff88; margin-right: 10px;">Quick Start:</label>
             <select id="preset-select" onchange="loadPresetInline(this.value)" style="padding: 8px; background: rgba(0,0,0,0.5); border: 1px solid #00ff88; border-radius: 4px; color: #fff;">
                 <option value="">Custom Configuration</option>
-                <option value="TERRAN_STANDARD">Terran Standard</option>
-                <option value="NOMADS_RAIDERS">Nomads Raiders</option>
-                <option value="SYNTHESIS_ENERGY">Synthesis Energy</option>
-                <option value="TECH_ALLIANCE_PRECISION">Tech Alliance Precision</option>
-                <option value="STORM_WINGS_AIR">Storm Wings Air Superiority</option>
+                <!-- Presets will be dynamically loaded from API -->
             </select>
         </div>
         
@@ -683,8 +679,8 @@
         unitTemplates: [],
         buildingTemplates: [],
         perks: [],
-        selectedUnits: new Set(['WORKER']), // WORKER is required
-        selectedBuildings: new Set(['HEADQUARTERS']), // HQ is required
+        selectedUnits: new Set(), // Start empty, zero-point items added automatically
+        selectedBuildings: new Set(), // Start empty, zero-point items added automatically
         selectedPerks: new Set(),
         maxPoints: 100,
         spentPoints: 0
@@ -694,10 +690,11 @@
     async function initializeInlineCustomizer() {
         try {
             // Load all customization data in parallel
-            const [units, buildings, perks] = await Promise.all([
+            const [units, buildings, perks, presets] = await Promise.all([
                 fetch('/api/rts/customization/templates/units').then(r => r.json()),
                 fetch('/api/rts/customization/templates/buildings').then(r => r.json()),
-                fetch('/api/rts/customization/perks').then(r => r.json())
+                fetch('/api/rts/customization/perks').then(r => r.json()),
+                fetch('/api/rts/customization/presets/list').then(r => r.json())
             ]);
             
             inlineCustomizer.unitTemplates = units;
@@ -707,8 +704,12 @@
             console.log('Inline customizer initialized:', {
                 units: units.length,
                 buildings: buildings.length,
-                perks: perks.length
+                perks: perks.length,
+                presets: presets.length
             });
+            
+            // Populate preset dropdown
+            populatePresetDropdown(presets);
             
             // Load from localStorage or use default
             loadInlineCustomizerFromStorage();
@@ -720,6 +721,45 @@
             console.error('Failed to load inline customization data:', error);
             alert('Failed to load faction customization data. Please refresh.');
         }
+    }
+    
+    // Populate preset dropdown from API data
+    function populatePresetDropdown(presets) {
+        const select = document.getElementById('preset-select');
+        if (!select || !presets) return;
+        
+        // Group presets by faction family (first word of display name)
+        const grouped = {};
+        presets.forEach(preset => {
+            // Extract faction family from display name (e.g., "Terran" from "Terran Coalition")
+            const family = preset.displayName.split(' ')[0];
+            if (!grouped[family]) {
+                grouped[family] = [];
+            }
+            grouped[family].push(preset);
+        });
+        
+        // Clear existing options except the first one (Custom Configuration)
+        while (select.options.length > 1) {
+            select.remove(1);
+        }
+        
+        // Add presets grouped by faction family
+        Object.keys(grouped).sort().forEach(family => {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = family;
+            
+            grouped[family].forEach(preset => {
+                const option = document.createElement('option');
+                option.value = preset.id;
+                option.textContent = `${preset.icon} ${preset.displayName}`;
+                optgroup.appendChild(option);
+            });
+            
+            select.appendChild(optgroup);
+        });
+        
+        console.log(`Loaded ${presets.length} presets into dropdown`);
     }
     
     // Render the inline customizer UI
@@ -739,12 +779,11 @@
         
         inlineCustomizer.unitTemplates.forEach(unit => {
             const isSelected = inlineCustomizer.selectedUnits.has(unit.unitType);
-            const isRequired = unit.unitType === 'WORKER';
             const canAfford = isSelected || (inlineCustomizer.spentPoints + unit.pointCost <= inlineCustomizer.maxPoints);
             
             const div = document.createElement('div');
-            div.className = `selection-item ${isSelected ? 'selected' : ''} ${!canAfford ? 'disabled' : ''} ${isRequired ? 'required' : ''}`;
-            if (!isRequired && canAfford) {
+            div.className = `selection-item ${isSelected ? 'selected' : ''} ${!canAfford ? 'disabled' : ''}`;
+            if (canAfford) {
                 div.onclick = () => toggleInlineUnit(unit.unitType);
             }
             
@@ -752,7 +791,6 @@
             div.title = description; // Tooltip on hover
             
             div.innerHTML = `
-                ${isRequired ? '<span class="required-badge">REQUIRED</span>' : ''}
                 <div class="item-name">${unit.displayName}</div>
                 <div class="item-cost">${unit.pointCost} points</div>
                 <div class="item-description">${description.substring(0, 60)}${description.length > 60 ? '...' : ''}</div>
@@ -773,12 +811,11 @@
         
         inlineCustomizer.buildingTemplates.forEach(building => {
             const isSelected = inlineCustomizer.selectedBuildings.has(building.buildingType);
-            const isRequired = building.buildingType === 'HEADQUARTERS';
             const canAfford = isSelected || (inlineCustomizer.spentPoints + building.pointCost <= inlineCustomizer.maxPoints);
             
             const div = document.createElement('div');
-            div.className = `selection-item ${isSelected ? 'selected' : ''} ${!canAfford ? 'disabled' : ''} ${isRequired ? 'required' : ''}`;
-            if (!isRequired && canAfford) {
+            div.className = `selection-item ${isSelected ? 'selected' : ''} ${!canAfford ? 'disabled' : ''}`;
+            if (canAfford) {
                 div.onclick = () => toggleInlineBuilding(building.buildingType);
             }
             
@@ -786,7 +823,6 @@
             div.title = description; // Tooltip on hover
             
             div.innerHTML = `
-                ${isRequired ? '<span class="required-badge">REQUIRED</span>' : ''}
                 <div class="item-name">${building.displayName}</div>
                 <div class="item-cost">${building.pointCost} points</div>
                 <div class="item-description">${description.substring(0, 60)}${description.length > 60 ? '...' : ''}</div>
@@ -892,9 +928,9 @@
     // Load preset
     async function loadPresetInline(presetId) {
         if (!presetId) {
-            // Reset to minimal config
-            inlineCustomizer.selectedUnits = new Set(['WORKER']);
-            inlineCustomizer.selectedBuildings = new Set(['HEADQUARTERS']);
+            // Reset to minimal config (empty - zero-point items added automatically on save)
+            inlineCustomizer.selectedUnits = new Set();
+            inlineCustomizer.selectedBuildings = new Set();
             inlineCustomizer.selectedPerks = new Set();
             recalculateInlinePoints();
             renderInlineCustomizer();
@@ -960,8 +996,8 @@
         if (saved) {
             try {
                 const config = JSON.parse(saved);
-                inlineCustomizer.selectedUnits = new Set(config.selectedUnits || ['WORKER']);
-                inlineCustomizer.selectedBuildings = new Set(config.selectedBuildings || ['HEADQUARTERS']);
+                inlineCustomizer.selectedUnits = new Set(config.selectedUnits || []);
+                inlineCustomizer.selectedBuildings = new Set(config.selectedBuildings || []);
                 inlineCustomizer.selectedPerks = new Set(config.selectedPerks || []);
                 recalculateInlinePoints();
             } catch (e) {
@@ -970,14 +1006,22 @@
         }
     }
     
-    // Get current config for game start
+    // Get current config for game start (automatically adds zero-point items)
     function getInlineCustomizerConfig() {
+        // Create a copy of selected items and add zero-point required items
+        const units = new Set(inlineCustomizer.selectedUnits);
+        units.add('WORKER'); // Always include WORKER (0 points)
+        
+        const buildings = new Set(inlineCustomizer.selectedBuildings);
+        buildings.add('HEADQUARTERS'); // Always include HEADQUARTERS (0 points)
+        buildings.add('POWER_PLANT');  // Always include POWER_PLANT (0 points)
+        
         return {
             displayName: 'Custom Faction',
             themeColor: '#800080',
             icon: '⚙️',
-            selectedUnits: Array.from(inlineCustomizer.selectedUnits),
-            selectedBuildings: Array.from(inlineCustomizer.selectedBuildings),
+            selectedUnits: Array.from(units),
+            selectedBuildings: Array.from(buildings),
             selectedPerks: Array.from(inlineCustomizer.selectedPerks),
             totalPointsSpent: inlineCustomizer.spentPoints,
             maxPoints: inlineCustomizer.maxPoints

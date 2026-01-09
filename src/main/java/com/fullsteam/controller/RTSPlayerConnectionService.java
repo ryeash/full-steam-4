@@ -64,6 +64,7 @@ public class RTSPlayerConnectionService {
             log.error("Failed to apply custom faction config for player {} in game {}", playerId, gameId, e);
             return false;
         }
+        config.ensureRequiredItems();
         config.ensureBundledUnits();
         ValidationResult validation = config.validate();
         if (!validation.isValid()) {

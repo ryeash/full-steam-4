@@ -825,6 +825,35 @@ class RTSEngine {
             }
         }
         
+        // Update shield visualization for SHIELD_TANK
+        if (unitData.type === 'SHIELD_TANK') {
+            if (!unitContainer.shieldGraphics) {
+                const shieldGraphics = new PIXI.Graphics();
+                unitContainer.addChild(shieldGraphics);
+                unitContainer.shieldGraphics = shieldGraphics;
+                // Shield should render below the unit itself
+                shieldGraphics.zIndex = -1;
+            }
+            
+            const shield = unitContainer.shieldGraphics;
+            shield.clear();
+            
+            // Only show shield if active (Shield Tank's shield is always active when alive)
+            // Shield radius from server data, or default to 120.0 if not provided
+            const shieldRadius = unitData.shieldRadius || 120.0;
+            shield.circle(0, 0, shieldRadius);
+            shield.stroke({ width: 3, color: this.getTeamColor(unitData.team), alpha: 0.4 });
+            shield.fill({ color: this.getTeamColor(unitData.team), alpha: 0.1 });
+            
+            // Optional: Add pulsing effect to make shield more visible
+            if (shield.pulsePhase === undefined) {
+                shield.pulsePhase = 0;
+            }
+            shield.pulsePhase += 0.02;
+            const pulseAlpha = 0.3 + Math.sin(shield.pulsePhase) * 0.15;
+            shield.alpha = pulseAlpha;
+        }
+        
         // ANIMATE AIR UNITS (bobbing, rotor spinning, etc.)
         if (unitContainer.isAirUnit) {
             this.updateAirUnitAnimation(unitContainer);
@@ -3765,7 +3794,7 @@ class RTSEngine {
                 return;
             }
             
-            // Get tech requirements from faction data
+            // Get tech requirements from building metadata (from API)
             const requiredBuildings = buildingInfo.techRequirements || [];
             const cost = buildingInfo.cost;
             
@@ -3785,20 +3814,40 @@ class RTSEngine {
             
             // Update button state
             if (!hasTech) {
-                // Missing tech requirements - fully disabled
+                // Missing tech requirements - fully disabled with lock icon
                 button.disabled = true;
-                button.style.opacity = '0.4';
-                button.title = `Requires: ${missingRequirements.join(', ')}`;
+                button.style.opacity = '0.5';
+                button.style.filter = 'grayscale(100%)';
+                button.title = `🔒 Requires: ${missingRequirements.join(', ')}`;
+                
+                // Add lock icon if not already present
+                const icon = this.getBuildingIcon(buildingType);
+                const name = this.getBuildingDisplayName(buildingType);
+                const cost = buildingInfo.cost;
+                button.innerHTML = `🔒 ${icon} ${name} <span class="build-cost">(${cost})</span>`;
             } else if (!hasCredits) {
                 // Has tech but not enough credits - greyed out but different style
                 button.disabled = true;
                 button.style.opacity = '0.6';
+                button.style.filter = 'none'; // Remove grayscale for "can't afford" state
                 button.title = `Insufficient credits (need ${cost}, have ${myCredits})`;
+                
+                // Reset to normal icon (no lock)
+                const icon = this.getBuildingIcon(buildingType);
+                const name = this.getBuildingDisplayName(buildingType);
+                button.innerHTML = `${icon} ${name} <span class="build-cost">(${cost})</span>`;
             } else {
                 // Can build
                 button.disabled = false;
                 button.style.opacity = '1';
+                button.style.filter = 'none';
                 button.title = '';
+                
+                // Reset to normal icon (no lock)
+                const icon = this.getBuildingIcon(buildingType);
+                const name = this.getBuildingDisplayName(buildingType);
+                const cost = buildingInfo.cost;
+                button.innerHTML = `${icon} ${name} <span class="build-cost">(${cost})</span>`;
             }
         });
     }
@@ -4040,21 +4089,38 @@ class RTSEngine {
             productionTitle.textContent = 'Train Units:';
             panel.appendChild(productionTitle);
             
-            // Get available units for this building type
-            const availableUnits = this.getAvailableUnits(buildingData.type);
+            // Get ALL units for this building type (including locked ones)
+            const allUnits = this.getAllUnitsForBuilding(buildingData.type);
             
-            availableUnits.forEach(unitType => {
+            allUnits.forEach(unitInfo => {
                 const button = document.createElement('button');
                 button.className = 'build-button';
-                button.innerHTML = `${unitType.name} <span class="build-cost">(💰${unitType.cost} ⚙️${unitType.upkeep})</span>`;
-                button.onclick = () => this.queueUnitProduction(buildingData.id, unitType.type);
                 
-                // Disable if can't afford
-                if (this.myMoney < unitType.cost) {
+                // Check if unit is unlocked
+                const isUnlocked = unitInfo.unlocked !== false; // default to true for backwards compatibility
+                const canAfford = this.myMoney >= unitInfo.cost;
+                
+                // Create button content
+                let buttonHTML = `${unitInfo.name} <span class="build-cost">(💰${unitInfo.cost} ⚙️${unitInfo.upkeep})</span>`;
+                
+                if (!isUnlocked) {
+                    // Add locked icon for tech-locked units
+                    buttonHTML = `🔒 ${buttonHTML}`;
                     button.disabled = true;
                     button.style.opacity = '0.5';
+                    button.style.filter = 'grayscale(100%)';
+                    button.title = unitInfo.lockReason || 'Tech requirements not met';
+                } else if (!canAfford) {
+                    // Can't afford but tech is unlocked
+                    button.disabled = true;
+                    button.style.opacity = '0.6';
+                    button.title = 'Insufficient credits';
+                } else {
+                    // Can train this unit
+                    button.onclick = () => this.queueUnitProduction(buildingData.id, unitInfo.type);
                 }
                 
+                button.innerHTML = buttonHTML;
                 panel.appendChild(button);
             });
         }
@@ -5267,16 +5333,23 @@ class RTSEngine {
                 const name = this.getBuildingDisplayName(building.buildingType);
                 const cost = building.cost;
                 
+                // Check if building is unlocked (will be updated by updateBuildMenuAvailability)
                 button.innerHTML = `${icon} ${name} <span class="build-cost">(${cost})</span>`;
                 
                 button.addEventListener('click', () => {
-                    this.enterBuildMode(building.buildingType);
+                    if (!button.disabled) {
+                        this.enterBuildMode(building.buildingType);
+                    }
                 });
                 
                 buildMenu.appendChild(button);
             });
         });
         
+        // Initial update of availability
+        if (this.lastGameState && this.lastGameState.buildings) {
+            this.updateBuildMenuAvailability(this.lastGameState.buildings);
+        }
     }
     
     /**
@@ -5380,6 +5453,80 @@ class RTSEngine {
             }));
         
         return units;
+    }
+    
+    /**
+     * Get ALL units for a building (including locked ones) for UI display
+     */
+    getAllUnitsForBuilding(buildingType) {
+        const myFactionState = this.lastGameState?.factions?.[this.myPlayerId];
+        const unlockedUnits = myFactionState?.availableUnits || [];
+        const unlockedUnitsSet = new Set(unlockedUnits);
+        
+        if (!this.myFactionData) {
+            return [];
+        }
+        
+        // Get player's completed buildings (for tech requirements check)
+        const playerBuildings = new Set();
+        this.buildings.forEach((container, id) => {
+            const building = container.buildingData;
+            if (building && building.ownerId === this.myPlayerId && 
+                building.active && !building.underConstruction) {
+                playerBuildings.add(building.type);
+            }
+        });
+        
+        // Return ALL units produced by this building, with lock status
+        return this.myFactionData.availableUnits
+            .filter(unitInfo => unitInfo.producedBy === buildingType)
+            .map(unitInfo => {
+                const isUnlocked = unlockedUnitsSet.has(unitInfo.unitType);
+                let lockReason = null;
+                
+                if (!isUnlocked) {
+                    // Determine why it's locked
+                    lockReason = this.getUnitLockReason(unitInfo.unitType, playerBuildings);
+                }
+                
+                return {
+                    type: unitInfo.unitType,
+                    name: this.getUnitDisplayName(unitInfo.unitType),
+                    cost: unitInfo.cost,
+                    baseCost: unitInfo.baseCost,
+                    costModifier: unitInfo.costModifier,
+                    upkeep: unitInfo.upkeep,
+                    unlocked: isUnlocked,
+                    lockReason: lockReason
+                };
+            });
+    }
+    
+    /**
+     * Get human-readable reason why a unit is locked
+     */
+    getUnitLockReason(unitType, playerBuildings) {
+        // Get tech requirements from unit metadata (from API)
+        const unitInfo = this.myFactionData.availableUnits.find(u => u.unitType === unitType);
+        if (!unitInfo || !unitInfo.techRequirements) {
+            return 'Tech requirements not met';
+        }
+        
+        const required = unitInfo.techRequirements;
+        const missing = required.filter(building => !playerBuildings.has(building));
+        
+        if (missing.length === 0) {
+            return 'Tech tree requirements met but not unlocked';
+        }
+        
+        const buildingNames = {
+            'RESEARCH_LAB': 'Research Lab',
+            'TECH_CENTER': 'Tech Center',
+            'POWER_PLANT': 'Power Plant'
+        };
+        
+        const missingNames = missing.map(b => buildingNames[b] || b).join(', ');
+        return `Requires: ${missingNames}`;
     }
     
     

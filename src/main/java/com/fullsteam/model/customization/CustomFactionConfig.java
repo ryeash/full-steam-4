@@ -11,7 +11,6 @@ import lombok.Setter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -162,6 +161,21 @@ public class CustomFactionConfig {
     }
 
     /**
+     * Automatically includes zero-point required items (WORKER, HEADQUARTERS, POWER_PLANT).
+     * This is called before validation and when finalizing the config.
+     */
+    public void ensureRequiredItems() {
+        // Add zero-point units
+        selectedUnits.add(UnitType.WORKER); // 0 points, always required
+        
+        // Add zero-point buildings
+        selectedBuildings.add(BuildingType.HEADQUARTERS); // 0 points, always required
+        selectedBuildings.add(BuildingType.POWER_PLANT);  // 0 points, always required
+        
+        // These items are free, so they don't affect totalPointsSpent
+    }
+
+    /**
      * Calculate total points spent
      */
     public int calculateTotalPoints() {
@@ -254,11 +268,9 @@ public class CustomFactionConfig {
             errors.add("At least one combat unit is required");
         }
 
-        selectedPerks.removeIf(Objects::isNull);
-
         // Check perk dependencies
         for (FactionPerk perk : selectedPerks) {
-            if (!perk.canSelect(selectedPerks)) {
+            if (perk != null && !perk.canSelect(selectedPerks)) {
                 Set<FactionPerk> missing = new HashSet<>(perk.getDependsOn());
                 missing.removeAll(selectedPerks);
                 errors.add(String.format(
