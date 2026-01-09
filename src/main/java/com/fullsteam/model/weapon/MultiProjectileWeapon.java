@@ -102,7 +102,10 @@ public class MultiProjectileWeapon extends Weapon {
                         ordinanceType,
                         projectileSize,
                         elevationTargeting,
-                        targetElevation
+                        targetElevation,
+                        null,  // Multi-projectile weapons don't use seeking (too chaotic)
+                        0.0,
+                        0.0
                 );
                 ordinances.add(projectile);
             }
@@ -142,7 +145,10 @@ public class MultiProjectileWeapon extends Weapon {
                         ordinanceType,
                         projectileSize,
                         elevationTargeting,
-                        targetElevation
+                        targetElevation,
+                        null,  // Multi-projectile weapons don't use seeking (too chaotic)
+                        0.0,
+                        0.0
                 );
                 ordinances.add(projectile);
             }
@@ -162,7 +168,10 @@ public class MultiProjectileWeapon extends Weapon {
                     ordinanceType,
                     projectileSize,
                     elevationTargeting,
-                    targetElevation
+                    targetElevation,
+                    null,  // Multi-projectile weapons don't use seeking (too chaotic)
+                    0.0,
+                    0.0
             );
             ordinances.add(projectile);
         }

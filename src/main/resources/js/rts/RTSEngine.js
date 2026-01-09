@@ -2645,6 +2645,19 @@ class RTSEngine {
             projectileContainer.smokeTrail.alpha = 0.6 + Math.sin(time) * 0.2;
         }
         
+        // Animate seeking missile effects
+        if (projectileContainer.glow) {
+            // Pulsing red glow for tracking missiles
+            const time = Date.now() / 150;
+            projectileContainer.glow.alpha = 0.2 + Math.sin(time) * 0.15;
+        }
+        
+        if (projectileContainer.contrail) {
+            // Flowing white contrails
+            const time = Date.now() / 100;
+            projectileContainer.contrail.alpha = 0.7 + Math.sin(time) * 0.2;
+        }
+        
         // Store data
         projectileContainer.projectileData = projectileData;
     }
@@ -2658,6 +2671,18 @@ class RTSEngine {
         
         switch (projectileData.ordinance) {
             case 'ROCKET':
+                // Check if this is a seeking missile
+                const isSeeking = projectileData.bulletEffects && projectileData.bulletEffects.includes('SEEKING');
+                
+                // Seeking missiles have pulsing red glow (tracking indicator)
+                if (isSeeking) {
+                    const glow = new PIXI.Graphics();
+                    glow.circle(0, 0, size * 2.5);
+                    glow.fill({ color: 0xFF0000, alpha: 0.25 });
+                    container.addChild(glow);
+                    container.glow = glow;  // Store for animation
+                }
+                
                 // Rocket: Cone-shaped with fire trail
                 shape.moveTo(size * 2, 0);  // Nose (pointing right)
                 shape.lineTo(-size, -size * 0.6);  // Top fin
@@ -2684,6 +2709,21 @@ class RTSEngine {
                 container.addChild(fireTrail);
                 container.addChild(shape);
                 container.fireTrail = fireTrail;  // Store reference for animation
+                
+                // Seeking missiles have white contrails (heat-seeking indicator)
+                if (isSeeking) {
+                    const contrail = new PIXI.Graphics();
+                    for (let i = 0; i < 8; i++) {
+                        const offset = -size * 1.8 - (i * size * 0.6);
+                        const trailSize = size * 0.5 * (1 - i * 0.1);
+                        const alpha = 0.8 - (i * 0.1);
+                        contrail.circle(offset, 0, trailSize);
+                        contrail.fill({ color: 0xFFFFFF, alpha: alpha });
+                    }
+                    container.addChild(contrail);
+                    container.contrail = contrail;  // Store for animation
+                }
+                
                 break;
                 
             case 'GRENADE':
@@ -3984,7 +4024,7 @@ class RTSEngine {
             for (const required of requiredBuildings) {
                 if (!myBuildingTypes.has(required)) {
                     hasTech = false;
-                    missingRequirements.push(this.getBuildingDisplayName(required));
+                    missingRequirements.push(this.buildingTypes[required]?.displayName || required);
                 }
             }
             
@@ -4001,7 +4041,7 @@ class RTSEngine {
                 
                 // Add lock icon if not already present
                 const icon = this.getBuildingIcon(buildingType);
-                const name = this.getBuildingDisplayName(buildingType);
+                const name = this.buildingTypes[buildingType]?.displayName || buildingType;
                 const cost = buildingInfo.cost;
                 button.innerHTML = `🔒 ${icon} ${name} <span class="build-cost">(${cost})</span>`;
             } else if (!hasCredits) {
@@ -4013,7 +4053,7 @@ class RTSEngine {
                 
                 // Reset to normal icon (no lock)
                 const icon = this.getBuildingIcon(buildingType);
-                const name = this.getBuildingDisplayName(buildingType);
+                const name = this.buildingTypes[buildingType]?.displayName || buildingType;
                 button.innerHTML = `${icon} ${name} <span class="build-cost">(${cost})</span>`;
             } else {
                 // Can build
@@ -4024,7 +4064,7 @@ class RTSEngine {
                 
                 // Reset to normal icon (no lock)
                 const icon = this.getBuildingIcon(buildingType);
-                const name = this.getBuildingDisplayName(buildingType);
+                const name = this.buildingTypes[buildingType]?.displayName || buildingType;
                 const cost = buildingInfo.cost;
                 button.innerHTML = `${icon} ${name} <span class="build-cost">(${cost})</span>`;
             }
@@ -4953,7 +4993,7 @@ class RTSEngine {
         if (node.unitToUnlock) {
             const unitInfo = document.createElement('div');
             unitInfo.style.cssText = 'font-size: 12px; color: #4CAF50; margin: 5px 0;';
-            unitInfo.textContent = '✅ Unlocks: ' + this.getUnitDisplayName(node.unitToUnlock);
+            unitInfo.textContent = '✅ Unlocks: ' + (this.unitTypes[node.unitToUnlock]?.displayName || node.unitToUnlock);
             nodeElement.appendChild(unitInfo);
         }
         const cost = document.createElement('div');
@@ -5509,7 +5549,7 @@ class RTSEngine {
                 
                 // Get building icon
                 const icon = this.getBuildingIcon(building.buildingType);
-                const name = this.getBuildingDisplayName(building.buildingType);
+                const name = this.buildingTypes[building.buildingType]?.displayName || building.buildingType;
                 const cost = building.cost;
                 
                 // Check if building is unlocked (will be updated by updateBuildMenuAvailability)
@@ -5545,6 +5585,7 @@ class RTSEngine {
             'FACTORY': '🚗',
             'TURRET': '🎯',
             'ROCKET_TURRET': '🚀',
+            'FLAK_TURRET': '💥',
             'LASER_TURRET': '🔷',
             'SHIELD_GENERATOR': '🛡️',
             'TECH_CENTER': '🧪',
@@ -5560,37 +5601,6 @@ class RTSEngine {
             'TEMPEST_SPIRE': '⛈️'
         };
         return icons[buildingType] || '🏢';
-    }
-    
-    /**
-     * Get display name for a building type
-     */
-    getBuildingDisplayName(buildingType) {
-        const names = {
-            'HEADQUARTERS': 'Headquarters',
-            'POWER_PLANT': 'Power Plant',
-            'BARRACKS': 'Barracks',
-            'REFINERY': 'Refinery',
-            'WALL': 'Wall',
-            'RESEARCH_LAB': 'Research Lab',
-            'FACTORY': 'Factory',
-            'TURRET': 'Turret',
-            'ROCKET_TURRET': 'Rocket Turret',
-            'LASER_TURRET': 'Laser Turret',
-            'SHIELD_GENERATOR': 'Shield Generator',
-            'TECH_CENTER': 'Tech Center',
-            'BANK': 'Bank',
-            'BUNKER': 'Bunker',
-            'AIRFIELD': 'Airfield',
-            'HANGAR': 'Hangar',
-            'SANDSTORM_GENERATOR': 'Sandstorm Generator',
-            'QUANTUM_NEXUS': 'Quantum Nexus',
-            'PHOTON_SPIRE': 'Photon Spire',
-            'ANDROID_FACTORY': 'Android Factory',
-            'COMMAND_CITADEL': 'Command Citadel',
-            'TEMPEST_SPIRE': 'Tempest Spire'
-        };
-        return names[buildingType] || buildingType.replace(/_/g, ' ');
     }
     
     /**
@@ -5624,7 +5634,7 @@ class RTSEngine {
             })
             .map(unitInfo => ({
                 type: unitInfo.unitType,
-                name: this.getUnitDisplayName(unitInfo.unitType),
+                name: this.unitTypes[unitInfo.unitType]?.displayName || unitInfo.unitType,
                 cost: unitInfo.cost, // Faction-modified cost
                 baseCost: unitInfo.baseCost,
                 costModifier: unitInfo.costModifier,
@@ -5673,7 +5683,7 @@ class RTSEngine {
                 
                 return {
                     type: unitInfo.unitType,
-                    name: this.getUnitDisplayName(unitInfo.unitType),
+                    name: this.unitTypes[unitInfo.unitType]?.displayName || unitInfo.unitType,
                     cost: unitInfo.cost,
                     baseCost: unitInfo.baseCost,
                     costModifier: unitInfo.costModifier,
@@ -5711,46 +5721,6 @@ class RTSEngine {
         return `Requires: ${missingNames}`;
     }
     
-    
-    /**
-     * Get display name for a unit type
-     */
-    getUnitDisplayName(unitType) {
-        const names = {
-            'WORKER': '👷 Worker',
-            'INFANTRY': '🪖 Infantry',
-            'LASER_INFANTRY': '⚡ Laser Infantry',
-            'MEDIC': '⚕️ Medic',
-            'ROCKET_SOLDIER': '🚀 Rocket Soldier',
-            'SNIPER': '🎯 Sniper',
-            'ENGINEER': '🔧 Engineer',
-            'JEEP': '🚙 Jeep',
-            'TANK': '🛡️ Tank',
-            'FLAK_TANK': '💥 Flak Tank',
-            'ARTILLERY': '💣 Artillery',
-            'GIGANTONAUT': '🏔️ Gigantonaut',
-            'CLOAK_TANK': '👻 Cloak Tank',
-            'MAMMOTH_TANK': '🦣 Mammoth Tank',
-            // Hero units
-            'CRAWLER': '🦂 Crawler',
-            'RAIDER': '🏇 Raider',
-            'COLOSSUS': '🗿 Colossus',
-            'PHOTON_TITAN': '💎 Photon Titan',
-            // Beam units
-            'PLASMA_TROOPER': '⚡ Plasma Trooper',
-            'ION_RANGER': '🔫 Ion Ranger',
-            'PHOTON_SCOUT': '✨ Photon Scout',
-            'BEAM_TANK': '💠 Beam Tank',
-            'PULSE_ARTILLERY': '🌟 Pulse Artillery',
-            // Air units
-            'SCOUT_DRONE': '🪽 Scout Drone',
-            'HELICOPTER': '🚁 Helicopter',
-            'BOMBER': '✈️ Bomber',
-            'INTERCEPTOR': '🛩️ Interceptor',
-            'GUNSHIP': '👾 Gunship'
-        };
-        return names[unitType] || unitType;
-    }
     
     queueUnitProduction(buildingId, unitType) {
         this.sendInput({
@@ -6154,7 +6124,7 @@ class RTSEngine {
         // Get aircraft type name (from backend) or default to 'Empty'
         let aircraftText = 'Empty';
         if (hasAircraft && buildingData.hangarAircraftType) {
-            aircraftText = this.getUnitDisplayName(buildingData.hangarAircraftType);
+            aircraftText = this.unitTypes[buildingData.hangarAircraftType]?.displayName || buildingData.hangarAircraftType;
         } else if (hasAircraft) {
             aircraftText = 'Aircraft'; // Fallback if type not provided
         }
@@ -6224,7 +6194,7 @@ class RTSEngine {
             // Show what type is being produced
             let producingText = 'Aircraft';
             if (buildingData.hangarProducingType) {
-                producingText = this.getUnitDisplayName(buildingData.hangarProducingType);
+                producingText = this.unitTypes[buildingData.hangarProducingType]?.displayName || buildingData.hangarProducingType;
             }
             
             productionStatus.innerHTML = `<span>Producing ${producingText}:</span><span>${progress}%</span>`;

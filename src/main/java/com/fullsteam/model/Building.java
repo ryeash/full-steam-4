@@ -104,6 +104,11 @@ public class Building extends GameEntity implements Targetable {
             log.debug("Building {} ({}) initialized with DefenseComponent (Rocket)", id, buildingType.getDisplayName());
         }
 
+        if (buildingType == BuildingType.FLAK_TURRET) {
+            addComponent(new DefenseComponent(WeaponFactory.getFlakTurretWeapon()));
+            log.debug("Building {} ({}) initialized with DefenseComponent (Flak)", id, buildingType.getDisplayName());
+        }
+
         if (buildingType == BuildingType.LASER_TURRET) {
             addComponent(new DefenseComponent(WeaponFactory.getLaserTurretWeapon()));
             log.debug("Building {} ({}) initialized with DefenseComponent (Laser)", id, buildingType.getDisplayName());

@@ -267,6 +267,27 @@ public enum UnitType {
             Set.of(BuildingType.RESEARCH_LAB) // Tier 2 anti-air
     ),
 
+    // SAM Launcher - dedicated long-range anti-aircraft platform
+    SAM_LAUNCHER(
+            "SAM Launcher",
+            450,     // resource cost (specialized AA vehicle)
+            18,      // build time (seconds)
+            240,     // max health (fragile, needs protection)
+            75.0,    // movement speed (slow, defensive positioning)
+            80,      // damage (high single-target AA damage)
+            0.7,     // attack rate (slow reload between missiles)
+            380,     // attack range (very long range AA)
+            24.0,    // size (radius)
+            6,       // sides (hexagon)
+            0x708090, // slate gray (military AA color)
+            BuildingType.FACTORY,
+            28,      // upkeep cost
+            480.0,   // vision range (excellent, needs to spot aircraft),
+            Elevation.GROUND,
+            UnitCategory.VEHICLE, // category
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 specialized AA
+    ),
+
     // Shield Tank - mobile shield generator, defensive support
     SHIELD_TANK(
             "Shield Tank",
@@ -1405,6 +1426,62 @@ public enum UnitType {
                 Convex stabRight = Geometry.createPolygon(rightStab);
 
                 yield List.of(mainHull, cannonMount, stabLeft, stabRight);
+            }
+
+            // SAM Launcher - surface-to-air missile platform with vertical launch tubes
+            case SAM_LAUNCHER -> {
+                // Main hull: hexagonal platform (missile carrier base)
+                Vector2[] hull = new Vector2[]{
+                        new Vector2(-size * 0.9, -size * 0.4),
+                        new Vector2(-size * 0.4, -size * 0.8),
+                        new Vector2(size * 0.4, -size * 0.8),
+                        new Vector2(size * 0.9, -size * 0.4),
+                        new Vector2(size * 0.9, size * 0.4),
+                        new Vector2(size * 0.4, size * 0.8),
+                        new Vector2(-size * 0.4, size * 0.8),
+                        new Vector2(-size * 0.9, size * 0.4)
+                };
+                Convex mainHull = Geometry.createPolygon(hull);
+
+                // Missile launcher array (raised platform with tubes)
+                Vector2[] launcherArray = new Vector2[]{
+                        new Vector2(-size * 0.5, -size * 0.6),
+                        new Vector2(size * 0.3, -size * 0.7),
+                        new Vector2(size * 0.7, -size * 0.3),
+                        new Vector2(size * 0.7, size * 0.3),
+                        new Vector2(size * 0.3, size * 0.7),
+                        new Vector2(-size * 0.5, size * 0.6)
+                };
+                Convex launcher = Geometry.createPolygon(launcherArray);
+
+                // Left missile tube (vertical launch)
+                Vector2[] leftTube = new Vector2[]{
+                        new Vector2(-size * 0.2, -size * 0.75),
+                        new Vector2(size * 0.1, -size * 0.85),
+                        new Vector2(size * 0.3, -size * 0.7),
+                        new Vector2(size * 0.2, -size * 0.55)
+                };
+                Convex tubeLeft = Geometry.createPolygon(leftTube);
+
+                // Right missile tube (vertical launch)
+                Vector2[] rightTube = new Vector2[]{
+                        new Vector2(-size * 0.2, size * 0.75),
+                        new Vector2(size * 0.2, size * 0.55),
+                        new Vector2(size * 0.3, size * 0.7),
+                        new Vector2(size * 0.1, size * 0.85)
+                };
+                Convex tubeRight = Geometry.createPolygon(rightTube);
+
+                // Radar array (targeting system)
+                Vector2[] radar = new Vector2[]{
+                        new Vector2(size * 0.5, -size * 0.25),
+                        new Vector2(size * 0.85, -size * 0.15),
+                        new Vector2(size * 0.85, size * 0.15),
+                        new Vector2(size * 0.5, size * 0.25)
+                };
+                Convex radarArray = Geometry.createPolygon(radar);
+
+                yield List.of(mainHull, launcher, tubeLeft, tubeRight, radarArray);
             }
 
             // Shield Tank - mobile shield generator with energy projectors

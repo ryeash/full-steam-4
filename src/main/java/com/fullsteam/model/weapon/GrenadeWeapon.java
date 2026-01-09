@@ -75,7 +75,10 @@ public class GrenadeWeapon extends Weapon {
                 Ordinance.GRENADE, // Always use grenade ordinance type
                 projectileSize,
                 elevationTargeting,
-                targetElevation
+                targetElevation,
+                null,  // Grenades don't use seeking (ballistic arc)
+                0.0,
+                0.0
         );
 
         return List.of(grenade);

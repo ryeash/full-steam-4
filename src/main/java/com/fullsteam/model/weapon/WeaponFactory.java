@@ -33,6 +33,9 @@ public class WeaponFactory {
             // Flak Tank can ONLY hit aircraft (LOW + HIGH elevations, NOT ground)
             case FLAK_TANK -> ElevationTargeting.LOW_AND_HIGH;
 
+            // SAM Launcher can hit all elevations (dedicated AA platform with advanced targeting)
+            case SAM_LAUNCHER -> ElevationTargeting.LOW_AND_HIGH;
+
             // Interceptor can hit all air units (air-to-air specialist)
             case INTERCEPTOR -> ElevationTargeting.LOW_AND_HIGH;
 
@@ -141,6 +144,16 @@ public class WeaponFactory {
                     3.5,  // size (medium flak shells)
                     Ordinance.FLAK,
                     Set.of(BulletEffect.FLAK), // Creates FLAK_EXPLOSION field effects
+                    elevationTargeting
+            );
+
+            case SAM_LAUNCHER -> new ProjectileWeapon(
+                    damage, range, attackRate,
+                    700,  // projectile speed (fast seeking missiles)
+                    0.02, // linear damping (minimal, long range)
+                    4.0,  // size (large SAM missiles)
+                    Ordinance.ROCKET,
+                    Set.of(BulletEffect.SEEKING, BulletEffect.EXPLOSIVE), // Heat-seeking AA missiles
                     elevationTargeting
             );
 
@@ -356,7 +369,7 @@ public class WeaponFactory {
                 3.5,   // size (medium-sized projectiles)
                 Ordinance.BULLET,
                 Set.of(),
-                ElevationTargeting.GROUND_ONLY // Basic turret - ground only
+                ElevationTargeting.GROUND_AND_LOW // Basic turret - can hit ground and low-altitude air
         );
     }
 
@@ -376,6 +389,25 @@ public class WeaponFactory {
                 Ordinance.ROCKET,
                 Set.of(BulletEffect.EXPLOSIVE),
                 ElevationTargeting.GROUND_AND_LOW // Anti-air capable!
+        );
+    }
+
+    /**
+     * Get the weapon for flak turret building (FLAK_TURRET).
+     * Dedicated anti-aircraft defense, can ONLY hit air targets.
+     * Fast fire rate, area denial with flak explosions.
+     */
+    public static Weapon getFlakTurretWeapon() {
+        return new ProjectileWeapon(
+                45.0,  // damage (moderate per shot, high DPS)
+                350.0, // range (good AA range)
+                1.5,   // attack rate (fast fire rate for AA)
+                600.0, // projectile speed (fast flak shells)
+                0.1,   // linear damping
+                4.0,   // size (medium flak shells)
+                Ordinance.FLAK,
+                Set.of(BulletEffect.FLAK), // Creates FLAK_EXPLOSION field effects
+                ElevationTargeting.LOW_AND_HIGH // Anti-air only (LOW and HIGH altitude)
         );
     }
 

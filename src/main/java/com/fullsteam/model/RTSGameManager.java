@@ -1752,7 +1752,7 @@ public class RTSGameManager {
             case POWER_PLANT, BARRACKS, REFINERY, BUNKER, WALL -> true;
 
             // T2 - Requires Power Plant
-            case RESEARCH_LAB, FACTORY, TURRET, ROCKET_TURRET, SHIELD_GENERATOR ->
+            case RESEARCH_LAB, FACTORY, TURRET, ROCKET_TURRET, FLAK_TURRET, SHIELD_GENERATOR ->
                     playerBuildings.contains(BuildingType.POWER_PLANT);
 
             // T3 - Requires Power Plant + Research Lab
@@ -2501,6 +2501,20 @@ public class RTSGameManager {
         data.put("team", projectile.getOwnerTeam());
         data.put("ordinance", projectile.getOrdinanceType().name());
         data.put("size", projectile.getSize()); // Use actual projectile size
+        
+        // Add bullet effects for visual rendering (e.g., SEEKING missiles)
+        if (!projectile.getBulletEffects().isEmpty()) {
+            List<String> effects = projectile.getBulletEffects().stream()
+                    .map(Enum::name)
+                    .collect(Collectors.toList());
+            data.put("bulletEffects", effects);
+        }
+        
+        // Add target ID for seeking missiles (for debugging/visualization)
+        if (projectile.getTargetEntityId() != null) {
+            data.put("targetEntityId", projectile.getTargetEntityId());
+        }
+        
         return data;
     }
 

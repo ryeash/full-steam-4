@@ -153,6 +153,20 @@ public enum BuildingType {
             480.0    // vision range (excellent, long-range targeting)
     ),
 
+    // Defensive structure - dedicated anti-aircraft flak cannon
+    FLAK_TURRET(
+            "Flak Turret",
+            300,     // resource cost (cheaper than rocket turret, accessible T2)
+            18,      // build time (seconds)
+            450,     // max health (moderate durability)
+            25.0,    // size (radius)
+            6,       // sides (hexagon)
+            0xA0A0A0, // gray (flak color)
+            false,   // cannot produce units
+            -45,     // power consumption (moderate)
+            500.0    // vision range (excellent, needs to spot aircraft)
+    ),
+
     // Defensive structure - fires laser beams
     LASER_TURRET(
             "Laser Turret",
@@ -379,7 +393,7 @@ public enum BuildingType {
     public int getRequiredTechTier() {
         return switch (this) {
             case HEADQUARTERS, REFINERY, BARRACKS, POWER_PLANT, BUNKER, WALL -> 1;
-            case FACTORY, RESEARCH_LAB, TURRET, SHIELD_GENERATOR, ROCKET_TURRET -> 2;
+            case FACTORY, RESEARCH_LAB, TURRET, SHIELD_GENERATOR, ROCKET_TURRET, FLAK_TURRET -> 2;
             case TECH_CENTER, BANK, SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE,
                  COMMAND_CITADEL, LASER_TURRET, AIRFIELD, HANGAR, TEMPEST_SPIRE -> 3;
         };
@@ -424,6 +438,34 @@ public enum BuildingType {
 
             // Rocket Turret - hexagonal rocket platform
             case ROCKET_TURRET -> List.of(Geometry.createPolygonalCircle(6, size));
+
+            // Flak Turret - hexagonal anti-aircraft platform with elevated flak cannon
+            case FLAK_TURRET -> {
+                // Base platform (hexagon)
+                Convex base = Geometry.createPolygonalCircle(6, size * 0.8);
+
+                // Elevated cannon mount (smaller hexagon on top)
+                Convex cannonMount = Geometry.createPolygonalCircle(6, size * 0.5);
+                cannonMount.translate(size * 0.2, 0);
+
+                // Left stabilizer strut
+                Vector2[] leftStrut = new Vector2[]{
+                        new Vector2(-size * 0.3, -size * 0.6),
+                        new Vector2(size * 0.1, -size * 0.7),
+                        new Vector2(size * 0.2, -size * 0.5)
+                };
+                Convex strutL = Geometry.createPolygon(leftStrut);
+
+                // Right stabilizer strut
+                Vector2[] rightStrut = new Vector2[]{
+                        new Vector2(-size * 0.3, size * 0.6),
+                        new Vector2(size * 0.2, size * 0.5),
+                        new Vector2(size * 0.1, size * 0.7)
+                };
+                Convex strutR = Geometry.createPolygon(rightStrut);
+
+                yield List.of(base, cannonMount, strutL, strutR);
+            }
 
             // Laser Turret - octagonal advanced energy turret
             case LASER_TURRET -> List.of(Geometry.createPolygonalCircle(8, size));
@@ -548,7 +590,7 @@ public enum BuildingType {
             case POWER_PLANT, BARRACKS, REFINERY, BUNKER, WALL -> List.of();
 
             // T2 - Requires Power Plant
-            case RESEARCH_LAB, FACTORY, TURRET, ROCKET_TURRET, SHIELD_GENERATOR ->
+            case RESEARCH_LAB, FACTORY, TURRET, ROCKET_TURRET, FLAK_TURRET, SHIELD_GENERATOR ->
                     List.of(POWER_PLANT);
 
             // T3 - Requires Power Plant + Research Lab
