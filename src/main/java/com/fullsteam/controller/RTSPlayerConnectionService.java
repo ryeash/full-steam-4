@@ -108,6 +108,9 @@ public class RTSPlayerConnectionService {
                 "playerId", playerId
         ));
 
+        // Send game initialization message with static data
+        game.send(session, game.createGameInitializationForPlayer(playerId));
+
         rtsLobby.incrementPlayerCount();
 
         log.info("Player {} connected to RTS game {} with faction {}", playerId, gameId, factionName);

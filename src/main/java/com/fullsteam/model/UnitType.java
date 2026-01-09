@@ -2150,6 +2150,8 @@ public enum UnitType {
                 this == ION_RANGER ||
                 this == MEDIC ||
                 this == ENGINEER ||
+                this == SHOTGUN_INFANTRY ||
+                this == GRENADIER ||
                 this == ANDROID;
     }
 

@@ -17,6 +17,12 @@ class RTSEngine {
         this.fieldEffects = new Map();
         this.wallSegments = new Map();
         
+        // Static game data (loaded once from gameInitialization message)
+        this.unitTypes = null; // Map of unit type name -> static properties
+        this.buildingTypes = null; // Map of building type name -> static properties
+        this.obstaclesStatic = null; // Map of obstacle id -> static properties
+        this.initialized = false; // Flag to track if we've received initialization
+        
         // Player state
         this.gameId = null;
         this.myPlayerId = null;
@@ -332,6 +338,9 @@ class RTSEngine {
     
     handleServerMessage(data) {
         switch (data.type) {
+            case 'gameInitialization':
+                this.handleGameInitialization(data);
+                break;
             case 'gameState':
                 this.updateGameState(data);
                 break;
@@ -350,6 +359,135 @@ class RTSEngine {
             default:
                 console.warn('Unknown message type:', data.type);
         }
+    }
+    
+    handleGameInitialization(data) {
+        console.log('Received game initialization data');
+        
+        // Store static type data
+        this.unitTypes = data.unitTypes || {};
+        this.buildingTypes = data.buildingTypes || {};
+        
+        // Store biome info
+        if (data.biome) {
+            this.biome = data.biome.name;
+            this.groundColor = data.biome.groundColor;
+            this.obstacleColor = data.biome.obstacleColor;
+            this.drawWorldBounds();
+        }
+        
+        // Store world dimensions
+        if (data.worldWidth && data.worldHeight) {
+            this.worldBounds.width = data.worldWidth;
+            this.worldBounds.height = data.worldHeight;
+            this.drawWorldBounds();
+        }
+        
+        // Create obstacles from static data
+        if (data.obstacles) {
+            this.obstaclesStatic = new Map();
+            data.obstacles.forEach(obstacleData => {
+                // Store static data
+                this.obstaclesStatic.set(obstacleData.id, obstacleData);
+                // Create the visual obstacle
+                this.createObstacleFromStatic(obstacleData);
+            });
+        }
+        
+        // Store faction static data
+        if (data.myFactionStatic) {
+            const factionStatic = data.myFactionStatic;
+            this.myTeam = factionStatic.team;
+            
+            // Build myFactionData from static info
+            this.myFactionData = {
+                factionType: 'CUSTOM',
+                displayName: factionStatic.playerName,
+                description: 'Player-designed faction',
+                availableBuildings: factionStatic.buildingInfo || [],
+                availableUnits: factionStatic.unitInfo || []
+            };
+            
+            // Generate build menu now that we have faction data
+            if (!this.buildMenuGenerated) {
+                this.generateBuildMenu();
+                this.buildMenuGenerated = true;
+            }
+        }
+        
+        this.initialized = true;
+        console.log('Game initialization complete');
+    }
+    
+    createObstacleFromStatic(obstacleData) {
+        const container = new PIXI.Container();
+        container.zIndex = -1; // Obstacles are behind most entities
+        
+        const graphics = new PIXI.Graphics();
+        
+        // Different colors for harvestable, destructible, and indestructible obstacles
+        let fillColor, strokeColor;
+        if (obstacleData.harvestable) {
+            // Harvestable obstacles: greenish/gold color (contains resources)
+            fillColor = 0x9ACD32; // Yellow-green (resource-rich)
+            strokeColor = 0x6B8E23; // Olive green
+        } else if (obstacleData.destructible) {
+            // Destructible obstacles: brownish/tan color (like rocks that can be broken)
+            fillColor = 0x8B7355; // Medium brown
+            strokeColor = 0x654321; // Darker brown
+        } else {
+            // Indestructible obstacles: use biome color (darker, more solid looking)
+            fillColor = this.obstacleColor;
+            strokeColor = this.darkenColor(fillColor, 0.5);
+        }
+        
+        // Draw obstacle based on shape
+        if (obstacleData.shape === 'IRREGULAR_POLYGON' && obstacleData.vertices) {
+            // Use provided vertices for irregular polygons
+            graphics.moveTo(obstacleData.vertices[0].x, obstacleData.vertices[0].y);
+            for (let i = 1; i < obstacleData.vertices.length; i++) {
+                graphics.lineTo(obstacleData.vertices[i].x, obstacleData.vertices[i].y);
+            }
+            graphics.closePath();
+            graphics.fill(fillColor);
+            graphics.stroke({ width: 2, color: strokeColor });
+        } else if (obstacleData.shape === 'CIRCLE') {
+            graphics.circle(0, 0, obstacleData.size);
+            graphics.fill(fillColor);
+            graphics.stroke({ width: 2, color: strokeColor });
+        } else if (obstacleData.shape === 'RECTANGLE') {
+            const width = obstacleData.width || obstacleData.size;
+            const height = obstacleData.height || obstacleData.size;
+            graphics.rect(-width/2, -height/2, width, height);
+            graphics.fill(fillColor);
+            graphics.stroke({ width: 2, color: strokeColor });
+        } else if (obstacleData.shape === 'POLYGON') {
+            // Regular polygon
+            this.drawPolygon(graphics, obstacleData.sides, obstacleData.size, fillColor, 0);
+            graphics.stroke({ width: 2, color: strokeColor });
+        }
+        
+        // Add health bar for destructible obstacles
+        if (obstacleData.destructible) {
+            const healthBar = new PIXI.Graphics();
+            const barWidth = obstacleData.size * 1.5;
+            const offset = obstacleData.size + 10;
+            healthBar.rect(-barWidth / 2, -offset, barWidth, 5);
+            healthBar.fill(0x00FF00); // Green for full health
+            healthBar.visible = false; // Hide until damaged
+            container.addChild(healthBar);
+            container.healthBar = healthBar;
+        }
+        
+        container.addChild(graphics);
+        container.position.set(obstacleData.x, obstacleData.y);
+        
+        // Store graphics for later updates
+        container.obstacleGraphics = graphics;
+        container.obstacleData = obstacleData;
+        
+        this.gameContainer.addChild(container);
+        this.obstacles.set(obstacleData.id, container);
     }
     
     handleGameEvent(event) {
@@ -513,21 +651,11 @@ class RTSEngine {
         
         // Resource deposits removed - obstacles now contain harvestable resources
         
-        // Update obstacles
-        if (state.obstacles) {
-            const currentObstacleIds = new Set(state.obstacles.map(o => o.id));
-            
-            // Remove obstacles that no longer exist
-            this.obstacles.forEach((obstacleContainer, id) => {
-                if (!currentObstacleIds.has(id)) {
-                    this.gameContainer.removeChild(obstacleContainer);
-                    this.obstacles.delete(id);
-                }
-            });
-            
-            // Update or create obstacles
-            state.obstacles.forEach(obstacleData => {
-                this.updateObstacle(obstacleData);
+        // Update obstacles - now only dynamic updates (health/resources)
+        // Full obstacle data was sent in gameInitialization
+        if (state.obstacleUpdates) {
+            state.obstacleUpdates.forEach(update => {
+                this.updateObstacleDynamic(update);
             });
         }
         
@@ -611,33 +739,37 @@ class RTSEngine {
                 this.myTeam = this.myFaction.team;
                 this.updateResourceDisplay();
                 
-                // For CUSTOM factions, use building/unit info from game state
-                if (this.myFaction.buildingInfo) {
-                    console.log('Setting up faction data from game state');
-                    console.log('buildingInfo:', this.myFaction.buildingInfo);
-                    console.log('unitInfo:', this.myFaction.unitInfo);
-                    
-                    // Build myFactionData from game state for custom factions
-                    this.myFactionData = {
-                        factionType: 'CUSTOM',
-                        displayName: 'Custom Faction',
-                        description: 'Player-designed faction',
-                        availableBuildings: this.myFaction.buildingInfo,
-                        availableUnits: this.myFaction.unitInfo || []
-                    };
-                    
-                    console.log('myFactionData set:', this.myFactionData);
-                    
-                    // Generate build menu if we haven't already
-                    if (!this.buildMenuGenerated) {
-                        console.log('Generating build menu for CUSTOM faction');
-                        this.generateBuildMenu();
-                        this.buildMenuGenerated = true;
+                // Note: buildingInfo and unitInfo are now sent in gameInitialization
+                // Only set up myFactionData if we haven't already received initialization
+                if (!this.myFactionData) {
+                    // For CUSTOM factions, use building/unit info from game state (backward compatibility)
+                    if (this.myFaction.buildingInfo) {
+                        console.log('Setting up faction data from game state (backward compatibility)');
+                        console.log('buildingInfo:', this.myFaction.buildingInfo);
+                        console.log('unitInfo:', this.myFaction.unitInfo);
+                        
+                        // Build myFactionData from game state for custom factions
+                        this.myFactionData = {
+                            factionType: 'CUSTOM',
+                            displayName: 'Custom Faction',
+                            description: 'Player-designed faction',
+                            availableBuildings: this.myFaction.buildingInfo,
+                            availableUnits: this.myFaction.unitInfo || []
+                        };
+                        
+                        console.log('myFactionData set:', this.myFactionData);
+                        
+                        // Generate build menu if we haven't already
+                        if (!this.buildMenuGenerated) {
+                            console.log('Generating build menu for CUSTOM faction');
+                            this.generateBuildMenu();
+                            this.buildMenuGenerated = true;
+                        }
+                    } else if (this.myFaction.factionType) {
+                        // Fetch faction data from API for preset factions
+                        console.log('Fetching faction data for:', this.myFaction.factionType);
+                        this.fetchFactionData(this.myFaction.factionType);
                     }
-                } else if (this.myFaction.factionType && !this.myFactionData) {
-                    // Fetch faction data from API for preset factions
-                    console.log('Fetching faction data for:', this.myFaction.factionType);
-                    this.fetchFactionData(this.myFaction.factionType);
                 }
                 
                 // Center camera on HQ on first update
@@ -652,30 +784,7 @@ class RTSEngine {
             this.visionRange = state.visionRange;
         }
         
-        // Update biome info
-        if (state.biome && !this.biome) {
-            this.biome = state.biome.name;
-            this.groundColor = state.biome.groundColor;
-            this.obstacleColor = state.biome.obstacleColor;
-            
-            // Draw the world bounds rectangle with the biome color
-            // Everything outside this will be black
-            this.drawWorldBounds();
-            
-        }
-        
-        // Update world dimensions (for camera bounds)
-        if (state.worldWidth && state.worldHeight) {
-            const boundsChanged = this.worldBounds.width !== state.worldWidth || 
-                                  this.worldBounds.height !== state.worldHeight;
-            this.worldBounds.width = state.worldWidth;
-            this.worldBounds.height = state.worldHeight;
-            
-            // Redraw world bounds if dimensions changed and we have a biome color
-            if (boundsChanged && this.biome) {
-                this.drawWorldBounds();
-            }
-        }
+        // NOTE: Biome and world dimensions are now sent once in gameInitialization
         
         // Update build menu based on available tech
         if (state.buildings) {
@@ -1053,6 +1162,21 @@ class RTSEngine {
     }
     
     getUnitTypeInfo(unitType) {
+        // If we have static data from initialization, use it
+        if (this.unitTypes && this.unitTypes[unitType]) {
+            const staticData = this.unitTypes[unitType];
+            // Merge with visual properties (sides, color, etc.)
+            return {
+                ...staticData,
+                ...this.getUnitVisualInfo(unitType)
+            };
+        }
+        
+        // Fallback to hardcoded data (for backward compatibility or before initialization)
+        return this.getUnitVisualInfo(unitType);
+    }
+    
+    getUnitVisualInfo(unitType) {
         const unitTypes = {
             'WORKER': { sides: 16, size: 15, color: 0xFFFF00 },
             'INFANTRY': { sides: 3, size: 12, color: 0x00FF00 },
@@ -1788,6 +1912,14 @@ class RTSEngine {
     }
     
     updateBuilding(buildingData) {
+        // Merge with static building type data if available
+        if (this.buildingTypes && this.buildingTypes[buildingData.type]) {
+            buildingData = {
+                ...this.buildingTypes[buildingData.type],
+                ...buildingData
+            };
+        }
+        
         let buildingContainer = this.buildings.get(buildingData.id);
         
         if (!buildingContainer) {
@@ -2291,6 +2423,53 @@ class RTSEngine {
         
         // Store data
         obstacleContainer.obstacleData = obstacleData;
+    }
+    
+    /**
+     * Update only dynamic obstacle properties (health, resources)
+     * Static data comes from initialization
+     */
+    updateObstacleDynamic(updateData) {
+        const obstacleContainer = this.obstacles.get(updateData.id);
+        if (!obstacleContainer) {
+            console.warn('Received update for unknown obstacle:', updateData.id);
+            return;
+        }
+        
+        const staticData = this.obstaclesStatic.get(updateData.id);
+        if (!staticData) {
+            console.warn('No static data for obstacle:', updateData.id);
+            return;
+        }
+        
+        // Merge static and dynamic data
+        const fullData = { ...staticData, ...updateData };
+        
+        // Update health bar for destructible obstacles
+        if (fullData.destructible && obstacleContainer.healthBar) {
+            const healthPercent = fullData.health / fullData.maxHealth;
+            
+            // Hide health bar if at full health
+            if (healthPercent >= 1.0) {
+                obstacleContainer.healthBar.visible = false;
+            } else {
+                obstacleContainer.healthBar.visible = true;
+                const barWidth = fullData.size * 1.5;
+                const offset = fullData.size + 10;
+                obstacleContainer.healthBar.clear();
+                obstacleContainer.healthBar.rect(-barWidth / 2, -offset, barWidth * healthPercent, 5);
+                obstacleContainer.healthBar.fill(this.getHealthColor(healthPercent));
+            }
+        }
+        
+        // Update resource indicator for harvestable obstacles
+        if (fullData.harvestable && obstacleContainer.resourceIndicator) {
+            const resourcePercent = fullData.resourcePercent || 1.0;
+            // Could update visual indicator here if needed
+        }
+        
+        // Store merged data
+        obstacleContainer.obstacleData = fullData;
     }
     
     updateWallSegment(segmentData) {
@@ -5459,13 +5638,16 @@ class RTSEngine {
      * Get ALL units for a building (including locked ones) for UI display
      */
     getAllUnitsForBuilding(buildingType) {
-        const myFactionState = this.lastGameState?.factions?.[this.myPlayerId];
-        const unlockedUnits = myFactionState?.availableUnits || [];
-        const unlockedUnitsSet = new Set(unlockedUnits);
-        
         if (!this.myFactionData) {
             return [];
         }
+        
+        // Get available units from static faction data (sent in initialization)
+        // availableUnits is no longer in dynamic game state after optimization
+        const myFactionState = this.lastGameState?.factions?.[this.myPlayerId];
+        const unlockedUnits = myFactionState?.availableUnits || 
+                             this.myFactionData.availableUnits?.map(u => u.unitType) || [];
+        const unlockedUnitsSet = new Set(unlockedUnits);
         
         // Get player's completed buildings (for tech requirements check)
         const playerBuildings = new Set();
@@ -6052,4 +6234,3 @@ class RTSEngine {
         panel.appendChild(hangarStatusDiv);
     }
 }
-
