@@ -5,6 +5,8 @@ import org.dyn4j.geometry.Convex;
 import org.dyn4j.geometry.Geometry;
 import org.dyn4j.geometry.Vector2;
 
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
@@ -96,7 +98,7 @@ public enum UnitType {
             360.0,   // vision range (slightly better than infantry),
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 advanced unit
+            Set.of()
     ),
 
     // Medic - support unit that heals nearby friendlies
@@ -457,7 +459,7 @@ public enum UnitType {
             355.0,    // vision range (standard beam infantry),
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 beam weapons
+            Set.of(BuildingType.RESEARCH_LAB)
     ),
 
     // ION_RANGER - Long-range beam sniper
@@ -499,7 +501,7 @@ public enum UnitType {
             460.0,    // vision range (excellent, scout vehicle),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 beam weapons
+            Set.of(BuildingType.RESEARCH_LAB)
     ),
 
     // BEAM_TANK - Heavy beam vehicle
@@ -562,7 +564,7 @@ public enum UnitType {
             480.0,    // vision range (hero unit, excellent vision),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.TECH_CENTER) // Hero unit - Tech Alliance faction
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Hero unit - Tech Alliance faction
     ),
 
     // ANDROID - Autonomous combat unit produced by Android Factory
@@ -2144,6 +2146,13 @@ public enum UnitType {
         this.elevation = elevation;
         this.category = category;
         this.requiredBuildings = requiredBuildings != null ? requiredBuildings : Set.of();
+    }
+
+    public static List<UnitType> sorted() {
+        return Arrays.stream(UnitType.values())
+                .sorted(Comparator.comparing((UnitType u) -> u.getRequiredBuildings().size())
+                        .thenComparing(UnitType::getResourceCost))
+                .toList();
     }
 
     /**

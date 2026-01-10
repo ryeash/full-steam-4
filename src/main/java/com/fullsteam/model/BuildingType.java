@@ -5,6 +5,8 @@ import org.dyn4j.geometry.Convex;
 import org.dyn4j.geometry.Geometry;
 import org.dyn4j.geometry.Vector2;
 
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -191,7 +193,6 @@ public enum BuildingType {
             4,       // sides (rectangle)
             0x556B2F, // dark olive green
             false,   // cannot produce units
-            // can garrison 6 infantry units
             -15,     // power consumption
             420.0    // vision range (excellent, defensive structure)
     ),
@@ -348,6 +349,13 @@ public enum BuildingType {
         this.canProduceUnits = canProduceUnits;
         this.powerValue = powerValue;
         this.visionRange = visionRange;
+    }
+
+    public static List<BuildingType> sorted() {
+        return Arrays.stream(BuildingType.values())
+                .sorted(Comparator.comparing((BuildingType u) -> u.getTechRequirements().size())
+                        .thenComparing(BuildingType::getResourceCost))
+                .toList();
     }
 
     /**
@@ -607,7 +615,7 @@ public enum BuildingType {
             }
         };
     }
-    
+
     /**
      * Get tech requirements for this building type.
      * Matches the logic in RTSGameManager.hasTechRequirements()
@@ -618,12 +626,10 @@ public enum BuildingType {
             case POWER_PLANT, BARRACKS, REFINERY, BUNKER, WALL -> List.of();
 
             // T2 - Requires Power Plant
-            case RESEARCH_LAB, FACTORY, TURRET, ROCKET_TURRET, FLAK_TURRET, SHIELD_GENERATOR ->
-                    List.of(POWER_PLANT);
+            case RESEARCH_LAB, FACTORY, TURRET, ROCKET_TURRET, FLAK_TURRET, SHIELD_GENERATOR -> List.of(POWER_PLANT);
 
             // T3 - Requires Power Plant + Research Lab
-            case TECH_CENTER, BANK, LASER_TURRET, AIRFIELD, HANGAR ->
-                    List.of(POWER_PLANT, RESEARCH_LAB);
+            case TECH_CENTER, BANK, LASER_TURRET, AIRFIELD, HANGAR -> List.of(POWER_PLANT, RESEARCH_LAB);
 
             // Monument Buildings - Requires Power Plant + Research Lab (T3)
             case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL, TEMPEST_SPIRE ->

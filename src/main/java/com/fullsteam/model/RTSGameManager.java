@@ -41,10 +41,12 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -1286,7 +1288,7 @@ public class RTSGameManager {
         }
 
         // Count active HQs per team
-        Map<Integer, Boolean> teamHasHQ = new HashMap<>();
+        Map<Integer, Boolean> teamHasHQ = new LinkedHashMap<>();
 
         for (Building building : buildings.values()) {
             if (building.isActive() && building.getBuildingType() == BuildingType.HEADQUARTERS) {
@@ -1319,7 +1321,7 @@ public class RTSGameManager {
             log.info("Game Over! Team {} wins - all opponents disconnected", winningTeam);
 
             // Send game over message
-            Map<String, Object> gameOverMsg = new HashMap<>();
+            Map<String, Object> gameOverMsg = new LinkedHashMap<>();
             gameOverMsg.put("type", "gameOver");
             gameOverMsg.put("winningTeam", winningTeam);
             gameOverMsg.put("reason", "Victory - All opponents disconnected");
@@ -1334,7 +1336,7 @@ public class RTSGameManager {
 
             log.info("Game Over! All players disconnected");
 
-            Map<String, Object> gameOverMsg = new HashMap<>();
+            Map<String, Object> gameOverMsg = new LinkedHashMap<>();
             gameOverMsg.put("type", "gameOver");
             gameOverMsg.put("winningTeam", -1);
             gameOverMsg.put("reason", "Game ended - All players disconnected");
@@ -1350,7 +1352,7 @@ public class RTSGameManager {
             log.info("Game Over! Team {} wins by destroying all enemy headquarters", winningTeam);
 
             // Send game over message
-            Map<String, Object> gameOverMsg = new HashMap<>();
+            Map<String, Object> gameOverMsg = new LinkedHashMap<>();
             gameOverMsg.put("type", "gameOver");
             gameOverMsg.put("winningTeam", winningTeam);
             gameOverMsg.put("reason", "All enemy headquarters destroyed");
@@ -1363,7 +1365,7 @@ public class RTSGameManager {
 
             log.info("Game Over! Draw - all headquarters destroyed");
 
-            Map<String, Object> gameOverMsg = new HashMap<>();
+            Map<String, Object> gameOverMsg = new LinkedHashMap<>();
             gameOverMsg.put("type", "gameOver");
             gameOverMsg.put("winningTeam", -1);
             gameOverMsg.put("reason", "Draw - all headquarters destroyed");
@@ -1563,20 +1565,18 @@ public class RTSGameManager {
                 Long lastNotification = lastUnitDeathNotification.get(ownerId);
 
                 if (lastNotification == null || (currentTime - lastNotification) >= UNIT_DEATH_NOTIFICATION_COOLDOWN) {
-                    if (faction != null) {
-                        String unitName = unit.getUnitType().name()
-                                .replace("_", " ")
-                                .toLowerCase();
-                        // Capitalize first letter
-                        unitName = unitName.substring(0, 1).toUpperCase() + unitName.substring(1);
+                    String unitName = unit.getUnitType().name()
+                            .replace("_", " ")
+                            .toLowerCase();
+                    // Capitalize first letter
+                    unitName = unitName.substring(0, 1).toUpperCase() + unitName.substring(1);
 
-                        sendGameEvent(GameEvent.createPlayerEvent(
-                                "⚠️ Your " + unitName + " was destroyed!",
-                                ownerId,
-                                GameEvent.EventCategory.WARNING
-                        ));
-                        lastUnitDeathNotification.put(ownerId, currentTime);
-                    }
+                    sendGameEvent(GameEvent.createPlayerEvent(
+                            "⚠️ Your " + unitName + " was destroyed!",
+                            ownerId,
+                            GameEvent.EventCategory.WARNING
+                    ));
+                    lastUnitDeathNotification.put(ownerId, currentTime);
                 }
 
                 world.removeBody(unit.getBody());
@@ -1808,11 +1808,11 @@ public class RTSGameManager {
 
     /**
      * Create game state for a specific team (with fog of war applied)
-     * Note: Static data (obstacles, biome, world dimensions, unit/building types) 
+     * Note: Static data (obstacles, biome, world dimensions, unit/building types)
      * is now sent once via gameInitialization message
      */
     private Map<String, Object> createGameStateForTeam(int teamNumber) {
-        Map<String, Object> state = new HashMap<>();
+        Map<String, Object> state = new LinkedHashMap<>();
         state.put("type", "gameState");
         state.put("timestamp", System.currentTimeMillis());
 
@@ -1858,13 +1858,19 @@ public class RTSGameManager {
         // Client has full static data from initialization
         List<Map<String, Object>> obstacleUpdates = obstacles.values().stream()
                 .filter(o -> o.isDestructible() || o.isHarvestable()) // Only obstacles that can change
-                .filter(o -> o.getHealth() < o.getMaxHealth() || 
-                            (o.isHarvestable() && o.getRemainingResources() < o.getMaxResources()))
+                .filter(o -> o.getHealth() < o.getMaxHealth() ||
+                        (o.isHarvestable() && o.getRemainingResources() < o.getMaxResources()))
                 .map(this::serializeObstacleDynamic)
                 .collect(Collectors.toList());
         if (!obstacleUpdates.isEmpty()) {
             state.put("obstacleUpdates", obstacleUpdates);
         }
+
+        // Send list of active obstacle IDs so client can remove depleted ones
+        List<Integer> activeObstacleIds = obstacles.values().stream()
+                .map(Obstacle::getId)
+                .collect(Collectors.toList());
+        state.put("activeObstacleIds", activeObstacleIds);
 
         // Wall segments respect fog of war (player-built structures)
         List<WallSegment> visibleWallSegments = FogOfWar.getVisibleWallSegments(gameEntities, teamNumber);
@@ -1874,14 +1880,14 @@ public class RTSGameManager {
         state.put("wallSegments", wallSegmentsList);
 
         // Player factions - send only dynamic resource/state info
-        Map<Integer, Map<String, Object>> factionsMap = new HashMap<>();
+        Map<Integer, Map<String, Object>> factionsMap = new LinkedHashMap<>();
         playerFactions.forEach((playerId, faction) -> {
             if (faction.getTeamNumber() == teamNumber) {
                 // Dynamic info for own team (resources, unit counts, etc.)
                 factionsMap.put(playerId, serializeFactionDynamic(faction));
             } else {
                 // Limited info for other teams (just team number and name)
-                Map<String, Object> limitedInfo = new HashMap<>();
+                Map<String, Object> limitedInfo = new LinkedHashMap<>();
                 limitedInfo.put("playerId", faction.getPlayerId());
                 limitedInfo.put("playerName", faction.getPlayerName());
                 limitedInfo.put("team", faction.getTeamNumber());
@@ -1898,18 +1904,18 @@ public class RTSGameManager {
      * Client already has static data from initialization
      */
     private Map<String, Object> serializeObstacleDynamic(Obstacle obstacle) {
-        Map<String, Object> data = new HashMap<>();
+        Map<String, Object> data = new LinkedHashMap<>();
         data.put("id", obstacle.getId());
-        
+
         if (obstacle.isDestructible()) {
             data.put("health", obstacle.getHealth());
         }
-        
+
         if (obstacle.isHarvestable()) {
             data.put("remainingResources", obstacle.getRemainingResources());
             data.put("resourcePercent", obstacle.getResourcePercent());
         }
-        
+
         return data;
     }
 
@@ -1918,7 +1924,7 @@ public class RTSGameManager {
      * Client already has static data from initialization
      */
     private Map<String, Object> serializeFactionDynamic(PlayerFaction faction) {
-        Map<String, Object> data = new HashMap<>();
+        Map<String, Object> data = new LinkedHashMap<>();
         data.put("playerId", faction.getPlayerId());
         data.put("playerName", faction.getPlayerName());
         data.put("team", faction.getTeamNumber());
@@ -1930,10 +1936,10 @@ public class RTSGameManager {
         data.put("powerGenerated", faction.getPowerGenerated());
         data.put("powerConsumed", faction.getPowerConsumed());
         data.put("hasLowPower", faction.isHasLowPower());
-        
+
         // Note: buildingInfo, unitInfo, costs, availableUnits/Buildings 
         // are sent in initialization and only updated when tech unlocks
-        
+
         return data;
     }
 
@@ -1942,12 +1948,12 @@ public class RTSGameManager {
      * Contains static data that doesn't change during the game
      */
     public Map<String, Object> createGameInitializationForPlayer(int playerId) {
-        Map<String, Object> init = new HashMap<>();
+        Map<String, Object> init = new LinkedHashMap<>();
         init.put("type", "gameInitialization");
         init.put("timestamp", System.currentTimeMillis());
 
         // Biome info (never changes)
-        Map<String, Object> biomeInfo = new HashMap<>();
+        Map<String, Object> biomeInfo = new LinkedHashMap<>();
         biomeInfo.put("name", rtsWorld.getBiome().name());
         biomeInfo.put("groundColor", rtsWorld.getBiome().getGroundColor());
         biomeInfo.put("obstacleColor", rtsWorld.getBiome().getObstacleColor());
@@ -1965,9 +1971,9 @@ public class RTSGameManager {
         init.put("obstacles", obstaclesList);
 
         // Unit type metadata (static properties for all unit types)
-        Map<String, Map<String, Object>> unitTypes = new HashMap<>();
-        for (UnitType unitType : UnitType.values()) {
-            Map<String, Object> typeData = new HashMap<>();
+        Map<String, Map<String, Object>> unitTypes = new LinkedHashMap<>();
+        for (UnitType unitType : UnitType.sorted()) {
+            Map<String, Object> typeData = new LinkedHashMap<>();
             typeData.put("displayName", unitType.getDisplayName());
             typeData.put("size", unitType.getSize());
             typeData.put("maxHealth", (int) unitType.getMaxHealth());
@@ -1980,41 +1986,41 @@ public class RTSGameManager {
             typeData.put("upkeep", unitType.getUpkeepCost());
             typeData.put("visionRange", unitType.getVisionRange());
             typeData.put("specialAbility", unitType.getSpecialAbility().name());
-            
+
             // Visual properties for rendering
             typeData.put("color", unitType.getColor());
             typeData.put("elevation", unitType.getElevation().name());
             // NOTE: Removed 'sides' - units always send vertices from physics body
-            
+
             unitTypes.put(unitType.name(), typeData);
         }
         init.put("unitTypes", unitTypes);
 
         // Building type metadata (static properties for all building types)
-        Map<String, Map<String, Object>> buildingTypes = new HashMap<>();
-        for (BuildingType buildingType : BuildingType.values()) {
-            Map<String, Object> typeData = new HashMap<>();
+        Map<String, Map<String, Object>> buildingTypes = new LinkedHashMap<>();
+        for (BuildingType buildingType : BuildingType.sorted()) {
+            Map<String, Object> typeData = new LinkedHashMap<>();
             typeData.put("displayName", buildingType.getDisplayName());
             typeData.put("size", buildingType.getSize());
-            typeData.put("maxHealth", (int) buildingType.getMaxHealth());
+            typeData.put("maxHealth", buildingType.getMaxHealth());
             typeData.put("powerValue", buildingType.getPowerValue());
             typeData.put("buildTimeSeconds", buildingType.getBuildTimeSeconds());
             typeData.put("canProduceUnits", buildingType.isCanProduceUnits());
             typeData.put("visionRange", buildingType.getVisionRange());
             typeData.put("requiredTechTier", buildingType.getRequiredTechTier());
-            
+
             // Add weapon range for defensive buildings (for UI range indicators)
             double weaponRange = buildingType.getWeaponRange();
             if (weaponRange > 0) {
                 typeData.put("weaponRange", weaponRange);
             }
-            
+
             // Add aura radius for buildings with area effects (for UI range indicators)
             double auraRadius = buildingType.getAuraRadius();
             if (auraRadius > 0) {
                 typeData.put("auraRadius", auraRadius);
             }
-            
+
             buildingTypes.put(buildingType.name(), typeData);
         }
         init.put("buildingTypes", buildingTypes);
@@ -2022,86 +2028,65 @@ public class RTSGameManager {
         // Player's faction static info (if they have a faction yet)
         PlayerFaction faction = playerFactions.get(playerId);
         if (faction != null) {
-            Map<String, Object> factionStatic = new HashMap<>();
+            Map<String, Object> factionStatic = new LinkedHashMap<>();
             factionStatic.put("playerId", faction.getPlayerId());
             factionStatic.put("playerName", faction.getPlayerName());
             factionStatic.put("team", faction.getTeamNumber());
 
             // Available units and buildings
-            List<String> availableUnits = new ArrayList<>();
-            for (UnitType unitType : faction.getFactionDefinition().getUnitTypes()) {
-                availableUnits.add(unitType.name());
-            }
+            List<String> availableUnits = faction.getFactionDefinition()
+                    .getUnitTypes()
+                    .stream()
+                    .sorted(Comparator.comparing((UnitType u) -> u.getRequiredBuildings().size())
+                            .thenComparing(UnitType::getResourceCost))
+                    .map(UnitType::name)
+                    .toList();
             factionStatic.put("availableUnits", availableUnits);
 
-            List<String> availableBuildings = new ArrayList<>();
-            for (BuildingType buildingType : BuildingType.values()) {
-                if (faction.canBuildBuilding(buildingType)) {
-                    availableBuildings.add(buildingType.name());
-                }
-            }
+            List<String> availableBuildings = faction.getFactionDefinition()
+                    .getBuildingTypes()
+                    .stream()
+                    .sorted(Comparator.comparing((BuildingType u) -> u.getTechRequirements().size())
+                            .thenComparing(BuildingType::getResourceCost))
+                    .map(BuildingType::name)
+                    .toList();
             factionStatic.put("availableBuildings", availableBuildings);
-
-            // Faction-modified costs (can change with perks, so we send initial values)
-            Map<String, Integer> unitCosts = new HashMap<>();
-            for (String unitName : availableUnits) {
-                try {
-                    UnitType unitType = UnitType.valueOf(unitName);
-                    unitCosts.put(unitName, faction.getUnitCost(unitType));
-                } catch (IllegalArgumentException e) {
-                    log.warn("Invalid unit type in availableUnits: {}", unitName);
-                }
-            }
-            factionStatic.put("unitCosts", unitCosts);
-
-            Map<String, Integer> buildingCosts = new HashMap<>();
-            for (BuildingType buildingType : BuildingType.values()) {
-                if (faction.canBuildBuilding(buildingType)) {
-                    buildingCosts.put(buildingType.name(), faction.getBuildingCost(buildingType));
-                }
-            }
-            factionStatic.put("buildingCosts", buildingCosts);
 
             // Build detailed unit/building info for custom factions
             List<Map<String, Object>> buildingInfo = new ArrayList<>();
-            for (BuildingType buildingType : BuildingType.values()) {
-                if (faction.canBuildBuilding(buildingType)) {
-                    Map<String, Object> building = new HashMap<>();
-                    building.put("buildingType", buildingType.name());
-                    building.put("displayName", buildingType.getDisplayName());
-                    building.put("cost", faction.getBuildingCost(buildingType));
-                    building.put("requiredTechTier", buildingType.getRequiredTechTier());
-                    building.put("maxHealth", (int) buildingType.getMaxHealth());
-                    building.put("powerValue", buildingType.getPowerValue());
-                    building.put("buildTimeSeconds", buildingType.getBuildTimeSeconds());
-                    building.put("canProduceUnits", buildingType.isCanProduceUnits());
-                    building.put("visionRange", buildingType.getVisionRange());
-                    building.put("techRequirements", new ArrayList<>());
-                    buildingInfo.add(building);
-                }
+            for (String buildingName : availableBuildings) {
+                BuildingType buildingType = BuildingType.valueOf(buildingName);
+                Map<String, Object> building = new LinkedHashMap<>();
+                building.put("buildingType", buildingType.name());
+                building.put("displayName", buildingType.getDisplayName());
+                building.put("cost", faction.getBuildingCost(buildingType));
+                building.put("requiredTechTier", buildingType.getRequiredTechTier());
+                building.put("maxHealth", buildingType.getMaxHealth());
+                building.put("powerValue", buildingType.getPowerValue());
+                building.put("buildTimeSeconds", buildingType.getBuildTimeSeconds());
+                building.put("canProduceUnits", buildingType.isCanProduceUnits());
+                building.put("visionRange", buildingType.getVisionRange());
+                building.put("techRequirements", buildingType.getTechRequirements());
+                buildingInfo.add(building);
             }
             factionStatic.put("buildingInfo", buildingInfo);
 
             List<Map<String, Object>> unitInfo = new ArrayList<>();
             for (String unitName : availableUnits) {
-                try {
-                    UnitType unitType = UnitType.valueOf(unitName);
-                    Map<String, Object> unit = new HashMap<>();
-                    unit.put("unitType", unitType.name());
-                    unit.put("displayName", unitType.getDisplayName());
-                    unit.put("cost", faction.getUnitCost(unitType));
-                    unit.put("upkeep", unitType.getUpkeepCost());
-                    unit.put("maxHealth", (int) unitType.getMaxHealth());
-                    unit.put("damage", (int) unitType.getDamage());
-                    unit.put("speed", unitType.getMovementSpeed());
-                    unit.put("range", (int) unitType.getAttackRange());
-                    unit.put("buildTimeSeconds", unitType.getBuildTimeSeconds());
-                    unit.put("producedBy", unitType.getProducedBy().name());
-                    unit.put("category", unitType.getCategory().name());
-                    unitInfo.add(unit);
-                } catch (IllegalArgumentException e) {
-                    log.warn("Invalid unit type in availableUnits: {}", unitName);
-                }
+                UnitType unitType = UnitType.valueOf(unitName);
+                Map<String, Object> unit = new LinkedHashMap<>();
+                unit.put("unitType", unitType.name());
+                unit.put("displayName", unitType.getDisplayName());
+                unit.put("cost", faction.getUnitCost(unitType));
+                unit.put("upkeep", unitType.getUpkeepCost());
+                unit.put("maxHealth", unitType.getMaxHealth());
+                unit.put("damage", unitType.getDamage());
+                unit.put("speed", unitType.getMovementSpeed());
+                unit.put("range", unitType.getAttackRange());
+                unit.put("buildTimeSeconds", unitType.getBuildTimeSeconds());
+                unit.put("producedBy", unitType.getProducedBy().name());
+                unit.put("category", unitType.getCategory().name());
+                unitInfo.add(unit);
             }
             factionStatic.put("unitInfo", unitInfo);
 
@@ -2115,7 +2100,7 @@ public class RTSGameManager {
      * Serialize obstacle static data (doesn't include health/resources which change)
      */
     private Map<String, Object> serializeObstacleStatic(Obstacle obstacle) {
-        Map<String, Object> data = new HashMap<>();
+        Map<String, Object> data = new LinkedHashMap<>();
         data.put("id", obstacle.getId());
         data.put("x", obstacle.getPosition().x);
         data.put("y", obstacle.getPosition().y);
@@ -2194,7 +2179,7 @@ public class RTSGameManager {
      * @param viewerTeamNumber The team number of the player viewing this unit (for filtering selection state)
      */
     private Map<String, Object> serializeUnit(Unit unit, int viewerTeamNumber) {
-        Map<String, Object> data = new HashMap<>();
+        Map<String, Object> data = new LinkedHashMap<>();
         data.put("id", unit.getId());
         data.put("type", unit.getUnitType().name());
         data.put("x", unit.getPosition().x);
@@ -2229,18 +2214,16 @@ public class RTSGameManager {
         unit.getComponent(DeployComponent.class)
                 .filter(DeployComponent::isDeployed)
                 .ifPresent(deployComp -> {
-                    if (deployComp.isDeployed()) {
-                        List<Map<String, Object>> turretsData = new ArrayList<>();
-                        for (Turret turret : deployComp.getTurrets()) {
-                            Map<String, Object> turretData = new HashMap<>();
-                            turretData.put("index", turret.getIndex());
-                            turretData.put("offsetX", turret.getOffset().x);
-                            turretData.put("offsetY", turret.getOffset().y);
-                            turretData.put("rotation", turret.getRotation());
-                            turretsData.add(turretData);
-                        }
-                        data.put("turrets", turretsData);
+                    List<Map<String, Object>> turretsData = new ArrayList<>();
+                    for (Turret turret : deployComp.getTurrets()) {
+                        Map<String, Object> turretData = new LinkedHashMap<>();
+                        turretData.put("index", turret.getIndex());
+                        turretData.put("offsetX", turret.getOffset().x);
+                        turretData.put("offsetY", turret.getOffset().y);
+                        turretData.put("rotation", turret.getRotation());
+                        turretsData.add(turretData);
                     }
+                    data.put("turrets", turretsData);
                 });
         return data;
     }
@@ -2249,7 +2232,7 @@ public class RTSGameManager {
      * Serialize a building for network transmission
      */
     private Map<String, Object> serializeBuilding(Building building) {
-        Map<String, Object> data = new HashMap<>();
+        Map<String, Object> data = new LinkedHashMap<>();
         data.put("id", building.getId());
         data.put("type", building.getBuildingType().name());
         data.put("x", building.getPosition().x);
@@ -2271,7 +2254,7 @@ public class RTSGameManager {
 
         // Rally point
         if (building.getRallyPoint() != null) {
-            Map<String, Object> rallyData = new HashMap<>();
+            Map<String, Object> rallyData = new LinkedHashMap<>();
             rallyData.put("x", building.getRallyPoint().x);
             rallyData.put("y", building.getRallyPoint().y);
             data.put("rallyPoint", rallyData);
@@ -2328,7 +2311,7 @@ public class RTSGameManager {
      * Serialize a faction for network transmission
      */
     private Map<String, Object> serializeFaction(PlayerFaction faction) {
-        Map<String, Object> data = new HashMap<>();
+        Map<String, Object> data = new LinkedHashMap<>();
         data.put("playerId", faction.getPlayerId());
         data.put("playerName", faction.getPlayerName());
         data.put("team", faction.getTeamNumber());
@@ -2359,7 +2342,7 @@ public class RTSGameManager {
         List<Map<String, Object>> buildingInfo = new ArrayList<>();
         for (BuildingType buildingType : BuildingType.values()) {
             if (faction.canBuildBuilding(buildingType)) {
-                Map<String, Object> building = new HashMap<>();
+                Map<String, Object> building = new LinkedHashMap<>();
                 building.put("buildingType", buildingType.name());
                 building.put("displayName", buildingType.getDisplayName());
                 building.put("cost", faction.getBuildingCost(buildingType));
@@ -2383,7 +2366,7 @@ public class RTSGameManager {
         for (String unitName : availableUnits) {
             try {
                 UnitType unitType = UnitType.valueOf(unitName);
-                Map<String, Object> unit = new HashMap<>();
+                Map<String, Object> unit = new LinkedHashMap<>();
                 unit.put("unitType", unitType.name());
                 unit.put("displayName", unitType.getDisplayName());
                 unit.put("cost", faction.getUnitCost(unitType));
@@ -2405,8 +2388,8 @@ public class RTSGameManager {
 
         // Faction-modified costs for units (client needs this for UI)
         // Only include costs for units that are actually available (via research)
-        Map<String, Integer> unitCosts = new HashMap<>();
-        Map<String, Integer> unitUpkeep = new HashMap<>();
+        Map<String, Integer> unitCosts = new LinkedHashMap<>();
+        Map<String, Integer> unitUpkeep = new LinkedHashMap<>();
         for (String unitName : availableUnits) {
             try {
                 UnitType unitType = UnitType.valueOf(unitName);
@@ -2420,7 +2403,7 @@ public class RTSGameManager {
         data.put("unitUpkeep", unitUpkeep);
 
         // Faction-modified costs for buildings
-        Map<String, Integer> buildingCosts = new HashMap<>();
+        Map<String, Integer> buildingCosts = new LinkedHashMap<>();
         for (BuildingType buildingType : BuildingType.values()) {
             if (faction.canBuildBuilding(buildingType)) {
                 buildingCosts.put(buildingType.name(), faction.getBuildingCost(buildingType));
@@ -2435,7 +2418,7 @@ public class RTSGameManager {
      * Serialize a wall segment for network transmission
      */
     private Map<String, Object> serializeWallSegment(WallSegment segment) {
-        Map<String, Object> data = new HashMap<>();
+        Map<String, Object> data = new LinkedHashMap<>();
         data.put("id", segment.getId());
         data.put("x", segment.getPosition().x);
         data.put("y", segment.getPosition().y);
@@ -2453,7 +2436,7 @@ public class RTSGameManager {
      * Serialize a projectile for network transmission
      */
     private Map<String, Object> serializeProjectile(Projectile projectile) {
-        Map<String, Object> data = new HashMap<>();
+        Map<String, Object> data = new LinkedHashMap<>();
         data.put("id", projectile.getId());
         data.put("x", projectile.getPosition().x);
         data.put("y", projectile.getPosition().y);
@@ -2466,7 +2449,7 @@ public class RTSGameManager {
         data.put("team", projectile.getOwnerTeam());
         data.put("ordinance", projectile.getOrdinanceType().name());
         data.put("size", projectile.getSize()); // Use actual projectile size
-        
+
         // Add bullet effects for visual rendering (e.g., SEEKING missiles)
         if (!projectile.getBulletEffects().isEmpty()) {
             List<String> effects = projectile.getBulletEffects().stream()
@@ -2474,12 +2457,12 @@ public class RTSGameManager {
                     .collect(Collectors.toList());
             data.put("bulletEffects", effects);
         }
-        
+
         // Add target ID for seeking missiles (for debugging/visualization)
         if (projectile.getTargetEntityId() != null) {
             data.put("targetEntityId", projectile.getTargetEntityId());
         }
-        
+
         return data;
     }
 
@@ -2487,7 +2470,7 @@ public class RTSGameManager {
      * Serialize a field effect for network transmission
      */
     private Map<String, Object> serializeFieldEffect(FieldEffect effect) {
-        Map<String, Object> data = new HashMap<>();
+        Map<String, Object> data = new LinkedHashMap<>();
         data.put("id", effect.getId());
         data.put("type", effect.getType().name());
         data.put("x", effect.getPosition().x);
@@ -2633,13 +2616,10 @@ public class RTSGameManager {
      * Create starting base for a player
      */
     private void createStartingBase(int playerId, int teamNumber, Vector2 position) {
-        // Get player faction for modifiers
-        PlayerFaction faction = playerFactions.get(playerId);
+        PlayerFaction faction = Objects.requireNonNull(playerFactions.get(playerId));
 
         // Create headquarters (with faction-modified health)
-        double hqMaxHealth = faction != null
-                ? faction.getBuildingHealth(BuildingType.HEADQUARTERS)
-                : BuildingType.HEADQUARTERS.getMaxHealth();
+        double hqMaxHealth = faction.getBuildingHealth(BuildingType.HEADQUARTERS);
         Building hq = new Building(
                 IdGenerator.nextEntityId(),
                 gameEntities,
@@ -2824,7 +2804,7 @@ public class RTSGameManager {
      * Serialize a beam for client rendering
      */
     private Map<String, Object> serializeBeam(Beam beam) {
-        Map<String, Object> data = new HashMap<>();
+        Map<String, Object> data = new LinkedHashMap<>();
         data.put("id", beam.getId());
         data.put("startX", beam.getStartPosition().x);
         data.put("startY", beam.getStartPosition().y);

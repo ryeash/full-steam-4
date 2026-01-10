@@ -660,6 +660,22 @@ class RTSEngine {
         
         // Update obstacles - now only dynamic updates (health/resources)
         // Full obstacle data was sent in gameInitialization
+        
+        // Remove obstacles that no longer exist (depleted)
+        if (state.activeObstacleIds) {
+            const activeObstacleIds = new Set(state.activeObstacleIds);
+            
+            // Remove obstacles that are no longer active
+            this.obstacles.forEach((obstacleContainer, id) => {
+                if (!activeObstacleIds.has(id)) {
+                    this.gameContainer.removeChild(obstacleContainer);
+                    obstacleContainer.destroy();
+                    this.obstacles.delete(id);
+                    this.obstaclesStatic.delete(id);
+                }
+            });
+        }
+        
         if (state.obstacleUpdates) {
             state.obstacleUpdates.forEach(update => {
                 this.updateObstacleDynamic(update);
@@ -4293,45 +4309,7 @@ class RTSEngine {
                 panel.appendChild(ungarrisonAllButton);
             }
         }
-        
-        // Monument aura info
-        const monumentInfo = {
-            'PHOTON_SPIRE': { name: 'Beam Amplifier', effect: '+35% beam damage', radius: 250 },
-            'QUANTUM_NEXUS': { name: 'Quantum Shield', effect: '+25% max health', radius: 280 },
-            'SANDSTORM_GENERATOR': { name: 'Sandstorm', effect: '15 damage/sec to enemies', radius: 300 },
-            'TEMPEST_SPIRE': { name: 'Anti-Air Defense', effect: 'Long-range flak cannon', radius: 550 }
-        };
-        
-        if (monumentInfo[buildingData.type]) {
-            const info = monumentInfo[buildingData.type];
-            
-            const monumentTitle = document.createElement('div');
-            monumentTitle.style.marginTop = '15px';
-            monumentTitle.style.fontWeight = 'bold';
-            monumentTitle.style.color = '#FFD700';
-            monumentTitle.textContent = info.name + ':';
-            panel.appendChild(monumentTitle);
-            
-            const effectInfo = document.createElement('div');
-            effectInfo.className = 'unit-stat';
-            effectInfo.innerHTML = `<span>Effect:</span><span>${info.effect}</span>`;
-            panel.appendChild(effectInfo);
-            
-            const radiusInfo = document.createElement('div');
-            radiusInfo.className = 'unit-stat';
-            radiusInfo.innerHTML = `<span>Radius:</span><span>${info.radius}</span>`;
-            panel.appendChild(radiusInfo);
-            
-            const statusInfo = document.createElement('div');
-            statusInfo.className = 'unit-stat';
-            const status = buildingData.auraActive ? '✓ Active' : '✗ Inactive';
-            const statusColor = buildingData.auraActive ? '#00FF00' : '#FF0000';
-            statusInfo.innerHTML = `<span>Status:</span><span style="color: ${statusColor}">${status}</span>`;
-            panel.appendChild(statusInfo);
-        }
-        
-        // Research system removed - research UI removed from building panels
-        
+
         // Production buttons
         if (buildingData.canProduceUnits && !buildingData.underConstruction) {
             const productionTitle = document.createElement('div');
