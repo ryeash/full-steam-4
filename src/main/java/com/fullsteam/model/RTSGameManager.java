@@ -434,7 +434,7 @@ public class RTSGameManager {
         playerInputs.remove(playerId);
 
         // Handle unit selection
-        if (input.getSelectUnits() != null && !input.getSelectUnits().isEmpty()) {
+        if (input.getSelectUnits() != null) {
             // Clear previous selections
             units.values().stream()
                     .filter(u -> u.belongsTo(playerId))
