@@ -3506,8 +3506,7 @@ class RTSEngine {
     
     onMouseWheel(e) {
         e.preventDefault();
-        // Reduced zoom speed for better trackpad control
-        const zoomSpeed = 0.02; // Changed from 0.1 to 0.02 (5x slower)
+        const zoomSpeed = 0.02;
         const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
         this.camera.zoom = Math.max(0.2, Math.min(2.0, this.camera.zoom + delta));
     }
@@ -3786,12 +3785,14 @@ class RTSEngine {
      * Check if any selected units are infantry (can garrison)
      */
     hasInfantrySelected() {
-        const infantryTypes = ['INFANTRY', 'LASER_INFANTRY', 'PLASMA_TROOPER', 'ROCKET_SOLDIER', 
-                               'SNIPER', 'ION_RANGER', 'MEDIC', 'ENGINEER'];
         for (const unitId of this.selectedUnits) {
             const unitContainer = this.units.get(unitId);
-            if (unitContainer && unitContainer.unitData && infantryTypes.includes(unitContainer.unitData.type)) {
-                return true;
+            if (unitContainer && unitContainer.unitData) {
+                const unitType = unitContainer.unitData.type;
+                const typeInfo = this.unitTypes?.[unitType];
+                if (typeInfo && typeInfo.category === 'INFANTRY') {
+                    return true;
+                }
             }
         }
         return false;
