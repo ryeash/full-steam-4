@@ -430,40 +430,47 @@ class RTSEngine {
         if (obstacleData.harvestable) {
             // Harvestable obstacles: greenish/gold color (contains resources)
             fillColor = 0x9ACD32; // Yellow-green (resource-rich)
-            strokeColor = 0x6B8E23; // Olive green
+            strokeColor = this.darkenColor(fillColor, 0.6); // Darken for outline
         } else if (obstacleData.destructible) {
             // Destructible obstacles: brownish/tan color (like rocks that can be broken)
             fillColor = 0x8B7355; // Medium brown
-            strokeColor = 0x654321; // Darker brown
+            strokeColor = this.darkenColor(fillColor, 0.6); // Darken for outline
         } else {
             // Indestructible obstacles: use biome color (darker, more solid looking)
             fillColor = this.obstacleColor;
-            strokeColor = this.darkenColor(fillColor, 0.5);
+            strokeColor = this.darkenColor(fillColor, 0.6); // Darken for outline
         }
         
-        // Draw obstacle based on shape
-        if (obstacleData.shape === 'IRREGULAR_POLYGON' && obstacleData.vertices) {
-            // Use provided vertices for irregular polygons
-            graphics.moveTo(obstacleData.vertices[0].x, obstacleData.vertices[0].y);
-            for (let i = 1; i < obstacleData.vertices.length; i++) {
-                graphics.lineTo(obstacleData.vertices[i].x, obstacleData.vertices[i].y);
+        // Draw obstacle using vertices from physics body
+        if (obstacleData.vertices && obstacleData.vertices.length > 0) {
+            // Check if it's multi-fixture format (array of fixtures)
+            if (Array.isArray(obstacleData.vertices[0]) && Array.isArray(obstacleData.vertices[0][0])) {
+                // Multi-fixture: draw each fixture
+                for (const fixtureVertices of obstacleData.vertices) {
+                    if (fixtureVertices.length > 0) {
+                        this.drawPhysicsPolygon(graphics, fixtureVertices, fillColor, 0);
+                    }
+                }
+                graphics.stroke({ width: 2, color: strokeColor });
+            } else if (Array.isArray(obstacleData.vertices[0]) && typeof obstacleData.vertices[0][0] === 'number') {
+                // Single-fixture: [[x1, y1], [x2, y2], ...]
+                this.drawPhysicsPolygon(graphics, obstacleData.vertices, fillColor, 0);
+                graphics.stroke({ width: 2, color: strokeColor });
+            } else {
+                // Old format: [{x, y}, {x, y}, ...]
+                graphics.moveTo(obstacleData.vertices[0].x, obstacleData.vertices[0].y);
+                for (let i = 1; i < obstacleData.vertices.length; i++) {
+                    graphics.lineTo(obstacleData.vertices[i].x, obstacleData.vertices[i].y);
+                }
+                graphics.closePath();
+                graphics.fill(fillColor);
+                graphics.stroke({ width: 2, color: strokeColor });
             }
-            graphics.closePath();
+        } else {
+            // Fallback: draw a circle if no vertices provided (shouldn't happen)
+            console.warn('Obstacle missing vertices, using fallback circle:', obstacleData.id);
+            graphics.circle(0, 0, obstacleData.size || 20);
             graphics.fill(fillColor);
-            graphics.stroke({ width: 2, color: strokeColor });
-        } else if (obstacleData.shape === 'CIRCLE') {
-            graphics.circle(0, 0, obstacleData.size);
-            graphics.fill(fillColor);
-            graphics.stroke({ width: 2, color: strokeColor });
-        } else if (obstacleData.shape === 'RECTANGLE') {
-            const width = obstacleData.width || obstacleData.size;
-            const height = obstacleData.height || obstacleData.size;
-            graphics.rect(-width/2, -height/2, width, height);
-            graphics.fill(fillColor);
-            graphics.stroke({ width: 2, color: strokeColor });
-        } else if (obstacleData.shape === 'POLYGON') {
-            // Regular polygon
-            this.drawPolygon(graphics, obstacleData.sides, obstacleData.size, fillColor, 0);
             graphics.stroke({ width: 2, color: strokeColor });
         }
         
@@ -1165,10 +1172,10 @@ class RTSEngine {
         // If we have static data from initialization, use it
         if (this.unitTypes && this.unitTypes[unitType]) {
             const staticData = this.unitTypes[unitType];
-            // Merge with visual properties (sides, color, etc.)
+            // Add derived properties based on backend data
             return {
                 ...staticData,
-                ...this.getUnitVisualInfo(unitType)
+                isAir: staticData.elevation === 'LOW' || staticData.elevation === 'HIGH'
             };
         }
         
@@ -1239,11 +1246,15 @@ class RTSEngine {
                 for (const fixtureVertices of unitData.vertices) {
                     if (fixtureVertices.length > 0) {
                         this.drawPhysicsPolygon(shape, fixtureVertices, typeInfo.color, unitData.team);
+                        // Apply team-colored stroke to each fixture individually
+                        shape.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
                     }
                 }
             } else {
                 // Single-fixture (backward compatibility): vertices is [[x1, y1], [x2, y2], ...]
                 this.drawPhysicsPolygon(shape, unitData.vertices, typeInfo.color, unitData.team);
+                // Apply team-colored stroke
+                shape.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
             }
         } else {
             // Fallback for circles or if vertices not provided
@@ -1356,10 +1367,12 @@ class RTSEngine {
                 for (const fixtureVertices of unitData.vertices) {
                     if (fixtureVertices.length > 0) {
                         this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
+                        body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
                     }
                 }
             } else {
                 this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
+                body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
             }
         } else {
             // Fallback: simple diamond shape
@@ -1480,10 +1493,12 @@ class RTSEngine {
                 for (const fixtureVertices of unitData.vertices) {
                     if (fixtureVertices.length > 0) {
                         this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
+                        body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
                     }
                 }
             } else {
                 this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
+                body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
             }
         } else {
             // Fallback: triangle (delta wing)
@@ -1600,10 +1615,12 @@ class RTSEngine {
                 for (const fixtureVertices of unitData.vertices) {
                     if (fixtureVertices.length > 0) {
                         this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
+                        body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
                     }
                 }
             } else {
                 this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
+                body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
             }
         } else {
             // Fallback: pentagon (helicopter shape)
@@ -1718,10 +1735,12 @@ class RTSEngine {
                 for (const fixtureVertices of unitData.vertices) {
                     if (fixtureVertices.length > 0) {
                         this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
+                        body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
                     }
                 }
             } else {
                 this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
+                body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
             }
         } else {
             // Fallback: pentagon (gunship shape)
@@ -1833,10 +1852,12 @@ class RTSEngine {
                 for (const fixtureVertices of unitData.vertices) {
                     if (fixtureVertices.length > 0) {
                         this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
+                        body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
                     }
                 }
             } else {
                 this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
+                body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
             }
         } else {
             // Fallback: triangle (delta wing)
@@ -1983,6 +2004,7 @@ class RTSEngine {
                                 this.drawPhysicsPolygon(shape, fixtureVertices, 
                                                        buildingContainer.typeInfo.color, 
                                                        buildingData.team);
+                                shape.stroke({ width: 1, color: this.getTeamColor(buildingData.team) });
                             }
                         }
                     } else {
@@ -1990,6 +2012,7 @@ class RTSEngine {
                         this.drawPhysicsPolygon(shape, buildingData.vertices, 
                                                buildingContainer.typeInfo.color, 
                                                buildingData.team);
+                        shape.stroke({ width: 1, color: this.getTeamColor(buildingData.team) });
                     }
                 } else {
                     this.drawPolygon(shape, buildingContainer.typeInfo.sides, 
@@ -2548,29 +2571,37 @@ class RTSEngine {
         if (obstacleData.harvestable) {
             // Harvestable obstacles: greenish/gold color (contains resources)
             fillColor = 0x9ACD32; // Yellow-green (resource-rich)
-            strokeColor = 0x6B8E23; // Olive green
+            strokeColor = this.darkenColor(fillColor, 0.6); // Darken for outline
         } else if (obstacleData.destructible) {
             // Destructible obstacles: brownish/tan color (like rocks that can be broken)
             fillColor = 0x8B7355; // Medium brown
-            strokeColor = 0x654321; // Darker brown
+            strokeColor = this.darkenColor(fillColor, 0.6); // Darken for outline
         } else {
             // Indestructible obstacles: use biome color (darker, more solid looking)
             fillColor = this.obstacleColor;
-            strokeColor = this.darkenColor(fillColor, 0.5);
+            strokeColor = this.darkenColor(fillColor, 0.6); // Darken for outline
         }
         
-        // Render based on shape type
-        if (obstacleData.shape === 'RECTANGLE') {
-            // Rectangle obstacle
-            const halfWidth = obstacleData.width / 2;
-            const halfHeight = obstacleData.height / 2;
-            shape.rect(-halfWidth, -halfHeight, obstacleData.width, obstacleData.height);
-            shape.fill(fillColor);
-            shape.stroke({ width: 2, color: strokeColor });
-        } else if (obstacleData.shape === 'IRREGULAR_POLYGON' && obstacleData.vertices) {
-            // Irregular polygon with custom vertices
-            const vertices = obstacleData.vertices;
-            if (vertices.length >= 3) {
+        // Draw obstacle using vertices from physics body (or static data)
+        const staticData = this.obstaclesStatic?.get(obstacleData.id);
+        const vertices = obstacleData.vertices || staticData?.vertices;
+        
+        if (vertices && vertices.length > 0) {
+            // Check if it's multi-fixture format (array of fixtures)
+            if (Array.isArray(vertices[0]) && Array.isArray(vertices[0][0])) {
+                // Multi-fixture: draw each fixture
+                for (const fixtureVertices of vertices) {
+                    if (fixtureVertices.length > 0) {
+                        this.drawPhysicsPolygon(shape, fixtureVertices, fillColor, 0);
+                    }
+                }
+                shape.stroke({ width: 2, color: strokeColor });
+            } else if (Array.isArray(vertices[0]) && typeof vertices[0][0] === 'number') {
+                // Single-fixture: [[x1, y1], [x2, y2], ...]
+                this.drawPhysicsPolygon(shape, vertices, fillColor, 0);
+                shape.stroke({ width: 2, color: strokeColor });
+            } else {
+                // Old format: [{x, y}, {x, y}, ...]
                 shape.moveTo(vertices[0].x, vertices[0].y);
                 for (let i = 1; i < vertices.length; i++) {
                     shape.lineTo(vertices[i].x, vertices[i].y);
@@ -2579,13 +2610,10 @@ class RTSEngine {
                 shape.fill(fillColor);
                 shape.stroke({ width: 2, color: strokeColor });
             }
-        } else if (obstacleData.shape === 'POLYGON') {
-            // Regular polygon
-            this.drawPolygon(shape, obstacleData.sides, obstacleData.size, fillColor, 0);
-            shape.stroke({ width: 2, color: strokeColor });
         } else {
-            // Default to circle
-            shape.circle(0, 0, obstacleData.size);
+            // Fallback: draw a circle
+            console.warn('Obstacle missing vertices, using fallback circle:', obstacleData.id);
+            shape.circle(0, 0, obstacleData.size || 20);
             shape.fill(fillColor);
             shape.stroke({ width: 2, color: strokeColor });
         }
@@ -3051,17 +3079,6 @@ class RTSEngine {
     }
     
     drawPhysicsPolygon(graphics, vertices, fillColor, team) {
-        // Team colors
-        const teamColors = [
-            0xFFFFFF, // No team (white)
-            0xFF0000, // Team 1 (red)
-            0x0000FF, // Team 2 (blue)
-            0x00FF00, // Team 3 (green)
-            0xFFFF00  // Team 4 (yellow)
-        ];
-        
-        const strokeColor = teamColors[team] || 0xFFFFFF;
-        
         // Convert vertices array [[x1, y1], [x2, y2], ...] to flat array [x1, y1, x2, y2, ...]
         const points = [];
         for (const vertex of vertices) {
@@ -3071,7 +3088,7 @@ class RTSEngine {
         // Draw polygon from physics body vertices
         graphics.poly(points);
         graphics.fill(fillColor);
-        graphics.stroke({ width: 2, color: strokeColor });
+        // Note: Stroke is applied by caller for more flexibility
     }
     
     drawPhysicsPolygonOutline(graphics, vertices, fillColor, team) {
@@ -3808,13 +3825,21 @@ class RTSEngine {
         this.buildPreview.addChild(shape);
         this.buildPreview.shapeGraphics = shape;
         
-        // Range indicator (for turrets)
-        // TODO: we need more range indicators and we shouldn't need to hardcode?
-        if (buildingType === 'TURRET') {
+        // Range indicator for defensive buildings (weapon range)
+        const buildingTypeData = this.buildingTypes[buildingType];
+        if (buildingTypeData?.weaponRange) {
             const rangeCircle = new PIXI.Graphics();
-            rangeCircle.circle(0, 0, 300); // Turret range
+            rangeCircle.circle(0, 0, buildingTypeData.weaponRange);
             rangeCircle.stroke({ width: 1, color: 0xFF0000, alpha: 0.3 });
             this.buildPreview.addChild(rangeCircle);
+        }
+        
+        // Range indicator for buildings with area effects (aura radius)
+        if (buildingTypeData?.auraRadius) {
+            const auraCircle = new PIXI.Graphics();
+            auraCircle.circle(0, 0, buildingTypeData.auraRadius);
+            auraCircle.stroke({ width: 1, color: 0x00FFFF, alpha: 0.4 }); // Cyan for auras
+            this.buildPreview.addChild(auraCircle);
         }
         
         this.gameContainer.addChild(this.buildPreview);
@@ -3894,6 +3919,9 @@ class RTSEngine {
         const buildingInfo = this.getBuildingInfo(buildingType);
         const size = buildingInfo.size;
         
+        console.log('=== BUILD LOCATION CHECK ===');
+        console.log('Position:', worldPos, 'Building:', buildingType, 'Size:', size);
+        console.log('World bounds:', this.worldBounds);
         
         // Check if too close to other buildings
         for (const [id, container] of this.buildings) {
@@ -3905,36 +3933,40 @@ class RTSEngine {
                 );
                 const minDist = size + building.size + 20; // 20 unit buffer
                 if (dist < minDist) {
+                    console.log('❌ Too close to building:', id, 'dist:', dist, 'minDist:', minDist);
                     return false;
                 }
             }
         }
         
-        // Check if too close to obstacles
+        // Check if too close to obstacles (excluding world boundaries)
+        const halfWidth = this.worldBounds?.width ? this.worldBounds.width / 2 : 2000;
+        const halfHeight = this.worldBounds?.height ? this.worldBounds.height / 2 : 2000;
+        console.log('Half dimensions - width:', halfWidth, 'height:', halfHeight);
+        
         for (const [id, container] of this.obstacles) {
             const obstacle = container.obstacleData;
             if (obstacle) {
-                // For rectangular obstacles, use AABB collision
-                if (obstacle.shape === 'RECTANGLE') {
-                    const halfWidth = obstacle.width / 2;
-                    const halfHeight = obstacle.height / 2;
-                    const buffer = size + 10;
-                    
-                    // Check if building overlaps with obstacle (with buffer)
-                    if (Math.abs(worldPos.x - obstacle.x) < halfWidth + buffer &&
-                        Math.abs(worldPos.y - obstacle.y) < halfHeight + buffer) {
-                        return false;
-                    }
-                } else {
-                    // For circular/polygon obstacles, use distance check
-                    const dist = Math.sqrt(
-                        Math.pow(obstacle.x - worldPos.x, 2) + 
-                        Math.pow(obstacle.y - worldPos.y, 2)
-                    );
-                    const minDist = size + obstacle.size + 10;
-                    if (dist < minDist) {
-                        return false;
-                    }
+                // Skip world boundary obstacles (they're at the edges and have huge size values)
+                const isWorldBoundary = 
+                    Math.abs(Math.abs(obstacle.x) - halfWidth) < 100 || // Near left/right edge
+                    Math.abs(Math.abs(obstacle.y) - halfHeight) < 100;  // Near top/bottom edge
+                
+                if (isWorldBoundary) {
+                    console.log('⏭️  Skipping world boundary obstacle:', id, 'at', obstacle.x, obstacle.y, 'size:', obstacle.size);
+                    continue; // Skip boundary obstacles
+                }
+                
+                // Use simple distance check for all obstacles
+                const dist = Math.sqrt(
+                    Math.pow(obstacle.x - worldPos.x, 2) + 
+                    Math.pow(obstacle.y - worldPos.y, 2)
+                );
+                const minDist = size + obstacle.size + 10; // 10 unit buffer
+                
+                if (dist < minDist) {
+                    console.log('❌ Too close to obstacle:', id, 'at', obstacle.x, obstacle.y, 'dist:', dist, 'minDist:', minDist, 'obstacle.size:', obstacle.size);
+                    return false;
                 }
             }
         }
@@ -3943,13 +3975,13 @@ class RTSEngine {
         // Obstacle proximity is already checked above
         
         // Check world bounds
-        const halfWidth = this.worldBounds.width / 2;
-        const halfHeight = this.worldBounds.height / 2;
         if (Math.abs(worldPos.x) > halfWidth - size || 
             Math.abs(worldPos.y) > halfHeight - size) {
+            console.log('❌ Outside world bounds');
             return false;
         }
         
+        console.log('✅ Valid build location!');
         return true;
     }
     

@@ -2184,7 +2184,7 @@ public enum UnitType {
      * Check if this unit can construct buildings
      */
     public boolean canBuild() {
-        return this == WORKER || this == ENGINEER;
+        return this == WORKER;
     }
 
     /**
@@ -2219,24 +2219,14 @@ public enum UnitType {
      * Check if this is an infantry unit (can garrison in bunkers)
      */
     public boolean isInfantry() {
-        return this == INFANTRY ||
-                this == LASER_INFANTRY ||
-                this == PLASMA_TROOPER ||
-                this == ROCKET_SOLDIER ||
-                this == SNIPER ||
-                this == ION_RANGER ||
-                this == MEDIC ||
-                this == ENGINEER ||
-                this == SHOTGUN_INFANTRY ||
-                this == GRENADIER ||
-                this == ANDROID;
+        return getCategory() == UnitCategory.INFANTRY;
     }
 
     /**
      * Check if this is an air unit (can fly over obstacles, different rendering)
      */
     public boolean isAirUnit() {
-        return this == SCOUT_DRONE || this == HELICOPTER || this == BOMBER || this == INTERCEPTOR || this == GUNSHIP;
+        return getCategory() == UnitCategory.FLYER;
     }
 
     /**

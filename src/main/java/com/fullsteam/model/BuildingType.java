@@ -399,6 +399,34 @@ public enum BuildingType {
         };
     }
 
+    /**
+     * Get the weapon range for defensive buildings (for UI range indicators)
+     * Returns 0 for buildings without weapons
+     */
+    public double getWeaponRange() {
+        return switch (this) {
+            case TURRET -> 300.0;
+            case ROCKET_TURRET -> 400.0;
+            case FLAK_TURRET -> 350.0;
+            case LASER_TURRET -> 350.0;
+            case PHOTON_SPIRE -> 400.0;
+            case TEMPEST_SPIRE -> 450.0;
+            default -> 0.0;
+        };
+    }
+
+    /**
+     * Get the aura radius for buildings with area effects (for UI range indicators)
+     * Returns 0 for buildings without auras
+     */
+    public double getAuraRadius() {
+        return switch (this) {
+            case SHIELD_GENERATOR -> 200.0;
+            case SANDSTORM_GENERATOR -> 300.0;
+            default -> 0.0;
+        };
+    }
+
 
     /**
      * Create physics fixtures for this building type

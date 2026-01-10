@@ -1980,6 +1980,12 @@ public class RTSGameManager {
             typeData.put("upkeep", unitType.getUpkeepCost());
             typeData.put("visionRange", unitType.getVisionRange());
             typeData.put("specialAbility", unitType.getSpecialAbility().name());
+            
+            // Visual properties for rendering
+            typeData.put("color", unitType.getColor());
+            typeData.put("elevation", unitType.getElevation().name());
+            // NOTE: Removed 'sides' - units always send vertices from physics body
+            
             unitTypes.put(unitType.name(), typeData);
         }
         init.put("unitTypes", unitTypes);
@@ -1996,6 +2002,19 @@ public class RTSGameManager {
             typeData.put("canProduceUnits", buildingType.isCanProduceUnits());
             typeData.put("visionRange", buildingType.getVisionRange());
             typeData.put("requiredTechTier", buildingType.getRequiredTechTier());
+            
+            // Add weapon range for defensive buildings (for UI range indicators)
+            double weaponRange = buildingType.getWeaponRange();
+            if (weaponRange > 0) {
+                typeData.put("weaponRange", weaponRange);
+            }
+            
+            // Add aura radius for buildings with area effects (for UI range indicators)
+            double auraRadius = buildingType.getAuraRadius();
+            if (auraRadius > 0) {
+                typeData.put("auraRadius", auraRadius);
+            }
+            
             buildingTypes.put(buildingType.name(), typeData);
         }
         init.put("buildingTypes", buildingTypes);
@@ -2101,10 +2120,6 @@ public class RTSGameManager {
         data.put("x", obstacle.getPosition().x);
         data.put("y", obstacle.getPosition().y);
         data.put("size", obstacle.getSize());
-        data.put("shape", obstacle.getShape().name());
-        data.put("width", obstacle.getWidth());
-        data.put("height", obstacle.getHeight());
-        data.put("sides", obstacle.getSides());
         data.put("destructible", obstacle.isDestructible());
         data.put("maxHealth", obstacle.getMaxHealth());
         data.put("harvestable", obstacle.isHarvestable());
@@ -2113,17 +2128,8 @@ public class RTSGameManager {
             data.put("maxResources", obstacle.getMaxResources());
         }
 
-        // Include vertices for irregular polygons
-        if (obstacle.getShape() == Obstacle.Shape.IRREGULAR_POLYGON && obstacle.getVertices() != null) {
-            List<Map<String, Double>> verticesList = new ArrayList<>();
-            for (Vector2 vertex : obstacle.getVertices()) {
-                Map<String, Double> vertexData = new HashMap<>();
-                vertexData.put("x", vertex.x);
-                vertexData.put("y", vertex.y);
-                verticesList.add(vertexData);
-            }
-            data.put("vertices", verticesList);
-        }
+        // Extract vertices from physics body for accurate rendering
+        data.put("vertices", extractBodyVertices(obstacle.getBody()));
 
         return data;
     }
@@ -2421,47 +2427,6 @@ public class RTSGameManager {
             }
         }
         data.put("buildingCosts", buildingCosts);
-
-        return data;
-    }
-
-    /**
-     * Serialize an obstacle for network transmission
-     */
-    private Map<String, Object> serializeObstacle(Obstacle obstacle) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("id", obstacle.getId());
-        data.put("x", obstacle.getPosition().x);
-        data.put("y", obstacle.getPosition().y);
-        data.put("size", obstacle.getSize());
-        data.put("shape", obstacle.getShape().name());
-        data.put("width", obstacle.getWidth());
-        data.put("height", obstacle.getHeight());
-        data.put("sides", obstacle.getSides());
-        data.put("destructible", obstacle.isDestructible());
-        data.put("health", obstacle.getHealth());
-        data.put("maxHealth", obstacle.getMaxHealth());
-
-        // Include resource information if harvestable
-        data.put("harvestable", obstacle.isHarvestable());
-        if (obstacle.isHarvestable()) {
-            data.put("resourceType", obstacle.getResourceType() != null ? obstacle.getResourceType().name() : null);
-            data.put("remainingResources", obstacle.getRemainingResources());
-            data.put("maxResources", obstacle.getMaxResources());
-            data.put("resourcePercent", obstacle.getResourcePercent());
-        }
-
-        // Include vertices for irregular polygons
-        if (obstacle.getShape() == Obstacle.Shape.IRREGULAR_POLYGON && obstacle.getVertices() != null) {
-            List<Map<String, Double>> verticesList = new ArrayList<>();
-            for (Vector2 vertex : obstacle.getVertices()) {
-                Map<String, Double> vertexData = new HashMap<>();
-                vertexData.put("x", vertex.x);
-                vertexData.put("y", vertex.y);
-                verticesList.add(vertexData);
-            }
-            data.put("vertices", verticesList);
-        }
 
         return data;
     }
