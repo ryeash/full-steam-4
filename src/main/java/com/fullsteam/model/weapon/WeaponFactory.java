@@ -189,16 +189,6 @@ public class WeaponFactory {
                     elevationTargeting
             );
 
-            case CRAWLER -> new ProjectileWeapon(
-                    damage, range, attackRate,
-                    450,  // projectile speed
-                    0.2,  // linear damping
-                    5.0,  // size (large turret shells)
-                    Ordinance.SHELL,
-                    Set.of(BulletEffect.EXPLOSIVE),
-                    elevationTargeting
-            );
-
             case ANDROID -> new ProjectileWeapon(
                     damage, range, attackRate,
                     520,  // projectile speed
@@ -447,7 +437,7 @@ public class WeaponFactory {
     }
 
     /**
-     * Get the weapon for Tempest Spire (Storm Wings monument).
+     * Get the weapon for Tempest Spire
      * Heavy anti-aircraft flak cannon for air superiority.
      */
     public static Weapon getTempestSpireWeapon() {
@@ -461,24 +451,6 @@ public class WeaponFactory {
                 Ordinance.FLAK,
                 Set.of(BulletEffect.FLAK, BulletEffect.EXPLOSIVE),
                 ElevationTargeting.LOW_AND_HIGH // Anti-air only (LOW and HIGH altitude)
-        );
-    }
-
-    /**
-     * Get the weapon for Crawler turrets (when deployed).
-     * This is used by the Turret class for multi-turret units.
-     */
-    public static Weapon getCrawlerTurretWeapon(double damage, double range, double attackRate) {
-        return new ProjectileWeapon(
-                damage,
-                range,
-                attackRate,
-                450.0, // projectile speed
-                0.2,   // linear damping
-                5.0,   // size (large turret shells)
-                Ordinance.SHELL,
-                Set.of(BulletEffect.EXPLOSIVE),
-                ElevationTargeting.GROUND_ONLY // Crawler turrets - ground only
         );
     }
 }

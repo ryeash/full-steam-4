@@ -6,10 +6,8 @@ import com.fullsteam.model.factions.FactionDefinition;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -134,42 +132,4 @@ public class CustomFactionBuilder {
                 .garrisonCapacityBonus(a.getGarrisonCapacityBonus() + b.getGarrisonCapacityBonus())
                 .build();
     }
-
-    /**
-     * Find the hero unit (if any) in the selected units
-     */
-    private UnitType findHeroUnit(CustomFactionConfig config) {
-        List<UnitType> heroes = Arrays.asList(
-                UnitType.CRAWLER,
-                UnitType.RAIDER,
-                UnitType.COLOSSUS,
-                UnitType.PHOTON_TITAN,
-                UnitType.GUNSHIP,
-                UnitType.GIGANTONAUT
-        );
-
-        return config.getSelectedUnits().stream()
-                .filter(heroes::contains)
-                .findFirst()
-                .orElse(null);
-    }
-
-    /**
-     * Find the monument building (if any) in the selected buildings
-     */
-    private BuildingType findMonument(CustomFactionConfig config) {
-        List<BuildingType> monuments = Arrays.asList(
-                BuildingType.SANDSTORM_GENERATOR,
-                BuildingType.ANDROID_FACTORY,
-                BuildingType.PHOTON_SPIRE,
-                BuildingType.COMMAND_CITADEL,
-                BuildingType.TEMPEST_SPIRE
-        );
-
-        return config.getSelectedBuildings().stream()
-                .filter(monuments::contains)
-                .findFirst()
-                .orElse(null);
-    }
-
 }

@@ -87,7 +87,7 @@ public class UnitTemplate implements CustomizableEntity {
         if (isHero(unitType)) {
             // Differentiate heroes by power level
             return switch (unitType) {
-                case GIGANTONAUT, COLOSSUS, CRAWLER -> 10; // Strongest heroes
+                case GIGANTONAUT, COLOSSUS -> 10; // Strongest heroes
                 case PHOTON_TITAN, GUNSHIP -> 9;           // Strong heroes
                 case RAIDER -> 8;                          // Fast hero
                 default -> 10;
@@ -123,7 +123,6 @@ public class UnitTemplate implements CustomizableEntity {
      */
     private static boolean isHero(UnitType unitType) {
         return List.of(
-            UnitType.CRAWLER,
             UnitType.RAIDER,
             UnitType.COLOSSUS,
             UnitType.PHOTON_TITAN,

@@ -16,7 +16,6 @@ import com.fullsteam.model.command.ReturnToHangarCommand;
 import com.fullsteam.model.command.SortieCommand;
 import com.fullsteam.model.component.AndroidComponent;
 import com.fullsteam.model.component.AndroidFactoryComponent;
-import com.fullsteam.model.component.DeployComponent;
 import com.fullsteam.model.component.GunshipComponent;
 import com.fullsteam.model.component.HangarComponent;
 import com.fullsteam.model.component.IBuildingComponent;
@@ -300,15 +299,6 @@ public class RTSGameManager {
                         gameEntities.add(ordinance);
                     }
                 }
-
-                // Multi-turret AI for deployed units (e.g., Crawler)
-                unit.getComponent(DeployComponent.class)
-                        .filter(DeployComponent::isDeployed)
-                        .ifPresent(deployComp -> {
-                            for (Turret turret : deployComp.getTurrets()) {
-                                turret.update(unit, gameEntities);
-                            }
-                        });
 
                 // AttackMoveCommand still uses the old scanForEnemies method (legacy)
                 if (unit.getCurrentCommand() instanceof AttackMoveCommand attackMoveCmd) {
@@ -877,11 +867,12 @@ public class RTSGameManager {
             Vector2 location = input.getBuildLocation();
 
             // Validate tech requirements first
-            if (!hasTechRequirements(playerId, buildingType)) {
+            Set<BuildingType> missingTech = missingTechRequirements(playerId, buildingType);
+            if (!missingTech.isEmpty()) {
                 log.warn("Player {} attempted to build {} without meeting tech requirements",
                         playerId, buildingType);
                 sendGameEvent(GameEvent.createPlayerEvent(
-                        "Cannot build " + buildingType.getDisplayName() + " - missing required tech buildings",
+                        "Cannot build " + buildingType.getDisplayName() + " - missing required tech buildings: " + missingTech.stream().map(BuildingType::getDisplayName).collect(Collectors.toSet()),
                         playerId,
                         GameEvent.EventCategory.WARNING
                 ));
@@ -1611,36 +1602,17 @@ public class RTSGameManager {
                 // Send notification for important building destructions (to the owner)
                 PlayerFaction faction = playerFactions.get(building.getOwnerId());
                 if (faction != null && !building.isUnderConstruction()) {
-                    // Notify for important buildings only
-                    boolean shouldNotify = switch (building.getBuildingType()) {
-                        case REFINERY -> true;  // Resource collection
-                        case FACTORY -> true;  // Unit production
-                        case BARRACKS -> true;  // Unit production
-                        case TECH_CENTER -> true;  // Tech unlocks
-                        case RESEARCH_LAB -> true;  // Research
-                        case POWER_PLANT -> true;  // Power generation
-                        case BANK -> true;  // Economy
-                        case SHIELD_GENERATOR -> true;  // Defense
-                        case TURRET -> true;  // Defense
-                        case BUNKER -> true;  // Defense
-                        // Monuments
-                        case PHOTON_SPIRE, ANDROID_FACTORY, SANDSTORM_GENERATOR, COMMAND_CITADEL -> true;
-                        default -> false;  // Don't notify for walls, etc.
-                    };
+                    String buildingName = building.getBuildingType().name()
+                            .replace("_", " ")
+                            .toLowerCase();
+                    // Capitalize first letter
+                    buildingName = buildingName.substring(0, 1).toUpperCase() + buildingName.substring(1);
 
-                    if (shouldNotify) {
-                        String buildingName = building.getBuildingType().name()
-                                .replace("_", " ")
-                                .toLowerCase();
-                        // Capitalize first letter
-                        buildingName = buildingName.substring(0, 1).toUpperCase() + buildingName.substring(1);
-
-                        sendGameEvent(GameEvent.createPlayerEvent(
-                                "🔥 Your " + buildingName + " was destroyed!",
-                                building.getOwnerId(),
-                                GameEvent.EventCategory.WARNING
-                        ));
-                    }
+                    sendGameEvent(GameEvent.createPlayerEvent(
+                            "🔥 Your " + buildingName + " was destroyed!",
+                            building.getOwnerId(),
+                            GameEvent.EventCategory.WARNING
+                    ));
                 }
 
                 // Remove wall segments connected to this wall post
@@ -1739,35 +1711,14 @@ public class RTSGameManager {
     /**
      * Check if player has the required tech buildings to construct this building
      */
-    private boolean hasTechRequirements(int playerId, BuildingType buildingType) {
-        // Get player's completed buildings
+    private Set<BuildingType> missingTechRequirements(int playerId, BuildingType buildingType) {
         Set<BuildingType> playerBuildings = buildings.values().stream()
                 .filter(b -> b.getOwnerId() == playerId && b.isActive() && !b.isUnderConstruction())
                 .map(Building::getBuildingType)
                 .collect(Collectors.toSet());
-
-        // Define tech requirements (must match FactionInfoService)
-        return switch (buildingType) {
-            // T1 - Always available
-            case POWER_PLANT, BARRACKS, REFINERY, BUNKER, WALL -> true;
-
-            // T2 - Requires Power Plant
-            case RESEARCH_LAB, FACTORY, TURRET, ROCKET_TURRET, FLAK_TURRET, SHIELD_GENERATOR ->
-                    playerBuildings.contains(BuildingType.POWER_PLANT);
-
-            // T3 - Requires Power Plant + Research Lab
-            case TECH_CENTER, BANK, LASER_TURRET, AIRFIELD, HANGAR ->
-                    playerBuildings.contains(BuildingType.POWER_PLANT) &&
-                            playerBuildings.contains(BuildingType.RESEARCH_LAB);
-
-            // Monument Buildings - Requires Power Plant + Research Lab (T3)
-            case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL, TEMPEST_SPIRE ->
-                    playerBuildings.contains(com.fullsteam.model.BuildingType.POWER_PLANT) &&
-                            playerBuildings.contains(BuildingType.RESEARCH_LAB);
-
-            // Headquarters is special (only one, starting building)
-            case HEADQUARTERS -> false; // Cannot build additional HQs
-        };
+        HashSet<BuildingType> techRequired = new HashSet<>(buildingType.getTechRequirements());
+        techRequired.removeAll(playerBuildings);
+        return techRequired;
     }
 
     /**
@@ -2209,22 +2160,6 @@ public class RTSGameManager {
 
         // Add physics body vertices for accurate client-side rendering
         data.put("vertices", extractBodyVertices(unit.getBody()));
-
-        // Serialize turrets if unit has them (e.g., deployed Crawler)
-        unit.getComponent(DeployComponent.class)
-                .filter(DeployComponent::isDeployed)
-                .ifPresent(deployComp -> {
-                    List<Map<String, Object>> turretsData = new ArrayList<>();
-                    for (Turret turret : deployComp.getTurrets()) {
-                        Map<String, Object> turretData = new LinkedHashMap<>();
-                        turretData.put("index", turret.getIndex());
-                        turretData.put("offsetX", turret.getOffset().x);
-                        turretData.put("offsetY", turret.getOffset().y);
-                        turretData.put("rotation", turret.getRotation());
-                        turretsData.add(turretData);
-                    }
-                    data.put("turrets", turretsData);
-                });
         return data;
     }
 

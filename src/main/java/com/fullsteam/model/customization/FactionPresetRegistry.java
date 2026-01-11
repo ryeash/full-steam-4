@@ -83,38 +83,37 @@ public class FactionPresetRegistry {
                 .themeColor("#4A90E2")
                 .icon("🛡️")
                 .selectedUnits(new HashSet<>(Arrays.asList(
-                        UnitType.WORKER,         // 0 pt (required)
-                        UnitType.INFANTRY,       // 2 pt
-                        UnitType.ROCKET_SOLDIER, // 3 pt
-                        UnitType.MEDIC,          // 3 pt
-                        UnitType.JEEP,           // 3 pt
-                        UnitType.TANK,           // 5 pt
-                        UnitType.ARTILLERY,      // 6 pt
-                        UnitType.FLAK_TANK,      // 5 pt - anti-air coverage
-                        UnitType.SCOUT_DRONE,    // 2 pt
-                        UnitType.HELICOPTER,     // 4 pt
-                        UnitType.CRAWLER         // 10 pt (hero)
+                        UnitType.WORKER,
+                        UnitType.INFANTRY,
+                        UnitType.ROCKET_SOLDIER,
+                        UnitType.MEDIC,
+                        UnitType.JEEP,
+                        UnitType.TANK,
+                        UnitType.ARTILLERY,
+                        UnitType.FLAK_TANK,
+                        UnitType.SCOUT_DRONE,
+                        UnitType.HELICOPTER
                 )))
                 .selectedBuildings(new HashSet<>(Arrays.asList(
-                        BuildingType.HEADQUARTERS,     // 0 pt (required)
-                        BuildingType.POWER_PLANT,      // 2 pt
-                        BuildingType.BARRACKS,         // 3 pt
-                        BuildingType.FACTORY,          // 5 pt
-                        BuildingType.AIRFIELD,         // 5 pt
-                        BuildingType.RESEARCH_LAB,     // 4 pt
-                        BuildingType.TECH_CENTER,      // 6 pt
-                        BuildingType.REFINERY,         // 2 pt
-                        BuildingType.TURRET,           // 2 pt
-                        BuildingType.BUNKER,           // 3 pt
-                        BuildingType.COMMAND_CITADEL   // 12 pt (monument)
+                        BuildingType.HEADQUARTERS,
+                        BuildingType.POWER_PLANT,
+                        BuildingType.BARRACKS,
+                        BuildingType.FACTORY,
+                        BuildingType.AIRFIELD,
+                        BuildingType.RESEARCH_LAB,
+                        BuildingType.TECH_CENTER,
+                        BuildingType.REFINERY,
+                        BuildingType.TURRET,
+                        BuildingType.BUNKER,
+                        BuildingType.COMMAND_CITADEL
                 )))
                 .selectedPerks(new HashSet<>(Arrays.asList(
-                        FactionPerk.FORTIFIED_1,       // 3 pt
-                        FactionPerk.UPKEEP_INCREASE_1, // 3 pt
-                        FactionPerk.VETERAN_UNITS_1,   // 3 pt
-                        FactionPerk.TURRET_EFFICIENCY, // 4 pt - synergizes with turrets
-                        FactionPerk.RESOURCE_BOOST_1,  // 4 pt - economy boost
-                        FactionPerk.RAPID_DEPLOYMENT_1 // 3 pt - faster building
+                        FactionPerk.FORTIFIED_1,
+                        FactionPerk.UPKEEP_INCREASE_1,
+                        FactionPerk.VETERAN_UNITS_1,
+                        FactionPerk.TURRET_EFFICIENCY,
+                        FactionPerk.RESOURCE_BOOST_1,
+                        FactionPerk.RAPID_DEPLOYMENT_1
                 )))
                 .basedOnPreset(null)
                 .build();
@@ -143,8 +142,7 @@ public class FactionPresetRegistry {
                         UnitType.JEEP,
                         UnitType.TANK,           // 5 pt - heavy support
                         UnitType.ARTILLERY,      // 6 pt - siege support
-                        UnitType.SCOUT_DRONE,
-                        UnitType.CRAWLER
+                        UnitType.SCOUT_DRONE
                 )))
                 .selectedBuildings(new HashSet<>(Arrays.asList(
                         BuildingType.HEADQUARTERS,
@@ -192,8 +190,7 @@ public class FactionPresetRegistry {
                         UnitType.ARTILLERY,
                         UnitType.FLAK_TANK,      // 5 pt
                         UnitType.SCOUT_DRONE,
-                        UnitType.HELICOPTER,     // 4 pt - air support
-                        UnitType.CRAWLER
+                        UnitType.HELICOPTER     // 4 pt - air support
                 )))
                 .selectedBuildings(new HashSet<>(Arrays.asList(
                         BuildingType.HEADQUARTERS,
@@ -251,7 +248,7 @@ public class FactionPresetRegistry {
                         BuildingType.TECH_CENTER,         // 6 pt - advanced tech
                         BuildingType.REFINERY,
                         BuildingType.TURRET,
-                        BuildingType.SANDSTORM_GENERATOR  // 12 pt (monument)
+                        BuildingType.SANDSTORM_GENERATOR
                 )))
                 .selectedPerks(new HashSet<>(Arrays.asList(
                         FactionPerk.UPKEEP_INCREASE_1,     // 3 pt
@@ -350,7 +347,7 @@ public class FactionPresetRegistry {
                         BuildingType.SHIELD_GENERATOR,    // 4 pt
                         BuildingType.LASER_TURRET,        // 4 pt
                         BuildingType.BUNKER,              // 3 pt - defense
-                        BuildingType.ANDROID_FACTORY      // 12 pt (monument)
+                        BuildingType.ANDROID_FACTORY      // 12 pt
                 )))
                 .selectedPerks(new HashSet<>(Arrays.asList(
                         FactionPerk.POWER_EFFICIENCY_1,    // 3 pt
@@ -367,7 +364,7 @@ public class FactionPresetRegistry {
     }
 
     /**
-     * Synthesis Android Army - Monument-focused strategy
+     * Synthesis Android Army
      */
     private static CustomFactionConfig createSynthesisAndroids() {
         CustomFactionConfig config = CustomFactionConfig.builder()
@@ -378,7 +375,7 @@ public class FactionPresetRegistry {
                 .selectedUnits(new HashSet<>(Arrays.asList(
                         UnitType.WORKER,
                         UnitType.LASER_INFANTRY,
-                        UnitType.ANDROID,        // 0 pt (bundled with monument)
+                        UnitType.ANDROID,        // 0 pt (bundled with android_factory)
                         UnitType.JEEP,           // 3 pt - mobility
                         UnitType.TANK,
                         UnitType.HELICOPTER,     // 4 pt - air support
@@ -449,7 +446,7 @@ public class FactionPresetRegistry {
                         BuildingType.LASER_TURRET,
                         BuildingType.SHIELD_GENERATOR,
                         BuildingType.TURRET,              // 2 pt - defense
-                        BuildingType.PHOTON_SPIRE         // 12 pt (monument)
+                        BuildingType.PHOTON_SPIRE         // 12 pt
                 )))
                 .selectedPerks(new HashSet<>(Arrays.asList(
                         FactionPerk.COST_REDUCTION_1,      // 5 pt
@@ -496,10 +493,10 @@ public class FactionPresetRegistry {
                         BuildingType.AIRFIELD,
                         BuildingType.HANGAR,             // 5 pt
                         BuildingType.RESEARCH_LAB,
+                        BuildingType.TECH_CENTER,
                         BuildingType.REFINERY,
                         BuildingType.TURRET,
-                        BuildingType.ROCKET_TURRET,      // 3 pt
-                        BuildingType.TEMPEST_SPIRE       // 12 pt (monument)
+                        BuildingType.ROCKET_TURRET      // 3 pt
                 )))
                 .selectedPerks(new HashSet<>(Arrays.asList(
                         FactionPerk.AIR_SUPERIORITY_1,   // 4 pt
@@ -543,8 +540,7 @@ public class FactionPresetRegistry {
                         BuildingType.RESEARCH_LAB,
                         BuildingType.TECH_CENTER,
                         BuildingType.REFINERY,
-                        BuildingType.ROCKET_TURRET,
-                        BuildingType.TEMPEST_SPIRE
+                        BuildingType.ROCKET_TURRET
                 )))
                 .selectedPerks(new HashSet<>(Arrays.asList(
                         FactionPerk.AIR_SUPERIORITY_2,     // 7 pt (with prerequisite)

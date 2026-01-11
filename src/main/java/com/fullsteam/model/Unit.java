@@ -5,7 +5,6 @@ import com.fullsteam.model.command.SortieCommand;
 import com.fullsteam.model.command.UnitCommand;
 import com.fullsteam.model.component.AndroidComponent;
 import com.fullsteam.model.component.CloakComponent;
-import com.fullsteam.model.component.DeployComponent;
 import com.fullsteam.model.component.GunshipComponent;
 import com.fullsteam.model.component.HangarComponent;
 import com.fullsteam.model.component.HarvestComponent;
@@ -31,6 +30,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -64,7 +64,7 @@ public class Unit extends GameEntity implements Targetable {
     private Vector2 homePosition = null; // For defensive stance
 
     // Special ability system
-    private boolean specialAbilityActive = false; // For toggle abilities (deploy, cloak, etc.)
+    private boolean specialAbilityActive = false; // For toggle abilities (cloak, etc.)
     private long lastSpecialAbilityTime = 0; // For cooldown tracking
 
     // Weapon system
@@ -85,38 +85,38 @@ public class Unit extends GameEntity implements Targetable {
         this.teamNumber = teamNumber;
         this.faction = faction;
         this.weapon = WeaponFactory.getWeaponForUnitType(unitType);
-        
+
         // Set health to full (modified max health)
         this.health = this.maxHealth;
-        
+
         // Apply faction modifiers to weapon
         applyFactionModifiersToWeapon();
-        
+
         // Note: Components are initialized via initializeComponents() after construction
         // Note: movementSpeed and visionRange are now calculated dynamically via getters
     }
-    
+
     /**
      * Calculate the modified max health for this unit type with faction modifiers.
      * Static helper to avoid calling overridden methods from constructor.
      */
     private static double calculateModifiedMaxHealth(UnitType unitType, PlayerFaction faction) {
         double baseHealth = unitType.getMaxHealth();
-        
+
         if (faction == null || faction.getFactionDefinition() == null) {
             return baseHealth;
         }
-        
-        com.fullsteam.model.factions.FactionDefinition.UnitStatModifier modifier = 
+
+        com.fullsteam.model.factions.FactionDefinition.UnitStatModifier modifier =
                 faction.getFactionDefinition().getUnitStatModifiers().get(unitType);
-        
+
         if (modifier != null) {
             return baseHealth * modifier.getHealthMultiplier();
         }
-        
+
         return baseHealth;
     }
-    
+
     /**
      * Apply faction modifiers to this unit's weapon (damage, range, attack rate).
      * Called during construction and can be called again if modifiers change.
@@ -125,23 +125,23 @@ public class Unit extends GameEntity implements Targetable {
         if (weapon == null || faction == null || faction.getFactionDefinition() == null) {
             return;
         }
-        
-        com.fullsteam.model.factions.FactionDefinition.UnitStatModifier modifier = 
+
+        com.fullsteam.model.factions.FactionDefinition.UnitStatModifier modifier =
                 faction.getFactionDefinition().getUnitStatModifiers().get(unitType);
-        
+
         if (modifier != null) {
             // Apply damage multiplier
             if (modifier.getDamageMultiplier() != 1.0) {
                 double baseDamage = unitType.getDamage();
                 weapon.setDamage(baseDamage * modifier.getDamageMultiplier());
             }
-            
+
             // Apply range multiplier
             if (modifier.getRangeMultiplier() != 1.0) {
                 double baseRange = unitType.getAttackRange();
                 weapon.setRange(baseRange * modifier.getRangeMultiplier());
             }
-            
+
             // Apply attack rate multiplier
             if (modifier.getAttackRateMultiplier() != 1.0) {
                 double baseRate = unitType.getAttackRate();
@@ -178,9 +178,7 @@ public class Unit extends GameEntity implements Targetable {
 
         // Special abilities
         SpecialAbility ability = unitType.getSpecialAbility();
-        if (ability == SpecialAbility.DEPLOY) {
-            addComponent(new DeployComponent(), gameEntities);
-        } else if (ability == SpecialAbility.CLOAK) {
+        if (ability == SpecialAbility.CLOAK) {
             addComponent(new CloakComponent(), gameEntities);
         }
 
@@ -531,32 +529,11 @@ public class Unit extends GameEntity implements Targetable {
     }
 
     /**
-     * Override setRotation to prevent deployed Crawler from rotating
-     */
-    @Override
-    public void setRotation(double rotation) {
-        // Deployed Crawler cannot rotate (locked in place)
-        if (unitType == UnitType.CRAWLER && specialAbilityActive) {
-            return;
-        }
-        super.setRotation(rotation);
-    }
-
-    /**
      * Check if this unit can currently attack.
-     * Some units (Crawler, Flak Tank) require deployment before they can fire.
+     * Some units require deployment before they can fire.
      */
     public boolean canCurrentlyAttack() {
-        if (!unitType.canAttack()) {
-            return false;
-        }
-
-        // Units with DEPLOY ability can only attack when deployed
-        if (unitType.getSpecialAbility() == SpecialAbility.DEPLOY) {
-            return specialAbilityActive; // Must be deployed to attack
-        }
-
-        return true; // All other combat units can attack normally
+        return unitType.canAttack();
     }
 
     /**
@@ -639,8 +616,8 @@ public class Unit extends GameEntity implements Targetable {
 
         // Fire the weapon (modifiers come from FactionDefinition via weapon stats)
         List<AbstractOrdinance> ordinances = weapon.fire(
-            getPosition(), targetPos, targetElevation, 
-            getId(), teamNumber, body, gameEntities
+                getPosition(), targetPos, targetElevation,
+                getId(), teamNumber, body, gameEntities
         );
 
         // Notify interceptor component of weapon fire (consumes ammo)
@@ -750,18 +727,18 @@ public class Unit extends GameEntity implements Targetable {
 
             // Build at rate of 10 health per second (base rate)
             double baseRate = 10.0;
-            
+
             // Apply buildTimeMultiplier from faction (lower multiplier = faster construction)
             // Note: buildTimeMultiplier of 0.8 means 20% faster, so we divide by it
             double buildTimeMultiplier = 1.0;
             if (faction != null && faction.getFactionDefinition() != null) {
-                com.fullsteam.model.factions.FactionDefinition.BuildingStatModifier modifier = 
+                com.fullsteam.model.factions.FactionDefinition.BuildingStatModifier modifier =
                         faction.getFactionDefinition().getBuildingStatModifiers().get(building.getBuildingType());
                 if (modifier != null) {
                     buildTimeMultiplier = modifier.getBuildTimeMultiplier();
                 }
             }
-            
+
             // Lower multiplier = faster construction (divide by multiplier)
             double effectiveRate = baseRate / buildTimeMultiplier;
             double progressAdded = effectiveRate * deltaTime;
@@ -1102,21 +1079,8 @@ public class Unit extends GameEntity implements Targetable {
      */
     private void applySpecialAbilityEffects() {
         SpecialAbility ability = unitType.getSpecialAbility();
-
-        switch (ability) {
-            case DEPLOY:
-                // Crawler deploy mode: +50% range/damage, but immobile, with 4 independent turrets
-                if (specialAbilityActive) {
-                    getComponent(DeployComponent.class).ifPresent(DeployComponent::toggleDeploy);
-                }
-                break;
-
-            case CLOAK:
-                getComponent(CloakComponent.class).ifPresent(CloakComponent::toggleCloak);
-                break;
-
-            default:
-                break;
+        if (Objects.requireNonNull(ability) == SpecialAbility.CLOAK) {
+            getComponent(CloakComponent.class).ifPresent(CloakComponent::toggleCloak);
         }
     }
 
@@ -1134,15 +1098,9 @@ public class Unit extends GameEntity implements Targetable {
 
     /**
      * Get effective movement speed with faction modifiers applied.
-     * Returns 0 if unit is deployed (for CRAWLER).
+     * Returns 0 if unit is deployed
      */
     public double getMovementSpeed() {
-        // Check if unit is deployed (immobile mode for CRAWLER)
-        DeployComponent deployComp = getComponent(DeployComponent.class).orElse(null);
-        if (deployComp != null && deployComp.isDeployed()) {
-            return 0.0; // Deployed units can't move
-        }
-
         // Base speed from unit type with faction modifiers
         double baseSpeed = unitType.getMovementSpeed();
         double multiplier = getUnitStatMultiplier(mod -> mod.getSpeedMultiplier());
@@ -1188,7 +1146,8 @@ public class Unit extends GameEntity implements Targetable {
      */
     public boolean isInfantry() {
         return switch (unitType) {
-            case INFANTRY, SHOTGUN_INFANTRY, LASER_INFANTRY, ROCKET_SOLDIER, SNIPER, MEDIC, ENGINEER, PLASMA_TROOPER, ION_RANGER -> true;
+            case INFANTRY, SHOTGUN_INFANTRY, LASER_INFANTRY, ROCKET_SOLDIER, SNIPER, MEDIC, ENGINEER, PLASMA_TROOPER,
+                 ION_RANGER -> true;
             default -> false;
         };
     }
@@ -1197,10 +1156,7 @@ public class Unit extends GameEntity implements Targetable {
      * Check if this unit is a vehicle
      */
     public boolean isVehicle() {
-        return switch (unitType) {
-            case JEEP, TANK, CRAWLER, CLOAK_TANK, PHOTON_SCOUT, BEAM_TANK -> true;
-            default -> false;
-        };
+        return unitType.getCategory() == UnitCategory.VEHICLE;
     }
 
     /**

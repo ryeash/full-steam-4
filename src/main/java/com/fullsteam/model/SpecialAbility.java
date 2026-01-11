@@ -15,14 +15,6 @@ public enum SpecialAbility {
             0
     ),
 
-    // Crawler's deploy mode - immobile, +50% range/damage
-    DEPLOY(
-            "Deploy",
-            true,  // toggle ability
-            false, // doesn't require target
-            2000   // 2 second cooldown
-    ),
-
     // Medic's heal ability
     HEAL(
             "Heal",

@@ -886,31 +886,6 @@ class RTSEngine {
             this.selectedUnits.delete(unitData.id);
         }
         
-        // Update special ability indicator (for deployed Crawlers, etc.)
-        const typeInfo = this.getUnitTypeInfo(unitData.type);
-        if (unitData.specialAbilityActive && unitData.specialAbility === 'DEPLOY') {
-            // Add or update deploy indicator
-            if (!unitContainer.deployIndicator) {
-                const indicator = new PIXI.Graphics();
-                indicator.circle(0, 0, typeInfo.size + 10);
-                indicator.stroke({ width: 3, color: 0xFFFF00, alpha: 0.8 });
-                // Draw anchor symbols at cardinal directions
-                for (let i = 0; i < 4; i++) {
-                    const angle = i * Math.PI / 2;
-                    const x = Math.cos(angle) * (typeInfo.size + 15);
-                    const y = Math.sin(angle) * (typeInfo.size + 15);
-                    indicator.moveTo(x, y - 5);
-                    indicator.lineTo(x, y + 5);
-                    indicator.stroke({ width: 2, color: 0xFFFF00 });
-                }
-                unitContainer.addChild(indicator);
-                unitContainer.deployIndicator = indicator;
-            }
-            unitContainer.deployIndicator.visible = true;
-        } else if (unitContainer.deployIndicator) {
-            unitContainer.deployIndicator.visible = false;
-        }
-        
         // Update cloak visual effect (for Cloak Tank)
         if (unitData.specialAbilityActive && unitData.specialAbility === 'CLOAK') {
             // Apply transparency and shimmer effect when cloaked
@@ -1005,65 +980,6 @@ class RTSEngine {
                 if (unitContainer.sortiePath) {
                     unitContainer.sortiePath.visible = false;
                 }
-            }
-        }
-        
-        // Update turrets (for deployed Crawler)
-        if (unitData.turrets && unitData.turrets.length > 0) {
-            if (!unitContainer.turretGraphics) {
-                unitContainer.turretGraphics = [];
-            }
-            
-            // Create or update turret graphics
-            unitData.turrets.forEach((turretData, index) => {
-                if (!unitContainer.turretGraphics[index]) {
-                    // Create new turret graphic
-                    const turretContainer = new PIXI.Container();
-                    
-                    // Turret base (small circle)
-                    const base = new PIXI.Graphics();
-                    base.circle(0, 0, 4);
-                    base.fill(0x808080);
-                    turretContainer.addChild(base);
-                    
-                    // Turret barrel (pointing right by default)
-                    const barrel = new PIXI.Graphics();
-                    const barrelLength = typeInfo.size * 0.3; // Shortened from 0.5 to 0.3
-                    const barrelWidth = 3;
-                    barrel.rect(0, -barrelWidth / 2, barrelLength, barrelWidth);
-                    barrel.fill(0x404040);
-                    turretContainer.addChild(barrel);
-                    
-                    unitContainer.addChild(turretContainer);
-                    unitContainer.turretGraphics[index] = turretContainer;
-                }
-                
-                // Update turret position (offset from unit center, rotated by unit rotation)
-                const turret = unitContainer.turretGraphics[index];
-                const cos = Math.cos(unitData.rotation);
-                const sin = Math.sin(unitData.rotation);
-                const rotatedX = turretData.offsetX * cos - turretData.offsetY * sin;
-                const rotatedY = turretData.offsetX * sin + turretData.offsetY * cos;
-                turret.position.set(rotatedX, rotatedY);
-                
-                // Set turret rotation (independent of unit rotation)
-                turret.rotation = turretData.rotation;
-            });
-            
-            // Remove excess turrets if unit has fewer than before
-            while (unitContainer.turretGraphics.length > unitData.turrets.length) {
-                const removed = unitContainer.turretGraphics.pop();
-                unitContainer.removeChild(removed);
-                removed.destroy();
-            }
-        } else {
-            // Remove all turrets if unit no longer has them
-            if (unitContainer.turretGraphics) {
-                unitContainer.turretGraphics.forEach(turret => {
-                    unitContainer.removeChild(turret);
-                    turret.destroy();
-                });
-                unitContainer.turretGraphics = [];
             }
         }
         
@@ -1215,7 +1131,6 @@ class RTSEngine {
             'CLOAK_TANK': { sides: 5, size: 28, color: 0x2F4F4F },
             'MAMMOTH_TANK': { sides: 6, size: 40, color: 0x556B2F },
             // Hero units
-            'CRAWLER': { sides: 8, size: 50, color: 0x4A4A4A },
             'RAIDER': { sides: 3, size: 22, color: 0xDC143C }, // Crimson (Nomads hero)
             'COLOSSUS': { sides: 6, size: 50, color: 0x4B0082 }, // Indigo (Synthesis hero)
             // Tech Alliance beam weapon units
@@ -2261,7 +2176,6 @@ class RTSEngine {
             'SHIELD_GENERATOR': { sides: 6, size: 30, color: 0x00BFFF, rotation: 0 },
             'BANK': { sides: 8, size: 35, color: 0xFFD700, rotation: Math.PI / 8 },
             'BUNKER': { sides: 4, size: 40, color: 0x556B2F, rotation: Math.PI / 4 },
-            // Monument buildings
             'SANDSTORM_GENERATOR': { sides: 6, size: 45, color: 0xDEB887, rotation: 0 },
             'QUANTUM_NEXUS': { sides: 8, size: 50, color: 0x9370DB, rotation: Math.PI / 8 },
             'PHOTON_SPIRE': { sides: 6, size: 48, color: 0x00FF00, rotation: Math.PI / 6 },
@@ -4229,23 +4143,14 @@ class RTSEngine {
         // Hide build menu when selecting a building
         this.hideBuildMenu();
         
-        // Show production UI if:
-        // 1. Building can produce units and is not under construction, OR
-        // 2. Building is a bunker (has garrison UI), OR
-        // 3. Building is a monument (has aura info), OR
-        // 4. Building is a hangar (has sortie UI)
-        const isBunker = buildingData.type === 'BUNKER';
-        const isMonument = ['PHOTON_SPIRE', 'QUANTUM_NEXUS', 'SANDSTORM_GENERATOR', 'ANDROID_FACTORY', 'COMMAND_CITADEL', 'TEMPEST_SPIRE'].includes(buildingData.type);
-        const isHangar = buildingData.type === 'HANGAR' || buildingData.buildingType === 'HANGAR';
-        const shouldShowUI = (buildingData.canProduceUnits && !buildingData.underConstruction) || isBunker || isMonument || isHangar;
+        // Show production UI selectively:
+        const shouldShowUI = !buildingData.underConstruction
+            && (buildingData.canProduceUnits || buildingData.buildingType === 'BUNKER');
         
-        if (shouldShowUI) {
+        if (buildingData.buildingType === 'HANGAR') {
+            this.updateHangarPanel(buildingData);
+        } else if (shouldShowUI) {
             this.showProductionUI(buildingData);
-            
-            // Add hangar-specific UI
-            if (isHangar) {
-                this.updateHangarPanel(buildingData);
-            }
         } else {
             this.hideProductionUI();
         }

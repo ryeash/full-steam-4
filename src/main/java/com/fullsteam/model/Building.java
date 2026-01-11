@@ -45,7 +45,6 @@ public class Building extends GameEntity implements Targetable {
     private boolean underConstruction = true;
     private double constructionProgress = 0; // 0 to maxHealth
 
-    // Monument aura fields
     private static final int COMMAND_CITADEL_UPKEEP_BONUS = 50; // +50 max upkeep
 
     /**
@@ -138,7 +137,7 @@ public class Building extends GameEntity implements Targetable {
             addComponent(new SandstormComponent());
         }
 
-        // Tempest Spire (Storm Wings monument) - Anti-air defense tower
+        // Anti-air defense tower
         if (buildingType == BuildingType.TEMPEST_SPIRE) {
             addComponent(new DefenseComponent(WeaponFactory.getTempestSpireWeapon()));
             log.debug("Building {} ({}) initialized with DefenseComponent (anti-air)", id, buildingType.getDisplayName());
@@ -156,9 +155,6 @@ public class Building extends GameEntity implements Targetable {
             addComponent(new HangarComponent());
             log.debug("Building {} ({}) initialized with HangarComponent", id, buildingType.getDisplayName());
         }
-
-        // More components will be added here as we extract them:
-        // - AuraComponent for monuments
 
         // initialize each building component
         components.values().forEach(c -> c.init(gameEntities, this));
@@ -366,17 +362,6 @@ public class Building extends GameEntity implements Targetable {
      */
     public boolean belongsTo(int playerId) {
         return this.ownerId == playerId;
-    }
-
-    /**
-     * Check if this is a monument building
-     */
-    public boolean isMonument() {
-        return buildingType == BuildingType.PHOTON_SPIRE ||
-                buildingType == BuildingType.ANDROID_FACTORY ||
-                buildingType == BuildingType.SANDSTORM_GENERATOR ||
-                buildingType == BuildingType.COMMAND_CITADEL ||
-                buildingType == BuildingType.TEMPEST_SPIRE;
     }
 
     /**

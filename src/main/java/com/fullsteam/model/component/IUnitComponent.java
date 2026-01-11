@@ -10,7 +10,6 @@ import com.fullsteam.model.Unit;
  * <p>
  * Examples:
  * - HarvestComponent: Handle resource gathering (Workers)
- * - DeployComponent: Handle multi-turret deployment (Crawler)
  * - CloakComponent: Handle stealth mechanics (Cloak Tank)
  * - HealComponent: Handle healing abilities (Medic)
  * - RepairComponent: Handle repair abilities (Engineer)

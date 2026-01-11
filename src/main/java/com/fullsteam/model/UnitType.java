@@ -308,7 +308,7 @@ public enum UnitType {
             350.0,   // vision range (standard),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.TECH_CENTER) // Tier 3 advanced support
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 advanced support
     ),
 
     // Artillery - long range siege unit
@@ -350,28 +350,7 @@ public enum UnitType {
             200.0,    // poor vision, needs a spotter to hit distant targets
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.TECH_CENTER) // Hero unit - requires advanced tech
-    ),
-
-    // CRAWLER - Mobile fortress with 4 turrets (THE STAR UNIT!)
-    CRAWLER(
-            "Crawler",
-            1500,    // resource cost (EXPENSIVE!)
-            45,      // build time (seconds) (LONG!)
-            2300,    // max health (+15%)
-            40.0,    // movement speed (VERY SLOW!)
-            35,      // damage (per turret) - reduced from 60
-            1.5,     // attack rate - reduced from 1.0 (slower fire rate)
-            250,     // attack range
-            50.0,    // size (radius) (HUGE!)
-            8,       // sides (octagon)
-            0x4A4A4A, // dark gray
-            BuildingType.FACTORY,
-            80,      // upkeep cost (HIGHEST!)
-            480.0,    // vision range (excellent, mobile fortress),
-            Elevation.GROUND,
-            UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.TECH_CENTER) // Hero unit - Terran faction
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Hero unit - requires advanced tech
     ),
 
     // Cloak Tank - invisible until attacking or detected
@@ -415,7 +394,7 @@ public enum UnitType {
             520.0,    // vision range (hero scout, exceptional vision),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.TECH_CENTER) // Hero unit - Nomads faction
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Hero unit - Nomads faction
     ),
 
     // COLOSSUS - Synthesis hero unit, massive walker
@@ -436,7 +415,7 @@ public enum UnitType {
             490.0,    // vision range (hero unit, excellent vision),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.TECH_CENTER) // Hero unit - Synthesis faction
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Hero unit - Synthesis faction
     ),
 
     // ===== TECH ALLIANCE BEAM WEAPON UNITS =====
@@ -586,7 +565,7 @@ public enum UnitType {
             340.0,    // vision range (moderate, autonomous unit),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 monument unit
+            Set.of(BuildingType.POWER_PLANT, BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER)
     ),
 
     // ===== AIR UNITS =====
@@ -648,7 +627,7 @@ public enum UnitType {
             200,     // damage (MASSIVE - area effect bombs)
             0.5,     // attack rate (slow - payload limitation)
             0,       // attack range (N/A - bombs are dropped, not fired)
-            18.0,    // size (radius) - larger aircraft
+            21.0,    // size (radius) - larger aircraft
             6,       // sides (hexagonal fuselage)
             0x2F4F4F, // dark slate gray (bomber color)
             BuildingType.HANGAR, // Housed in hangar, not produced at airfield
@@ -694,7 +673,7 @@ public enum UnitType {
             40,      // damage (primary weapon - heavy MG)
             2.0,     // attack rate (decent fire rate)
             280,     // attack range (good engagement range)
-            50.0,    // size (radius) - medium heavy aircraft
+            31.0,    // size (radius) - heavy aircraft
             6,       // sides (hexagon - gunship)
             0x8B0000, // dark red (intimidating gunship color)
             BuildingType.HANGAR, // Produced at Hangar (sortie-based)
@@ -702,7 +681,7 @@ public enum UnitType {
             480.0,   // vision range (excellent, attack helicopter)
             Elevation.HIGH, // Fixed-wing sortie aircraft,
             UnitCategory.FLYER, // category
-            Set.of(BuildingType.TECH_CENTER) // Hero unit - Storm Wings faction
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Hero unit - Storm Wings faction
     );
 
     private final String displayName;
@@ -1805,15 +1784,6 @@ public enum UnitType {
                 yield List.of(Geometry.createPolygon(vertices));
             }
 
-            case CRAWLER -> {
-                Convex frontTread = Geometry.createCircle(size * .6);
-                frontTread.translate(size * .3, 0);
-                Convex rearTread = Geometry.createCircle(size * .6);
-                rearTread.translate(-size * .3, 0);
-                Convex body = Geometry.createRectangle(size * 1.8, size);
-                yield List.of(frontTread, rearTread, body);
-            }
-
             // Raider - Nomads hero cavalry with aggressive bladed design
             case RAIDER -> {
                 // Main body: aggressive arrow-like chassis (stretched forward)
@@ -2160,7 +2130,6 @@ public enum UnitType {
      */
     public SpecialAbility getSpecialAbility() {
         return switch (this) {
-            case CRAWLER -> SpecialAbility.DEPLOY;
             case MEDIC -> SpecialAbility.HEAL;
             case ENGINEER -> SpecialAbility.REPAIR;
             case CLOAK_TANK -> SpecialAbility.CLOAK;
@@ -2215,13 +2184,6 @@ public enum UnitType {
      */
     public boolean isSupport() {
         return this == MEDIC || this == ENGINEER;
-    }
-
-    /**
-     * Check if this is the Crawler (for special multi-turret logic)
-     */
-    public boolean isCrawler() {
-        return this == CRAWLER;
     }
 
     /**

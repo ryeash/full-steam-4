@@ -20,43 +20,41 @@ public class BuildingTemplate implements CustomizableEntity {
     private final String description;
     private final int pointCost;
     private final EntityCategory category;
-    private final boolean isMonument;
     @Builder.Default
     private final List<UnitCategory> producesUnitCategories = new ArrayList<>();
     @Builder.Default
     private final List<String> tags = new ArrayList<>();
     private final String iconPath;
-    
+
     // Stats for display
     private final int maxHealth;
     private final int baseCost;
     private final int powerValue;
-    
+
     @Override
     public String getId() {
         return buildingType.name();
     }
-    
+
     /**
      * Create a BuildingTemplate from a BuildingType
      */
     public static BuildingTemplate fromBuildingType(BuildingType buildingType) {
         return BuildingTemplate.builder()
-            .buildingType(buildingType)
-            .displayName(buildingType.getDisplayName())
-            .description(generateDescription(buildingType))
-            .pointCost(calculatePointCost(buildingType))
-            .category(mapToCategory(buildingType))
-            .isMonument(isMonument(buildingType))
-            .producesUnitCategories(getProducedUnitCategories(buildingType))
-            .tags(generateTags(buildingType))
-            .iconPath("/icons/buildings/" + buildingType.name().toLowerCase() + ".png")
-            .maxHealth((int) buildingType.getMaxHealth())
-            .baseCost(buildingType.getResourceCost())
-            .powerValue(buildingType.getPowerValue())
-            .build();
+                .buildingType(buildingType)
+                .displayName(buildingType.getDisplayName())
+                .description(generateDescription(buildingType))
+                .pointCost(calculatePointCost(buildingType))
+                .category(mapToCategory(buildingType))
+                .producesUnitCategories(getProducedUnitCategories(buildingType))
+                .tags(generateTags(buildingType))
+                .iconPath("/icons/buildings/" + buildingType.name().toLowerCase() + ".png")
+                .maxHealth((int) buildingType.getMaxHealth())
+                .baseCost(buildingType.getResourceCost())
+                .powerValue(buildingType.getPowerValue())
+                .build();
     }
-    
+
     /**
      * Calculate point cost based on building type and utility
      */
@@ -65,12 +63,17 @@ public class BuildingTemplate implements CustomizableEntity {
         if (buildingType == BuildingType.HEADQUARTERS || buildingType == BuildingType.POWER_PLANT) {
             return 0;
         }
-        
-        // Monument buildings get fixed high cost
-        if (isMonument(buildingType)) {
+
+        if (List.of(
+                BuildingType.SANDSTORM_GENERATOR,
+                BuildingType.ANDROID_FACTORY,
+                BuildingType.PHOTON_SPIRE,
+                BuildingType.COMMAND_CITADEL,
+                BuildingType.TEMPEST_SPIRE
+        ).contains(buildingType)) {
             return 12;
         }
-        
+
         // Production buildings (produce units)
         if (buildingType.isCanProduceUnits()) {
             return switch (buildingType) {
@@ -80,7 +83,7 @@ public class BuildingTemplate implements CustomizableEntity {
                 default -> 4;
             };
         }
-        
+
         // Defense buildings
         if (isTurret(buildingType)) {
             return switch (buildingType) {
@@ -99,7 +102,7 @@ public class BuildingTemplate implements CustomizableEntity {
         if (buildingType == BuildingType.WALL) {
             return 1; // Walls are cheap
         }
-        
+
         // Economy buildings
         if (buildingType == BuildingType.REFINERY) {
             return 2; // Essential, cheap
@@ -107,7 +110,7 @@ public class BuildingTemplate implements CustomizableEntity {
         if (buildingType == BuildingType.BANK) {
             return 4; // Credit generation
         }
-        
+
         // Tech buildings
         if (buildingType == BuildingType.RESEARCH_LAB) {
             return 4;
@@ -115,86 +118,71 @@ public class BuildingTemplate implements CustomizableEntity {
         if (buildingType == BuildingType.TECH_CENTER) {
             return 6; // High-tier tech
         }
-        
+
         // Default fallback
         return 3;
     }
-    
-    /**
-     * Check if this is a monument building
-     */
-    private static boolean isMonument(BuildingType buildingType) {
-        return List.of(
-            BuildingType.SANDSTORM_GENERATOR,
-            BuildingType.ANDROID_FACTORY,
-            BuildingType.PHOTON_SPIRE,
-            BuildingType.COMMAND_CITADEL,
-            BuildingType.TEMPEST_SPIRE
-        ).contains(buildingType);
-    }
-    
+
     /**
      * Check if this is a turret
      */
     private static boolean isTurret(BuildingType buildingType) {
         return buildingType == BuildingType.TURRET ||
-               buildingType == BuildingType.ROCKET_TURRET ||
-               buildingType == BuildingType.LASER_TURRET;
+                buildingType == BuildingType.ROCKET_TURRET ||
+                buildingType == BuildingType.LASER_TURRET ||
+                buildingType == BuildingType.TEMPEST_SPIRE;
     }
-    
+
     /**
      * Map building type to entity category
      */
     private static EntityCategory mapToCategory(BuildingType buildingType) {
-        if (isMonument(buildingType)) {
-            return EntityCategory.MONUMENT;
-        }
         if (buildingType.isCanProduceUnits()) {
             return EntityCategory.PRODUCTION;
         }
-        if (isTurret(buildingType) || 
-            buildingType == BuildingType.BUNKER || 
-            buildingType == BuildingType.SHIELD_GENERATOR ||
-            buildingType == BuildingType.WALL) {
+        if (isTurret(buildingType) ||
+                buildingType == BuildingType.BUNKER ||
+                buildingType == BuildingType.SHIELD_GENERATOR ||
+                buildingType == BuildingType.WALL) {
             return EntityCategory.DEFENSE;
         }
-        if (buildingType == BuildingType.POWER_PLANT || 
-            buildingType == BuildingType.REFINERY || 
-            buildingType == BuildingType.BANK) {
+        if (buildingType == BuildingType.POWER_PLANT ||
+                buildingType == BuildingType.REFINERY ||
+                buildingType == BuildingType.BANK) {
             return EntityCategory.ECONOMY;
         }
-        if (buildingType == BuildingType.RESEARCH_LAB || 
-            buildingType == BuildingType.TECH_CENTER) {
+        if (buildingType == BuildingType.RESEARCH_LAB ||
+                buildingType == BuildingType.TECH_CENTER) {
             return EntityCategory.TECH;
         }
         return EntityCategory.ECONOMY; // Default
     }
-    
+
     /**
      * Get which unit categories this building can produce
      */
     private static List<UnitCategory> getProducedUnitCategories(BuildingType buildingType) {
         List<UnitCategory> categories = new ArrayList<>();
-        
+
         switch (buildingType) {
             case HEADQUARTERS -> categories.add(UnitCategory.WORKER);
             case BARRACKS -> categories.add(UnitCategory.INFANTRY);
             case FACTORY -> categories.add(UnitCategory.VEHICLE);
             case AIRFIELD, HANGAR -> categories.add(UnitCategory.FLYER);
         }
-        
+
         return categories;
     }
-    
+
     /**
      * Generate descriptive tags for filtering
      */
     private static List<String> generateTags(BuildingType buildingType) {
         List<String> tags = new ArrayList<>();
-        
+
         // Category tag
         tags.add(mapToCategory(buildingType).name());
-        
+
         // Production tags
         if (buildingType.isCanProduceUnits()) {
             tags.add("PRODUCTION");
@@ -202,7 +190,7 @@ public class BuildingTemplate implements CustomizableEntity {
                 tags.add("PRODUCES_" + category.name());
             }
         }
-        
+
         // Defense tags
         if (isTurret(buildingType)) {
             tags.add("TURRET");
@@ -216,7 +204,7 @@ public class BuildingTemplate implements CustomizableEntity {
             tags.add("SHIELD");
             tags.add("DEFENSIVE");
         }
-        
+
         // Economy tags
         if (buildingType == BuildingType.POWER_PLANT) {
             tags.add("POWER");
@@ -229,38 +217,29 @@ public class BuildingTemplate implements CustomizableEntity {
         if (buildingType == BuildingType.BANK) {
             tags.add("CREDIT_GENERATION");
         }
-        
+
         // Tech tags
-        if (buildingType == BuildingType.RESEARCH_LAB || 
-            buildingType == BuildingType.TECH_CENTER) {
+        if (buildingType == BuildingType.RESEARCH_LAB ||
+                buildingType == BuildingType.TECH_CENTER) {
             tags.add("RESEARCH");
         }
-        
-        // Monument tag
-        if (isMonument(buildingType)) {
-            tags.add("MONUMENT");
-            tags.add("UNIQUE");
-        }
-        
+
         // Power tags
         if (buildingType.getPowerValue() > 0) {
             tags.add("GENERATES_POWER");
         } else if (buildingType.getPowerValue() < 0) {
             tags.add("CONSUMES_POWER");
         }
-        
+
         return tags;
     }
-    
+
     /**
      * Generate a description for the building
      */
     private static String generateDescription(BuildingType buildingType) {
         if (buildingType == BuildingType.HEADQUARTERS) {
             return "Main base building. Produces workers and serves as a tech anchor.";
-        }
-        if (isMonument(buildingType)) {
-            return "Powerful monument building that provides faction-wide buffs.";
         }
         if (buildingType.isCanProduceUnits()) {
             List<UnitCategory> categories = getProducedUnitCategories(buildingType);

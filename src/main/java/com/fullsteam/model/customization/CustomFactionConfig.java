@@ -150,7 +150,6 @@ public class CustomFactionConfig {
      * Some units are tightly coupled to specific buildings and should be auto-included.
      */
     public void ensureBundledUnits() {
-        // ANDROID is bundled with ANDROID_FACTORY (monument building)
         if (selectedBuildings.contains(BuildingType.ANDROID_FACTORY)) {
             selectedUnits.add(UnitType.ANDROID);
         }

@@ -23,7 +23,6 @@ public class BuildingTemplateDTO {
     private String description;
     private int pointCost;
     private String category;
-    private boolean isMonument;
     private List<String> producesUnitCategories;
     private List<String> tags;
     private String iconPath;
@@ -47,7 +46,6 @@ public class BuildingTemplateDTO {
             .description(template.getDescription())
             .pointCost(template.getPointCost())
             .category(template.getCategory().name())
-            .isMonument(template.isMonument())
             .producesUnitCategories(template.getProducesUnitCategories().stream()
                 .map(Enum::name)
                 .collect(Collectors.toList()))

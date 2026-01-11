@@ -25,10 +25,8 @@ public class IdleCommand extends UnitCommand {
     @Override
     public boolean update(double deltaTime) {
         // Idle combat units should scan for enemies based on AI stance
-        // Use canCurrentlyAttack() to handle special cases (e.g., Crawler must be deployed)
         if (unit.canCurrentlyAttack() && unit.getAiStance().isAutoAttack() && gameEntities != null) {
             scanCounter++;
-
             // Scan every 30 frames (~0.5 seconds at 60fps)
             if (scanCounter >= 30) {
                 scanCounter = 0;

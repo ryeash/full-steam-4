@@ -71,6 +71,20 @@ public enum BuildingType {
             360.0    // vision range (moderate, utility building)
     ),
 
+    // Defensive structure - blocks movement
+    WALL(
+            "Wall",
+            50,      // resource cost
+            5,       // build time (seconds)
+            500,     // max health
+            15.0,    // size (radius) - small for tight placement
+            4,       // sides (square)
+            0x708090, // slate gray
+            false,   // cannot produce units
+            0,       // no power needed
+            250.0
+    ),
+
     // Vehicle production
     FACTORY(
             "Factory",
@@ -113,21 +127,8 @@ public enum BuildingType {
             420.0    // vision range (excellent, advanced tech)
     ),
 
-    // Defensive structure - blocks movement
-    WALL(
-            "Wall",
-            50,      // resource cost
-            5,       // build time (seconds)
-            500,     // max health
-            15.0,    // size (radius) - small for tight placement
-            4,       // sides (square)
-            0x708090, // slate gray
-            false,   // cannot produce units
-            0,       // no power needed
-            250.0    // vision range (limited, small defensive structure)
-    ),
 
-    // Defensive structure - attacks enemies with machine gun
+    // Defensive structure - attacks enemies with cannon
     TURRET(
             "Turret",
             250,     // resource cost
@@ -221,14 +222,11 @@ public enum BuildingType {
             8,       // sides (octagon)
             0xFFD700, // gold
             false,   // cannot produce units
-            // no garrison capacity
             -30,     // power consumption
             350.0    // vision range (moderate, economic building)
     ),
 
-    // ===== HERO/MONUMENT BUILDINGS =====
-
-    // Monument - Nomads faction - creates periodic sandstorms for area denial
+    // Creates sandstorms for area denial
     SANDSTORM_GENERATOR(
             "Sandstorm Generator",
             600,     // resource cost
@@ -239,10 +237,10 @@ public enum BuildingType {
             0xDEB887, // burlywood (sandy color)
             false,   // cannot produce units
             -40,     // power consumption
-            430.0    // vision range (good, monument)
+            430.0    // vision range (good)
     ),
 
-    // Monument - Synthesis faction - autonomous android production facility
+    // Autonomous android production facility
     ANDROID_FACTORY(
             "Android Factory",
             700,     // resource cost
@@ -253,10 +251,10 @@ public enum BuildingType {
             0x00CED1, // dark turquoise (Synthesis faction color)
             true,    // can produce units (Androids!)
             -60,     // power consumption
-            420.0    // vision range (excellent, monument production)
+            420.0    // vision range (excellent)
     ),
 
-    // Monument - Tech Alliance faction - powerful defensive laser tower (Obelisk of Light style)
+    // Defensive laser tower
     PHOTON_SPIRE(
             "Photon Spire",
             650,     // resource cost
@@ -267,13 +265,13 @@ public enum BuildingType {
             0x00FF00, // bright green (photon energy)
             false,   // cannot produce units
             -75,     // power consumption
-            480.0    // vision range (excellent, defensive monument)
+            480.0    // vision range (excellent, defensive)
     ),
 
-    // Monument - Terran faction - ultimate command center
+    // Ultimate command center
     COMMAND_CITADEL(
             "Command Citadel",
-            700,     // resource cost (expensive monument)
+            700,     // resource cost (expensive)
             80,      // build time (seconds)
             1000,    // max health
             55.0,    // size (radius) - large and imposing
@@ -281,7 +279,7 @@ public enum BuildingType {
             0x4169E1, // royal blue (command authority)
             false,   // cannot produce units
             -50,     // power consumption
-            800.0    // vision range (HUGE, command center bonus)
+            1000.0    // vision range (HUGE, command center bonus)
     ),
 
     // Air unit production - requires Tech Center
@@ -312,10 +310,9 @@ public enum BuildingType {
             350.0    // vision range (moderate)
     ),
 
-    // Monument - Storm Wings faction - weather control tower
     TEMPEST_SPIRE(
             "Tempest Spire",
-            700,     // resource cost (expensive monument)
+            700,     // resource cost (expensive)
             70,      // build time (seconds)
             850,     // max health
             45.0,    // size (radius)
@@ -337,8 +334,16 @@ public enum BuildingType {
     private final int powerValue; // Power generation (positive) or consumption (negative)
     private final double visionRange; // vision radius for fog of war
 
-    BuildingType(String displayName, int resourceCost, int buildTimeSeconds, double maxHealth,
-                 double size, int sides, int color, boolean canProduceUnits, int powerValue, double visionRange) {
+    BuildingType(String displayName,
+                 int resourceCost,
+                 int buildTimeSeconds,
+                 double maxHealth,
+                 double size,
+                 int sides,
+                 int color,
+                 boolean canProduceUnits,
+                 int powerValue,
+                 double visionRange) {
         this.displayName = displayName;
         this.resourceCost = resourceCost;
         this.buildTimeSeconds = buildTimeSeconds;
@@ -623,20 +628,20 @@ public enum BuildingType {
     public List<BuildingType> getTechRequirements() {
         return switch (this) {
             // T1 - Always available
-            case POWER_PLANT, BARRACKS, REFINERY, BUNKER, WALL -> List.of();
+            case HEADQUARTERS, POWER_PLANT, BARRACKS, REFINERY, BUNKER, WALL -> List.of();
 
             // T2 - Requires Power Plant
             case RESEARCH_LAB, FACTORY, TURRET, ROCKET_TURRET, FLAK_TURRET, SHIELD_GENERATOR -> List.of(POWER_PLANT);
 
             // T3 - Requires Power Plant + Research Lab
-            case TECH_CENTER, BANK, LASER_TURRET, AIRFIELD, HANGAR -> List.of(POWER_PLANT, RESEARCH_LAB);
+            case TECH_CENTER, BANK, LASER_TURRET, AIRFIELD -> List.of(POWER_PLANT, RESEARCH_LAB);
 
-            // Monument Buildings - Requires Power Plant + Research Lab (T3)
+            // Special case for HANGAR
+            case HANGAR -> List.of(POWER_PLANT, RESEARCH_LAB, AIRFIELD);
+
+            // Requires Power Plant + Research Lab  + TECH_CENTER
             case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL, TEMPEST_SPIRE ->
-                    List.of(POWER_PLANT, RESEARCH_LAB);
-
-            // Headquarters is special (only one, starting building)
-            case HEADQUARTERS -> List.of(); // No requirements but can't build more
+                    List.of(POWER_PLANT, RESEARCH_LAB, TECH_CENTER);
         };
     }
 }
