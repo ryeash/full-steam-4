@@ -117,6 +117,17 @@ public class WeaponFactory {
                     elevationTargeting
             );
 
+            case MINIGUNNER -> new ProjectileWeapon(
+                    damage, range, attackRate,
+                    550,  // projectile speed (fast bullets)
+                    0.35, // linear damping (air resistance)
+                    1.8,  // size (small caliber rounds)
+                    Ordinance.BULLET,
+                    Set.of(),
+                    elevationTargeting,
+                    -Math.toRadians(8) // accuracy: -8 degree spread (very inaccurate!)
+            );
+
             case JEEP -> new ProjectileWeapon(
                     damage, range, attackRate,
                     600,  // projectile speed (fast)

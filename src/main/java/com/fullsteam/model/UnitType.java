@@ -28,7 +28,6 @@ public enum UnitType {
             1.0,     // attack rate
             100,     // attack range
             15.0,    // size (radius)
-            16,      // sides (16-sided polygon approximates circle)
             0xFFFF00, // yellow
             BuildingType.HEADQUARTERS,
             5,       // upkeep cost
@@ -46,11 +45,10 @@ public enum UnitType {
             5,       // build time (seconds)
             128,     // max health
             120.0,   // movement speed
-            18,      // damage (+30% vs beam infantry)
+            18,      // damage
             2.0,     // attack rate
-            170,     // attack range (+15% vs beam infantry)
+            170,     // attack range
             12.0,    // size (radius)
-            3,       // sides (triangle)
             0x00FF00, // green
             BuildingType.BARRACKS,
             10,      // upkeep cost
@@ -72,7 +70,6 @@ public enum UnitType {
             1.5,     // attack rate (slower than rifle)
             130,     // attack range (shorter than rifle - close range weapon)
             12.0,    // size (radius)
-            3,       // sides (triangle)
             0x228B22, // forest green (darker than regular infantry)
             BuildingType.BARRACKS,
             13,      // upkeep cost (higher than infantry)
@@ -94,7 +91,6 @@ public enum UnitType {
             1.5,     // attack rate (faster than infantry)
             180,     // attack range (longer than infantry)
             12.0,    // size (radius)
-            3,       // sides (triangle)
             0x00FFFF, // cyan (to distinguish from regular infantry)
             BuildingType.BARRACKS,
             12,      // upkeep cost (higher than infantry)
@@ -116,7 +112,6 @@ public enum UnitType {
             0.0,     // attack rate
             0,       // attack range
             12.0,    // size (radius)
-            6,       // sides (hexagon)
             0xFFFFFF, // white
             BuildingType.BARRACKS,
             8,       // upkeep cost
@@ -138,7 +133,6 @@ public enum UnitType {
             0.8,     // attack rate (slower)
             200,     // attack range
             12.0,    // size (radius)
-            3,       // sides (triangle)
             0xFF8800, // orange
             BuildingType.BARRACKS,
             15,      // upkeep cost
@@ -160,7 +154,6 @@ public enum UnitType {
             0.5,     // attack rate (slow, precise shots)
             345,     // attack range (+15% vs beam sniper)
             12.0,    // size (radius)
-            3,       // sides (triangle)
             0x8B4513, // brown
             BuildingType.BARRACKS,
             12,      // upkeep cost
@@ -182,7 +175,6 @@ public enum UnitType {
             0.0,     // attack rate
             0,       // attack range
             13.0,    // size (radius)
-            6,       // sides (hexagon)
             0x00CED1, // dark turquoise (distinct from yellow worker)
             BuildingType.BARRACKS,
             10,      // upkeep cost
@@ -204,7 +196,6 @@ public enum UnitType {
             1.2,     // attack rate (slow fire rate - grenades take time)
             150,       // attack range (medium range, arcing projectile)
             12.0,    // size (radius)
-            6,       // sides (hexagon)
             0x8B4513, // saddle brown (explosives/military)
             BuildingType.BARRACKS,
             8,       // upkeep cost
@@ -212,6 +203,27 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
             Set.of(), // Tier 1 unit
+            2        // faction customization point cost
+    ),
+
+    // Minigunner - high fire rate, low damage, inaccurate suppression infantry
+    MINIGUNNER(
+            "Minigunner",
+            140,     // resource cost (between infantry and grenadier)
+            8,       // build time (seconds)
+            120,     // max health (moderate durability)
+            105.0,   // movement speed (moderate, carrying heavy weapon)
+            8,       // damage (low per shot, but extremely high fire rate)
+            5.0,     // attack rate (VERY FAST - 5 shots per second!)
+            160,     // attack range (standard)
+            12.0,    // size (radius)
+            0x556B2F, // dark olive green (heavy weapons specialist)
+            BuildingType.BARRACKS,
+            12,      // upkeep cost (high due to ammo consumption)
+            340.0,   // vision range (standard infantry),
+            Elevation.GROUND,
+            UnitCategory.INFANTRY, // category
+            Set.of(), // Tier 1 unit (basic suppression weapon)
             2        // faction customization point cost
     ),
 
@@ -226,7 +238,6 @@ public enum UnitType {
             3.0,     // attack rate
             207,     // attack range (+15% vs beam scout)
             20.0,    // size (radius)
-            4,       // sides (rectangle)
             0x00FFFF, // cyan
             BuildingType.FACTORY,
             20,      // upkeep cost
@@ -248,7 +259,6 @@ public enum UnitType {
             1.2,     // attack rate
             240,     // attack range (+15% vs beam tank)
             27.0,    // size (radius)
-            5,       // sides (pentagon)
             0x8888FF, // light blue
             BuildingType.FACTORY,
             30,      // upkeep cost
@@ -270,7 +280,6 @@ public enum UnitType {
             1.5,     // attack rate (decent fire rate)
             300,     // attack range (longer than tank for AA role)
             24.0,    // size (radius)
-            6,       // sides (hexagon)
             0xA0A0A0, // gray (flak color)
             BuildingType.FACTORY,
             25,      // upkeep cost
@@ -292,7 +301,6 @@ public enum UnitType {
             0.7,     // attack rate (slow reload between missiles)
             380,     // attack range (very long range AA)
             24.0,    // size (radius)
-            6,       // sides (hexagon)
             0x708090, // slate gray (military AA color)
             BuildingType.FACTORY,
             28,      // upkeep cost
@@ -314,7 +322,6 @@ public enum UnitType {
             0.0,     // attack rate
             0,       // attack range
             26.0,    // size (radius) - larger than normal tank
-            8,       // sides (octagon)
             0x9370DB, // medium purple (shield/energy color)
             BuildingType.FACTORY,
             30,      // upkeep cost (high, powerful support)
@@ -336,7 +343,6 @@ public enum UnitType {
             0.5,     // attack rate (very slow)
             437,     // attack range (+15% vs beam artillery)
             25.0,    // size (radius)
-            6,       // sides (hexagon)
             0xFF00FF, // magenta
             BuildingType.FACTORY,
             40,      // upkeep cost
@@ -358,7 +364,6 @@ public enum UnitType {
             0.3,     // attack rate (EXTREMELY SLOW!)
             450,     // attack range (LONGEST!)
             35.0,    // size (radius) (HUGE!)
-            8,       // sides (octagon)
             0x8B0000, // dark red
             BuildingType.FACTORY,
             60,      // upkeep cost (VERY HIGH!)
@@ -380,7 +385,6 @@ public enum UnitType {
             1.5,     // attack rate
             200,     // attack range
             28.0,    // size (radius)
-            5,       // sides (pentagon)
             0x2F4F4F, // dark slate gray
             BuildingType.FACTORY,
             45,      // upkeep cost
@@ -404,7 +408,6 @@ public enum UnitType {
             2.2,     // attack rate (fast)
             180,     // attack range
             22.0,    // size (radius)
-            3,       // sides (triangle - agile)
             0xDC143C, // crimson (raider red)
             BuildingType.FACTORY,
             45,      // upkeep cost
@@ -426,7 +429,6 @@ public enum UnitType {
             0.9,     // attack rate (moderate)
             250,     // attack range
             43.0,    // size (radius) (MASSIVE!)
-            6,       // sides (hexagon)
             0x4B0082, // indigo (synthesis purple)
             BuildingType.FACTORY,
             75,      // upkeep cost (VERY HIGH!)
@@ -450,7 +452,6 @@ public enum UnitType {
             2.0,     // attack rate (fast)
             148,     // attack range (instant hit beam weapon)
             12.0,    // size (radius)
-            3,       // sides (triangle)
             0x00FF7F, // spring green (plasma color)
             BuildingType.BARRACKS,
             11,      // upkeep cost
@@ -472,7 +473,6 @@ public enum UnitType {
             0.6,     // attack rate (slow, precise)
             300,     // attack range (instant hit beam weapon)
             12.0,    // size (radius)
-            3,       // sides (triangle)
             0x9370DB, // medium purple (ion beam)
             BuildingType.BARRACKS,
             14,      // upkeep cost
@@ -494,7 +494,6 @@ public enum UnitType {
             2.5,     // attack rate (rapid fire)
             180,     // attack range (instant hit beam weapon)
             18.0,    // size (radius)
-            4,       // sides (rectangle)
             0x7FFF00, // chartreuse (bright energy)
             BuildingType.FACTORY,
             22,      // upkeep cost
@@ -516,7 +515,6 @@ public enum UnitType {
             1.3,     // attack rate
             209,     // attack range (instant hit beam weapon)
             30.0,    // size (radius)
-            6,       // sides (hexagon)
             0x00FA9A, // medium spring green
             BuildingType.FACTORY,
             32,      // upkeep cost
@@ -538,7 +536,6 @@ public enum UnitType {
             0.6,     // attack rate (slow)
             380,     // attack range (instant hit beam weapon)
             26.0,    // size (radius)
-            6,       // sides (hexagon)
             0xFFD700, // gold (energy pulse)
             BuildingType.FACTORY,
             42,      // upkeep cost
@@ -560,7 +557,6 @@ public enum UnitType {
             0.4,     // attack rate (slow but devastating)
             460,     // attack range (LONGEST!)
             32.0,    // size (radius) (HUGE!)
-            8,       // sides (octagon)
             0x00FF00, // bright green (pure energy)
             BuildingType.FACTORY,
             65,      // upkeep cost (VERY HIGH!)
@@ -583,7 +579,6 @@ public enum UnitType {
             1.5,     // attack rate (good)
             180,     // attack range (good)
             13.0,    // size (radius)
-            4,       // sides (square/diamond)
             0x00CED1, // dark turquoise (Synthesis faction color)
             BuildingType.ANDROID_FACTORY,
             0,       // upkeep cost (ZERO!)
@@ -608,7 +603,6 @@ public enum UnitType {
             2.5,     // attack rate (rapid fire)
             150,     // attack range (moderate)
             12.0,    // size (radius) - small
-            4,       // sides (square/diamond shape)
             0x87CEEB, // light sky blue (air unit color)
             BuildingType.AIRFIELD,
             15,      // upkeep cost
@@ -632,7 +626,6 @@ public enum UnitType {
             1.8,     // attack rate (decent fire rate)
             220,     // attack range (good range for air-to-ground)
             16.0,    // size (radius) - medium aircraft
-            5,       // sides (pentagon shape)
             0x8B4513, // saddle brown (military helicopter color)
             BuildingType.AIRFIELD,
             25,      // upkeep cost (moderate)
@@ -656,7 +649,6 @@ public enum UnitType {
             0.5,     // attack rate (slow - payload limitation)
             0,       // attack range (N/A - bombs are dropped, not fired)
             21.0,    // size (radius) - larger aircraft
-            6,       // sides (hexagonal fuselage)
             0x2F4F4F, // dark slate gray (bomber color)
             BuildingType.HANGAR, // Housed in hangar, not produced at airfield
             50,      // upkeep cost (HIGH - strategic bomber)
@@ -680,7 +672,6 @@ public enum UnitType {
             2.0,     // attack rate (fast for air-to-air)
             300,     // attack range (long-range seeking missiles)
             14.0,    // size (radius) - sleek fighter
-            3,       // sides (triangle - delta wing)
             0xFF4500, // orange-red (fighter jet color)
             BuildingType.HANGAR, // Housed in hangar
             40,      // upkeep cost (high)
@@ -704,7 +695,6 @@ public enum UnitType {
             2.0,     // attack rate (decent fire rate)
             280,     // attack range (good engagement range)
             31.0,    // size (radius) - heavy aircraft
-            6,       // sides (hexagon - gunship)
             0x8B0000, // dark red (intimidating gunship color)
             BuildingType.HANGAR, // Produced at Hangar (sortie-based)
             55,      // upkeep cost (high, hero unit)
@@ -724,7 +714,6 @@ public enum UnitType {
     private final double attackRate; // attacks per second
     private final double attackRange;
     private final double size; // radius for collision
-    private final int sides; // number of sides for polygon rendering
     private final int color; // hex color for rendering
     private final BuildingType producedBy; // which building produces this unit
     private final int upkeepCost; // supply/upkeep cost
@@ -862,6 +851,53 @@ public enum UnitType {
                 Convex pouchRight = Geometry.createPolygon(rightPouch);
 
                 yield List.of(torso, pouchLeft, pouchRight);
+            }
+
+            // Minigunner - heavy weapons specialist with rotating barrel assembly
+            case MINIGUNNER -> {
+                // Main body: reinforced pentagon (braced for recoil)
+                Vector2[] mainBody = new Vector2[]{
+                        new Vector2(-size * 0.8, -size * 0.45), // Back left (wide stance)
+                        new Vector2(-size * 0.2, -size * 0.85), // Left shoulder (heavy support)
+                        new Vector2(size * 0.9, 0),             // Front point (barrel assembly)
+                        new Vector2(-size * 0.2, size * 0.85),  // Right shoulder (heavy support)
+                        new Vector2(-size * 0.8, size * 0.45)   // Back right (wide stance)
+                };
+                Convex torso = Geometry.createPolygon(mainBody);
+
+                // Rotating barrel assembly (top)
+                Vector2[] topBarrel = new Vector2[]{
+                        new Vector2(size * 0.3, -size * 0.5),
+                        new Vector2(size * 1.0, -size * 0.35),
+                        new Vector2(size * 0.9, -size * 0.15)
+                };
+                Convex barrelTop = Geometry.createPolygon(topBarrel);
+
+                // Rotating barrel assembly (bottom)
+                Vector2[] bottomBarrel = new Vector2[]{
+                        new Vector2(size * 0.3, size * 0.5),
+                        new Vector2(size * 0.9, size * 0.15),
+                        new Vector2(size * 1.0, size * 0.35)
+                };
+                Convex barrelBottom = Geometry.createPolygon(bottomBarrel);
+
+                // Ammo belt/feed (left side)
+                Vector2[] ammoLeft = new Vector2[]{
+                        new Vector2(-size * 0.6, -size * 0.7),
+                        new Vector2(-size * 0.2, -size * 0.95),
+                        new Vector2(size * 0.1, -size * 0.75)
+                };
+                Convex beltLeft = Geometry.createPolygon(ammoLeft);
+
+                // Ammo belt/feed (right side)
+                Vector2[] ammoRight = new Vector2[]{
+                        new Vector2(-size * 0.6, size * 0.7),
+                        new Vector2(size * 0.1, size * 0.75),
+                        new Vector2(-size * 0.2, size * 0.95)
+                };
+                Convex beltRight = Geometry.createPolygon(ammoRight);
+
+                yield List.of(torso, barrelTop, barrelBottom, beltLeft, beltRight);
             }
 
             // Laser Infantry - angular prism design with crystalline focusing arrays
@@ -2134,7 +2170,7 @@ public enum UnitType {
 
     UnitType(String displayName, int resourceCost, int buildTimeSeconds, double maxHealth,
              double movementSpeed, double damage, double attackRate, double attackRange,
-             double size, int sides, int color, BuildingType producedBy, int upkeepCost, double visionRange,
+             double size, int color, BuildingType producedBy, int upkeepCost, double visionRange,
              Elevation elevation, UnitCategory category, Set<BuildingType> requiredBuildings, int pointCost) {
         this.displayName = displayName;
         this.resourceCost = resourceCost;
@@ -2145,7 +2181,6 @@ public enum UnitType {
         this.attackRate = attackRate;
         this.attackRange = attackRange;
         this.size = size;
-        this.sides = sides;
         this.color = color;
         this.producedBy = producedBy;
         this.upkeepCost = upkeepCost;

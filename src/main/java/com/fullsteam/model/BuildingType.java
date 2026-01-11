@@ -22,7 +22,6 @@ public enum BuildingType {
             0,       // no build time
             5000,    // max health
             80.0,    // size (radius)
-            8,       // sides (octagon)
             0xFFD700, // gold
             true,    // can produce units
             50,      // power generation
@@ -37,7 +36,6 @@ public enum BuildingType {
             20,      // build time (seconds)
             600,     // max health
             50.0,    // size (radius)
-            6,       // sides (hexagon)
             0x808080, // gray
             false,   // cannot produce units
             -10,     // power consumption
@@ -52,7 +50,6 @@ public enum BuildingType {
             15,      // build time (seconds)
             550,     // max health
             45.0,    // size (radius)
-            4,       // sides (rectangle)
             0x8B4513, // brown
             true,    // can produce units
             -25,     // power consumption
@@ -67,7 +64,6 @@ public enum BuildingType {
             20,      // build time (seconds)
             400,     // max health
             40.0,    // size (radius)
-            6,       // sides (hexagon)
             0xFFFF00, // yellow
             false,   // cannot produce units
             100,     // power generation
@@ -82,7 +78,6 @@ public enum BuildingType {
             5,       // build time (seconds)
             500,     // max health
             15.0,    // size (radius) - small for tight placement
-            4,       // sides (square)
             0x708090, // slate gray
             false,   // cannot produce units
             0,       // no power needed
@@ -97,7 +92,6 @@ public enum BuildingType {
             25,      // build time (seconds)
             800,     // max health
             55.0,    // size (radius)
-            4,       // sides (rectangle)
             0x696969, // dark gray
             true,    // can produce units
             -30,     // power consumption
@@ -112,7 +106,6 @@ public enum BuildingType {
             30,      // build time (seconds)
             700,     // max health
             50.0,    // size (radius)
-            6,       // sides (hexagon)
             0x00CED1, // dark turquoise
             false,   // cannot produce units
             -35,     // power consumption
@@ -127,7 +120,6 @@ public enum BuildingType {
             40,      // build time (seconds)
             900,     // max health
             60.0,    // size (radius)
-            8,       // sides (octagon)
             0x4169E1, // royal blue
             false,   // cannot produce units
             -50,     // power consumption
@@ -143,7 +135,6 @@ public enum BuildingType {
             15,      // build time (seconds)
             500,     // max health
             25.0,    // size (radius)
-            5,       // sides (pentagon)
             0xFF4500, // orange red
             false,   // cannot produce units
             -35,     // power consumption
@@ -158,7 +149,6 @@ public enum BuildingType {
             20,      // build time (seconds)
             400,     // max health (lower than basic turret)
             25.0,    // size (radius)
-            6,       // sides (hexagon)
             0xFF6347, // tomato red
             false,   // cannot produce units
             -50,     // power consumption (higher than basic)
@@ -173,7 +163,6 @@ public enum BuildingType {
             18,      // build time (seconds)
             450,     // max health (moderate durability)
             25.0,    // size (radius)
-            6,       // sides (hexagon)
             0xA0A0A0, // gray (flak color)
             false,   // cannot produce units
             -45,     // power consumption (moderate)
@@ -188,7 +177,6 @@ public enum BuildingType {
             25,      // build time (seconds)
             350,     // max health (lowest of turrets - glass cannon)
             25.0,    // size (radius)
-            8,       // sides (octagon - advanced tech)
             0x00FFFF, // cyan (laser blue)
             false,   // cannot produce units
             -65,     // power consumption (highest - energy weapon)
@@ -203,7 +191,6 @@ public enum BuildingType {
             18,      // build time (seconds)
             1200,     // max health
             35.0,    // size (radius)
-            4,       // sides (rectangle)
             0x556B2F, // dark olive green
             false,   // cannot produce units
             -15,     // power consumption
@@ -218,7 +205,6 @@ public enum BuildingType {
             25,      // build time (seconds)
             500,     // max health
             30.0,    // size (radius)
-            6,       // sides (hexagon)
             0x00BFFF, // deep sky blue
             false,   // cannot produce units
             -40,     // power consumption
@@ -233,7 +219,6 @@ public enum BuildingType {
             30,      // build time (seconds)
             420,     // max health
             35.0,    // size (radius)
-            8,       // sides (octagon)
             0xFFD700, // gold
             false,   // cannot produce units
             -30,     // power consumption
@@ -248,7 +233,6 @@ public enum BuildingType {
             60,      // build time (seconds)
             800,     // max health
             35.0,    // size (radius) - reduced from 45
-            6,       // sides (hexagon)
             0xDEB887, // burlywood (sandy color)
             false,   // cannot produce units
             -40,     // power consumption
@@ -263,7 +247,6 @@ public enum BuildingType {
             90,      // build time (seconds)
             900,     // max health
             42.0,    // size (radius)
-            8,       // sides (octagon)
             0x00CED1, // dark turquoise (Synthesis faction color)
             true,    // can produce units (Androids!)
             -60,     // power consumption
@@ -278,7 +261,6 @@ public enum BuildingType {
             60,      // build time (seconds)
             800,    // max health
             48.0,    // size (radius)
-            6,       // sides (hexagon)
             0x00FF00, // bright green (photon energy)
             false,   // cannot produce units
             -75,     // power consumption
@@ -293,7 +275,6 @@ public enum BuildingType {
             80,      // build time (seconds)
             1000,    // max health
             55.0,    // size (radius) - large and imposing
-            8,       // sides (octagon)
             0x4169E1, // royal blue (command authority)
             false,   // cannot produce units
             -50,     // power consumption
@@ -308,7 +289,6 @@ public enum BuildingType {
             35,      // build time (seconds)
             700,     // max health
             60.0,    // size (radius) - large landing pad
-            8,       // sides (octagon)
             0x708090, // slate gray (runway color)
             true,    // can produce units (air units!)
             -40,     // power consumption
@@ -323,7 +303,6 @@ public enum BuildingType {
             25,      // build time (seconds)
             600,     // max health
             35.0,    // size (radius) - medium building
-            4,       // sides (rectangle - hangar shape)
             0x4A5568, // dark blue-gray (hangar color)
             true,    // can produce units (produces one bomber per hangar)
             -20,     // power consumption
@@ -337,7 +316,6 @@ public enum BuildingType {
             70,      // build time (seconds)
             850,     // max health
             45.0,    // size (radius)
-            8,       // sides (octagon)
             0x4682B4, // steel blue (storm theme)
             false,   // cannot produce units
             -60,     // power consumption
@@ -350,7 +328,6 @@ public enum BuildingType {
     private final int buildTimeSeconds;
     private final double maxHealth;
     private final double size; // radius for collision
-    private final int sides; // number of sides for polygon rendering
     private final int color; // hex color for rendering
     private final boolean canProduceUnits;
     private final int powerValue; // Power generation (positive) or consumption (negative)
@@ -362,7 +339,6 @@ public enum BuildingType {
                  int buildTimeSeconds,
                  double maxHealth,
                  double size,
-                 int sides,
                  int color,
                  boolean canProduceUnits,
                  int powerValue,
@@ -373,7 +349,6 @@ public enum BuildingType {
         this.buildTimeSeconds = buildTimeSeconds;
         this.maxHealth = maxHealth;
         this.size = size;
-        this.sides = sides;
         this.color = color;
         this.canProduceUnits = canProduceUnits;
         this.powerValue = powerValue;

@@ -29,6 +29,7 @@ public class ProjectileWeapon extends Weapon {
     private double projectileSize; // Visual/collision size
     private Ordinance ordinanceType; // Visual type (BULLET, ROCKET, SHELL, etc.)
     private Set<BulletEffect> bulletEffects; // Special effects (EXPLOSIVE, PIERCING, etc.)
+    private double accuracy; // Accuracy in radians (0 = perfect, negative = random spread)
 
     /**
      * Create a projectile weapon with full configuration.
@@ -42,12 +43,30 @@ public class ProjectileWeapon extends Weapon {
                             Ordinance ordinanceType,
                             Set<BulletEffect> bulletEffects,
                             ElevationTargeting elevationTargeting) {
+        this(damage, range, attackRate, projectileSpeed, linearDamping, projectileSize, 
+             ordinanceType, bulletEffects, elevationTargeting, 0.0);
+    }
+
+    /**
+     * Create a projectile weapon with full configuration including accuracy.
+     */
+    public ProjectileWeapon(double damage,
+                            double range,
+                            double attackRate,
+                            double projectileSpeed,
+                            double linearDamping,
+                            double projectileSize,
+                            Ordinance ordinanceType,
+                            Set<BulletEffect> bulletEffects,
+                            ElevationTargeting elevationTargeting,
+                            double accuracy) {
         super(damage, range, attackRate, elevationTargeting);
         this.projectileSpeed = projectileSpeed;
         this.linearDamping = linearDamping;
         this.projectileSize = projectileSize;
         this.ordinanceType = ordinanceType;
         this.bulletEffects = bulletEffects != null ? Set.copyOf(bulletEffects) : Set.of();
+        this.accuracy = accuracy;
     }
 
     @Override
@@ -58,10 +77,26 @@ public class ProjectileWeapon extends Weapon {
                                                        int ownerTeam,
                                                        Body ignoredBody,
                                                        GameEntities gameEntities) {
-        Vector2 velocity = targetPosition.copy()
+        Vector2 direction = targetPosition.copy()
                 .subtract(position)
-                .getNormalized()
-                .multiply(projectileSpeed);
+                .getNormalized();
+
+        // Apply accuracy spread (if accuracy < 0, add random spread)
+        if (accuracy < 0) {
+            double spread = -accuracy; // Convert to positive spread value
+            double randomAngle = (Math.random() - 0.5) * spread * 2; // Random angle within spread
+            
+            // Rotate direction by random angle
+            double cos = Math.cos(randomAngle);
+            double sin = Math.sin(randomAngle);
+            Vector2 rotatedDir = new Vector2(
+                    direction.x * cos - direction.y * sin,
+                    direction.x * sin + direction.y * cos
+            );
+            direction = rotatedDir.getNormalized();
+        }
+
+        Vector2 velocity = direction.multiply(projectileSpeed);
 
         // Determine seeking missile parameters
         Integer targetEntityId = null;
@@ -155,7 +190,8 @@ public class ProjectileWeapon extends Weapon {
                 projectileSize,
                 ordinanceType,
                 Set.copyOf(bulletEffects),
-                elevationTargeting
+                elevationTargeting,
+                accuracy
         );
     }
 }
