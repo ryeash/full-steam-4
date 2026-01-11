@@ -26,7 +26,8 @@ public enum BuildingType {
             0xFFD700, // gold
             true,    // can produce units
             50,      // power generation
-            500.0    // vision range (excellent, main base)
+            500.0,   // vision range (excellent, main base)
+            0        // faction customization point cost
     ),
 
     // Resource collection point
@@ -40,7 +41,8 @@ public enum BuildingType {
             0x808080, // gray
             false,   // cannot produce units
             -10,     // power consumption
-            350.0    // vision range (moderate, economic building)
+            350.0,   // vision range (moderate, economic building)
+            2        // faction customization point cost
     ),
 
     // Infantry production
@@ -54,7 +56,8 @@ public enum BuildingType {
             0x8B4513, // brown
             true,    // can produce units
             -25,     // power consumption
-            380.0    // vision range (good, production building)
+            380.0,   // vision range (good, production building)
+            3        // faction customization point cost
     ),
 
     // Power generation - required for advanced buildings
@@ -68,7 +71,8 @@ public enum BuildingType {
             0xFFFF00, // yellow
             false,   // cannot produce units
             100,     // power generation
-            360.0    // vision range (moderate, utility building)
+            360.0,   // vision range (moderate, utility building)
+            0        // faction customization point cost
     ),
 
     // Defensive structure - blocks movement
@@ -82,7 +86,8 @@ public enum BuildingType {
             0x708090, // slate gray
             false,   // cannot produce units
             0,       // no power needed
-            250.0
+            250.0,
+            1        // faction customization point cost
     ),
 
     // Vehicle production
@@ -96,7 +101,8 @@ public enum BuildingType {
             0x696969, // dark gray
             true,    // can produce units
             -30,     // power consumption
-            390.0    // vision range (good, production building)
+            390.0,   // vision range (good, production building)
+            5        // faction customization point cost
     ),
 
     // Research and tech unlocking - unlocks T2
@@ -110,7 +116,8 @@ public enum BuildingType {
             0x00CED1, // dark turquoise
             false,   // cannot produce units
             -35,     // power consumption
-            400.0    // vision range (good, tech building)
+            400.0,   // vision range (good, tech building)
+            4        // faction customization point cost
     ),
 
     // Elite tech unlocking - unlocks T3
@@ -124,7 +131,8 @@ public enum BuildingType {
             0x4169E1, // royal blue
             false,   // cannot produce units
             -50,     // power consumption
-            420.0    // vision range (excellent, advanced tech)
+            420.0,   // vision range (excellent, advanced tech)
+            6        // faction customization point cost
     ),
 
 
@@ -139,7 +147,8 @@ public enum BuildingType {
             0xFF4500, // orange red
             false,   // cannot produce units
             -35,     // power consumption
-            450.0    // vision range (excellent, needs to spot threats)
+            450.0,   // vision range (excellent, needs to spot threats)
+            2        // faction customization point cost
     ),
 
     // Defensive structure - fires rockets with explosive damage
@@ -153,7 +162,8 @@ public enum BuildingType {
             0xFF6347, // tomato red
             false,   // cannot produce units
             -50,     // power consumption (higher than basic)
-            480.0    // vision range (excellent, long-range targeting)
+            480.0,   // vision range (excellent, long-range targeting)
+            3        // faction customization point cost
     ),
 
     // Defensive structure - dedicated anti-aircraft flak cannon
@@ -167,7 +177,8 @@ public enum BuildingType {
             0xA0A0A0, // gray (flak color)
             false,   // cannot produce units
             -45,     // power consumption (moderate)
-            500.0    // vision range (excellent, needs to spot aircraft)
+            500.0,   // vision range (excellent, needs to spot aircraft)
+            3        // faction customization point cost
     ),
 
     // Defensive structure - fires laser beams
@@ -181,7 +192,8 @@ public enum BuildingType {
             0x00FFFF, // cyan (laser blue)
             false,   // cannot produce units
             -65,     // power consumption (highest - energy weapon)
-            500.0    // vision range (best, advanced sensors)
+            500.0,   // vision range (best, advanced sensors)
+            4        // faction customization point cost
     ),
 
     // Defensive structure - infantry can garrison inside and fire out
@@ -195,7 +207,8 @@ public enum BuildingType {
             0x556B2F, // dark olive green
             false,   // cannot produce units
             -15,     // power consumption
-            420.0    // vision range (excellent, defensive structure)
+            420.0,   // vision range (excellent, defensive structure)
+            3        // faction customization point cost
     ),
 
     // Defensive structure - projects shield that destroys incoming projectiles
@@ -209,7 +222,8 @@ public enum BuildingType {
             0x00BFFF, // deep sky blue
             false,   // cannot produce units
             -40,     // power consumption
-            380.0    // vision range (good, defensive utility)
+            380.0,   // vision range (good, defensive utility)
+            4        // faction customization point cost
     ),
 
     // Economic building - generates passive income based on current credits (compound interest)
@@ -223,7 +237,8 @@ public enum BuildingType {
             0xFFD700, // gold
             false,   // cannot produce units
             -30,     // power consumption
-            350.0    // vision range (moderate, economic building)
+            350.0,   // vision range (moderate, economic building)
+            4        // faction customization point cost
     ),
 
     // Creates sandstorms for area denial
@@ -237,7 +252,8 @@ public enum BuildingType {
             0xDEB887, // burlywood (sandy color)
             false,   // cannot produce units
             -40,     // power consumption
-            430.0    // vision range (good)
+            430.0,   // vision range (good)
+            12       // faction customization point cost
     ),
 
     // Autonomous android production facility
@@ -251,7 +267,8 @@ public enum BuildingType {
             0x00CED1, // dark turquoise (Synthesis faction color)
             true,    // can produce units (Androids!)
             -60,     // power consumption
-            420.0    // vision range (excellent)
+            420.0,   // vision range (excellent)
+            12       // faction customization point cost
     ),
 
     // Defensive laser tower
@@ -265,7 +282,8 @@ public enum BuildingType {
             0x00FF00, // bright green (photon energy)
             false,   // cannot produce units
             -75,     // power consumption
-            480.0    // vision range (excellent, defensive)
+            480.0,   // vision range (excellent, defensive)
+            12       // faction customization point cost
     ),
 
     // Ultimate command center
@@ -279,7 +297,8 @@ public enum BuildingType {
             0x4169E1, // royal blue (command authority)
             false,   // cannot produce units
             -50,     // power consumption
-            1000.0    // vision range (HUGE, command center bonus)
+            1000.0,  // vision range (HUGE, command center bonus)
+            12       // faction customization point cost
     ),
 
     // Air unit production - requires Tech Center
@@ -293,7 +312,8 @@ public enum BuildingType {
             0x708090, // slate gray (runway color)
             true,    // can produce units (air units!)
             -40,     // power consumption
-            420.0    // vision range (good, airfield tower)
+            420.0,   // vision range (good, airfield tower)
+            5        // faction customization point cost
     ),
 
     // Aircraft housing - must be built near Airfield, houses sortie-based aircraft
@@ -307,7 +327,8 @@ public enum BuildingType {
             0x4A5568, // dark blue-gray (hangar color)
             true,    // can produce units (produces one bomber per hangar)
             -20,     // power consumption
-            350.0    // vision range (moderate)
+            350.0,   // vision range (moderate)
+            5        // faction customization point cost
     ),
 
     TEMPEST_SPIRE(
@@ -320,7 +341,8 @@ public enum BuildingType {
             0x4682B4, // steel blue (storm theme)
             false,   // cannot produce units
             -60,     // power consumption
-            600.0    // vision range (excellent, weather tower)
+            600.0,   // vision range (excellent, weather tower)
+            12       // faction customization point cost
     );
 
     private final String displayName;
@@ -333,6 +355,7 @@ public enum BuildingType {
     private final boolean canProduceUnits;
     private final int powerValue; // Power generation (positive) or consumption (negative)
     private final double visionRange; // vision radius for fog of war
+    private final int pointCost; // faction customization point cost
 
     BuildingType(String displayName,
                  int resourceCost,
@@ -343,7 +366,8 @@ public enum BuildingType {
                  int color,
                  boolean canProduceUnits,
                  int powerValue,
-                 double visionRange) {
+                 double visionRange,
+                 int pointCost) {
         this.displayName = displayName;
         this.resourceCost = resourceCost;
         this.buildTimeSeconds = buildTimeSeconds;
@@ -354,6 +378,7 @@ public enum BuildingType {
         this.canProduceUnits = canProduceUnits;
         this.powerValue = powerValue;
         this.visionRange = visionRange;
+        this.pointCost = pointCost;
     }
 
     public static List<BuildingType> sorted() {

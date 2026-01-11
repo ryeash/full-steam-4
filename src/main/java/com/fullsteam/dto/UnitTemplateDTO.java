@@ -26,7 +26,6 @@ public class UnitTemplateDTO {
     private String category;
     private String unitCategory;
     private List<String> tags;
-    private boolean isHeroUnit;
     private String iconPath;
     private List<String> techRequirements; // NEW: Required buildings to unlock this
     
@@ -53,7 +52,6 @@ public class UnitTemplateDTO {
             .category(template.getCategory().name())
             .unitCategory(template.getUnitCategory().name())
             .tags(template.getTags())
-            .isHeroUnit(template.isHeroUnit())
             .iconPath(template.getIconPath())
             .techRequirements(techReqs)
             .maxHealth(template.getMaxHealth())

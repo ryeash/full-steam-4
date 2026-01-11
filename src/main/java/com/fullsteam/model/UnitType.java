@@ -35,7 +35,8 @@ public enum UnitType {
             300.0,   // vision range (moderate)
             Elevation.GROUND, // elevation
             UnitCategory.WORKER, // category
-            Set.of() // no tech requirements (basic unit)
+            Set.of(), // no tech requirements (basic unit)
+            0        // faction customization point cost
     ),
 
     // Infantry - basic combat unit
@@ -56,7 +57,8 @@ public enum UnitType {
             350.0,   // vision range (standard infantry),
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
-            Set.of() // no tech requirements (basic unit)
+            Set.of(), // no tech requirements (basic unit)
+            2        // faction customization point cost
     ),
 
     // Shotgun Infantry - powerful close-range infantry
@@ -77,7 +79,8 @@ public enum UnitType {
             340.0,   // vision range (standard infantry),
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
-            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 specialist
+            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 specialist
+            2        // faction customization point cost
     ),
 
     // Laser Infantry - advanced infantry with beam weapons
@@ -98,7 +101,8 @@ public enum UnitType {
             360.0,   // vision range (slightly better than infantry),
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
-            Set.of()
+            Set.of(),
+            2        // faction customization point cost
     ),
 
     // Medic - support unit that heals nearby friendlies
@@ -119,7 +123,8 @@ public enum UnitType {
             340.0,  // vision range (support unit, moderate),
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
-            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 support unit
+            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 support unit
+            1        // faction customization point cost
     ),
 
     // Rocket Soldier - anti-vehicle infantry
@@ -140,7 +145,8 @@ public enum UnitType {
             370.0,    // vision range (good, needs to spot vehicles),
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
-            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 specialist
+            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 specialist
+            2        // faction customization point cost
     ),
 
     // Sniper - long-range precision unit
@@ -161,7 +167,8 @@ public enum UnitType {
             500.0,    // vision range (excellent, sniper needs vision),
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
-            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 specialist
+            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 specialist
+            3        // faction customization point cost
     ),
 
     // Engineer - repairs buildings and vehicles
@@ -182,7 +189,8 @@ public enum UnitType {
             330.0,    // vision range (support unit),
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
-            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 support unit
+            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 support unit
+            1        // faction customization point cost
     ),
 
     // Grenadier - AOE infantry, anti-structure specialist
@@ -203,7 +211,8 @@ public enum UnitType {
             300.0,   // vision range (standard infantry),
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
-            Set.of() // Tier 1 unit
+            Set.of(), // Tier 1 unit
+            2        // faction customization point cost
     ),
 
     // Jeep - fast light vehicle
@@ -224,7 +233,8 @@ public enum UnitType {
             450.0,    // vision range (scout vehicle, excellent vision),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of() // no tech requirements (basic scout)
+            Set.of(), // no tech requirements (basic scout)
+            3        // faction customization point cost
     ),
 
     // Tank - heavy armored vehicle
@@ -245,7 +255,8 @@ public enum UnitType {
             400.0,    // vision range (good, main battle tank),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 main battle tank
+            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 main battle tank
+            4        // faction customization point cost
     ),
 
     // Flak Tank - early-game anti-air vehicle
@@ -266,7 +277,8 @@ public enum UnitType {
             420.0,    // vision range (good, needs to spot aircraft),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 anti-air
+            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 anti-air
+            3        // faction customization point cost
     ),
 
     // SAM Launcher - dedicated long-range anti-aircraft platform
@@ -287,7 +299,8 @@ public enum UnitType {
             480.0,   // vision range (excellent, needs to spot aircraft),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 specialized AA
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 specialized AA
+            5        // faction customization point cost
     ),
 
     // Shield Tank - mobile shield generator, defensive support
@@ -308,7 +321,8 @@ public enum UnitType {
             350.0,   // vision range (standard),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 advanced support
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 advanced support
+            1        // faction customization point cost
     ),
 
     // Artillery - long range siege unit
@@ -329,7 +343,8 @@ public enum UnitType {
             420.0,    // vision range (good, needs to spot targets),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 siege weapon
+            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 siege weapon
+            6        // faction customization point cost
     ),
 
     // GIGANTONAUT - Super heavy artillery
@@ -350,7 +365,8 @@ public enum UnitType {
             200.0,    // poor vision, needs a spotter to hit distant targets
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Hero unit - requires advanced tech
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
+            10       // faction customization point cost
     ),
 
     // Cloak Tank - invisible until attacking or detected
@@ -371,7 +387,8 @@ public enum UnitType {
             380.0,    // vision range (moderate, cloak unit),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 stealth tech
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 stealth tech
+            3        // faction customization point cost
     ),
 
     // ===== HERO UNITS =====
@@ -394,7 +411,8 @@ public enum UnitType {
             520.0,    // vision range (hero scout, exceptional vision),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Hero unit - Nomads faction
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Hero unit - Nomads faction
+            8        // faction customization point cost
     ),
 
     // COLOSSUS - Synthesis hero unit, massive walker
@@ -415,7 +433,8 @@ public enum UnitType {
             490.0,    // vision range (hero unit, excellent vision),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Hero unit - Synthesis faction
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Hero unit - Synthesis faction
+            10       // faction customization point cost
     ),
 
     // ===== TECH ALLIANCE BEAM WEAPON UNITS =====
@@ -438,7 +457,8 @@ public enum UnitType {
             355.0,    // vision range (standard beam infantry),
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
-            Set.of(BuildingType.RESEARCH_LAB)
+            Set.of(BuildingType.RESEARCH_LAB),
+            2        // faction customization point cost
     ),
 
     // ION_RANGER - Long-range beam sniper
@@ -459,7 +479,8 @@ public enum UnitType {
             500.0,    // vision range (excellent, beam sniper),
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category - FIXED: was VEHICLE, should be INFANTRY
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 beam weapons
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 beam weapons
+            3        // faction customization point cost
     ),
 
     // PHOTON_SCOUT - Fast beam vehicle
@@ -480,7 +501,8 @@ public enum UnitType {
             460.0,    // vision range (excellent, scout vehicle),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB)
+            Set.of(BuildingType.RESEARCH_LAB),
+            3        // faction customization point cost
     ),
 
     // BEAM_TANK - Heavy beam vehicle
@@ -501,7 +523,8 @@ public enum UnitType {
             410.0,    // vision range (good, beam tank),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 beam weapons
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 beam weapons
+            4        // faction customization point cost
     ),
 
     // PULSE_ARTILLERY - Long-range beam artillery
@@ -522,7 +545,8 @@ public enum UnitType {
             430.0,    // vision range (good, beam artillery),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 beam weapons
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 beam weapons
+            5        // faction customization point cost
     ),
 
     // PHOTON_TITAN - Hero unit, massive beam platform
@@ -543,7 +567,8 @@ public enum UnitType {
             480.0,    // vision range (hero unit, excellent vision),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Hero unit - Tech Alliance faction
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Hero unit - Tech Alliance faction
+            9        // faction customization point cost
     ),
 
     // ANDROID - Autonomous combat unit produced by Android Factory
@@ -565,7 +590,8 @@ public enum UnitType {
             340.0,    // vision range (moderate, autonomous unit),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.POWER_PLANT, BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER)
+            Set.of(BuildingType.POWER_PLANT, BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
+            0        // faction customization point cost
     ),
 
     // ===== AIR UNITS =====
@@ -589,7 +615,8 @@ public enum UnitType {
             600.0,   // vision range (EXCELLENT - scout unit!)
             Elevation.LOW, // VTOL - can hover, vulnerable to rockets,
             UnitCategory.FLYER, // category
-            Set.of() // no tech requirements (basic scout)
+            Set.of(), // no tech requirements (basic scout)
+            2        // faction customization point cost
     ),
 
     // HELICOPTER - Attack helicopter with dual rockets
@@ -612,7 +639,8 @@ public enum UnitType {
             450.0,   // vision range (good, attack aircraft)
             Elevation.LOW, // VTOL - can hover, vulnerable to rockets,
             UnitCategory.FLYER, // category
-            Set.of(BuildingType.RESEARCH_LAB) // Tier 2 attack aircraft
+            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 attack aircraft
+            3        // faction customization point cost
     ),
 
     // BOMBER - Sortie-based heavy bomber aircraft
@@ -635,7 +663,8 @@ public enum UnitType {
             400.0,   // vision range (good but not scout-level)
             Elevation.HIGH, // Fixed-wing - requires AA weapons,
             UnitCategory.FLYER, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 strategic bomber
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 strategic bomber
+            9        // faction customization point cost
     ),
 
     // INTERCEPTOR - Sortie-based fighter aircraft
@@ -658,7 +687,8 @@ public enum UnitType {
             500.0,   // vision range (excellent, interceptor)
             Elevation.HIGH, // Fixed-wing - high-altitude fighter,
             UnitCategory.FLYER, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Tier 3 advanced fighter
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 advanced fighter
+            6        // faction customization point cost
     ),
 
     // GUNSHIP - Heavy sortie-based attack aircraft with dual weapons
@@ -681,7 +711,8 @@ public enum UnitType {
             480.0,   // vision range (excellent, attack helicopter)
             Elevation.HIGH, // Fixed-wing sortie aircraft,
             UnitCategory.FLYER, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER) // Hero unit - Storm Wings faction
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Hero unit - Storm Wings faction
+            9        // faction customization point cost
     );
 
     private final String displayName;
@@ -724,6 +755,12 @@ public enum UnitType {
      * Example: CLOAK_TANK requires both RESEARCH_LAB and TECH_CENTER
      */
     private final Set<BuildingType> requiredBuildings;
+
+    /**
+     * Point cost for faction customization.
+     * Used when creating custom factions with a point budget.
+     */
+    private final int pointCost;
 
     /**
      * Create physics fixtures for this unit type
@@ -2098,7 +2135,7 @@ public enum UnitType {
     UnitType(String displayName, int resourceCost, int buildTimeSeconds, double maxHealth,
              double movementSpeed, double damage, double attackRate, double attackRange,
              double size, int sides, int color, BuildingType producedBy, int upkeepCost, double visionRange,
-             Elevation elevation, UnitCategory category, Set<BuildingType> requiredBuildings) {
+             Elevation elevation, UnitCategory category, Set<BuildingType> requiredBuildings, int pointCost) {
         this.displayName = displayName;
         this.resourceCost = resourceCost;
         this.buildTimeSeconds = buildTimeSeconds;
@@ -2116,6 +2153,7 @@ public enum UnitType {
         this.elevation = elevation;
         this.category = category;
         this.requiredBuildings = requiredBuildings != null ? requiredBuildings : Set.of();
+        this.pointCost = pointCost;
     }
 
     public static List<UnitType> sorted() {

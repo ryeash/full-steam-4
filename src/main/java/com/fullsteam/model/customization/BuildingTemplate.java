@@ -44,7 +44,7 @@ public class BuildingTemplate implements CustomizableEntity {
                 .buildingType(buildingType)
                 .displayName(buildingType.getDisplayName())
                 .description(generateDescription(buildingType))
-                .pointCost(calculatePointCost(buildingType))
+                .pointCost(buildingType.getPointCost())  // Use static value from enum
                 .category(mapToCategory(buildingType))
                 .producesUnitCategories(getProducedUnitCategories(buildingType))
                 .tags(generateTags(buildingType))
@@ -53,74 +53,6 @@ public class BuildingTemplate implements CustomizableEntity {
                 .baseCost(buildingType.getResourceCost())
                 .powerValue(buildingType.getPowerValue())
                 .build();
-    }
-
-    /**
-     * Calculate point cost based on building type and utility
-     */
-    private static int calculatePointCost(BuildingType buildingType) {
-        // HEADQUARTERS and POWER_PLANT are required and free
-        if (buildingType == BuildingType.HEADQUARTERS || buildingType == BuildingType.POWER_PLANT) {
-            return 0;
-        }
-
-        if (List.of(
-                BuildingType.SANDSTORM_GENERATOR,
-                BuildingType.ANDROID_FACTORY,
-                BuildingType.PHOTON_SPIRE,
-                BuildingType.COMMAND_CITADEL,
-                BuildingType.TEMPEST_SPIRE
-        ).contains(buildingType)) {
-            return 12;
-        }
-
-        // Production buildings (produce units)
-        if (buildingType.isCanProduceUnits()) {
-            return switch (buildingType) {
-                case BARRACKS -> 3;          // Basic infantry production
-                case FACTORY -> 5;            // Vehicle production
-                case AIRFIELD, HANGAR -> 5;   // Air unit production
-                default -> 4;
-            };
-        }
-
-        // Defense buildings
-        if (isTurret(buildingType)) {
-            return switch (buildingType) {
-                case TURRET -> 2;             // Basic turret
-                case ROCKET_TURRET -> 3;      // Anti-air turret
-                case LASER_TURRET -> 4;       // Advanced turret
-                default -> 3;
-            };
-        }
-        if (buildingType == BuildingType.BUNKER) {
-            return 3;
-        }
-        if (buildingType == BuildingType.SHIELD_GENERATOR) {
-            return 4;
-        }
-        if (buildingType == BuildingType.WALL) {
-            return 1; // Walls are cheap
-        }
-
-        // Economy buildings
-        if (buildingType == BuildingType.REFINERY) {
-            return 2; // Essential, cheap
-        }
-        if (buildingType == BuildingType.BANK) {
-            return 4; // Credit generation
-        }
-
-        // Tech buildings
-        if (buildingType == BuildingType.RESEARCH_LAB) {
-            return 4;
-        }
-        if (buildingType == BuildingType.TECH_CENTER) {
-            return 6; // High-tier tech
-        }
-
-        // Default fallback
-        return 3;
     }
 
     /**
