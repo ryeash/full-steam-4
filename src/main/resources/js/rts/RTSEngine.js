@@ -4232,7 +4232,7 @@ class RTSEngine {
                 button.className = 'build-button';
                 
                 // Check if unit is unlocked
-                const isUnlocked = unitInfo.unlocked !== false; // default to true for backwards compatibility
+                const isUnlocked = unitInfo.unlocked === true;
                 const canAfford = this.myMoney >= unitInfo.cost;
                 
                 // Create button content

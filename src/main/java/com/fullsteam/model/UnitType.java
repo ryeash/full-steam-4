@@ -202,7 +202,7 @@ public enum UnitType {
             95.0,    // movement speed (moderate)
             25,      // damage (AOE damage)
             1.2,     // attack rate (slow fire rate - grenades take time)
-            8,       // attack range (medium range, arcing projectile)
+            150,       // attack range (medium range, arcing projectile)
             12.0,    // size (radius)
             6,       // sides (hexagon)
             0x8B4513, // saddle brown (explosives/military)
