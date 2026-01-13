@@ -306,9 +306,9 @@ public enum FactionPerk implements PerkEffect {
         }
     },
 
-    BUNKER_MASTERY(
-            "Bunker Mastery",
-            "Bunkers hold 6 units (up from 4) and have +25% HP",
+    GARRISON_MASTERY(
+            "Garrison Mastery",
+            "Bunkers and APCs hold more units (+2 capacity) and Bunkers have +25% HP",
             4,
             Set.of()
     ) {
@@ -694,7 +694,7 @@ public enum FactionPerk implements PerkEffect {
         }
         if (name.startsWith("FORTIFIED_") || name.startsWith("SHIELD_") ||
                 name.startsWith("TURRET_") || name.startsWith("POINT_") ||
-                name.startsWith("BUNKER_")) {
+                name.startsWith("BUNKER_") || name.startsWith("GARRISON_")) {
             return PerkCategory.DEFENSIVE;
         }
         if (name.startsWith("ADVANCED_") || name.startsWith("PARALLEL_")) {

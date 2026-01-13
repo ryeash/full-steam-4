@@ -158,7 +158,7 @@ public class FactionPresetRegistry {
                 .selectedPerks(new HashSet<>(Arrays.asList(
                         FactionPerk.INFANTRY_DOCTRINE_1,  // 4 pt
                         FactionPerk.INFANTRY_DOCTRINE_2,  // 7 pt (requires level 1)
-                        FactionPerk.BUNKER_MASTERY,       // 4 pt
+                        FactionPerk.GARRISON_MASTERY,       // 4 pt
                         FactionPerk.UPKEEP_INCREASE_2,    // 6 pt (requires level 1)
                         FactionPerk.UPKEEP_INCREASE_1,    // 3 pt (prerequisite)
                         FactionPerk.INFANTRY_TRAINING_1,  // 3 pt - faster production

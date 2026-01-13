@@ -32,13 +32,14 @@ public class GameEntities {
     private final Map<Integer, Projectile> projectiles;
     private final Map<Integer, Beam> beams;
     private final Map<Integer, FieldEffect> fieldEffects;
+    private final Map<Integer, TrackerBug> trackerBugs; // Spy tracking devices
     private final Consumer<GameEvent> gameEventSender;
 
     @Setter
-    private World<Body> world; // The physics world (for raycasting, etc.)
+    private World<Body> world;
 
     @Setter
-    private RTSGameManager rtsGameManager; // Reference to game manager (for perk hooks)
+    private RTSGameManager rtsGameManager;
 
     public GameEntities(GameConfig gameConfig, Consumer<GameEvent> gameEventSender) {
         this.gameConfig = gameConfig;
@@ -51,6 +52,7 @@ public class GameEntities {
         this.projectiles = new ConcurrentSkipListMap<>();
         this.beams = new ConcurrentSkipListMap<>();
         this.fieldEffects = new ConcurrentSkipListMap<>();
+        this.trackerBugs = new ConcurrentSkipListMap<>();
         this.world = null; // Set by RTSGameManager
         this.rtsGameManager = null; // Set by RTSGameManager
     }
@@ -83,56 +85,11 @@ public class GameEntities {
     }
 
     /**
-     * Find nearest enemy unit to a position (respects cloak detection)
+     * Add a tracker bug (doesn't have physics body).
      */
-    public Unit findNearestEnemyUnit(Vector2 position, int teamNumber, double maxRange) {
-        return units.values().stream()
-                .filter(u -> u.isActive() && u.getTeamNumber() != teamNumber)
-                .filter(u -> {
-                    double distance = u.getPosition().distance(position);
-                    // Cloaked units can only be detected within cloak detection range
-                    if (u.isCloaked()) {
-                        return distance <= Math.min(maxRange, Unit.getCloakDetectionRange());
-                    }
-                    return distance <= maxRange;
-                })
-                .min(Comparator.comparingDouble(u -> u.getPosition().distance(position)))
-                .orElse(null);
-    }
-
-    /**
-     * Find nearest enemy unit to a position that can be targeted by the attacker's weapon.
-     * Respects cloak detection and elevation targeting.
-     */
-    public Unit findNearestEnemyUnit(Vector2 position, int teamNumber, double maxRange, Unit attacker) {
-        if (attacker == null) {
-            return findNearestEnemyUnit(position, teamNumber, maxRange); // Fall back to non-elevation version
-        }
-
-        return units.values().stream()
-                .filter(u -> u.isActive() && u.getTeamNumber() != teamNumber)
-                .filter(u -> attacker.canTargetElevation(u)) // Check elevation targeting
-                .filter(u -> {
-                    double distance = u.getPosition().distance(position);
-                    // Cloaked units can only be detected within cloak detection range
-                    if (u.isCloaked()) {
-                        return distance <= Math.min(maxRange, Unit.getCloakDetectionRange());
-                    }
-                    return distance <= maxRange;
-                })
-                .min(Comparator.comparingDouble(u -> u.getPosition().distance(position)))
-                .orElse(null);
-    }
-
-    /**
-     * Find nearest enemy building to a position
-     */
-    public Building findNearestEnemyBuilding(Vector2 position, int teamNumber, double maxRange) {
-        return buildings.values().stream()
-                .filter(b -> b.isActive() && b.getTeamNumber() != teamNumber)
-                .filter(b -> b.getPosition().distance(position) <= maxRange)
-                .min(Comparator.comparingDouble(b -> b.getPosition().distance(position)))
-                .orElse(null);
+    public void addTrackerBug(TrackerBug bug) {
+        trackerBugs.put(bug.getId(), bug);
+        log.info("Added tracker bug {} targeting unit {}", bug.getId(), bug.getTargetUnitId());
     }
 
     public Targetable findNearestEnemyTargetable(Unit attacker) {
@@ -154,17 +111,6 @@ public class GameEntities {
                 .filter(u -> u.isValidTargetFor(weapon, teamNumber, position))
                 .min(Comparator.comparingDouble(u -> u.getPosition().distance(position)))
                 .orElse(null);
-    }
-
-    /**
-     * Find the nearest enemy targetable entity (simplified version without elevation checks).
-     *
-     * @param position   Position to search from
-     * @param teamNumber Team number of the attacker
-     * @return The nearest enemy targetable, or null if none found
-     */
-    public Targetable findNearestEnemyTargetable(Vector2 position, int teamNumber) {
-        return findNearestEnemyTargetable(position, teamNumber, null);
     }
 
     private void createBeamFieldEffects(Beam beam) {

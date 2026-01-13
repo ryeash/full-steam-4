@@ -1,6 +1,7 @@
 package com.fullsteam.model.component;
 
 import com.fullsteam.model.AIStance;
+import com.fullsteam.model.GameEntities;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,7 +23,7 @@ public class CloakComponent extends AbstractUnitComponent {
     private AIStance preCloakAIStance = null; // Saved AI stance before cloaking
 
     @Override
-    public void update(com.fullsteam.model.GameEntities gameEntities) {
+    public void update(GameEntities gameEntities) {
         // Cloak component doesn't need passive updates
         // Cloak state is managed by toggle and fire actions
     }

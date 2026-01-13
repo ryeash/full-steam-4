@@ -110,6 +110,11 @@ public interface Targetable {
      * @return true if the given weapon can target and hit this targetable
      */
     default boolean isValidTargetFor(Weapon forWeapon, int weaponTeam, Vector2 weaponPosition) {
+        // Units without weapons can't target anything
+        if (forWeapon == null) {
+            return false;
+        }
+        
         double distance = getPosition().distance(weaponPosition);
         return isActive()
                 && isEnemyOf(weaponTeam)

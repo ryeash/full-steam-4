@@ -8,6 +8,7 @@ import com.fullsteam.model.command.AttackGroundCommand;
 import com.fullsteam.model.command.AttackMoveCommand;
 import com.fullsteam.model.command.AttackTargetableCommand;
 import com.fullsteam.model.command.ConstructCommand;
+import com.fullsteam.model.command.GarrisonAPCCommand;
 import com.fullsteam.model.command.GarrisonBunkerCommand;
 import com.fullsteam.model.command.HarvestCommand;
 import com.fullsteam.model.command.MoveCommand;
@@ -16,6 +17,7 @@ import com.fullsteam.model.command.ReturnToHangarCommand;
 import com.fullsteam.model.command.SortieCommand;
 import com.fullsteam.model.component.AndroidComponent;
 import com.fullsteam.model.component.AndroidFactoryComponent;
+import com.fullsteam.model.component.APCComponent;
 import com.fullsteam.model.component.GunshipComponent;
 import com.fullsteam.model.component.HangarComponent;
 import com.fullsteam.model.component.IBuildingComponent;
@@ -393,6 +395,9 @@ public class RTSGameManager {
             // Process field effects (explosions, etc.)
             processFieldEffects(deltaTime);
 
+            // Process tracker bugs (spy intelligence)
+            processTrackerBugs();
+
             // Remove inactive entities
             removeInactiveEntities();
 
@@ -501,6 +506,7 @@ public class RTSGameManager {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected())
                         .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
+                        .filter(u -> u.canTargetElevation(target)) // Check if weapon can hit target's elevation
                         .forEach(u -> u.issueCommand(new AttackTargetableCommand(u, target, true), gameEntities));
             }
         }
@@ -645,7 +651,7 @@ public class RTSGameManager {
                             .forEach(unit -> {
                                 if (unit.getUnitType().hasSpecialAbility() &&
                                         unit.getUnitType().getSpecialAbility().isRequiresTarget()) {
-                                    boolean success = unit.useSpecialAbilityOnUnit(targetUnit);
+                                    boolean success = unit.useSpecialAbilityOnUnit(targetUnit, gameEntities);
                                     if (success) {
                                         SpecialAbility ability = unit.getUnitType().getSpecialAbility();
                                         sendGameEvent(GameEvent.createPlayerEvent(
@@ -707,17 +713,28 @@ public class RTSGameManager {
 
         // Handle garrison orders
         if (input.getGarrisonOrder() != null) {
+            // Check if it's a building (bunker) first
             Building bunker = buildings.get(input.getGarrisonOrder());
             if (bunker != null && bunker.getBuildingType() == BuildingType.BUNKER &&
                     bunker.belongsTo(playerId) && !bunker.isUnderConstruction()) {
                 units.values().stream()
                         .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().isInfantry())
                         .forEach(u -> u.issueCommand(new GarrisonBunkerCommand(u, bunker, true), gameEntities));
+            } else {
+                // Check if it's an APC
+                Unit apc = units.get(input.getGarrisonOrder());
+                if (apc != null && apc.getUnitType() == UnitType.APC &&
+                        apc.belongsTo(playerId) && apc.isActive()) {
+                    units.values().stream()
+                            .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().isInfantry())
+                            .forEach(u -> u.issueCommand(new GarrisonAPCCommand(u, apc, true), gameEntities));
+                }
             }
         }
 
         // Handle ungarrison orders
         if (input.getUngarrisonBuildingId() != null) {
+            // Check if it's a building (bunker) first
             Building bunker = buildings.get(input.getUngarrisonBuildingId());
             if (bunker != null && bunker.getBuildingType() == BuildingType.BUNKER &&
                     bunker.belongsTo(playerId)) {
@@ -742,6 +759,35 @@ public class RTSGameManager {
                         }
                         log.info("Player {} ungarrisoned unit {} from bunker {}",
                                 playerId, ungarrisoned.getId(), bunker.getId());
+                    }
+                }
+            } else {
+                // Check if it's an APC (reusing the same field for unit garrison)
+                Unit apc = units.get(input.getUngarrisonBuildingId());
+                if (apc != null && apc.getUnitType() == UnitType.APC &&
+                        apc.belongsTo(playerId) && apc.isActive()) {
+                    if (input.isUngarrisonAll()) {
+                        // Ungarrison all units
+                        List<Unit> ungarrisoned = apc.ungarrisonAllUnits();
+                        // Re-add units to the physics world
+                        for (Unit unit : ungarrisoned) {
+                            if (!world.containsBody(unit.getBody())) {
+                                world.addBody(unit.getBody());
+                            }
+                        }
+                        log.info("Player {} ungarrisoned {} units from APC {}",
+                                playerId, ungarrisoned.size(), apc.getId());
+                    } else {
+                        // Ungarrison one unit
+                        Unit ungarrisoned = apc.ungarrisonUnit(null);
+                        if (ungarrisoned != null) {
+                            // Re-add unit to the physics world
+                            if (!world.containsBody(ungarrisoned.getBody())) {
+                                world.addBody(ungarrisoned.getBody());
+                            }
+                            log.info("Player {} ungarrisoned unit {} from APC {}",
+                                    playerId, ungarrisoned.getId(), apc.getId());
+                        }
                     }
                 }
             }
@@ -1231,6 +1277,29 @@ public class RTSGameManager {
     }
 
     /**
+     * Process tracker bugs (spy intelligence devices)
+     * Update state and remove expired/invalid bugs
+     */
+    private void processTrackerBugs() {
+        gameEntities.getTrackerBugs().entrySet().removeIf(entry -> {
+            TrackerBug bug = entry.getValue();
+            
+            // Update bug (checks expiration)
+            if (!bug.update()) {
+                return true; // Remove expired bugs
+            }
+            
+            // Remove if target is dead
+            if (!bug.isTargetAlive(gameEntities)) {
+                log.info("Tracker bug {} removed - target unit is dead", bug.getId());
+                return true;
+            }
+            
+            return false;
+        });
+    }
+
+    /**
      * Check for disconnected players and mark them as eliminated
      */
     private void checkDisconnectedPlayers() {
@@ -1545,6 +1614,13 @@ public class RTSGameManager {
                         }
                     }
                 }
+
+                // Destroy garrisoned units in APC (if it's an APC)
+                unit.getComponent(APCComponent.class).ifPresent(apcComp -> {
+                    log.info("APC {} destroyed - destroying {} garrisoned units",
+                            unit.getId(), apcComp.getGarrisonCount());
+                    apcComp.onDestroy(); // This will destroy all garrisoned units
+                });
 
                 // Trigger perk hooks for unit destruction
                 int ownerId = unit.getOwnerId();
@@ -2157,6 +2233,14 @@ public class RTSGameManager {
                     data.put("shieldActive", shieldComp.shieldActive());
                     data.put("shieldRadius", shieldComp.getRadius());
                 });
+
+        // Garrison status (for APC)
+        if (unit.getUnitType() == UnitType.APC) {
+            data.put("garrisonCount", unit.getGarrisonCount());
+            data.put("maxGarrisonCapacity", unit.getComponent(APCComponent.class)
+                    .map(APCComponent::getMaxGarrisonCapacity)
+                    .orElse(3));
+        }
 
         // Add physics body vertices for accurate client-side rendering
         data.put("vertices", extractBodyVertices(unit.getBody()));

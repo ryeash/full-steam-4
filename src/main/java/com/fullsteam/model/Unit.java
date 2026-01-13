@@ -4,6 +4,7 @@ import com.fullsteam.model.command.IdleCommand;
 import com.fullsteam.model.command.SortieCommand;
 import com.fullsteam.model.command.UnitCommand;
 import com.fullsteam.model.component.AndroidComponent;
+import com.fullsteam.model.component.APCComponent;
 import com.fullsteam.model.component.CloakComponent;
 import com.fullsteam.model.component.GunshipComponent;
 import com.fullsteam.model.component.HangarComponent;
@@ -13,6 +14,8 @@ import com.fullsteam.model.component.IUnitComponent;
 import com.fullsteam.model.component.InterceptorComponent;
 import com.fullsteam.model.component.RepairComponent;
 import com.fullsteam.model.component.ShieldTankComponent;
+import com.fullsteam.model.component.SpiderMineComponent;
+import com.fullsteam.model.component.SpyComponent;
 import com.fullsteam.model.weapon.ProjectileWeapon;
 import com.fullsteam.model.weapon.Weapon;
 import com.fullsteam.model.weapon.WeaponFactory;
@@ -180,6 +183,20 @@ public class Unit extends GameEntity implements Targetable {
         SpecialAbility ability = unitType.getSpecialAbility();
         if (ability == SpecialAbility.CLOAK) {
             addComponent(new CloakComponent(), gameEntities);
+        }
+
+        if (ability == SpecialAbility.SPIDER_MINE) {
+            addComponent(new SpiderMineComponent(), gameEntities);
+        }
+
+        if (ability == SpecialAbility.SPY_CLOAK) {
+            addComponent(new SpyComponent(), gameEntities);
+            addComponent(new CloakComponent(), gameEntities);
+        }
+
+        // APC garrison component
+        if (unitType == UnitType.APC) {
+            addComponent(new APCComponent(), gameEntities);
         }
 
         // Air unit specific components
@@ -988,12 +1005,13 @@ public class Unit extends GameEntity implements Targetable {
     }
 
     /**
-     * Use special ability on a target unit (e.g., Medic heal)
+     * Use special ability on a target unit (e.g., Medic heal, Spy tracker gun)
      *
-     * @param target The unit to heal
+     * @param target The unit to target
+     * @param gameEntities Game entities (for spy tracker bug)
      * @return true if ability was used successfully
      */
-    public boolean useSpecialAbilityOnUnit(Unit target) {
+    public boolean useSpecialAbilityOnUnit(Unit target, GameEntities gameEntities) {
         SpecialAbility ability = unitType.getSpecialAbility();
         if (ability == SpecialAbility.NONE || !ability.isRequiresTarget()) {
             return false;
@@ -1005,14 +1023,12 @@ public class Unit extends GameEntity implements Targetable {
             return false;
         }
 
-        // Check if target is valid (same team, not at full health)
-        if (target.getTeamNumber() != this.teamNumber || target.getHealth() >= target.getMaxHealth()) {
-            return false;
-        }
-
         switch (ability) {
             case HEAL:
-                // Medic heals friendly units
+                // Medic heals friendly units (same team)
+                if (target.getTeamNumber() != this.teamNumber || target.getHealth() >= target.getMaxHealth()) {
+                    return false;
+                }
                 double healAmount = 20.0; // Heal 20 HP per use
                 double newHealth = Math.min(target.getMaxHealth(), target.getHealth() + healAmount);
                 target.setHealth(newHealth);
@@ -1021,7 +1037,10 @@ public class Unit extends GameEntity implements Targetable {
                 return true;
 
             case REPAIR:
-                // Engineer repairs friendly vehicles/units
+                // Engineer repairs friendly vehicles/units (same team)
+                if (target.getTeamNumber() != this.teamNumber || target.getHealth() >= target.getMaxHealth()) {
+                    return false;
+                }
                 double repairAmount = 25.0; // Repair 25 HP per use
                 double newUnitHealth = Math.min(target.getMaxHealth(), target.getHealth() + repairAmount);
                 target.setHealth(newUnitHealth);
@@ -1029,9 +1048,30 @@ public class Unit extends GameEntity implements Targetable {
                 log.info("Engineer {} repaired unit {} for {} HP", id, target.getId(), repairAmount);
                 return true;
 
+            case SPY_CLOAK:
+                // Spy fires tracker gun at enemy units
+                return getComponent(SpyComponent.class)
+                        .map(spy -> {
+                            boolean success = spy.fireTrackerGun(target, gameEntities);
+                            if (success) {
+                                lastSpecialAbilityTime = now;
+                            }
+                            return success;
+                        })
+                        .orElse(false);
+
             default:
                 return false;
         }
+    }
+
+    /**
+     * Legacy method for backward compatibility.
+     * Calls the new method with null GameEntities (works for HEAL/REPAIR but not SPY_CLOAK).
+     */
+    @Deprecated
+    public boolean useSpecialAbilityOnUnit(Unit target) {
+        return useSpecialAbilityOnUnit(target, null);
     }
 
     /**
@@ -1222,6 +1262,63 @@ public class Unit extends GameEntity implements Targetable {
      */
     public static double getCloakDetectionRange() {
         return CloakComponent.getDetectionRange();
+    }
+
+    // ============================================================================
+    // Garrison Management (APC)
+    // ============================================================================
+
+    /**
+     * Garrison a unit inside this APC
+     *
+     * @param unit The unit to garrison
+     * @return true if successfully garrisoned
+     */
+    public boolean garrisonUnit(Unit unit) {
+        return getComponent(APCComponent.class)
+                .map(c -> c.garrisonUnit(unit))
+                .orElse(false);
+    }
+
+    /**
+     * Ungarrison a unit from this APC
+     *
+     * @param unit The unit to ungarrison (null = ungarrison first unit)
+     * @return The ungarrisoned unit, or null if none available
+     */
+    public Unit ungarrisonUnit(Unit unit) {
+        return getComponent(APCComponent.class)
+                .map(c -> c.ungarrisonUnit(unit))
+                .orElse(null);
+    }
+
+    /**
+     * Ungarrison all units from this APC
+     *
+     * @return List of ungarrisoned units
+     */
+    public List<Unit> ungarrisonAllUnits() {
+        return getComponent(APCComponent.class)
+                .map(APCComponent::ungarrisonAllUnits)
+                .orElse(List.of());
+    }
+
+    /**
+     * Get number of garrisoned units
+     */
+    public int getGarrisonCount() {
+        return getComponent(APCComponent.class)
+                .map(APCComponent::getGarrisonCount)
+                .orElse(0);
+    }
+
+    /**
+     * Check if garrison is at max capacity
+     */
+    public boolean isGarrisonFull() {
+        return getComponent(APCComponent.class)
+                .map(APCComponent::isFull)
+                .orElse(false);
     }
 }
 

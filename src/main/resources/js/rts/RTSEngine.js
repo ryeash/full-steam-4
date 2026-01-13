@@ -886,8 +886,35 @@ class RTSEngine {
             this.selectedUnits.delete(unitData.id);
         }
         
-        // Update cloak visual effect (for Cloak Tank)
-        if (unitData.specialAbilityActive && unitData.specialAbility === 'CLOAK') {
+        // Update garrison label (for APCs)
+        if (unitData.type === 'APC') {
+            if (!unitContainer.garrisonLabel) {
+                const label = new PIXI.Text('', {
+                    fontFamily: 'Arial',
+                    fontSize: 12,
+                    fill: 0xFFFFFF,
+                    stroke: 0x000000,
+                    strokeThickness: 2
+                });
+                label.anchor.set(0.5, 1);
+                label.position.set(0, -30); // Above the unit
+                label.scale.y = -1; // Flip text vertically to account for inverted Y-axis
+                unitContainer.addChild(label);
+                unitContainer.garrisonLabel = label;
+            }
+            
+            if (unitData.garrisonCount > 0) {
+                unitContainer.garrisonLabel.text = `[${unitData.garrisonCount}/${unitData.maxGarrisonCapacity || 3}]`;
+                unitContainer.garrisonLabel.visible = true;
+            } else {
+                unitContainer.garrisonLabel.visible = false;
+            }
+        }
+        
+        // Update cloak visual effect (for Cloak Tank and Spy)
+        const typeInfo = this.unitTypes?.[unitData.type]; // Look up unit type info
+        const specialAbility = typeInfo?.specialAbility; // Get special ability from static unit types
+        if (unitData.specialAbilityActive && (specialAbility === 'CLOAK' || specialAbility === 'SPY_CLOAK')) {
             // Apply transparency and shimmer effect when cloaked
             if (unitData.cloaked) {
                 // Fully cloaked - very transparent with shimmer
@@ -896,7 +923,7 @@ class RTSEngine {
                 // Add shimmer indicator if not already present
                 if (!unitContainer.cloakShimmer) {
                     const shimmer = new PIXI.Graphics();
-                    shimmer.circle(0, 0, typeInfo.size + 8);
+                    shimmer.circle(0, 0, (typeInfo?.size || 15) + 8);
                     shimmer.stroke({ width: 2, color: 0x00FFFF, alpha: 0.3 });
                     unitContainer.addChild(shimmer);
                     unitContainer.cloakShimmer = shimmer;
@@ -3200,6 +3227,47 @@ class RTSEngine {
                     abilityDiv.style.display = 'none';
                 }
             }
+            
+            // Show garrison info for APCs
+            let garrisonDiv = document.getElementById('unit-garrison-info');
+            if (!garrisonDiv) {
+                garrisonDiv = document.createElement('div');
+                garrisonDiv.id = 'unit-garrison-info';
+                garrisonDiv.style.marginTop = '10px';
+                singleInfo.appendChild(garrisonDiv);
+            }
+            
+            if (unit.type === 'APC' && unit.garrisonCount !== undefined) {
+                garrisonDiv.style.display = 'block';
+                garrisonDiv.innerHTML = `
+                    <div class="unit-stat">
+                        <span>Garrison:</span><span>${unit.garrisonCount}/${unit.maxGarrisonCapacity || 3}</span>
+                    </div>
+                `;
+                
+                // Add ungarrison buttons if units are garrisoned
+                if (unit.garrisonCount > 0) {
+                    const ungarrisonButtons = document.createElement('div');
+                    ungarrisonButtons.style.marginTop = '5px';
+                    
+                    const ungarrisonOne = document.createElement('button');
+                    ungarrisonOne.className = 'build-button';
+                    ungarrisonOne.textContent = 'Ungarrison One';
+                    ungarrisonOne.onclick = () => this.ungarrisonUnit(unit.id, false);
+                    ungarrisonButtons.appendChild(ungarrisonOne);
+                    
+                    const ungarrisonAll = document.createElement('button');
+                    ungarrisonAll.className = 'build-button';
+                    ungarrisonAll.textContent = 'Ungarrison All';
+                    ungarrisonAll.style.marginLeft = '5px';
+                    ungarrisonAll.onclick = () => this.ungarrisonUnit(unit.id, true);
+                    ungarrisonButtons.appendChild(ungarrisonAll);
+                    
+                    garrisonDiv.appendChild(ungarrisonButtons);
+                }
+            } else {
+                garrisonDiv.style.display = 'none';
+            }
         } else if (selectedUnits.length > 1) {
             // Multiple units selected
             panel.style.display = 'block';
@@ -3471,6 +3539,9 @@ class RTSEngine {
         } else if (e.key === 'x' || e.key === 'X') {
             // Scatter hotkey - scatter selected units away from their center
             this.scatterSelectedUnits();
+        } else if (e.key === 'u' || e.key === 'U') {
+            // Ungarrison all from selected bunker or APC
+            this.ungarrisonAllFromSelected();
         }
     }
     
@@ -3584,6 +3655,8 @@ class RTSEngine {
     }
     
     issueOrder(worldPos, forceAttack = false) {
+        console.log('issueOrder called at:', worldPos);
+        
         // If force attack mode (CMD/CTRL held), skip target detection and attack ground
         if (forceAttack) {
             this.sendInput({ forceAttackOrder: { x: worldPos.x, y: worldPos.y } });
@@ -3601,12 +3674,25 @@ class RTSEngine {
                     Math.pow(unitData.x - worldPos.x, 2) + 
                     Math.pow(unitData.y - worldPos.y, 2)
                 );
-                if (dist < minDist && dist < unitData.size + 10) {
+                
+                // Get unit size from unit type info (size is not sent in every update)
+                const typeInfo = this.unitTypes?.[unitData.type];
+                const unitSize = typeInfo?.size || 15; // Default to 15 if not found
+                
+                // Debug: Log APC detection
+                if (unitData.type === 'APC') {
+                    console.log('APC found at:', unitData.x, unitData.y, 'distance:', dist, 'size:', unitSize, 'threshold:', unitSize + 10);
+                }
+                
+                if (dist < minDist && dist < unitSize + 10) {
                     minDist = dist;
                     targetUnit = unitData;
+                    console.log('Target unit detected:', unitData.type, 'at distance:', dist);
                 }
             }
         });
+        
+        console.log('Final targetUnit:', targetUnit ? targetUnit.type : 'none');
         
         // Check if clicking on a building
         let targetBuilding = null;
@@ -3670,11 +3756,19 @@ class RTSEngine {
         
         // Issue appropriate command based on target
         if (targetUnit) {
+            console.log('Target unit clicked:', targetUnit.type, 'team:', targetUnit.team, 'myTeam:', this.myTeam);
+            console.log('Has infantry selected:', this.hasInfantrySelected());
+            
             if (targetUnit.team !== this.myTeam) {
                 // Attack enemy unit
                 this.sendInput({ attackUnitOrder: targetUnit.id });
+            } else if (targetUnit.type === 'APC' && this.hasInfantrySelected()) {
+                // Garrison infantry into friendly APC
+                console.log('Sending garrison order for APC:', targetUnit.id);
+                this.sendInput({ garrisonOrder: targetUnit.id });
             } else {
                 // Can't command other player's units, just move
+                console.log('Friendly unit clicked, moving to position');
                 this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
             }
         } else if (targetBuilding) {
@@ -3824,6 +3918,30 @@ class RTSEngine {
     scatterSelectedUnits() {
         if (this.selectedUnits.size > 0) {
             this.sendInput({ scatterCommand: true });
+        }
+    }
+    
+    ungarrisonAllFromSelected() {
+        // Check if a bunker is selected
+        if (this.selectedBuilding && this.selectedBuilding.type === 'BUNKER') {
+            if (this.selectedBuilding.garrisonCount > 0) {
+                this.ungarrisonUnit(this.selectedBuilding.id, true);
+                this.showGameEvent('Ungarrisoning all units', 'info');
+            }
+            return;
+        }
+        
+        // Check if an APC is selected
+        for (const unitId of this.selectedUnits) {
+            const unitContainer = this.units.get(unitId);
+            if (unitContainer && unitContainer.unitData) {
+                const unitData = unitContainer.unitData;
+                if (unitData.type === 'APC' && unitData.garrisonCount > 0) {
+                    this.ungarrisonUnit(unitData.id, true);
+                    this.showGameEvent('Ungarrisoning all units from APC', 'info');
+                    return; // Only ungarrison from first APC
+                }
+            }
         }
     }
     
@@ -4042,7 +4160,8 @@ class RTSEngine {
         for (const id of this.selectedUnits) {
             const unitContainer = this.units.get(id);
             if (unitContainer && unitContainer.unitData) {
-                const specialAbility = unitContainer.unitData.specialAbility;
+                const unitType = unitContainer.unitData.type;
+                const specialAbility = this.unitTypes?.[unitType]?.specialAbility; // Look up from static unit types
                 if (specialAbility === 'HEAL') {
                     needsTarget = true;
                     targetType = 'unit';
@@ -4050,6 +4169,10 @@ class RTSEngine {
                 } else if (specialAbility === 'REPAIR') {
                     needsTarget = true;
                     targetType = 'building';
+                    break;
+                } else if (specialAbility === 'SPY_CLOAK') {
+                    needsTarget = true;
+                    targetType = 'unit'; // Tracker gun targets enemy units
                     break;
                 }
             }

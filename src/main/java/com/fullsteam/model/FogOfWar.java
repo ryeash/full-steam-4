@@ -32,6 +32,8 @@ public class FogOfWar {
                                              int teamNumber) {
         Collection<Unit> allUnits = gameEntities.getUnits().values();
         Collection<Building> allBuildings = gameEntities.getBuildings().values();
+        Collection<TrackerBug> allTrackerBugs = gameEntities.getTrackerBugs().values();
+        
         // Get all vision sources for this team with their specific vision ranges
         List<VisionSource> visionSources = new ArrayList<>();
 
@@ -46,6 +48,16 @@ public class FogOfWar {
         for (Building building : allBuildings) {
             if (building.isActive() && building.getTeamNumber() == teamNumber && !building.isUnderConstruction()) {
                 visionSources.add(new VisionSource(building.getPosition(), building.getBuildingType().getVisionRange()));
+            }
+        }
+
+        // Add vision from tracker bugs attached to enemy units (spy intelligence)
+        for (TrackerBug bug : allTrackerBugs) {
+            if (bug.isActive() && bug.getOwnerTeamNumber() == teamNumber) {
+                Vector2 bugPosition = bug.getPosition(gameEntities);
+                if (bugPosition != null) { // Target is still alive
+                    visionSources.add(new VisionSource(bugPosition, bug.getVisionRange()));
+                }
             }
         }
 
@@ -98,6 +110,7 @@ public class FogOfWar {
     public static List<Building> getVisibleBuildings(GameEntities gameEntities, int teamNumber) {
         Collection<Unit> allUnits = gameEntities.getUnits().values();
         Collection<Building> allBuildings = gameEntities.getBuildings().values();
+        Collection<TrackerBug> allTrackerBugs = gameEntities.getTrackerBugs().values();
 
         // Get all vision sources for this team with their specific vision ranges
         List<VisionSource> visionSources = new ArrayList<>();
@@ -113,6 +126,16 @@ public class FogOfWar {
         for (Building building : allBuildings) {
             if (building.isActive() && building.getTeamNumber() == teamNumber && !building.isUnderConstruction()) {
                 visionSources.add(new VisionSource(building.getPosition(), building.getBuildingType().getVisionRange()));
+            }
+        }
+
+        // Add vision from tracker bugs attached to enemy units (spy intelligence)
+        for (TrackerBug bug : allTrackerBugs) {
+            if (bug.isActive() && bug.getOwnerTeamNumber() == teamNumber) {
+                Vector2 bugPosition = bug.getPosition(gameEntities);
+                if (bugPosition != null) { // Target is still alive
+                    visionSources.add(new VisionSource(bugPosition, bug.getVisionRange()));
+                }
             }
         }
 
@@ -218,6 +241,7 @@ public class FogOfWar {
         Collection<Unit> allUnits = gameEntities.getUnits().values();
         Collection<Building> allBuildings = gameEntities.getBuildings().values();
         Collection<WallSegment> allWallSegments = gameEntities.getWallSegments().values();
+        Collection<TrackerBug> allTrackerBugs = gameEntities.getTrackerBugs().values();
 
         // Get all vision sources for this team with their specific vision ranges
         List<VisionSource> visionSources = new ArrayList<>();
@@ -233,6 +257,16 @@ public class FogOfWar {
         for (Building building : allBuildings) {
             if (building.isActive() && building.getTeamNumber() == teamNumber && !building.isUnderConstruction()) {
                 visionSources.add(new VisionSource(building.getPosition(), building.getBuildingType().getVisionRange()));
+            }
+        }
+
+        // Add vision from tracker bugs attached to enemy units (spy intelligence)
+        for (TrackerBug bug : allTrackerBugs) {
+            if (bug.isActive() && bug.getOwnerTeamNumber() == teamNumber) {
+                Vector2 bugPosition = bug.getPosition(gameEntities);
+                if (bugPosition != null) { // Target is still alive
+                    visionSources.add(new VisionSource(bugPosition, bug.getVisionRange()));
+                }
             }
         }
 

@@ -185,6 +185,27 @@ public enum UnitType {
             1        // faction customization point cost
     ),
 
+    // Spy - permanently cloaked infiltrator with tracker gun for vision sharing
+    SPY(
+            "Spy",
+            300,     // resource cost (expensive specialist)
+            20,      // build time (seconds)
+            60,      // max health (very fragile)
+            115.0,   // movement speed (fast, needs to infiltrate)
+            0,       // damage (no weapon)
+            0.0,     // attack rate
+            0,       // attack range
+            11.0,    // size (radius) - small profile
+            0x2F4F4F, // dark slate gray (stealth color)
+            BuildingType.BARRACKS,
+            15,      // upkeep cost (high - intelligence gathering)
+            400.0,   // vision range (excellent - intelligence unit),
+            Elevation.GROUND,
+            UnitCategory.INFANTRY, // category
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 specialist
+            4        // faction customization point cost
+    ),
+
     // Grenadier - AOE infantry, anti-structure specialist
     GRENADIER(
             "Grenadier",
@@ -330,6 +351,48 @@ public enum UnitType {
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 advanced support
             1        // faction customization point cost
+    ),
+
+    // Spider Mine - autonomous proximity mine that self-destructs on enemy contact
+    SPIDER_MINE(
+            "Spider Mine",
+            75,      // resource cost (cheap expendable unit)
+            6,       // build time (seconds)
+            40,      // max health (fragile, dies easily)
+            150.0,   // movement speed (fast! needs to close distance)
+            150,     // damage (MASSIVE explosion when triggered)
+            0.0,     // attack rate (N/A - self-destructs)
+            0,       // attack range (N/A - proximity-based)
+            8.0,     // size (radius) - small unit
+            0x8B4513, // saddle brown (mine color)
+            BuildingType.FACTORY,
+            3,       // upkeep cost (low for expendable unit)
+            250.0,   // vision range (modest),
+            Elevation.GROUND,
+            UnitCategory.VEHICLE, // category (mechanical mine)
+            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 specialist
+            3        // faction customization point cost
+    ),
+
+    // APC - Armored Personnel Carrier (mobile bunker for infantry transport)
+    APC(
+            "APC",
+            250,     // resource cost (transport vehicle)
+            14,      // build time (seconds)
+            280,     // max health (armored)
+            95.0,    // movement speed (moderate - carrying troops)
+            0,       // damage (no weapon - garrison fires from inside)
+            0.0,     // attack rate
+            0,       // attack range
+            22.0,    // size (radius) - large transport
+            0x696969, // dim gray (military transport color)
+            BuildingType.FACTORY,
+            18,      // upkeep cost
+            350.0,   // vision range (standard),
+            Elevation.GROUND,
+            UnitCategory.VEHICLE, // category
+            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 transport
+            4        // faction customization point cost
     ),
 
     // Artillery - long range siege unit
@@ -868,7 +931,7 @@ public enum UnitType {
                 // Rotating barrel assembly (top)
                 Vector2[] topBarrel = new Vector2[]{
                         new Vector2(size * 0.3, -size * 0.5),
-                        new Vector2(size * 1.0, -size * 0.35),
+                        new Vector2(size, -size * 0.35),
                         new Vector2(size * 0.9, -size * 0.15)
                 };
                 Convex barrelTop = Geometry.createPolygon(topBarrel);
@@ -877,7 +940,7 @@ public enum UnitType {
                 Vector2[] bottomBarrel = new Vector2[]{
                         new Vector2(size * 0.3, size * 0.5),
                         new Vector2(size * 0.9, size * 0.15),
-                        new Vector2(size * 1.0, size * 0.35)
+                        new Vector2(size, size * 0.35)
                 };
                 Convex barrelBottom = Geometry.createPolygon(bottomBarrel);
 
@@ -984,7 +1047,7 @@ public enum UnitType {
                         new Vector2(-size * 0.9, -size * 0.35), // Back left
                         new Vector2(-size * 0.3, -size * 0.5),  // Mid-left (narrow waist)
                         new Vector2(size * 0.5, -size * 0.4),   // Front left
-                        new Vector2(size * 1.0, 0),             // Rifle tip (pointing right)
+                        new Vector2(size, 0),             // Rifle tip (pointing right)
                         new Vector2(size * 0.5, size * 0.4),    // Front right
                         new Vector2(-size * 0.3, size * 0.5),   // Mid-right (narrow waist)
                         new Vector2(-size * 0.9, size * 0.35)   // Back right
@@ -1001,10 +1064,10 @@ public enum UnitType {
 
                 // Stock/rear support
                 Vector2[] stock = new Vector2[]{
-                        new Vector2(-size * 1.0, -size * 0.25),
+                        new Vector2(-size, -size * 0.25),
                         new Vector2(-size * 0.6, -size * 0.3),
                         new Vector2(-size * 0.6, size * 0.3),
-                        new Vector2(-size * 1.0, size * 0.25)
+                        new Vector2(-size, size * 0.25)
                 };
                 Convex rearStock = Geometry.createPolygon(stock);
 
@@ -1070,6 +1133,46 @@ public enum UnitType {
             // Worker/Support units - circular for easy navigation
             case WORKER, MEDIC, ENGINEER -> List.of(Geometry.createCircle(size));
 
+            // Spy - sleek infiltrator with low-profile stealth design
+            case SPY -> {
+                // Main body: elongated diamond (streamlined profile) - simplified to be convex
+                Vector2[] mainBody = new Vector2[]{
+                        new Vector2(-size * 0.9, 0),             // Back center
+                        new Vector2(-size * 0.3, -size * 0.5),   // Mid-left
+                        new Vector2(size * 0.7, -size * 0.35),   // Front left
+                        new Vector2(size, 0),              // Front point (nose)
+                        new Vector2(size * 0.7, size * 0.35),    // Front right
+                        new Vector2(-size * 0.3, size * 0.5)     // Mid-right
+                };
+                Convex body = Geometry.createPolygon(mainBody);
+
+                // Stealth device (top small detail)
+                Vector2[] stealthTop = new Vector2[]{
+                        new Vector2(size * 0.2, -size * 0.5),
+                        new Vector2(size * 0.5, -size * 0.6),
+                        new Vector2(size * 0.6, -size * 0.4)
+                };
+                Convex deviceTop = Geometry.createPolygon(stealthTop);
+
+                // Stealth device (bottom small detail)
+                Vector2[] stealthBottom = new Vector2[]{
+                        new Vector2(size * 0.2, size * 0.5),
+                        new Vector2(size * 0.6, size * 0.4),
+                        new Vector2(size * 0.5, size * 0.6)
+                };
+                Convex deviceBottom = Geometry.createPolygon(stealthBottom);
+
+                // Tracker gun (small frontal detail)
+                Vector2[] tracker = new Vector2[]{
+                        new Vector2(size * 0.7, -size * 0.2),
+                        new Vector2(size * 1.1, 0),
+                        new Vector2(size * 0.7, size * 0.2)
+                };
+                Convex trackerGun = Geometry.createPolygon(tracker);
+
+                yield List.of(body, deviceTop, deviceBottom, trackerGun);
+            }
+
             // Android - synthetic combat unit with angular robotic chassis
             case ANDROID -> {
                 // Central core: diamond chassis (robotic torso)
@@ -1120,8 +1223,8 @@ public enum UnitType {
                 // Head/sensor array (angular trapezoid)
                 Vector2[] head = new Vector2[]{
                         new Vector2(size * 0.5, -size * 0.4),
-                        new Vector2(size * 1.0, -size * 0.25),
-                        new Vector2(size * 1.0, size * 0.25),
+                        new Vector2(size, -size * 0.25),
+                        new Vector2(size, size * 0.25),
                         new Vector2(size * 0.5, size * 0.4)
                 };
                 Convex sensorArray = Geometry.createPolygon(head);
@@ -1580,6 +1683,113 @@ public enum UnitType {
                 Convex projRight = Geometry.createPolygon(rightProj);
 
                 yield List.of(mainHull, shieldCore, projLeft, projRight);
+            }
+
+            // Spider Mine - compact spider-like mine with legs
+            case SPIDER_MINE -> {
+                // Main body: small diamond core (mine casing)
+                Vector2[] core = new Vector2[]{
+                        new Vector2(-size * 0.6, 0),             // Back
+                        new Vector2(0, -size * 0.6),             // Bottom
+                        new Vector2(size * 0.8, 0),              // Front (sensor)
+                        new Vector2(0, size * 0.6)               // Top
+                };
+                Convex body = Geometry.createPolygon(core);
+
+                // Front sensor array (targeting system)
+                Vector2[] sensor = new Vector2[]{
+                        new Vector2(size * 0.5, -size * 0.3),
+                        new Vector2(size, 0),
+                        new Vector2(size * 0.5, size * 0.3)
+                };
+                Convex sensorArray = Geometry.createPolygon(sensor);
+
+                // Legs - using simple triangles with guaranteed CCW winding
+                // For CCW: vertices should go counter-clockwise when viewed from above
+
+                // Left front leg (negative Y side, front)
+                Vector2[] legLF = new Vector2[]{
+                        new Vector2(size * 0.2, -size * 0.8),    // Bottom-right
+                        new Vector2(0, -size * 0.5),             // Top
+                        new Vector2(-size * 0.1, -size * 0.7)    // Bottom-left
+                };
+                Convex leftFrontLeg = Geometry.createPolygon(legLF);
+
+                // Left rear leg (negative Y side, rear)
+                Vector2[] legLR = new Vector2[]{
+                        new Vector2(-size * 0.7, -size * 0.6),   // Bottom-right
+                        new Vector2(-size * 0.5, -size * 0.3),   // Top
+                        new Vector2(-size * 0.6, -size * 0.4)    // Bottom-left
+                };
+                Convex leftRearLeg = Geometry.createPolygon(legLR);
+
+                // Right front leg (positive Y side, front)
+                Vector2[] legRF = new Vector2[]{
+                        new Vector2(-size * 0.1, size * 0.7),    // Top-left
+                        new Vector2(0, size * 0.5),              // Bottom
+                        new Vector2(size * 0.2, size * 0.8)      // Top-right
+                };
+                Convex rightFrontLeg = Geometry.createPolygon(legRF);
+
+                // Right rear leg (positive Y side, rear)
+                Vector2[] legRR = new Vector2[]{
+                        new Vector2(-size * 0.6, size * 0.4),    // Top-left
+                        new Vector2(-size * 0.5, size * 0.3),    // Bottom
+                        new Vector2(-size * 0.7, size * 0.6)     // Top-right
+                };
+                Convex rightRearLeg = Geometry.createPolygon(legRR);
+
+                yield List.of(body, sensorArray, leftFrontLeg, leftRearLeg, rightFrontLeg, rightRearLeg);
+            }
+
+            // APC - armored box-shaped troop transport
+            case APC -> {
+                // Main hull: large rectangular body (troop compartment) - simplified to octagon for convexity
+                Vector2[] hull = new Vector2[]{
+                        new Vector2(-size, -size * 0.6),   // Back left
+                        new Vector2(size * 0.7, -size * 0.7),    // Front left (extended)
+                        new Vector2(size, -size * 0.4),    // Front-left corner (angled)
+                        new Vector2(size, size * 0.4),     // Front-right corner (angled)
+                        new Vector2(size * 0.7, size * 0.7),     // Front right (extended)
+                        new Vector2(-size, size * 0.6)     // Back right
+                };
+                Convex mainHull = Geometry.createPolygon(hull);
+
+                // Front armor plate (angled for protection)
+                Vector2[] frontArmor = new Vector2[]{
+                        new Vector2(size * 0.7, -size * 0.5),
+                        new Vector2(size * 1.05, -size * 0.3),
+                        new Vector2(size * 1.05, size * 0.3),
+                        new Vector2(size * 0.7, size * 0.5)
+                };
+                Convex armorFront = Geometry.createPolygon(frontArmor);
+
+                // Rear door/ramp (troop exit) - fixed vertex order
+                Vector2[] rearDoor = new Vector2[]{
+                        new Vector2(-size * 1.05, -size * 0.4),
+                        new Vector2(-size * 0.9, -size * 0.5),
+                        new Vector2(-size * 0.9, size * 0.5),
+                        new Vector2(-size * 1.05, size * 0.4)
+                };
+                Convex door = Geometry.createPolygon(rearDoor);
+
+                // Top hatch/firing ports (left)
+                Vector2[] leftHatch = new Vector2[]{
+                        new Vector2(-size * 0.3, -size * 0.7),
+                        new Vector2(size * 0.2, -size * 0.75),
+                        new Vector2(size * 0.3, -size * 0.6)
+                };
+                Convex hatchLeft = Geometry.createPolygon(leftHatch);
+
+                // Top hatch/firing ports (right)
+                Vector2[] rightHatch = new Vector2[]{
+                        new Vector2(-size * 0.3, size * 0.7),
+                        new Vector2(size * 0.3, size * 0.6),
+                        new Vector2(size * 0.2, size * 0.75)
+                };
+                Convex hatchRight = Geometry.createPolygon(rightHatch);
+
+                yield List.of(mainHull, armorFront, door, hatchLeft, hatchRight);
             }
 
             // Tank - main battle tank with turret platform and armor plating
@@ -2206,6 +2416,8 @@ public enum UnitType {
             case MEDIC -> SpecialAbility.HEAL;
             case ENGINEER -> SpecialAbility.REPAIR;
             case CLOAK_TANK -> SpecialAbility.CLOAK;
+            case SPIDER_MINE -> SpecialAbility.SPIDER_MINE;
+            case SPY -> SpecialAbility.SPY_CLOAK;
             default -> SpecialAbility.NONE;
         };
     }
@@ -2221,7 +2433,7 @@ public enum UnitType {
      * Check if this unit can attack
      */
     public boolean canAttack() {
-        return this != WORKER && this != MEDIC && this != ENGINEER;
+        return this != WORKER && this != MEDIC && this != ENGINEER && this != SPIDER_MINE && this != SPY && this != APC;
     }
 
     /**
