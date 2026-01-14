@@ -237,7 +237,7 @@ public class FactionPresetRegistry {
                         UnitType.CLOAK_TANK,     // 6 pt
                         UnitType.ARTILLERY,      // 6 pt - siege capability
                         UnitType.SCOUT_DRONE,
-                        UnitType.RAIDER          // 10 pt (hero)
+                        UnitType.RAIDER          // 10 pt
                 )))
                 .selectedBuildings(new HashSet<>(Arrays.asList(
                         BuildingType.HEADQUARTERS,
@@ -333,7 +333,7 @@ public class FactionPresetRegistry {
                         UnitType.TANK,
                         UnitType.SCOUT_DRONE,
                         UnitType.HELICOPTER,
-                        UnitType.COLOSSUS        // 10 pt (hero)
+                        UnitType.COLOSSUS        // 10 pt
                 )))
                 .selectedBuildings(new HashSet<>(Arrays.asList(
                         BuildingType.HEADQUARTERS,
@@ -432,7 +432,7 @@ public class FactionPresetRegistry {
                         UnitType.BEAM_TANK,      // 5 pt
                         UnitType.SCOUT_DRONE,
                         UnitType.HELICOPTER,     // 4 pt - air unit
-                        UnitType.PHOTON_TITAN    // 10 pt (hero)
+                        UnitType.PHOTON_TITAN    // 10 pt
                 )))
                 .selectedBuildings(new HashSet<>(Arrays.asList(
                         BuildingType.HEADQUARTERS,
@@ -483,7 +483,7 @@ public class FactionPresetRegistry {
                         UnitType.SCOUT_DRONE,
                         UnitType.HELICOPTER,
                         UnitType.BOMBER,         // 5 pt
-                        UnitType.GUNSHIP         // 10 pt (hero)
+                        UnitType.GUNSHIP         // 10 pt
                 )))
                 .selectedBuildings(new HashSet<>(Arrays.asList(
                         BuildingType.HEADQUARTERS,

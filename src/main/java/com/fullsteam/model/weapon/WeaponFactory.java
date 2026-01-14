@@ -210,15 +210,13 @@ public class WeaponFactory {
                     elevationTargeting
             );
 
-            // ===== HERO UNITS =====
-
             case RAIDER -> new ProjectileWeapon(
                     damage, range, attackRate,
                     700,  // projectile speed (very fast, hit-and-run)
                     0.15, // linear damping
-                    3.0,  // size (hero weapon)
+                    3.0,  // size (weapon)
                     Ordinance.BULLET,
-                    Set.of(), // Elite raider bullets
+                    Set.of(),
                     elevationTargeting
             );
 
@@ -299,7 +297,7 @@ public class WeaponFactory {
 
             case PHOTON_TITAN -> new BeamWeapon(
                     damage, range, attackRate,
-                    8.0,  // beam width (massive hero beam)
+                    8.0,  // beam width (massive beam)
                     1.0,  // duration
                     Beam.BeamType.LASER,
                     Ordinance.LASER,

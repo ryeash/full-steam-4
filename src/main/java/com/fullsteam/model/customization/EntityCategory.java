@@ -13,7 +13,6 @@ public enum EntityCategory {
     VEHICLE("Vehicles", "Ground-based vehicle units"),
     FLYER("Air Units", "Flying units"),
     SUPPORT("Support", "Non-combat support units"),
-    HERO("Hero Units", "Powerful unique hero units"),
 
     // Building categories
     PRODUCTION("Production", "Buildings that produce units"),

@@ -458,9 +458,6 @@ public enum UnitType {
             3        // faction customization point cost
     ),
 
-    // ===== HERO UNITS =====
-
-    // RAIDER - Nomads hero unit, fast hit-and-run cavalry
     RAIDER(
             "Raider",
             900,     // resource cost
@@ -474,14 +471,14 @@ public enum UnitType {
             0xDC143C, // crimson (raider red)
             BuildingType.FACTORY,
             45,      // upkeep cost
-            520.0,    // vision range (hero scout, exceptional vision),
+            520.0,    // vision range (scout, exceptional vision),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Hero unit - Nomads faction
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             8        // faction customization point cost
     ),
 
-    // COLOSSUS - Synthesis hero unit, massive walker
+    // COLOSSUS - massive walker
     COLOSSUS(
             "Colossus",
             1600,    // resource cost (VERY EXPENSIVE!)
@@ -495,10 +492,10 @@ public enum UnitType {
             0x4B0082, // indigo (synthesis purple)
             BuildingType.FACTORY,
             75,      // upkeep cost (VERY HIGH!)
-            490.0,    // vision range (hero unit, excellent vision),
+            490.0,    // vision range (excellent vision),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Hero unit - Synthesis faction
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             10       // faction customization point cost
     ),
 
@@ -572,7 +569,7 @@ public enum UnitType {
             "Beam Tank",
             450,     // resource cost
             16,      // build time (seconds)
-            416,     // max health
+            400,     // max health
             75.0,    // movement speed (slow)
             52,      // damage (instant hit beam weapon)
             1.3,     // attack rate
@@ -581,7 +578,7 @@ public enum UnitType {
             0x00FA9A, // medium spring green
             BuildingType.FACTORY,
             32,      // upkeep cost
-            410.0,    // vision range (good, beam tank),
+            410.0,    // vision range (good),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 beam weapons
@@ -609,7 +606,6 @@ public enum UnitType {
             5        // faction customization point cost
     ),
 
-    // PHOTON_TITAN - Hero unit, massive beam platform
     PHOTON_TITAN(
             "Photon Titan",
             1400,    // resource cost (VERY EXPENSIVE!)
@@ -623,10 +619,10 @@ public enum UnitType {
             0x00FF00, // bright green (pure energy)
             BuildingType.FACTORY,
             65,      // upkeep cost (VERY HIGH!)
-            480.0,    // vision range (hero unit, excellent vision),
+            480.0,    // vision range (excellent vision),
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Hero unit - Tech Alliance faction
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             9        // faction customization point cost
     ),
 
@@ -642,7 +638,7 @@ public enum UnitType {
             1.5,     // attack rate (good)
             180,     // attack range (good)
             13.0,    // size (radius)
-            0x00CED1, // dark turquoise (Synthesis faction color)
+            0x00CED1, // dark turquoise
             BuildingType.ANDROID_FACTORY,
             0,       // upkeep cost (ZERO!)
             340.0,    // vision range (moderate, autonomous unit),
@@ -746,11 +742,9 @@ public enum UnitType {
     ),
 
     // GUNSHIP - Heavy sortie-based attack aircraft with dual weapons
-    // Storm Wings hero unit - can engage both ground and air targets
-    // Heavy MG for ground targets, flak cannons for air targets
     GUNSHIP(
             "Gunship",
-            1100,    // resource cost (expensive heavy aircraft, hero unit)
+            1100,    // resource cost (expensive heavy aircraft)
             50,      // build time (seconds)
             380,     // max health (durable for sustained combat)
             160.0,   // slowest sortie air unit
@@ -760,11 +754,11 @@ public enum UnitType {
             31.0,    // size (radius) - heavy aircraft
             0x8B0000, // dark red (intimidating gunship color)
             BuildingType.HANGAR, // Produced at Hangar (sortie-based)
-            55,      // upkeep cost (high, hero unit)
+            55,      // upkeep cost (high)
             480.0,   // vision range (excellent, attack helicopter)
             Elevation.HIGH, // Fixed-wing sortie aircraft,
             UnitCategory.FLYER, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Hero unit - Storm Wings faction
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             9        // faction customization point cost
     );
 
@@ -2067,7 +2061,6 @@ public enum UnitType {
                 yield List.of(Geometry.createPolygon(vertices));
             }
 
-            // Raider - Nomads hero cavalry with aggressive bladed design
             case RAIDER -> {
                 // Main body: aggressive arrow-like chassis (stretched forward)
                 Vector2[] mainBody = new Vector2[]{

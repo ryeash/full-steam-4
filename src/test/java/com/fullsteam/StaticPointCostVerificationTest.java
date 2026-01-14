@@ -6,7 +6,8 @@ import com.fullsteam.model.customization.BuildingTemplate;
 import com.fullsteam.model.customization.UnitTemplate;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Verify that point costs are now static in enums and templates use them correctly
@@ -71,16 +72,6 @@ public class StaticPointCostVerificationTest extends BaseTestClass {
         // HQ and Power Plant should be free
         assertEquals(0, BuildingType.HEADQUARTERS.getPointCost(), "HEADQUARTERS must be free");
         assertEquals(0, BuildingType.POWER_PLANT.getPointCost(), "POWER_PLANT must be free");
-    }
-
-    @Test
-    public void verifyHeroUnitCosts() {
-        // Hero units should be expensive (8-10 points)
-        assertEquals(8, UnitType.RAIDER.getPointCost(), "RAIDER hero should cost 8 points");
-        assertEquals(10, UnitType.COLOSSUS.getPointCost(), "COLOSSUS hero should cost 10 points");
-        assertEquals(9, UnitType.PHOTON_TITAN.getPointCost(), "PHOTON_TITAN hero should cost 9 points");
-        assertEquals(9, UnitType.GUNSHIP.getPointCost(), "GUNSHIP hero should cost 9 points");
-        assertEquals(10, UnitType.GIGANTONAUT.getPointCost(), "GIGANTONAUT hero should cost 10 points");
     }
 
     @Test

@@ -1130,55 +1130,14 @@ class RTSEngine {
     }
     
     getUnitTypeInfo(unitType) {
-        // If we have static data from initialization, use it
-        if (this.unitTypes && this.unitTypes[unitType]) {
-            const staticData = this.unitTypes[unitType];
-            // Add derived properties based on backend data
-            return {
-                ...staticData,
-                isAir: staticData.elevation === 'LOW' || staticData.elevation === 'HIGH'
-            };
-        }
-        
-        // Fallback to hardcoded data (for backward compatibility or before initialization)
-        return this.getUnitVisualInfo(unitType);
-    }
-    
-    getUnitVisualInfo(unitType) {
-        const unitTypes = {
-            'WORKER': { sides: 16, size: 15, color: 0xFFFF00 },
-            'INFANTRY': { sides: 3, size: 12, color: 0x00FF00 },
-            'LASER_INFANTRY': { sides: 3, size: 12, color: 0x00FFFF }, // Cyan for laser infantry
-            'MEDIC': { sides: 6, size: 12, color: 0xFFFFFF },
-            'ROCKET_SOLDIER': { sides: 3, size: 12, color: 0xFF8800 },
-            'SNIPER': { sides: 3, size: 12, color: 0x8B4513 },
-            'ENGINEER': { sides: 6, size: 13, color: 0x00CED1 }, // Dark turquoise (distinct from yellow worker)
-            'JEEP': { sides: 4, size: 20, color: 0x00FFFF },
-            'TANK': { sides: 5, size: 30, color: 0x8888FF },
-            'ARTILLERY': { sides: 6, size: 25, color: 0xFF00FF },
-            'GIGANTONAUT': { sides: 8, size: 35, color: 0x8B0000 }, // Super heavy artillery!
-            'CLOAK_TANK': { sides: 5, size: 28, color: 0x2F4F4F },
-            'MAMMOTH_TANK': { sides: 6, size: 40, color: 0x556B2F },
-            // Hero units
-            'RAIDER': { sides: 3, size: 22, color: 0xDC143C }, // Crimson (Nomads hero)
-            'COLOSSUS': { sides: 6, size: 50, color: 0x4B0082 }, // Indigo (Synthesis hero)
-            // Tech Alliance beam weapon units
-            'PLASMA_TROOPER': { sides: 3, size: 12, color: 0x00FF7F }, // Spring green
-            'ION_RANGER': { sides: 3, size: 12, color: 0x9370DB }, // Medium purple
-            'PHOTON_SCOUT': { sides: 4, size: 18, color: 0x7FFF00 }, // Chartreuse
-            'BEAM_TANK': { sides: 6, size: 30, color: 0x00FA9A }, // Medium spring green
-            'PULSE_ARTILLERY': { sides: 6, size: 26, color: 0xFFD700 }, // Gold
-            'PHOTON_TITAN': { sides: 8, size: 38, color: 0x00FF00 }, // Bright green (hero unit)
-            // Air units
-            'SCOUT_DRONE': { sides: 4, size: 12, color: 0x87CEEB, isAir: true }, // Light sky blue
-            'HELICOPTER': { sides: 5, size: 22, color: 0x8B4513, isAir: true }, // Brown/tan, larger than scout drone
-            'BOMBER': { sides: 3, size: 25, color: 0x404040, isAir: true, isSortie: true }, // Dark gray, larger, triangle (delta wing)
-            'INTERCEPTOR': { sides: 3, size: 20, color: 0xFF4500, isAir: true, isSortie: true }, // Orange-red, sleek fighter
-            'GUNSHIP': { sides: 5, size: 28, color: 0x2F4F4F, isAir: true, isSortie: true } // Dark slate gray, heavy attack aircraft (hero)
+        const staticData = this.unitTypes[unitType];
+        // Add derived properties based on backend data
+        return {
+            ...staticData,
+            isAir: staticData.elevation === 'LOW' || staticData.elevation === 'HIGH'
         };
-        return unitTypes[unitType] || { sides: 4, size: 15, color: 0xFFFFFF };
     }
-    
+
     createUnitGraphics(unitData) {
         const typeInfo = this.getUnitTypeInfo(unitData.type);
         
@@ -1664,7 +1623,7 @@ class RTSEngine {
     /**
      * Create graphics for Gunship (LOW altitude heavy attack aircraft)
      * Features: fixed-wing design, dual jet engines, weapon pods, armored appearance
-     * Storm Wings hero unit - heavy attack jet, larger and more imposing than interceptor
+     * heavy attack jet, larger and more imposing than interceptor
      */
     createGunshipGraphics(unitData, typeInfo) {
         const container = new PIXI.Container();
@@ -1744,7 +1703,7 @@ class RTSEngine {
         rightWeapon.position.set(-typeInfo.size * 0.1, typeInfo.size * 0.6); // Under right wing
         rotatingContainer.addChild(rightWeapon);
         
-        // 9. ARMOR PLATING HIGHLIGHTS (hero unit visual flair)
+        // 9. ARMOR PLATING HIGHLIGHTS
         const armorHighlight = new PIXI.Graphics();
         armorHighlight.rect(-typeInfo.size * 0.4, -typeInfo.size * 0.15, typeInfo.size * 0.8, typeInfo.size * 0.3);
         armorHighlight.fill({ color: 0x708090, alpha: 0.3 }); // Slate gray highlight
@@ -1761,7 +1720,7 @@ class RTSEngine {
         const selectionCircle = new PIXI.Graphics();
         selectionCircle.visible = false;
         selectionCircle.circle(0, 0, typeInfo.size * 1.3);
-        selectionCircle.stroke({ width: 3, color: 0xFFD700 }); // Gold for hero unit
+        selectionCircle.stroke({ width: 3, color: 0xFFD700 });
         container.addChild(selectionCircle);
         container.selectionCircle = selectionCircle;
         
