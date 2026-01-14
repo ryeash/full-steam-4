@@ -23,7 +23,6 @@ public class FactionInfoDTO {
     // Tech Tree
     private List<UnitInfo> availableUnits;
     private List<BuildingInfo> availableBuildings;
-    // Research system removed - availableResearch field deleted
 
     // Global Modifiers
     private double powerEfficiencyModifier; // e.g., 0.7 = 30% less power consumption
@@ -107,8 +106,6 @@ public class FactionInfoDTO {
 
         // Capabilities
         private boolean canProduceUnits;
-        // NOTE: producedUnits removed - superseded by game state's availableUnits list
-        // which includes dynamically unlocked units from research
         private int requiredTechTier;
         private List<String> techRequirements; // Building types required before this can be built
 

@@ -86,8 +86,6 @@ public class ProductionComponent extends AbstractBuildingComponent {
                 // Initialize components
                 unit.initializeComponents(gameEntities);
 
-                // Note: Research modifiers are now applied dynamically, no need to apply retroactively
-
                 // Sortie-based units (e.g., Bombers) are now produced directly by their component (HangarComponent)
                 // and should never reach ProductionComponent, so we don't need special handling here.
                 // Regular units spawn on the map

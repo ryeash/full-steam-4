@@ -7,7 +7,6 @@ import com.fullsteam.model.component.GarrisonComponent;
 import com.fullsteam.model.component.HangarComponent;
 import com.fullsteam.model.component.IBuildingComponent;
 import com.fullsteam.model.component.ProductionComponent;
-import com.fullsteam.model.component.ResearchComponent;
 import com.fullsteam.model.component.SandstormComponent;
 import com.fullsteam.model.component.ShieldComponent;
 import com.fullsteam.model.factions.FactionDefinition;
@@ -126,11 +125,6 @@ public class Building extends GameEntity implements Targetable {
         if (buildingType == BuildingType.ANDROID_FACTORY) {
             addComponent(new AndroidFactoryComponent());
             log.debug("Building {} ({}) initialized with AndroidFactoryComponent", id, buildingType.getDisplayName());
-        }
-
-        if (buildingType == BuildingType.RESEARCH_LAB || buildingType == BuildingType.TECH_CENTER) {
-            addComponent(new ResearchComponent(this));
-            log.debug("Building {} ({}) initialized with ResearchComponent", id, buildingType.getDisplayName());
         }
 
         if (buildingType == BuildingType.SANDSTORM_GENERATOR) {
@@ -269,10 +263,6 @@ public class Building extends GameEntity implements Targetable {
             for (IBuildingComponent component : components.values()) {
                 component.onConstructionComplete();
             }
-
-            // Note: Research modifiers are now applied dynamically via getMaxHealth()
-            // No need to retroactively apply them here
-
             return true; // Construction just completed
         }
         return false; // Already completed

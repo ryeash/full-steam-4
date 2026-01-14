@@ -31,10 +31,6 @@ public interface PerkEffect {
      */
     void applyToDefinition(FactionDefinition.FactionDefinitionBuilder builder, CustomFactionConfig config);
 
-    // ============================================================================
-    // Lifecycle Hooks (all have default no-op implementations)
-    // ============================================================================
-
     /**
      * Called when a unit is created for this faction
      */
