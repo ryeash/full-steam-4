@@ -337,6 +337,20 @@ public class WeaponFactory {
             // Bomber: Doesn't use weapon system, creates explosions directly via SortieCommand
             // Gunship: Uses dual weapons managed by GunshipComponent (not standard weapon system)
 
+            // ===== SPECIAL UNITS =====
+
+            case SPY -> new ProjectileWeapon(
+                    0,       // 0 damage - tracker gun doesn't hurt, just tags
+                    range,   // 400 range (same as vision)
+                    attackRate, // 0.1 attacks/sec = 10 second cooldown
+                    250,     // projectile speed (slow tracker dart)
+                    0.1,     // linear damping (low - accurate shot)
+                    1.5,     // size (small dart)
+                    Ordinance.BULLET,
+                    Set.of(BulletEffect.TRACKER_BUG), // Applies TrackerBug on hit
+                    elevationTargeting
+            );
+
             // ===== NON-COMBAT UNITS =====
 
             case MEDIC, ENGINEER, GUNSHIP -> null; // These units don't have weapons (or manage their own)

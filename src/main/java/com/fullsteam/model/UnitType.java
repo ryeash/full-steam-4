@@ -192,18 +192,18 @@ public enum UnitType {
             20,      // build time (seconds)
             60,      // max health (very fragile)
             115.0,   // movement speed (fast, needs to infiltrate)
-            0,       // damage (no weapon)
-            0.0,     // attack rate
-            0,       // attack range
-            11.0,    // size (radius) - small profile
+            0,       // damage (tracker gun does 0 damage, just applies bug)
+            0.1,     // attack rate (very, very slow - 10 second cooldown)
+            500,     // attack range (same as vision range)
+            12.0,    // size (radius) - small profile
             0x2F4F4F, // dark slate gray (stealth color)
             BuildingType.BARRACKS,
             15,      // upkeep cost (high - intelligence gathering)
-            400.0,   // vision range (excellent - intelligence unit),
+            500.0,   // vision range (excellent - intelligence unit),
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 specialist
-            4        // faction customization point cost
+            7        // faction customization point cost
     ),
 
     // Grenadier - AOE infantry, anti-structure specialist
@@ -224,7 +224,7 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
             Set.of(), // Tier 1 unit
-            2        // faction customization point cost
+            4        // faction customization point cost
     ),
 
     // Minigunner - high fire rate, low damage, inaccurate suppression infantry
@@ -350,7 +350,7 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 advanced support
-            1        // faction customization point cost
+            6        // faction customization point cost
     ),
 
     // Spider Mine - autonomous proximity mine that self-destructs on enemy contact
@@ -392,7 +392,7 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB), // Tier 2 transport
-            4        // faction customization point cost
+            5        // faction customization point cost
     ),
 
     // Artillery - long range siege unit
@@ -2417,7 +2417,6 @@ public enum UnitType {
             case ENGINEER -> SpecialAbility.REPAIR;
             case CLOAK_TANK -> SpecialAbility.CLOAK;
             case SPIDER_MINE -> SpecialAbility.SPIDER_MINE;
-            case SPY -> SpecialAbility.SPY_CLOAK;
             default -> SpecialAbility.NONE;
         };
     }
@@ -2433,7 +2432,7 @@ public enum UnitType {
      * Check if this unit can attack
      */
     public boolean canAttack() {
-        return this != WORKER && this != MEDIC && this != ENGINEER && this != SPIDER_MINE && this != SPY && this != APC;
+        return this != WORKER && this != MEDIC && this != ENGINEER && this != SPIDER_MINE && this != APC;
     }
 
     /**

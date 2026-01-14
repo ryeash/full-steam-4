@@ -3,6 +3,7 @@ package com.fullsteam.model.component;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Unit;
+import com.fullsteam.model.command.IdleCommand;
 import com.fullsteam.model.customization.FactionPerk;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,7 +17,7 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * Component for APC units (Armored Personnel Carrier).
  * Provides mobile garrison functionality similar to bunkers.
- * 
+ * <p>
  * Key differences from bunker:
  * - Mobile (moves with the APC)
  * - When APC is destroyed, all garrisoned units are destroyed
@@ -29,7 +30,7 @@ public class APCComponent extends AbstractUnitComponent {
 
     private static final int BASE_GARRISON_CAPACITY = 3;
     private static final int GARRISON_MASTERY_CAPACITY = 5;
-    
+
     private final List<Unit> garrisonedUnits = new ArrayList<>();
 
     @Override
@@ -122,6 +123,7 @@ public class APCComponent extends AbstractUnitComponent {
         toUngarrison.getBody().getTransform().setTranslation(exitPos.x, exitPos.y);
         toUngarrison.setGarrisoned(false);
         toUngarrison.getBody().setEnabled(true);
+        toUngarrison.setCurrentCommand(new IdleCommand(toUngarrison));
 
         log.info("Unit {} ungarrisoned from APC {} ({}/{})",
                 toUngarrison.getId(), unit.getId(), garrisonedUnits.size(), getMaxGarrisonCapacity());

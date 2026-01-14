@@ -42,12 +42,27 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
      * Create an explosion at a projectile's position (when it reaches max range)
      */
     public void handleTerminalEffects(AbstractOrdinance projectile) {
+        handleTerminalEffects(projectile, null);
+    }
+
+    public void handleTerminalEffects(AbstractOrdinance projectile, Targetable affectedTarget) {
         if (projectile.getBulletEffects().contains(BulletEffect.EXPLOSIVE)) {
             createExplosionEffect(projectile);
         } else if (projectile.getBulletEffects().contains(BulletEffect.FLAK)) {
             createFlakExplosionEffect(projectile);
         } else if (projectile.getBulletEffects().contains(BulletEffect.ELECTRIC)) {
             createElectricFieldEffect(projectile);
+        } else if (affectedTarget instanceof Unit unit && projectile.getBulletEffects().contains(BulletEffect.TRACKER_BUG)) {
+            // Create tracker bug attached to this unit
+            TrackerBug trackerBug = new TrackerBug(
+                    unit.getId(),
+                    projectile.getOwnerId(),
+                    projectile.getOwnerTeam(),
+                    UnitType.SPY.getVisionRange(), // Vision range (same as Spy's vision)
+                    60000  // 60 seconds duration
+            );
+            gameEntities.addTrackerBug(trackerBug);
+            log.info("Tracker bug {} attached to unit {} by player {}", trackerBug.getId(), unit.getId(), projectile.getOwnerId());
         }
     }
 
@@ -65,7 +80,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
         log.debug("Projectile {} hit unit {} for {} damage (died: {})",
                 projectile.getId(), unit.getId(), projectile.getDamage(), died);
-        handleTerminalEffects(projectile);
+        handleTerminalEffects(projectile, unit);
     }
 
     /**

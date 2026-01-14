@@ -12,7 +12,8 @@ public enum BulletEffect {
     TOXIC,
     FREEZING,
     ELECTRIC,
-    FLAK         // Anti-aircraft flak explosion (targets air units only)
+    FLAK,        // Anti-aircraft flak explosion (targets air units only)
+    TRACKER_BUG     // Spy tracker device - attaches TrackerBug to target (0 damage)
 }
 
 

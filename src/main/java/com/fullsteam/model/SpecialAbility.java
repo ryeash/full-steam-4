@@ -45,14 +45,6 @@ public enum SpecialAbility {
             false, // not a toggle (automatic)
             false, // doesn't require target (proximity-based)
             0      // no cooldown (one-time use)
-    ),
-
-    // Spy's permanent cloaking and tracker gun (vision sharing)
-    SPY_CLOAK(
-            "Tracker Gun",
-            false, // not a toggle (automatic cloak, manual tracker gun)
-            true,  // requires target (for tracker gun)
-            10000  // 10 second cooldown between tracker shots
     );
 
     private final String displayName;

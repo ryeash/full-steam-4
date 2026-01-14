@@ -189,9 +189,10 @@ public class Unit extends GameEntity implements Targetable {
             addComponent(new SpiderMineComponent(), gameEntities);
         }
 
-        if (ability == SpecialAbility.SPY_CLOAK) {
-            addComponent(new SpyComponent(), gameEntities);
+        // Spy has automatic cloaking (no special ability, just component)
+        if (unitType == UnitType.SPY) {
             addComponent(new CloakComponent(), gameEntities);
+            addComponent(new SpyComponent(), gameEntities);
         }
 
         // APC garrison component
@@ -1048,18 +1049,6 @@ public class Unit extends GameEntity implements Targetable {
                 log.info("Engineer {} repaired unit {} for {} HP", id, target.getId(), repairAmount);
                 return true;
 
-            case SPY_CLOAK:
-                // Spy fires tracker gun at enemy units
-                return getComponent(SpyComponent.class)
-                        .map(spy -> {
-                            boolean success = spy.fireTrackerGun(target, gameEntities);
-                            if (success) {
-                                lastSpecialAbilityTime = now;
-                            }
-                            return success;
-                        })
-                        .orElse(false);
-
             default:
                 return false;
         }
@@ -1067,7 +1056,7 @@ public class Unit extends GameEntity implements Targetable {
 
     /**
      * Legacy method for backward compatibility.
-     * Calls the new method with null GameEntities (works for HEAL/REPAIR but not SPY_CLOAK).
+     * Calls the new method with null GameEntities (works for HEAL/REPAIR).
      */
     @Deprecated
     public boolean useSpecialAbilityOnUnit(Unit target) {

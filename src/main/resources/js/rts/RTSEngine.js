@@ -914,39 +914,41 @@ class RTSEngine {
         // Update cloak visual effect (for Cloak Tank and Spy)
         const typeInfo = this.unitTypes?.[unitData.type]; // Look up unit type info
         const specialAbility = typeInfo?.specialAbility; // Get special ability from static unit types
-        if (unitData.specialAbilityActive && (specialAbility === 'CLOAK' || specialAbility === 'SPY_CLOAK')) {
+        // Spy has permanent cloak (no special ability), Cloak Tank has toggle cloak (special ability)
+        const isCloakUnit = specialAbility === 'CLOAK' || unitData.type === 'SPY';
+        if (isCloakUnit && unitData.cloaked !== undefined) {
             // Apply transparency and shimmer effect when cloaked
             if (unitData.cloaked) {
-                // Fully cloaked - very transparent with shimmer
-                unitContainer.alpha = 0.15;
+                // Fully cloaked - semi-transparent with shimmer (increased from 0.15 to 0.4 for better visibility)
+                unitContainer.alpha = 0.4;
                 
                 // Add shimmer indicator if not already present
                 if (!unitContainer.cloakShimmer) {
                     const shimmer = new PIXI.Graphics();
                     shimmer.circle(0, 0, (typeInfo?.size || 15) + 8);
-                    shimmer.stroke({ width: 2, color: 0x00FFFF, alpha: 0.3 });
+                    shimmer.stroke({ width: 2, color: 0x00FFFF, alpha: 0.5 }); // Increased shimmer alpha from 0.3 to 0.5
                     unitContainer.addChild(shimmer);
                     unitContainer.cloakShimmer = shimmer;
                     
                     // Animate shimmer (pulsing effect)
                     shimmer.pulseDirection = 1;
-                    shimmer.pulseAlpha = 0.3;
+                    shimmer.pulseAlpha = 0.5; // Increased from 0.3 to 0.5
                 }
                 unitContainer.cloakShimmer.visible = true;
                 
-                // Pulse the shimmer
+                // Pulse the shimmer (more visible range)
                 if (unitContainer.cloakShimmer.pulseAlpha !== undefined) {
                     unitContainer.cloakShimmer.pulseAlpha += 0.01 * unitContainer.cloakShimmer.pulseDirection;
-                    if (unitContainer.cloakShimmer.pulseAlpha >= 0.5) {
+                    if (unitContainer.cloakShimmer.pulseAlpha >= 0.7) { // Increased from 0.5 to 0.7
                         unitContainer.cloakShimmer.pulseDirection = -1;
-                    } else if (unitContainer.cloakShimmer.pulseAlpha <= 0.1) {
+                    } else if (unitContainer.cloakShimmer.pulseAlpha <= 0.3) { // Increased from 0.1 to 0.3
                         unitContainer.cloakShimmer.pulseDirection = 1;
                     }
                     unitContainer.cloakShimmer.alpha = unitContainer.cloakShimmer.pulseAlpha;
                 }
             } else {
-                // Cloak active but recently fired - partial transparency
-                unitContainer.alpha = 0.5;
+                // Cloak active but recently fired/detected - partial transparency
+                unitContainer.alpha = 0.6; // Increased from 0.5 to 0.6
                 if (unitContainer.cloakShimmer) {
                     unitContainer.cloakShimmer.visible = false;
                 }
@@ -4169,10 +4171,6 @@ class RTSEngine {
                 } else if (specialAbility === 'REPAIR') {
                     needsTarget = true;
                     targetType = 'building';
-                    break;
-                } else if (specialAbility === 'SPY_CLOAK') {
-                    needsTarget = true;
-                    targetType = 'unit'; // Tracker gun targets enemy units
                     break;
                 }
             }
