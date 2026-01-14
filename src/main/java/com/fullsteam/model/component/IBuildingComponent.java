@@ -2,6 +2,7 @@ package com.fullsteam.model.component;
 
 import com.fullsteam.model.Building;
 import com.fullsteam.model.GameEntities;
+import com.fullsteam.model.research.ResearchModifier;
 
 /**
  * Interface for building components.
@@ -54,7 +55,7 @@ public interface IBuildingComponent {
      *
      * @param modifier the cumulative modifiers for the building owner
      */
-    default void applyResearchModifiers(com.fullsteam.model.research.ResearchModifier modifier) {
+    default void applyResearchModifiers(ResearchModifier modifier) {
         // Default: do nothing (research system removed)
     }
 }

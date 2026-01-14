@@ -6,6 +6,7 @@ import com.fullsteam.model.PlayerFaction;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.UnitType;
 import com.fullsteam.model.command.MoveCommand;
+import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -141,7 +142,7 @@ public class AndroidFactoryComponent extends AbstractBuildingComponent {
     }
 
     @Override
-    public void applyResearchModifiers(com.fullsteam.model.research.ResearchModifier modifier) {
+    public void applyResearchModifiers(ResearchModifier modifier) {
         // Research system removed - no-op
     }
 

@@ -2113,6 +2113,13 @@ public class RTSGameManager {
                 unit.put("buildTimeSeconds", unitType.getBuildTimeSeconds());
                 unit.put("producedBy", unitType.getProducedBy().name());
                 unit.put("category", unitType.getCategory().name());
+                
+                // Add tech requirements (required buildings)
+                List<String> techReqs = unitType.getRequiredBuildings().stream()
+                        .map(BuildingType::name)
+                        .toList();
+                unit.put("techRequirements", techReqs);
+                
                 unitInfo.add(unit);
             }
             factionStatic.put("unitInfo", unitInfo);
@@ -2397,6 +2404,12 @@ public class RTSGameManager {
                 unit.put("buildTimeSeconds", unitType.getBuildTimeSeconds());
                 unit.put("producedBy", unitType.getProducedBy().name());
                 unit.put("category", unitType.getCategory().name());
+                
+                // Add tech requirements (required buildings)
+                List<String> techReqs = unitType.getRequiredBuildings().stream()
+                        .map(BuildingType::name)
+                        .toList();
+                unit.put("techRequirements", techReqs);
 
                 unitInfo.add(unit);
             } catch (IllegalArgumentException e) {
