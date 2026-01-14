@@ -2,7 +2,6 @@ package com.fullsteam.model.component;
 
 import com.fullsteam.model.Building;
 import com.fullsteam.model.GameEntities;
-import com.fullsteam.model.research.ResearchModifier;
 
 /**
  * Interface for building components.
@@ -47,16 +46,6 @@ public interface IBuildingComponent {
      */
     default void onDestroy() {
         // Default: do nothing
-    }
-
-    /**
-     * Apply research modifiers for this building components.
-     * Components that are affected by research should override this method.
-     *
-     * @param modifier the cumulative modifiers for the building owner
-     */
-    default void applyResearchModifiers(ResearchModifier modifier) {
-        // Default: do nothing (research system removed)
     }
 }
 

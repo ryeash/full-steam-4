@@ -6,7 +6,6 @@ import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.UnitType;
 import com.fullsteam.model.command.AttackTargetableCommand;
-import com.fullsteam.model.research.ResearchModifier;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -326,11 +325,6 @@ public class HangarComponent extends AbstractBuildingComponent {
             log.warn("Hangar {} destroyed with housed bomber - bomber destroyed", building.getId());
             housedAircraft.setActive(false);
         }
-    }
-
-    @Override
-    public void applyResearchModifiers(ResearchModifier modifier) {
-        // Research system removed - no-op
     }
 
     /**
