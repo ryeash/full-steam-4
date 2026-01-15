@@ -1,11 +1,14 @@
 package com.fullsteam.dto;
 
-import com.fullsteam.model.customization.BuildingTemplate;
+import com.fullsteam.model.BuildingType;
+import com.fullsteam.model.UnitCategory;
+import com.fullsteam.model.customization.EntityCategory;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,40 +30,173 @@ public class BuildingTemplateDTO {
     private List<String> tags;
     private String iconPath;
     private List<String> techRequirements; // NEW: Required buildings to unlock this
-    
+
     // Stats
-    private int maxHealth;
+    private double maxHealth;
     private int baseCost;
     private int powerValue;
-    
-    public static BuildingTemplateDTO fromTemplate(BuildingTemplate template) {
-        // Get tech requirements from BuildingType
-        List<String> techReqs = template.getBuildingType().getTechRequirements().stream()
-                .map(Enum::name)
-                .collect(Collectors.toList());
-        
+
+    public static BuildingTemplateDTO fromType(BuildingType template) {
         return BuildingTemplateDTO.builder()
-            .id(template.getId())
-            .buildingType(template.getBuildingType().name())
-            .displayName(template.getDisplayName())
-            .description(template.getDescription())
-            .pointCost(template.getPointCost())
-            .category(template.getCategory().name())
-            .producesUnitCategories(template.getProducesUnitCategories().stream()
-                .map(Enum::name)
-                .collect(Collectors.toList()))
-            .tags(template.getTags())
-            .iconPath(template.getIconPath())
-            .techRequirements(techReqs)
-            .maxHealth(template.getMaxHealth())
-            .baseCost(template.getBaseCost())
-            .powerValue(template.getPowerValue())
-            .build();
+                .id(template.name())
+                .buildingType(template.name())
+                .displayName(template.getDisplayName())
+                .description(generateDescription(template))
+                .pointCost(template.getPointCost())
+                .category(mapToCategory(template).name())
+                .producesUnitCategories(getProducedUnitCategories(template)
+                        .stream()
+                        .map(Enum::name)
+                        .collect(Collectors.toList()))
+                .tags(generateTags(template))
+                .techRequirements(template.getTechRequirements()
+                        .stream()
+                        .map(Enum::name)
+                        .collect(Collectors.toList()))
+                .maxHealth(template.getMaxHealth())
+                .baseCost(template.getResourceCost())
+                .powerValue(template.getPowerValue())
+                .build();
     }
-    
-    public static List<BuildingTemplateDTO> fromTemplates(List<BuildingTemplate> templates) {
-        return templates.stream()
-            .map(BuildingTemplateDTO::fromTemplate)
-            .collect(Collectors.toList());
+
+
+    /**
+     * Map building type to entity category
+     */
+    private static EntityCategory mapToCategory(BuildingType buildingType) {
+        if (buildingType.isCanProduceUnits()) {
+            return EntityCategory.PRODUCTION;
+        }
+        if (isTurret(buildingType) ||
+                buildingType == BuildingType.BUNKER ||
+                buildingType == BuildingType.SHIELD_GENERATOR ||
+                buildingType == BuildingType.WALL) {
+            return EntityCategory.DEFENSE;
+        }
+        if (buildingType == BuildingType.POWER_PLANT ||
+                buildingType == BuildingType.REFINERY ||
+                buildingType == BuildingType.BANK) {
+            return EntityCategory.ECONOMY;
+        }
+        if (buildingType == BuildingType.RESEARCH_LAB ||
+                buildingType == BuildingType.TECH_CENTER) {
+            return EntityCategory.TECH;
+        }
+        return EntityCategory.ECONOMY; // Default
+    }
+
+    /**
+     * Get which unit categories this building can produce
+     */
+    private static List<UnitCategory> getProducedUnitCategories(BuildingType buildingType) {
+        List<UnitCategory> categories = new ArrayList<>();
+
+        switch (buildingType) {
+            case HEADQUARTERS -> categories.add(UnitCategory.WORKER);
+            case BARRACKS -> categories.add(UnitCategory.INFANTRY);
+            case FACTORY -> categories.add(UnitCategory.VEHICLE);
+            case AIRFIELD, HANGAR -> categories.add(UnitCategory.FLYER);
+        }
+
+        return categories;
+    }
+
+    /**
+     * Generate descriptive tags for filtering
+     */
+    private static List<String> generateTags(BuildingType buildingType) {
+        List<String> tags = new ArrayList<>();
+
+        // Category tag
+        tags.add(mapToCategory(buildingType).name());
+
+        // Production tags
+        if (buildingType.isCanProduceUnits()) {
+            tags.add("PRODUCTION");
+            for (UnitCategory category : getProducedUnitCategories(buildingType)) {
+                tags.add("PRODUCES_" + category.name());
+            }
+        }
+
+        // Defense tags
+        if (isTurret(buildingType)) {
+            tags.add("TURRET");
+            tags.add("DEFENSIVE");
+        }
+        if (buildingType == BuildingType.BUNKER) {
+            tags.add("GARRISON");
+            tags.add("DEFENSIVE");
+        }
+        if (buildingType == BuildingType.SHIELD_GENERATOR) {
+            tags.add("SHIELD");
+            tags.add("DEFENSIVE");
+        }
+
+        // Economy tags
+        if (buildingType == BuildingType.POWER_PLANT) {
+            tags.add("POWER");
+            tags.add("ESSENTIAL");
+        }
+        if (buildingType == BuildingType.REFINERY) {
+            tags.add("RESOURCE");
+            tags.add("ESSENTIAL");
+        }
+        if (buildingType == BuildingType.BANK) {
+            tags.add("CREDIT_GENERATION");
+        }
+
+        // Tech tags
+        if (buildingType == BuildingType.RESEARCH_LAB ||
+                buildingType == BuildingType.TECH_CENTER) {
+            tags.add("RESEARCH");
+        }
+
+        // Power tags
+        if (buildingType.getPowerValue() > 0) {
+            tags.add("GENERATES_POWER");
+        } else if (buildingType.getPowerValue() < 0) {
+            tags.add("CONSUMES_POWER");
+        }
+
+        return tags;
+    }
+
+    /**
+     * Generate a description for the building
+     */
+    private static String generateDescription(BuildingType buildingType) {
+        if (buildingType == BuildingType.HEADQUARTERS) {
+            return "Main base building. Produces workers and serves as a tech anchor.";
+        }
+        if (buildingType.isCanProduceUnits()) {
+            List<UnitCategory> categories = getProducedUnitCategories(buildingType);
+            if (!categories.isEmpty()) {
+                return String.format("Produces %s units", categories.get(0).name().toLowerCase());
+            }
+            return "Production building";
+        }
+        if (isTurret(buildingType)) {
+            return "Automated defense turret that attacks enemy units";
+        }
+        if (buildingType == BuildingType.BUNKER) {
+            return "Garrison building that houses infantry units";
+        }
+        if (buildingType == BuildingType.POWER_PLANT) {
+            return "Generates power for your base";
+        }
+        if (buildingType == BuildingType.REFINERY) {
+            return "Enables resource harvesting from resource nodes";
+        }
+        if (buildingType == BuildingType.RESEARCH_LAB) {
+            return "Enables research of combat and economy upgrades";
+        }
+        return buildingType.getDisplayName();
+    }
+
+    private static boolean isTurret(BuildingType buildingType) {
+        return buildingType == BuildingType.TURRET ||
+                buildingType == BuildingType.ROCKET_TURRET ||
+                buildingType == BuildingType.LASER_TURRET ||
+                buildingType == BuildingType.TEMPEST_SPIRE;
     }
 }

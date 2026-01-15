@@ -8,12 +8,10 @@ import com.fullsteam.dto.UnitTemplateDTO;
 import com.fullsteam.model.BuildingType;
 import com.fullsteam.model.RTSGameManager;
 import com.fullsteam.model.UnitType;
-import com.fullsteam.model.customization.BuildingTemplate;
 import com.fullsteam.model.customization.CustomFactionBuilder;
 import com.fullsteam.model.customization.CustomFactionConfig;
 import com.fullsteam.model.customization.FactionPerk;
 import com.fullsteam.model.customization.FactionPresetRegistry;
-import com.fullsteam.model.customization.UnitTemplate;
 import com.fullsteam.model.customization.ValidationResult;
 import com.fullsteam.model.factions.FactionDefinition;
 import io.micronaut.http.HttpResponse;
@@ -42,10 +40,10 @@ import java.util.stream.Collectors;
 public class FactionCustomizationController {
 
     private static final Logger log = LoggerFactory.getLogger(FactionCustomizationController.class);
-    
+
     private final CustomFactionBuilder factionBuilder;
     private final RTSLobby rtsLobby;
-    
+
     public FactionCustomizationController(
             CustomFactionBuilder factionBuilder,
             RTSLobby rtsLobby) {
@@ -101,9 +99,8 @@ public class FactionCustomizationController {
     @Get("/templates/units")
     public List<UnitTemplateDTO> getUnitTemplates() {
         return Arrays.stream(UnitType.values())
-                .map(UnitTemplate::fromUnitType)
                 .filter(template -> template.getPointCost() > 0) // Exclude zero-point units (WORKER, ANDROID)
-                .map(UnitTemplateDTO::fromTemplate)
+                .map(UnitTemplateDTO::fromType)
                 .collect(Collectors.toList());
     }
 
@@ -113,9 +110,8 @@ public class FactionCustomizationController {
     @Get("/templates/buildings")
     public List<BuildingTemplateDTO> getBuildingTemplates() {
         return Arrays.stream(BuildingType.values())
-                .map(BuildingTemplate::fromBuildingType)
                 .filter(template -> template.getPointCost() > 0) // Exclude zero-point buildings (HEADQUARTERS, POWER_PLANT)
-                .map(BuildingTemplateDTO::fromTemplate)
+                .map(BuildingTemplateDTO::fromType)
                 .collect(Collectors.toList());
     }
 

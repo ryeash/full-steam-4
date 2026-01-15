@@ -186,12 +186,12 @@ public class CustomFactionConfig {
             if (unit == UnitType.ANDROID) {
                 continue;
             }
-            total += UnitTemplate.fromUnitType(unit).getPointCost();
+            total += unit.getPointCost();
         }
 
         // Buildings
         for (BuildingType building : selectedBuildings) {
-            total += BuildingTemplate.fromBuildingType(building).getPointCost();
+            total += building.getPointCost();
         }
 
         // Perks
