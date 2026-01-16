@@ -1,6 +1,8 @@
 package com.fullsteam.model;
 
 import io.micronaut.core.annotation.Introspected;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
@@ -24,9 +26,13 @@ public class GameConfig {
     private int maxPlayers = 2;
 
     @Builder.Default
+    @DecimalMin("3000.0")
+    @DecimalMax("10000.0")
     private double worldWidth = 4000.0;
 
     @Builder.Default
+    @DecimalMin("3000.0")
+    @DecimalMax("10000.0")
     private double worldHeight = 4000.0;
 
     @Builder.Default
