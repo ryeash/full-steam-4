@@ -16,6 +16,7 @@ import com.fullsteam.model.component.RepairComponent;
 import com.fullsteam.model.component.ShieldTankComponent;
 import com.fullsteam.model.component.SpiderMineComponent;
 import com.fullsteam.model.component.SpyComponent;
+import com.fullsteam.model.factions.FactionDefinition;
 import com.fullsteam.model.weapon.ProjectileWeapon;
 import com.fullsteam.model.weapon.Weapon;
 import com.fullsteam.model.weapon.WeaponFactory;
@@ -35,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * Represents a unit (worker, infantry, vehicle, etc.)
@@ -110,7 +112,7 @@ public class Unit extends GameEntity implements Targetable {
             return baseHealth;
         }
 
-        com.fullsteam.model.factions.FactionDefinition.UnitStatModifier modifier =
+        FactionDefinition.UnitStatModifier modifier =
                 faction.getFactionDefinition().getUnitStatModifiers().get(unitType);
 
         if (modifier != null) {
@@ -129,7 +131,7 @@ public class Unit extends GameEntity implements Targetable {
             return;
         }
 
-        com.fullsteam.model.factions.FactionDefinition.UnitStatModifier modifier =
+        FactionDefinition.UnitStatModifier modifier =
                 faction.getFactionDefinition().getUnitStatModifiers().get(unitType);
 
         if (modifier != null) {
@@ -372,10 +374,8 @@ public class Unit extends GameEntity implements Targetable {
 
         if (hangar != null && hangar.isActive()) {
             // Return to hangar component
-            HangarComponent hangarComponent = hangar.getComponent(HangarComponent.class).orElse(null);
-            if (hangarComponent != null) {
-                hangarComponent.returnFromSortie(this); // Updates aircraft health and removes from world
-            }
+            hangar.getComponent(HangarComponent.class)
+                    .ifPresent(hangarComponent -> hangarComponent.returnFromSortie(this));
         }
     }
 
@@ -478,7 +478,12 @@ public class Unit extends GameEntity implements Targetable {
         Vector2 seekForce;
         boolean isNearDestination = distanceToTarget < 25.0;
         if (isNearDestination) {
-            seekForce = calculateArrival(target, 25.0);
+            double slowingRadius = switch (unitType.getCategory()) {
+                case WORKER, INFANTRY -> 25;
+                case VEHICLE -> 33;
+                case FLYER -> 39;
+            };
+            seekForce = calculateArrival(target, slowingRadius);
         } else {
             seekForce = calculateSeek(target);
         }
@@ -750,7 +755,7 @@ public class Unit extends GameEntity implements Targetable {
             // Note: buildTimeMultiplier of 0.8 means 20% faster, so we divide by it
             double buildTimeMultiplier = 1.0;
             if (faction != null && faction.getFactionDefinition() != null) {
-                com.fullsteam.model.factions.FactionDefinition.BuildingStatModifier modifier =
+                FactionDefinition.BuildingStatModifier modifier =
                         faction.getFactionDefinition().getBuildingStatModifiers().get(building.getBuildingType());
                 if (modifier != null) {
                     buildTimeMultiplier = modifier.getBuildTimeMultiplier();
@@ -786,33 +791,31 @@ public class Unit extends GameEntity implements Targetable {
 
     /**
      * AI behavior: Medics scan for damaged friendlies and auto-heal
-     *
-     * @return true if a heal target was found and healed
      */
-    public boolean scanForHealTargets(List<Unit> allUnits) {
+    public void scanForHealTargets(List<Unit> allUnits) {
         // Only medics can heal
         if (!unitType.canHeal()) {
-            return false;
+            return;
         }
 
         // Don't interrupt player orders  
         if (currentCommand != null && currentCommand.isPlayerOrder()) {
-            return false;
+            return;
         }
         // Also check legacy isMoving flag (used by GarrisonComponent)
         if (isMoving) {
-            return false;
+            return;
         }
 
         // Check if heal ability is ready
         SpecialAbility ability = unitType.getSpecialAbility();
         if (ability != SpecialAbility.HEAL) {
-            return false;
+            return;
         }
 
         long now = System.currentTimeMillis();
         if (now - lastSpecialAbilityTime < ability.getCooldownMs()) {
-            return false; // Still on cooldown
+            return;
         }
 
         Vector2 currentPos = getPosition();
@@ -841,46 +844,37 @@ public class Unit extends GameEntity implements Targetable {
 
         // If found a damaged unit, heal it
         if (mostDamagedUnit != null) {
-            boolean healed = useSpecialAbilityOnUnit(mostDamagedUnit);
-            if (healed) {
-                log.debug("Medic {} auto-healed unit {} ({}% health)",
-                        id, mostDamagedUnit.getId(), (int) (lowestHealthPercent * 100));
-                return true;
-            }
+            useSpecialAbilityOnUnit(mostDamagedUnit);
         }
-
-        return false;
     }
 
     /**
      * AI behavior: Engineers scan for damaged friendly units and buildings, then auto-repair
-     *
-     * @return true if a repair target was found and repaired
      */
-    public boolean scanForRepairTargets(List<Building> allBuildings, List<Unit> allUnits) {
+    public void scanForRepairTargets(List<Building> allBuildings, List<Unit> allUnits) {
         // Only engineers can repair
         if (!unitType.canRepair()) {
-            return false;
+            return;
         }
 
         // Don't interrupt player orders or construction
         if (currentCommand != null && currentCommand.isPlayerOrder()) {
-            return false;
+            return;
         }
         // Also check legacy isMoving flag (used by GarrisonComponent)
         if (isMoving || isConstructing) {
-            return false;
+            return;
         }
 
         // Check if repair ability is ready
         SpecialAbility ability = unitType.getSpecialAbility();
         if (ability != SpecialAbility.REPAIR) {
-            return false;
+            return;
         }
 
         long now = System.currentTimeMillis();
         if (now - lastSpecialAbilityTime < ability.getCooldownMs()) {
-            return false; // Still on cooldown
+            return;
         }
 
         Vector2 currentPos = getPosition();
@@ -908,13 +902,8 @@ public class Unit extends GameEntity implements Targetable {
         }
 
         // If found a damaged unit, repair it
-        if (mostDamagedUnit != null) {
-            boolean repaired = useSpecialAbilityOnUnit(mostDamagedUnit);
-            if (repaired) {
-                log.debug("Engineer {} auto-repaired unit {} ({}% health)",
-                        id, mostDamagedUnit.getId(), (int) (lowestUnitHealthPercent * 100));
-                return true;
-            }
+        if (mostDamagedUnit != null && useSpecialAbilityOnUnit(mostDamagedUnit)) {
+            return;
         }
 
         // Otherwise, find most damaged friendly building in range
@@ -940,15 +929,8 @@ public class Unit extends GameEntity implements Targetable {
 
         // If found a damaged building, repair it
         if (mostDamagedBuilding != null) {
-            boolean repaired = useSpecialAbilityOnBuilding(mostDamagedBuilding);
-            if (repaired) {
-                log.debug("Engineer {} auto-repaired building {} ({}% health)",
-                        id, mostDamagedBuilding.getId(), (int) (lowestBuildingHealthPercent * 100));
-                return true;
-            }
+            useSpecialAbilityOnBuilding(mostDamagedBuilding);
         }
-
-        return false;
     }
 
     /**
@@ -1008,11 +990,10 @@ public class Unit extends GameEntity implements Targetable {
     /**
      * Use special ability on a target unit (e.g., Medic heal, Spy tracker gun)
      *
-     * @param target       The unit to target
-     * @param gameEntities Game entities (for spy tracker bug)
+     * @param target The unit to target
      * @return true if ability was used successfully
      */
-    public boolean useSpecialAbilityOnUnit(Unit target, GameEntities gameEntities) {
+    public boolean useSpecialAbilityOnUnit(Unit target) {
         SpecialAbility ability = unitType.getSpecialAbility();
         if (ability == SpecialAbility.NONE || !ability.isRequiresTarget()) {
             return false;
@@ -1055,15 +1036,6 @@ public class Unit extends GameEntity implements Targetable {
     }
 
     /**
-     * Legacy method for backward compatibility.
-     * Calls the new method with null GameEntities (works for HEAL/REPAIR).
-     */
-    @Deprecated
-    public boolean useSpecialAbilityOnUnit(Unit target) {
-        return useSpecialAbilityOnUnit(target, null);
-    }
-
-    /**
      * Use special ability on a target building (e.g., Engineer repair)
      *
      * @param target The building to repair
@@ -1088,19 +1060,15 @@ public class Unit extends GameEntity implements Targetable {
             return false;
         }
 
-        switch (ability) {
-            case REPAIR:
-                // Engineer repairs friendly buildings
-                double repairAmount = 30.0; // Repair 30 HP per use
-                double newHealth = Math.min(target.getMaxHealth(), target.getHealth() + repairAmount);
-                target.setHealth(newHealth);
-                lastSpecialAbilityTime = now;
-                log.info("Engineer {} repaired building {} for {} HP", id, target.getId(), repairAmount);
-                return true;
-
-            default:
-                return false;
+        if (ability == SpecialAbility.REPAIR) {// Engineer repairs friendly buildings
+            double repairAmount = 30.0; // Repair 30 HP per use
+            double newHealth = Math.min(target.getMaxHealth(), target.getHealth() + repairAmount);
+            target.setHealth(newHealth);
+            lastSpecialAbilityTime = now;
+            log.info("Engineer {} repaired building {} for {} HP", id, target.getId(), repairAmount);
+            return true;
         }
+        return false;
     }
 
     /**
@@ -1132,7 +1100,7 @@ public class Unit extends GameEntity implements Targetable {
     public double getMovementSpeed() {
         // Base speed from unit type with faction modifiers
         double baseSpeed = unitType.getMovementSpeed();
-        double multiplier = getUnitStatMultiplier(mod -> mod.getSpeedMultiplier());
+        double multiplier = getUnitStatMultiplier(FactionDefinition.UnitStatModifier::getSpeedMultiplier);
         return baseSpeed * multiplier;
     }
 
@@ -1150,7 +1118,7 @@ public class Unit extends GameEntity implements Targetable {
     @Override
     public double getMaxHealth() {
         double baseHealth = unitType.getMaxHealth();
-        double multiplier = getUnitStatMultiplier(mod -> mod.getHealthMultiplier());
+        double multiplier = getUnitStatMultiplier(FactionDefinition.UnitStatModifier::getHealthMultiplier);
         return baseHealth * multiplier;
     }
 
@@ -1158,9 +1126,9 @@ public class Unit extends GameEntity implements Targetable {
      * Get a stat multiplier from the faction definition for this unit type.
      * Uses a function to extract the specific multiplier needed.
      */
-    private double getUnitStatMultiplier(java.util.function.Function<com.fullsteam.model.factions.FactionDefinition.UnitStatModifier, Double> extractor) {
+    private double getUnitStatMultiplier(Function<FactionDefinition.UnitStatModifier, Double> extractor) {
         if (faction != null && faction.getFactionDefinition() != null) {
-            com.fullsteam.model.factions.FactionDefinition.UnitStatModifier modifier = faction.getFactionDefinition()
+            FactionDefinition.UnitStatModifier modifier = faction.getFactionDefinition()
                     .getUnitStatModifiers()
                     .get(unitType);
             if (modifier != null) {
@@ -1253,9 +1221,9 @@ public class Unit extends GameEntity implements Targetable {
         return CloakComponent.getDetectionRange();
     }
 
-    // ============================================================================
-    // Garrison Management (APC)
-    // ============================================================================
+// ============================================================================
+// Garrison Management (APC)
+// ============================================================================
 
     /**
      * Garrison a unit inside this APC

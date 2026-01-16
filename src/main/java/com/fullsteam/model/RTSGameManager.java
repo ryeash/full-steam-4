@@ -652,7 +652,7 @@ public class RTSGameManager {
                             .forEach(unit -> {
                                 if (unit.getUnitType().hasSpecialAbility() &&
                                         unit.getUnitType().getSpecialAbility().isRequiresTarget()) {
-                                    boolean success = unit.useSpecialAbilityOnUnit(targetUnit, gameEntities);
+                                    boolean success = unit.useSpecialAbilityOnUnit(targetUnit);
                                     if (success) {
                                         SpecialAbility ability = unit.getUnitType().getSpecialAbility();
                                         sendGameEvent(GameEvent.createPlayerEvent(
