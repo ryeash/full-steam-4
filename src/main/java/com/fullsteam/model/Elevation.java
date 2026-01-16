@@ -48,25 +48,6 @@ public enum Elevation {
     }
 
     /**
-     * Check if this elevation is higher than another.
-     *
-     * @param other The elevation to compare to
-     * @return true if this elevation is higher
-     */
-    public boolean isHigherThan(Elevation other) {
-        return this.level > other.level;
-    }
-
-    /**
-     * Check if this elevation is at ground level.
-     *
-     * @return true if GROUND elevation
-     */
-    public boolean isGround() {
-        return this == GROUND;
-    }
-
-    /**
      * Check if this elevation is airborne (LOW or HIGH).
      *
      * @return true if not GROUND

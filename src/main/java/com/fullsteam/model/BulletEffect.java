@@ -6,11 +6,7 @@ package com.fullsteam.model;
 public enum BulletEffect {
     EXPLOSIVE,
     PIERCING,
-    INCENDIARY,
-    BOUNCING,
     SEEKING,     // Homing/heat-seeking projectiles (e.g., interceptor missiles)
-    TOXIC,
-    FREEZING,
     ELECTRIC,
     FLAK,        // Anti-aircraft flak explosion (targets air units only)
     TRACKER_BUG     // Spy tracker device - attaches TrackerBug to target (0 damage)

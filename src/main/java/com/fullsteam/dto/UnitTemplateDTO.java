@@ -27,7 +27,7 @@ public class UnitTemplateDTO {
     private String unitCategory;
     private List<String> tags;
     private String iconPath;
-    private List<String> techRequirements; // NEW: Required buildings to unlock this
+    private List<String> techRequirements;
 
     // Stats
     private double maxHealth;

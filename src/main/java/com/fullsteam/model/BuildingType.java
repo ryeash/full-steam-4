@@ -1,5 +1,6 @@
 package com.fullsteam.model;
 
+import com.fullsteam.model.customization.BuildingCategory;
 import lombok.Getter;
 import org.dyn4j.geometry.Convex;
 import org.dyn4j.geometry.Geometry;
@@ -18,312 +19,335 @@ public enum BuildingType {
     // Main base - produces workers, required to win
     HEADQUARTERS(
             "Headquarters",
-            0,       // free (starting building)
-            0,       // no build time
-            5000,    // max health
-            80.0,    // size (radius)
-            0xFFD700, // gold
-            true,    // can produce units
-            50,      // power generation
-            500.0,   // vision range (excellent, main base)
-            0        // faction customization point cost
-    ),
+            BuildingCategory.ECONOMY,
+            // free (starting building)
+            0,        // no build time
+            0,     // max health
+            5000,     // size (radius)
+            80.0,  // gold
+            0xFFD700,    // can produce units
+            true,       // power generation
+            50,    // vision range (excellent, main base)
+            500.0,         // faction customization point cost
+            0),
 
     // Resource collection point
     REFINERY(
             "Refinery",
-            300,     // resource cost
-            20,      // build time (seconds)
-            600,     // max health
-            50.0,    // size (radius)
-            0x808080, // gray
-            false,   // cannot produce units
-            -10,     // power consumption
-            350.0,   // vision range (moderate, economic building)
-            2        // faction customization point cost
-    ),
+            BuildingCategory.ECONOMY,
+            // resource cost
+            300,       // build time (seconds)
+            20,      // max health
+            600,     // size (radius)
+            50.0,  // gray
+            0x808080,    // cannot produce units
+            false,     // power consumption
+            -10,    // vision range (moderate, economic building)
+            350.0,         // faction customization point cost
+            2),
 
     // Infantry production
     BARRACKS(
             "Barracks",
-            200,     // resource cost
-            15,      // build time (seconds)
-            550,     // max health
-            45.0,    // size (radius)
-            0x8B4513, // brown
-            true,    // can produce units
-            -25,     // power consumption
-            380.0,   // vision range (good, production building)
-            3        // faction customization point cost
-    ),
+            BuildingCategory.PRODUCTION,
+            // resource cost
+            200,       // build time (seconds)
+            15,      // max health
+            550,     // size (radius)
+            45.0,  // brown
+            0x8B4513,    // can produce units
+            true,     // power consumption
+            -25,    // vision range (good, production building)
+            380.0,         // faction customization point cost
+            3),
 
     // Power generation - required for advanced buildings
     POWER_PLANT(
             "Power Plant",
-            250,     // resource cost
-            20,      // build time (seconds)
-            400,     // max health
-            40.0,    // size (radius)
-            0xFFFF00, // yellow
-            false,   // cannot produce units
-            100,     // power generation
-            360.0,   // vision range (moderate, utility building)
-            0        // faction customization point cost
-    ),
+            BuildingCategory.ECONOMY,
+            // resource cost
+            250,       // build time (seconds)
+            20,      // max health
+            400,     // size (radius)
+            40.0,  // yellow
+            0xFFFF00,    // cannot produce units
+            false,      // power generation
+            100,    // vision range (moderate, utility building)
+            360.0,         // faction customization point cost
+            0),
 
     // Defensive structure - blocks movement
     WALL(
             "Wall",
-            50,      // resource cost
-            5,       // build time (seconds)
-            500,     // max health
-            15.0,    // size (radius) - small for tight placement
-            0x708090, // slate gray
-            false,   // cannot produce units
-            0,       // no power needed
-            250.0,
-            1        // faction customization point cost
-    ),
+            BuildingCategory.DEFENSE,
+            // resource cost
+            50,        // build time (seconds)
+            5,      // max health
+            500,     // size (radius) - small for tight placement
+            15.0,  // slate gray
+            0x708090,    // cannot produce units
+            false,        // no power needed
+            0,
+            250.0,         // faction customization point cost
+            1),
 
     // Vehicle production
     FACTORY(
             "Factory",
-            400,     // resource cost
-            25,      // build time (seconds)
-            800,     // max health
-            55.0,    // size (radius)
-            0x696969, // dark gray
-            true,    // can produce units
-            -30,     // power consumption
-            390.0,   // vision range (good, production building)
-            5        // faction customization point cost
-    ),
+            BuildingCategory.PRODUCTION,
+            // resource cost
+            400,       // build time (seconds)
+            25,      // max health
+            800,     // size (radius)
+            55.0,  // dark gray
+            0x696969,    // can produce units
+            true,     // power consumption
+            -30,    // vision range (good, production building)
+            390.0,         // faction customization point cost
+            5),
 
     // Research and tech unlocking - unlocks T2
     RESEARCH_LAB(
             "Research Lab",
-            500,     // resource cost
-            30,      // build time (seconds)
-            700,     // max health
-            50.0,    // size (radius)
-            0x00CED1, // dark turquoise
-            false,   // cannot produce units
-            -35,     // power consumption
-            400.0,   // vision range (good, tech building)
-            4        // faction customization point cost
-    ),
+            BuildingCategory.TECH,
+            // resource cost
+            500,       // build time (seconds)
+            30,      // max health
+            700,     // size (radius)
+            50.0,  // dark turquoise
+            0x00CED1,    // cannot produce units
+            false,     // power consumption
+            -35,    // vision range (good, tech building)
+            400.0,         // faction customization point cost
+            4),
 
     // Elite tech unlocking - unlocks T3
     TECH_CENTER(
             "Tech Center",
-            800,     // resource cost
-            40,      // build time (seconds)
-            900,     // max health
-            60.0,    // size (radius)
-            0x4169E1, // royal blue
-            false,   // cannot produce units
-            -50,     // power consumption
-            420.0,   // vision range (excellent, advanced tech)
-            6        // faction customization point cost
-    ),
+            BuildingCategory.TECH,
+            // resource cost
+            800,       // build time (seconds)
+            40,      // max health
+            900,     // size (radius)
+            60.0,  // royal blue
+            0x4169E1,    // cannot produce units
+            false,     // power consumption
+            -50,    // vision range (excellent, advanced tech)
+            420.0,         // faction customization point cost
+            6),
 
 
     // Defensive structure - attacks enemies with cannon
     TURRET(
             "Turret",
-            250,     // resource cost
-            15,      // build time (seconds)
-            500,     // max health
-            25.0,    // size (radius)
-            0xFF4500, // orange red
-            false,   // cannot produce units
-            -35,     // power consumption
-            450.0,   // vision range (excellent, needs to spot threats)
-            2        // faction customization point cost
-    ),
+            BuildingCategory.DEFENSE,
+            // resource cost
+            250,       // build time (seconds)
+            15,      // max health
+            500,     // size (radius)
+            25.0,  // orange red
+            0xFF4500,    // cannot produce units
+            false,     // power consumption
+            -35,    // vision range (excellent, needs to spot threats)
+            450.0,         // faction customization point cost
+            2),
 
     // Defensive structure - fires rockets with explosive damage
     ROCKET_TURRET(
             "Rocket Turret",
-            350,     // resource cost (more expensive than basic turret)
-            20,      // build time (seconds)
-            400,     // max health (lower than basic turret)
-            25.0,    // size (radius)
-            0xFF6347, // tomato red
-            false,   // cannot produce units
-            -50,     // power consumption (higher than basic)
-            480.0,   // vision range (excellent, long-range targeting)
-            3        // faction customization point cost
-    ),
+            BuildingCategory.DEFENSE,
+            // resource cost (more expensive than basic turret)
+            350,       // build time (seconds)
+            20,      // max health (lower than basic turret)
+            400,     // size (radius)
+            25.0,  // tomato red
+            0xFF6347,    // cannot produce units
+            false,     // power consumption (higher than basic)
+            -50,    // vision range (excellent, long-range targeting)
+            480.0,         // faction customization point cost
+            3),
 
     // Defensive structure - dedicated anti-aircraft flak cannon
     FLAK_TURRET(
             "Flak Turret",
-            300,     // resource cost (cheaper than rocket turret, accessible T2)
-            18,      // build time (seconds)
-            450,     // max health (moderate durability)
-            25.0,    // size (radius)
-            0xA0A0A0, // gray (flak color)
-            false,   // cannot produce units
-            -45,     // power consumption (moderate)
-            500.0,   // vision range (excellent, needs to spot aircraft)
-            3        // faction customization point cost
-    ),
+            BuildingCategory.DEFENSE,
+            // resource cost (cheaper than rocket turret, accessible T2)
+            300,       // build time (seconds)
+            18,      // max health (moderate durability)
+            450,     // size (radius)
+            25.0,  // gray (flak color)
+            0xA0A0A0,    // cannot produce units
+            false,     // power consumption (moderate)
+            -45,    // vision range (excellent, needs to spot aircraft)
+            500.0,         // faction customization point cost
+            3),
 
     // Defensive structure - fires laser beams
     LASER_TURRET(
             "Laser Turret",
-            400,     // resource cost (expensive advanced turret)
-            25,      // build time (seconds)
-            350,     // max health (lowest of turrets - glass cannon)
-            25.0,    // size (radius)
-            0x00FFFF, // cyan (laser blue)
-            false,   // cannot produce units
-            -65,     // power consumption (highest - energy weapon)
-            500.0,   // vision range (best, advanced sensors)
-            4        // faction customization point cost
-    ),
+            BuildingCategory.DEFENSE,
+            // resource cost (expensive advanced turret)
+            400,       // build time (seconds)
+            25,      // max health (lowest of turrets - glass cannon)
+            350,     // size (radius)
+            25.0,  // cyan (laser blue)
+            0x00FFFF,    // cannot produce units
+            false,     // power consumption (highest - energy weapon)
+            -65,    // vision range (best, advanced sensors)
+            500.0,         // faction customization point cost
+            4),
 
     // Defensive structure - infantry can garrison inside and fire out
     BUNKER(
             "Bunker",
-            250,     // resource cost - reduced to make it accessible as T1
-            18,      // build time (seconds)
-            1200,     // max health
-            35.0,    // size (radius)
-            0x556B2F, // dark olive green
-            false,   // cannot produce units
-            -15,     // power consumption
-            420.0,   // vision range (excellent, defensive structure)
-            3        // faction customization point cost
-    ),
+            BuildingCategory.DEFENSE,
+            // resource cost - reduced to make it accessible as T1
+            250,       // build time (seconds)
+            18,      // max health
+            1200,     // size (radius)
+            35.0,  // dark olive green
+            0x556B2F,    // cannot produce units
+            false,     // power consumption
+            -15,    // vision range (excellent, defensive structure)
+            420.0,         // faction customization point cost
+            3),
 
     // Defensive structure - projects shield that destroys incoming projectiles
     SHIELD_GENERATOR(
             "Shield Generator",
-            400,     // resource cost
-            25,      // build time (seconds)
-            500,     // max health
-            30.0,    // size (radius)
-            0x00BFFF, // deep sky blue
-            false,   // cannot produce units
-            -40,     // power consumption
-            380.0,   // vision range (good, defensive utility)
-            4        // faction customization point cost
-    ),
+            BuildingCategory.DEFENSE,
+            // resource cost
+            400,       // build time (seconds)
+            25,      // max health
+            500,     // size (radius)
+            30.0,  // deep sky blue
+            0x00BFFF,    // cannot produce units
+            false,     // power consumption
+            -40,    // vision range (good, defensive utility)
+            380.0,         // faction customization point cost
+            4),
 
     // Economic building - generates passive income based on current credits (compound interest)
     BANK(
             "Bank",
-            600,     // resource cost (expensive T3 building)
-            30,      // build time (seconds)
-            420,     // max health
-            35.0,    // size (radius)
-            0xFFD700, // gold
-            false,   // cannot produce units
-            -30,     // power consumption
-            350.0,   // vision range (moderate, economic building)
-            4        // faction customization point cost
-    ),
+            BuildingCategory.ECONOMY,
+            // resource cost (expensive T3 building)
+            600,       // build time (seconds)
+            30,      // max health
+            420,     // size (radius)
+            35.0,  // gold
+            0xFFD700,    // cannot produce units
+            false,     // power consumption
+            -30,    // vision range (moderate, economic building)
+            350.0,         // faction customization point cost
+            4),
 
     // Creates sandstorms for area denial
     SANDSTORM_GENERATOR(
             "Sandstorm Generator",
-            600,     // resource cost
-            60,      // build time (seconds)
-            800,     // max health
-            35.0,    // size (radius) - reduced from 45
-            0xDEB887, // burlywood (sandy color)
-            false,   // cannot produce units
-            -40,     // power consumption
-            430.0,   // vision range (good)
-            12       // faction customization point cost
-    ),
+            BuildingCategory.DEFENSE,
+            // resource cost
+            600,       // build time (seconds)
+            60,      // max health
+            800,     // size (radius) - reduced from 45
+            35.0,  // burlywood (sandy color)
+            0xDEB887,    // cannot produce units
+            false,     // power consumption
+            -40,    // vision range (good)
+            430.0,        // faction customization point cost
+            12),
 
     // Autonomous android production facility
     ANDROID_FACTORY(
             "Android Factory",
-            700,     // resource cost
-            90,      // build time (seconds)
-            900,     // max health
-            42.0,    // size (radius)
-            0x00CED1, // dark turquoise (Synthesis faction color)
-            true,    // can produce units (Androids!)
-            -60,     // power consumption
-            420.0,   // vision range (excellent)
-            12       // faction customization point cost
-    ),
+            BuildingCategory.PRODUCTION,
+            // resource cost
+            700,       // build time (seconds)
+            90,      // max health
+            900,     // size (radius)
+            42.0,  // dark turquoise (Synthesis faction color)
+            0x00CED1,    // can produce units (Androids!)
+            true,     // power consumption
+            -60,    // vision range (excellent)
+            420.0,        // faction customization point cost
+            12),
 
     // Defensive laser tower
     PHOTON_SPIRE(
             "Photon Spire",
-            650,     // resource cost
-            60,      // build time (seconds)
-            800,    // max health
-            48.0,    // size (radius)
-            0x00FF00, // bright green (photon energy)
-            false,   // cannot produce units
-            -75,     // power consumption
-            480.0,   // vision range (excellent, defensive)
-            12       // faction customization point cost
-    ),
+            BuildingCategory.DEFENSE,
+            // resource cost
+            650,       // build time (seconds)
+            60,     // max health
+            800,     // size (radius)
+            48.0,  // bright green (photon energy)
+            0x00FF00,    // cannot produce units
+            false,     // power consumption
+            -75,    // vision range (excellent, defensive)
+            480.0,        // faction customization point cost
+            12),
 
     // Ultimate command center
     COMMAND_CITADEL(
             "Command Citadel",
-            700,     // resource cost (expensive)
-            80,      // build time (seconds)
-            1000,    // max health
-            55.0,    // size (radius) - large and imposing
-            0x4169E1, // royal blue (command authority)
-            false,   // cannot produce units
-            -50,     // power consumption
-            1000.0,  // vision range (HUGE, command center bonus)
-            12       // faction customization point cost
-    ),
+            BuildingCategory.DEFENSE,
+            // resource cost (expensive)
+            700,       // build time (seconds)
+            80,     // max health
+            1000,     // size (radius) - large and imposing
+            55.0,  // royal blue (command authority)
+            0x4169E1,    // cannot produce units
+            false,     // power consumption
+            -50,   // vision range (HUGE, command center bonus)
+            1000.0,        // faction customization point cost
+            12),
 
     // Air unit production - requires Tech Center
     AIRFIELD(
             "Airfield",
-            600,     // resource cost
-            35,      // build time (seconds)
-            700,     // max health
-            60.0,    // size (radius) - large landing pad
-            0x708090, // slate gray (runway color)
-            true,    // can produce units (air units!)
-            -40,     // power consumption
-            420.0,   // vision range (good, airfield tower)
-            5        // faction customization point cost
-    ),
+            BuildingCategory.PRODUCTION,
+            // resource cost
+            600,       // build time (seconds)
+            35,      // max health
+            700,     // size (radius) - large landing pad
+            60.0,  // slate gray (runway color)
+            0x708090,    // can produce units (air units!)
+            true,     // power consumption
+            -40,    // vision range (good, airfield tower)
+            420.0,         // faction customization point cost
+            5),
 
     // Aircraft housing - must be built near Airfield, houses sortie-based aircraft
     HANGAR(
             "Hangar",
-            400,     // resource cost (cheaper than airfield, but requires one)
-            25,      // build time (seconds)
-            600,     // max health
-            35.0,    // size (radius) - medium building
-            0x4A5568, // dark blue-gray (hangar color)
-            true,    // can produce units (produces one bomber per hangar)
-            -20,     // power consumption
-            350.0,   // vision range (moderate)
-            5        // faction customization point cost
-    ),
+            BuildingCategory.PRODUCTION,
+            // resource cost (cheaper than airfield, but requires one)
+            400,       // build time (seconds)
+            25,      // max health
+            600,     // size (radius) - medium building
+            35.0,  // dark blue-gray (hangar color)
+            0x4A5568,    // can produce units (produces one bomber per hangar)
+            true,     // power consumption
+            -20,    // vision range (moderate)
+            350.0,         // faction customization point cost
+            5),
 
     TEMPEST_SPIRE(
             "Tempest Spire",
-            700,     // resource cost (expensive)
-            70,      // build time (seconds)
-            850,     // max health
-            45.0,    // size (radius)
-            0x4682B4, // steel blue (storm theme)
-            false,   // cannot produce units
-            -60,     // power consumption
-            600.0,   // vision range (excellent, weather tower)
-            12       // faction customization point cost
-    );
+            BuildingCategory.DEFENSE,
+            // resource cost (expensive)
+            700,       // build time (seconds)
+            70,      // max health
+            850,     // size (radius)
+            45.0,  // steel blue (storm theme)
+            0x4682B4,    // cannot produce units
+            false,     // power consumption
+            -60,    // vision range (excellent, weather tower)
+            600.0,        // faction customization point cost
+            12);
 
     private final String displayName;
+    private final BuildingCategory buildingCategory;
     private final int resourceCost;
     private final int buildTimeSeconds;
     private final double maxHealth;
@@ -335,6 +359,7 @@ public enum BuildingType {
     private final int pointCost; // faction customization point cost
 
     BuildingType(String displayName,
+                 BuildingCategory buildingCategory,
                  int resourceCost,
                  int buildTimeSeconds,
                  double maxHealth,
@@ -345,6 +370,7 @@ public enum BuildingType {
                  double visionRange,
                  int pointCost) {
         this.displayName = displayName;
+        this.buildingCategory = buildingCategory;
         this.resourceCost = resourceCost;
         this.buildTimeSeconds = buildTimeSeconds;
         this.maxHealth = maxHealth;
@@ -369,10 +395,10 @@ public enum BuildingType {
      * @return the required building type, or null if no proximity requirement
      */
     public BuildingType getProximityRequirement() {
-        return switch (this) {
-            case HANGAR -> AIRFIELD;
-            default -> null;
-        };
+        if (this == HANGAR) {
+            return AIRFIELD;
+        }
+        return null;
     }
 
     /**
@@ -381,10 +407,10 @@ public enum BuildingType {
      * @return the maximum distance in pixels, or 0 if no proximity requirement
      */
     public double getProximityRange() {
-        return switch (this) {
-            case HANGAR -> 200.0; // Must be within 200 pixels of an Airfield
-            default -> 0.0;
-        };
+        if (this == HANGAR) {
+            return 200.0;
+        }
+        return 0;
     }
 
     /**
@@ -394,10 +420,10 @@ public enum BuildingType {
      * @return number of dependent buildings this can support, or 0 if none
      */
     public int getSupportCapacity() {
-        return switch (this) {
-            case AIRFIELD -> 4; // Each Airfield can support 4 Hangars
-            default -> 0;
-        };
+        if (this == AIRFIELD) {
+            return 4;
+        }
+        return 0;
     }
 
     /**

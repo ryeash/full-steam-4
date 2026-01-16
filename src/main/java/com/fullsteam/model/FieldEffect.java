@@ -19,28 +19,20 @@ import java.util.Set;
 public class FieldEffect extends GameEntity {
     private final int ownerId;
     private final FieldEffectType type;
-    private double radius; // Non-final to support growing effects
+    private final double radius;
     private final double initialRadius;
-    private final double maxRadius;
     private final double damage;
     private final int ownerTeam;
-    private final long armingTime;
     private final Set<Integer> affectedEntities; // Track which entities have been affected
 
     public FieldEffect(int ownerId, FieldEffectType type, Vector2 position, double radius, double damage, double duration, int ownerTeam) {
-        this(IdGenerator.nextEntityId(), ownerId, type, position, radius, radius, damage, duration, 0, ownerTeam);
-    }
-
-    public FieldEffect(int id, int ownerId, FieldEffectType type, Vector2 position, double radius, double maxRadius, double damage, double duration, long armingTime, int ownerTeam) {
-        super(id, createFieldEffectBody(position, radius), Double.POSITIVE_INFINITY); // Field effects are indestructible
+        super(IdGenerator.nextEntityId(), createFieldEffectBody(position, radius), Double.POSITIVE_INFINITY); // Field effects are indestructible
         this.ownerId = ownerId;
         this.type = type;
         this.initialRadius = radius;
         this.radius = radius;
-        this.maxRadius = maxRadius;
         this.damage = damage;
         this.expires = (long) (System.currentTimeMillis() + (duration * 1000)); // duration in seconds
-        this.armingTime = armingTime;
         this.ownerTeam = ownerTeam;
         this.affectedEntities = new HashSet<>();
         this.active = true;
@@ -60,25 +52,6 @@ public class FieldEffect extends GameEntity {
     public void update(double deltaTime) {
         if (!isActive()) {
             return;
-        }
-
-        if (radius < maxRadius) {
-            double oldRadius = radius;
-            long elapsed = System.currentTimeMillis() - created;
-            long duration = expires - created;
-            double progress = elapsed / (double) duration;
-
-            // Grow over first 50% of lifetime, then stabilize
-            if (progress < 0.5) {
-                radius = initialRadius + (maxRadius - initialRadius) * (progress / 0.5);
-            } else {
-                radius = maxRadius;
-            }
-
-            // Update physics body if radius changed (more frequent updates for smoother growth)
-            if (Math.abs(radius - oldRadius) > 0.1) {
-                updateBodyRadius(radius);
-            }
         }
 
         if (System.currentTimeMillis() > expires) {
@@ -213,12 +186,5 @@ public class FieldEffect extends GameEntity {
         return (duration > 0 && timeRemaining > 0)
                 ? (double) (duration - timeRemaining) / duration
                 : 1.0;
-    }
-
-    /**
-     * Check if the mine is armed (for proximity mines)
-     */
-    public boolean isArmed() {
-        return System.currentTimeMillis() > armingTime;
     }
 }

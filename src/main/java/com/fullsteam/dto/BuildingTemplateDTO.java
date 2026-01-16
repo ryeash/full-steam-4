@@ -2,7 +2,6 @@ package com.fullsteam.dto;
 
 import com.fullsteam.model.BuildingType;
 import com.fullsteam.model.UnitCategory;
-import com.fullsteam.model.customization.EntityCategory;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -29,7 +28,7 @@ public class BuildingTemplateDTO {
     private List<String> producesUnitCategories;
     private List<String> tags;
     private String iconPath;
-    private List<String> techRequirements; // NEW: Required buildings to unlock this
+    private List<String> techRequirements;
 
     // Stats
     private double maxHealth;
@@ -43,7 +42,7 @@ public class BuildingTemplateDTO {
                 .displayName(template.getDisplayName())
                 .description(generateDescription(template))
                 .pointCost(template.getPointCost())
-                .category(mapToCategory(template).name())
+                .category(template.getBuildingCategory().name())
                 .producesUnitCategories(getProducedUnitCategories(template)
                         .stream()
                         .map(Enum::name)
@@ -59,45 +58,17 @@ public class BuildingTemplateDTO {
                 .build();
     }
 
-
-    /**
-     * Map building type to entity category
-     */
-    private static EntityCategory mapToCategory(BuildingType buildingType) {
-        if (buildingType.isCanProduceUnits()) {
-            return EntityCategory.PRODUCTION;
-        }
-        if (isTurret(buildingType) ||
-                buildingType == BuildingType.BUNKER ||
-                buildingType == BuildingType.SHIELD_GENERATOR ||
-                buildingType == BuildingType.WALL) {
-            return EntityCategory.DEFENSE;
-        }
-        if (buildingType == BuildingType.POWER_PLANT ||
-                buildingType == BuildingType.REFINERY ||
-                buildingType == BuildingType.BANK) {
-            return EntityCategory.ECONOMY;
-        }
-        if (buildingType == BuildingType.RESEARCH_LAB ||
-                buildingType == BuildingType.TECH_CENTER) {
-            return EntityCategory.TECH;
-        }
-        return EntityCategory.ECONOMY; // Default
-    }
-
     /**
      * Get which unit categories this building can produce
      */
     private static List<UnitCategory> getProducedUnitCategories(BuildingType buildingType) {
         List<UnitCategory> categories = new ArrayList<>();
-
         switch (buildingType) {
             case HEADQUARTERS -> categories.add(UnitCategory.WORKER);
             case BARRACKS -> categories.add(UnitCategory.INFANTRY);
             case FACTORY -> categories.add(UnitCategory.VEHICLE);
             case AIRFIELD, HANGAR -> categories.add(UnitCategory.FLYER);
         }
-
         return categories;
     }
 
@@ -108,7 +79,7 @@ public class BuildingTemplateDTO {
         List<String> tags = new ArrayList<>();
 
         // Category tag
-        tags.add(mapToCategory(buildingType).name());
+        tags.add(buildingType.getBuildingCategory().name());
 
         // Production tags
         if (buildingType.isCanProduceUnits()) {
@@ -121,15 +92,12 @@ public class BuildingTemplateDTO {
         // Defense tags
         if (isTurret(buildingType)) {
             tags.add("TURRET");
-            tags.add("DEFENSIVE");
         }
         if (buildingType == BuildingType.BUNKER) {
             tags.add("GARRISON");
-            tags.add("DEFENSIVE");
         }
         if (buildingType == BuildingType.SHIELD_GENERATOR) {
             tags.add("SHIELD");
-            tags.add("DEFENSIVE");
         }
 
         // Economy tags

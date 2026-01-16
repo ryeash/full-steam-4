@@ -10,11 +10,13 @@ import com.fullsteam.model.Unit;
 import com.fullsteam.model.UnitCategory;
 import com.fullsteam.model.UnitType;
 import com.fullsteam.model.command.MoveCommand;
+import com.fullsteam.model.factions.FactionDefinition;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.dyn4j.geometry.Vector2;
 
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Queue;
 
 /**
@@ -59,7 +61,7 @@ public class ProductionComponent extends AbstractBuildingComponent {
             // Apply production speed multiplier from faction perks
             double effectiveSpeed = 1.0;
             if (faction != null) {
-                var buildingMods = faction.getFactionDefinition().getBuildingStatModifiers();
+                Map<BuildingType, FactionDefinition.BuildingStatModifier> buildingMods = faction.getFactionDefinition().getBuildingStatModifiers();
                 if (buildingMods != null && buildingMods.containsKey(building.getBuildingType())) {
                     effectiveSpeed = buildingMods.get(building.getBuildingType()).getProductionSpeedMultiplier();
                 }
