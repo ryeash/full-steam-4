@@ -33,7 +33,7 @@ public class FogOfWar {
         Collection<Unit> allUnits = gameEntities.getUnits().values();
         Collection<Building> allBuildings = gameEntities.getBuildings().values();
         Collection<TrackerBug> allTrackerBugs = gameEntities.getTrackerBugs().values();
-        
+
         // Get all vision sources for this team with their specific vision ranges
         List<VisionSource> visionSources = new ArrayList<>();
 

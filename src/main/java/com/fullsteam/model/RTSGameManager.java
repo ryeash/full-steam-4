@@ -15,9 +15,9 @@ import com.fullsteam.model.command.MoveCommand;
 import com.fullsteam.model.command.OnStationCommand;
 import com.fullsteam.model.command.ReturnToHangarCommand;
 import com.fullsteam.model.command.SortieCommand;
+import com.fullsteam.model.component.APCComponent;
 import com.fullsteam.model.component.AndroidComponent;
 import com.fullsteam.model.component.AndroidFactoryComponent;
-import com.fullsteam.model.component.APCComponent;
 import com.fullsteam.model.component.GunshipComponent;
 import com.fullsteam.model.component.HangarComponent;
 import com.fullsteam.model.component.IBuildingComponent;
@@ -48,6 +48,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -1283,18 +1284,18 @@ public class RTSGameManager {
     private void processTrackerBugs() {
         gameEntities.getTrackerBugs().entrySet().removeIf(entry -> {
             TrackerBug bug = entry.getValue();
-            
+
             // Update bug (checks expiration)
             if (!bug.update()) {
                 return true; // Remove expired bugs
             }
-            
+
             // Remove if target is dead
             if (!bug.isTargetAlive(gameEntities)) {
                 log.info("Tracker bug {} removed - target unit is dead", bug.getId());
                 return true;
             }
-            
+
             return false;
         });
     }
@@ -1465,7 +1466,7 @@ public class RTSGameManager {
     private void applyUpkeepBonuses() {
         playerFactions.forEach((playerId, faction) -> {
             // Calculate base max upkeep from faction definition
-            int baseMaxUpkeep = faction.getFactionDefinition().getUpkeepLimit(250);
+            int baseMaxUpkeep = faction.getFactionDefinition().getUpkeepLimit(PlayerFaction.BASE_MAX_UPKEEP);
 
             // Add bonuses from active Command Citadels
             int upkeepBonus = buildings.values().stream()
@@ -1582,14 +1583,14 @@ public class RTSGameManager {
                     Integer hangarId = null;
 
                     // Check interceptor component for hangar ID
-                    var interceptorComp = unit.getComponent(InterceptorComponent.class);
+                    Optional<InterceptorComponent> interceptorComp = unit.getComponent(InterceptorComponent.class);
                     if (interceptorComp.isPresent() && interceptorComp.get().getHangarId() != null) {
                         hangarId = interceptorComp.get().getHangarId();
                     }
 
                     // Check gunship component for hangar ID  
                     if (hangarId == null) {
-                        var gunshipComp = unit.getComponent(GunshipComponent.class);
+                        Optional<GunshipComponent> gunshipComp = unit.getComponent(GunshipComponent.class);
                         if (gunshipComp.isPresent() && gunshipComp.get().getHangarId() != null) {
                             hangarId = gunshipComp.get().getHangarId();
                         }
@@ -2086,6 +2087,8 @@ public class RTSGameManager {
                 Map<String, Object> building = new LinkedHashMap<>();
                 building.put("buildingType", buildingType.name());
                 building.put("displayName", buildingType.getDisplayName());
+                building.put("name", buildingType.getDisplayName());
+                building.put("size", buildingType.getSize());
                 building.put("cost", faction.getBuildingCost(buildingType));
                 building.put("requiredTechTier", buildingType.getRequiredTechTier());
                 building.put("maxHealth", buildingType.getMaxHealth());
@@ -2113,13 +2116,13 @@ public class RTSGameManager {
                 unit.put("buildTimeSeconds", unitType.getBuildTimeSeconds());
                 unit.put("producedBy", unitType.getProducedBy().name());
                 unit.put("category", unitType.getCategory().name());
-                
+
                 // Add tech requirements (required buildings)
                 List<String> techReqs = unitType.getRequiredBuildings().stream()
                         .map(BuildingType::name)
                         .toList();
                 unit.put("techRequirements", techReqs);
-                
+
                 unitInfo.add(unit);
             }
             factionStatic.put("unitInfo", unitInfo);
@@ -2404,7 +2407,7 @@ public class RTSGameManager {
                 unit.put("buildTimeSeconds", unitType.getBuildTimeSeconds());
                 unit.put("producedBy", unitType.getProducedBy().name());
                 unit.put("category", unitType.getCategory().name());
-                
+
                 // Add tech requirements (required buildings)
                 List<String> techReqs = unitType.getRequiredBuildings().stream()
                         .map(BuildingType::name)

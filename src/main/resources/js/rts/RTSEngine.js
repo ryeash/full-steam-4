@@ -301,9 +301,7 @@ class RTSEngine {
             console.log('Connecting with session token:', sessionToken);
         }
         if (factionConfig) {
-            // Encode faction config as base64 (UTF-8 safe)
             const configJson = JSON.stringify(factionConfig);
-            // Use TextEncoder to handle UTF-8, then convert to base64
             const utf8Bytes = new TextEncoder().encode(configJson);
             const binaryString = Array.from(utf8Bytes, byte => String.fromCharCode(byte)).join('');
             const configBase64 = btoa(binaryString);
@@ -360,8 +358,6 @@ class RTSEngine {
     }
     
     handleGameInitialization(data) {
-        console.log('Received game initialization data');
-        
         // Store static type data
         this.unitTypes = data.unitTypes || {};
         this.buildingTypes = data.buildingTypes || {};
@@ -385,9 +381,7 @@ class RTSEngine {
         if (data.obstacles) {
             this.obstaclesStatic = new Map();
             data.obstacles.forEach(obstacleData => {
-                // Store static data
                 this.obstaclesStatic.set(obstacleData.id, obstacleData);
-                // Create the visual obstacle
                 this.createObstacleFromStatic(obstacleData);
             });
         }
@@ -414,7 +408,6 @@ class RTSEngine {
         }
         
         this.initialized = true;
-        console.log('Game initialization complete');
     }
     
     createObstacleFromStatic(obstacleData) {
@@ -544,8 +537,6 @@ class RTSEngine {
     }
     
     handleGameOver(data) {
-        console.log('Game Over!', data);
-        
         const screen = document.getElementById('game-over-screen');
         const title = document.getElementById('game-over-title');
         const winner = document.getElementById('game-over-winner');
@@ -758,40 +749,7 @@ class RTSEngine {
             if (this.myFaction) {
                 this.myTeam = this.myFaction.team;
                 this.updateResourceDisplay();
-                
-                // Note: buildingInfo and unitInfo are now sent in gameInitialization
-                // Only set up myFactionData if we haven't already received initialization
-                if (!this.myFactionData) {
-                    // For CUSTOM factions, use building/unit info from game state (backward compatibility)
-                    if (this.myFaction.buildingInfo) {
-                        console.log('Setting up faction data from game state (backward compatibility)');
-                        console.log('buildingInfo:', this.myFaction.buildingInfo);
-                        console.log('unitInfo:', this.myFaction.unitInfo);
-                        
-                        // Build myFactionData from game state for custom factions
-                        this.myFactionData = {
-                            factionType: 'CUSTOM',
-                            displayName: 'Custom Faction',
-                            description: 'Player-designed faction',
-                            availableBuildings: this.myFaction.buildingInfo,
-                            availableUnits: this.myFaction.unitInfo || []
-                        };
-                        
-                        console.log('myFactionData set:', this.myFactionData);
-                        
-                        // Generate build menu if we haven't already
-                        if (!this.buildMenuGenerated) {
-                            console.log('Generating build menu for CUSTOM faction');
-                            this.generateBuildMenu();
-                            this.buildMenuGenerated = true;
-                        }
-                    } else if (this.myFaction.factionType) {
-                        // Fetch faction data from API for preset factions
-                        console.log('Fetching faction data for:', this.myFaction.factionType);
-                        this.fetchFactionData(this.myFaction.factionType);
-                    }
-                }
-                
+
                 // Center camera on HQ on first update
                 if (!this.hasCenteredCamera && state.buildings) {
                     this.centerCameraOnHQ(state.buildings);
@@ -3609,8 +3567,6 @@ class RTSEngine {
     }
     
     issueOrder(worldPos, forceAttack = false) {
-        console.log('issueOrder called at:', worldPos);
-        
         // If force attack mode (CMD/CTRL held), skip target detection and attack ground
         if (forceAttack) {
             this.sendInput({ forceAttackOrder: { x: worldPos.x, y: worldPos.y } });
@@ -3632,21 +3588,13 @@ class RTSEngine {
                 // Get unit size from unit type info (size is not sent in every update)
                 const typeInfo = this.unitTypes?.[unitData.type];
                 const unitSize = typeInfo?.size || 15; // Default to 15 if not found
-                
-                // Debug: Log APC detection
-                if (unitData.type === 'APC') {
-                    console.log('APC found at:', unitData.x, unitData.y, 'distance:', dist, 'size:', unitSize, 'threshold:', unitSize + 10);
-                }
-                
+
                 if (dist < minDist && dist < unitSize + 10) {
                     minDist = dist;
                     targetUnit = unitData;
-                    console.log('Target unit detected:', unitData.type, 'at distance:', dist);
                 }
             }
         });
-        
-        console.log('Final targetUnit:', targetUnit ? targetUnit.type : 'none');
         
         // Check if clicking on a building
         let targetBuilding = null;
@@ -3710,19 +3658,14 @@ class RTSEngine {
         
         // Issue appropriate command based on target
         if (targetUnit) {
-            console.log('Target unit clicked:', targetUnit.type, 'team:', targetUnit.team, 'myTeam:', this.myTeam);
-            console.log('Has infantry selected:', this.hasInfantrySelected());
-            
             if (targetUnit.team !== this.myTeam) {
                 // Attack enemy unit
                 this.sendInput({ attackUnitOrder: targetUnit.id });
             } else if (targetUnit.type === 'APC' && this.hasInfantrySelected()) {
                 // Garrison infantry into friendly APC
-                console.log('Sending garrison order for APC:', targetUnit.id);
                 this.sendInput({ garrisonOrder: targetUnit.id });
             } else {
                 // Can't command other player's units, just move
-                console.log('Friendly unit clicked, moving to position');
                 this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
             }
         } else if (targetBuilding) {
@@ -3900,32 +3843,14 @@ class RTSEngine {
     }
     
     getBuildingInfo(buildingType) {
-        const buildings = {
-            'HEADQUARTERS': { size: 80, cost: 0, name: 'Headquarters' },
-            'REFINERY': { size: 60, cost: 300, name: 'Refinery' },
-            'BARRACKS': { size: 50, cost: 200, name: 'Barracks' },
-            'FACTORY': { size: 70, cost: 400, name: 'Factory' },
-            'TURRET': { size: 30, cost: 250, name: 'Turret' },
-            'SHIELD_GENERATOR': { size: 30, cost: 400, name: 'Shield Generator' },
-            'WALL': { size: 20, cost: 50, name: 'Wall' },
-            'POWER_PLANT': { size: 40, cost: 250, name: 'Power Plant' },
-            'RESEARCH_LAB': { size: 50, cost: 500, name: 'Research Lab' },
-            'TECH_CENTER': { size: 60, cost: 800, name: 'Tech Center' },
-            'AIRFIELD': { size: 60, cost: 600, name: 'Airfield' },
-            'HANGAR': { size: 35, cost: 400, name: 'Hangar' },
-            'BANK': { size: 35, cost: 600, name: 'Bank' }
-        };
-        return buildings[buildingType] || { size: 40, cost: 100, name: 'Building' };
+        return this.myFactionData.availableBuildings.filter(b => b.buildingType === buildingType)[0]
+            || { size: 40, cost: 100, name: 'Building' };
     }
     
     isValidBuildLocation(worldPos, buildingType) {
         const buildingInfo = this.getBuildingInfo(buildingType);
         const size = buildingInfo.size;
-        
-        console.log('=== BUILD LOCATION CHECK ===');
-        console.log('Position:', worldPos, 'Building:', buildingType, 'Size:', size);
-        console.log('World bounds:', this.worldBounds);
-        
+
         // Check if too close to other buildings
         for (const [id, container] of this.buildings) {
             const building = container.buildingData;
@@ -3936,7 +3861,6 @@ class RTSEngine {
                 );
                 const minDist = size + building.size + 20; // 20 unit buffer
                 if (dist < minDist) {
-                    console.log('❌ Too close to building:', id, 'dist:', dist, 'minDist:', minDist);
                     return false;
                 }
             }
@@ -3945,8 +3869,7 @@ class RTSEngine {
         // Check if too close to obstacles (excluding world boundaries)
         const halfWidth = this.worldBounds?.width ? this.worldBounds.width / 2 : 2000;
         const halfHeight = this.worldBounds?.height ? this.worldBounds.height / 2 : 2000;
-        console.log('Half dimensions - width:', halfWidth, 'height:', halfHeight);
-        
+
         for (const [id, container] of this.obstacles) {
             const obstacle = container.obstacleData;
             if (obstacle) {
@@ -3956,7 +3879,6 @@ class RTSEngine {
                     Math.abs(Math.abs(obstacle.y) - halfHeight) < 100;  // Near top/bottom edge
                 
                 if (isWorldBoundary) {
-                    console.log('⏭️  Skipping world boundary obstacle:', id, 'at', obstacle.x, obstacle.y, 'size:', obstacle.size);
                     continue; // Skip boundary obstacles
                 }
                 
@@ -3968,23 +3890,14 @@ class RTSEngine {
                 const minDist = size + obstacle.size + 10; // 10 unit buffer
                 
                 if (dist < minDist) {
-                    console.log('❌ Too close to obstacle:', id, 'at', obstacle.x, obstacle.y, 'dist:', dist, 'minDist:', minDist, 'obstacle.size:', obstacle.size);
                     return false;
                 }
             }
         }
-        
-        // Resource deposits removed - obstacles now contain harvestable resources
-        // Obstacle proximity is already checked above
-        
-        // Check world bounds
-        if (Math.abs(worldPos.x) > halfWidth - size || 
+        if (Math.abs(worldPos.x) > halfWidth - size ||
             Math.abs(worldPos.y) > halfHeight - size) {
-            console.log('❌ Outside world bounds');
             return false;
         }
-        
-        console.log('✅ Valid build location!');
         return true;
     }
     
@@ -4343,14 +4256,12 @@ class RTSEngine {
      */
     playerHasBuilding(buildingType) {
         if (!this.lastGameState || !this.lastGameState.buildings) {
-            console.log('playerHasBuilding: No game state or buildings');
             return false;
         }
         
         // Convert buildings array to object if needed
         let buildingsObj = this.lastGameState.buildings;
         if (Array.isArray(buildingsObj)) {
-            console.log('playerHasBuilding: Buildings is an array, converting to object');
             const temp = {};
             buildingsObj.forEach(b => temp[b.id] = b);
             buildingsObj = temp;
@@ -4358,19 +4269,13 @@ class RTSEngine {
         
         for (const buildingId in buildingsObj) {
             const building = buildingsObj[buildingId];
-            
-            console.log(`Checking building ${buildingId}: type=${building.type}, owner=${building.ownerId}, myId=${this.myPlayerId}, active=${building.active}, underConstruction=${building.underConstruction}`);
-            
             if (building.type === buildingType &&
                 building.ownerId === this.myPlayerId &&
                 building.active &&
                 !building.underConstruction) {
-                console.log(`playerHasBuilding: Found ${buildingType}!`);
                 return true;
             }
         }
-        
-        console.log(`playerHasBuilding: No ${buildingType} found for player ${this.myPlayerId}`);
         return false;
     }
 

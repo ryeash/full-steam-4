@@ -166,11 +166,11 @@ public class CustomFactionConfig {
     public void ensureRequiredItems() {
         // Add zero-point units
         selectedUnits.add(UnitType.WORKER); // 0 points, always required
-        
+
         // Add zero-point buildings
         selectedBuildings.add(BuildingType.HEADQUARTERS); // 0 points, always required
         selectedBuildings.add(BuildingType.POWER_PLANT);  // 0 points, always required
-        
+
         // These items are free, so they don't affect totalPointsSpent
     }
 

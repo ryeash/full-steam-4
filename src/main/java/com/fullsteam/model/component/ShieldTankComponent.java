@@ -23,7 +23,7 @@ import org.dyn4j.geometry.Vector2;
 @Setter
 public class ShieldTankComponent implements IUnitComponent {
     private static final double SHIELD_RADIUS = 120.0; // Smaller than building shields (200.0)
-    
+
     private Unit unit;
     private GameEntities gameEntities;
     private Body sensorBody = null;
@@ -60,7 +60,7 @@ public class ShieldTankComponent implements IUnitComponent {
             Vector2 unitPos = unit.getPosition();
             sensorBody.getTransform().setTranslation(unitPos.x, unitPos.y);
         }
-        
+
         // Deactivate shield if unit is destroyed
         if (!unit.isActive() && shieldActive()) {
             deactivate();
@@ -86,19 +86,19 @@ public class ShieldTankComponent implements IUnitComponent {
         if (shieldActive()) {
             return;
         }
-        
+
         Body sensor = new Body();
         BodyFixture bodyFixture = sensor.addFixture(Geometry.createCircle(radius));
         bodyFixture.setSensor(true); // Make it a sensor (no collision response)
         sensor.setMass(MassType.INFINITE);
-        
+
         Vector2 unitPos = unit.getPosition();
         sensor.getTransform().setTranslation(unitPos.x, unitPos.y);
         sensor.setUserData(new ShieldSensor(unit)); // Wrap unit in ShieldSensor
-        
+
         gameEntities.getWorld().addBody(sensor);
         sensorBody = sensor;
-        
+
         log.debug("Shield Tank {} activated shield with radius {}", unit.getId(), radius);
     }
 
@@ -109,10 +109,10 @@ public class ShieldTankComponent implements IUnitComponent {
         if (!shieldActive()) {
             return;
         }
-        
+
         gameEntities.getWorld().removeBody(sensorBody);
         sensorBody = null;
-        
+
         log.debug("Shield Tank {} deactivated shield", unit.getId());
     }
 
@@ -140,8 +140,8 @@ public class ShieldTankComponent implements IUnitComponent {
         // Shield tank takes 10% of blocked damage (same as building shields)
         double reducedDamage = projectileDamage * 0.10;
         unit.takeDamage(reducedDamage);
-        
-        log.debug("Shield Tank {} absorbed {} damage, took {} feedback damage", 
+
+        log.debug("Shield Tank {} absorbed {} damage, took {} feedback damage",
                 unit.getId(), projectileDamage, reducedDamage);
     }
 }

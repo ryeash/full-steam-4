@@ -43,8 +43,8 @@ public class ProjectileWeapon extends Weapon {
                             Ordinance ordinanceType,
                             Set<BulletEffect> bulletEffects,
                             ElevationTargeting elevationTargeting) {
-        this(damage, range, attackRate, projectileSpeed, linearDamping, projectileSize, 
-             ordinanceType, bulletEffects, elevationTargeting, 0.0);
+        this(damage, range, attackRate, projectileSpeed, linearDamping, projectileSize,
+                ordinanceType, bulletEffects, elevationTargeting, 0.0);
     }
 
     /**
@@ -85,7 +85,7 @@ public class ProjectileWeapon extends Weapon {
         if (accuracy < 0) {
             double spread = -accuracy; // Convert to positive spread value
             double randomAngle = (Math.random() - 0.5) * spread * 2; // Random angle within spread
-            
+
             // Rotate direction by random angle
             double cos = Math.cos(randomAngle);
             double sin = Math.sin(randomAngle);
@@ -102,11 +102,11 @@ public class ProjectileWeapon extends Weapon {
         Integer targetEntityId = null;
         double turnRate = 0.0;
         double accelerationRate = 0.0;
-        
+
         if (bulletEffects.contains(BulletEffect.SEEKING)) {
             // Find closest enemy entity near target position for tracking
             targetEntityId = findTargetEntityNear(targetPosition, ownerId, ownerTeam, gameEntities, ignoredBody);
-            
+
             // Set seeking parameters based on ordinance type
             if (ordinanceType == Ordinance.ROCKET) {
                 // SAM Launcher or Interceptor missiles
@@ -136,7 +136,7 @@ public class ProjectileWeapon extends Weapon {
 
         return List.of(projectile);
     }
-    
+
     /**
      * Find the closest enemy entity near the target position for seeking missiles.
      * Prioritizes units over buildings for anti-air missiles.
@@ -146,7 +146,7 @@ public class ProjectileWeapon extends Weapon {
         double searchRadius = 60.0; // Lock onto targets within 60 pixels of aim point
         GameEntity closestTarget = null;
         double closestDistance = Double.MAX_VALUE;
-        
+
         // Check units first (priority for AA missiles)
         for (Unit unit : gameEntities.getUnits().values()) {
             if (unit.getTeamNumber() != ownerTeam && unit.isActive() && !unit.isGarrisoned()) {
@@ -154,7 +154,7 @@ public class ProjectileWeapon extends Weapon {
                 if (ignoredBody != null && unit.getBody() == ignoredBody) {
                     continue;
                 }
-                
+
                 double dist = unit.getPosition().distance(targetPosition);
                 if (dist < searchRadius && dist < closestDistance) {
                     closestDistance = dist;
@@ -162,7 +162,7 @@ public class ProjectileWeapon extends Weapon {
                 }
             }
         }
-        
+
         // Check buildings (lower priority for AA missiles, but still valid targets)
         if (closestTarget == null) {
             for (Building building : gameEntities.getBuildings().values()) {
@@ -175,7 +175,7 @@ public class ProjectileWeapon extends Weapon {
                 }
             }
         }
-        
+
         return closestTarget != null ? closestTarget.getId() : null;
     }
 

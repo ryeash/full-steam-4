@@ -6,9 +6,13 @@ import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.PlayerFaction;
 import com.fullsteam.model.ResourceType;
+import com.fullsteam.model.UnitType;
+import com.fullsteam.model.factions.FactionDefinition;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.Map;
 
 /**
  * Component for units that can harvest resources (Workers).
@@ -33,7 +37,7 @@ public class HarvestComponent extends AbstractUnitComponent {
     }
 
     // harvestFrom(ResourceDeposit) removed - use harvestFromObstacle(Obstacle) instead
-    
+
     /**
      * Harvest from a harvestable obstacle.
      *
@@ -44,9 +48,9 @@ public class HarvestComponent extends AbstractUnitComponent {
         if (carriedResources >= maxCarriedResources) {
             return true; // Full, should return to refinery
         }
-        
+
         if (!obstacle.isHarvestable()) {
-            log.warn("Unit {} attempted to harvest from non-harvestable obstacle {}", 
+            log.warn("Unit {} attempted to harvest from non-harvestable obstacle {}",
                     unit.getId(), obstacle.getId());
             return true; // Can't harvest, stop trying
         }
@@ -54,12 +58,12 @@ public class HarvestComponent extends AbstractUnitComponent {
         // Apply resource collection multiplier from faction perks
         double effectiveHarvestRate = HARVEST_RATE;
         if (unit.getFaction() != null && unit.getFaction().getFactionDefinition() != null) {
-            var unitMods = unit.getFaction().getFactionDefinition().getUnitStatModifiers();
+            Map<UnitType, FactionDefinition.UnitStatModifier> unitMods = unit.getFaction().getFactionDefinition().getUnitStatModifiers();
             if (unitMods != null && unitMods.containsKey(unit.getUnitType())) {
                 effectiveHarvestRate *= unitMods.get(unit.getUnitType()).getResourceCollectionMultiplier();
             }
         }
-        
+
         double harvestAmount = effectiveHarvestRate * getDeltaTime();
         double actualHarvested = obstacle.harvest(harvestAmount);
         carriedResources += actualHarvested;

@@ -53,8 +53,8 @@ public class GameEntities {
         this.beams = new ConcurrentSkipListMap<>();
         this.fieldEffects = new ConcurrentSkipListMap<>();
         this.trackerBugs = new ConcurrentSkipListMap<>();
-        this.world = null; // Set by RTSGameManager
-        this.rtsGameManager = null; // Set by RTSGameManager
+        this.world = null;
+        this.rtsGameManager = null;
     }
 
     public void add(GameEntity e) {

@@ -79,7 +79,7 @@ public class HarvestCommand extends UnitCommand {
             // Moving to obstacle
             Vector2 obstaclePos = obstacle.getPosition();
             double distance = currentPos.distance(obstaclePos);
-            
+
             // Calculate effective harvest range: harvest range + obstacle size (to reach edge, not center)
             double effectiveHarvestRange = obstacle.getHarvestRange() + obstacle.getSize();
 

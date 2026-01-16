@@ -13,6 +13,8 @@ import java.util.Set;
  */
 @Data
 public class PlayerFaction {
+    public static final int BASE_MAX_UPKEEP = 275;
+
     private final int playerId;
     private final int teamNumber;
     private final String playerName;
@@ -29,7 +31,7 @@ public class PlayerFaction {
 
     // Upkeep/supply system
     private int currentUpkeep = 0;
-    private int maxUpkeep = 250; // Supply cap (base value, modified by faction)
+    private int maxUpkeep; // Supply cap (base value, modified by faction)
 
     // Power system
     private int powerGenerated = 0;
@@ -44,7 +46,7 @@ public class PlayerFaction {
         this.teamNumber = teamNumber;
         this.playerName = playerName;
         this.factionDefinition = customDefinition;
-        this.maxUpkeep = factionDefinition.getUpkeepLimit(250); // Base 250
+        this.maxUpkeep = factionDefinition.getUpkeepLimit(BASE_MAX_UPKEEP); // Base 250
         this.resources.put(ResourceType.CREDITS, 1000); // Starting credits
     }
 

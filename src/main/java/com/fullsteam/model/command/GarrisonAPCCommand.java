@@ -56,8 +56,8 @@ public class GarrisonAPCCommand extends UnitCommand {
         if (distance > garrisonRange) {
             // Compute path to APC (need to update since APC can move!)
             // Always recompute path since APC position changes
-            if (path.isEmpty() || lastPathTarget == null || 
-                lastPathTarget.distance(apcPos) > 20.0) { // Recompute if APC moved significantly
+            if (path.isEmpty() || lastPathTarget == null ||
+                    lastPathTarget.distance(apcPos) > 20.0) { // Recompute if APC moved significantly
                 computePathTo(apcPos);
             }
 

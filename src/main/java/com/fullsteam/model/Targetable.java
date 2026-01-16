@@ -114,7 +114,7 @@ public interface Targetable {
         if (forWeapon == null) {
             return false;
         }
-        
+
         double distance = getPosition().distance(weaponPosition);
         return isActive()
                 && isEnemyOf(weaponTeam)

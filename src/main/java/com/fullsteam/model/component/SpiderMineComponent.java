@@ -11,7 +11,7 @@ import org.dyn4j.geometry.Vector2;
 /**
  * Component for SPIDER_MINE units.
  * Handles proximity detection and self-destruct explosion mechanics.
- * 
+ * <p>
  * Spider mines continuously scan for nearby enemy units/buildings.
  * When an enemy is within detonation range, the mine explodes, dealing massive AOE damage
  * and destroying itself in the process.
@@ -22,7 +22,7 @@ public class SpiderMineComponent extends AbstractUnitComponent {
     private static final double DETONATION_RANGE = 25.0; // Range to trigger detonation
     private static final double EXPLOSION_RADIUS = 60.0; // Radius of the explosion
     private static final double ARMING_TIME = 0.5; // Time before mine becomes active (seconds)
-    
+
     private double timeAlive = 0.0; // Track how long mine has been active
     private boolean armed = false;  // Mine must arm before it can detonate
     private boolean detonated = false; // Prevent multiple detonations
@@ -58,7 +58,7 @@ public class SpiderMineComponent extends AbstractUnitComponent {
         // Check enemy units
         for (Unit enemyUnit : gameEntities.getUnits().values()) {
             if (isValidTarget(enemyUnit) && isInRange(position, enemyUnit.getPosition())) {
-                log.info("Spider Mine {} detected enemy unit {} - detonating!", 
+                log.info("Spider Mine {} detected enemy unit {} - detonating!",
                         unit.getId(), enemyUnit.getId());
                 detonate(gameEntities);
                 return;
@@ -68,7 +68,7 @@ public class SpiderMineComponent extends AbstractUnitComponent {
         // Check enemy buildings
         for (Building enemyBuilding : gameEntities.getBuildings().values()) {
             if (isValidTarget(enemyBuilding) && isInRange(position, enemyBuilding.getPosition())) {
-                log.info("Spider Mine {} detected enemy building {} - detonating!", 
+                log.info("Spider Mine {} detected enemy building {} - detonating!",
                         unit.getId(), enemyBuilding.getId());
                 detonate(gameEntities);
                 return;
@@ -80,8 +80,8 @@ public class SpiderMineComponent extends AbstractUnitComponent {
      * Check if a unit is a valid target (enemy, active, not garrisoned).
      */
     private boolean isValidTarget(Unit target) {
-        return target.getTeamNumber() != unit.getTeamNumber() 
-                && target.isActive() 
+        return target.getTeamNumber() != unit.getTeamNumber()
+                && target.isActive()
                 && !target.isGarrisoned();
     }
 
@@ -89,8 +89,8 @@ public class SpiderMineComponent extends AbstractUnitComponent {
      * Check if a building is a valid target (enemy, active, not under construction).
      */
     private boolean isValidTarget(Building target) {
-        return target.getTeamNumber() != unit.getTeamNumber() 
-                && target.isActive() 
+        return target.getTeamNumber() != unit.getTeamNumber()
+                && target.isActive()
                 && !target.isUnderConstruction();
     }
 
@@ -125,7 +125,7 @@ public class SpiderMineComponent extends AbstractUnitComponent {
         );
         gameEntities.add(explosion);
 
-        log.info("Spider Mine {} detonated at ({}, {}) with {} damage and {} radius", 
+        log.info("Spider Mine {} detonated at ({}, {}) with {} damage and {} radius",
                 unit.getId(), position.x, position.y, unit.getUnitType().getDamage(), EXPLOSION_RADIUS);
 
         // Destroy the spider mine

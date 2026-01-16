@@ -3,6 +3,7 @@ package com.fullsteam.model;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.util.Set;
@@ -58,6 +59,7 @@ public class GameEvent {
     /**
      * Categories of game events for styling and organization
      */
+    @Getter
     public enum EventCategory {
         KILL("#FF4444"),           // Red for kills/deaths
         CAPTURE("#00FF88"),        // Green for objectives
@@ -71,10 +73,6 @@ public class GameEvent {
 
         EventCategory(String defaultColor) {
             this.defaultColor = defaultColor;
-        }
-
-        public String getDefaultColor() {
-            return defaultColor;
         }
     }
 
@@ -113,125 +111,6 @@ public class GameEvent {
         }
     }
 
-    // Convenience factory methods for common event types
-
-    /**
-     * Create a kill event with team-colored player names
-     */
-    public static GameEvent createKillEvent(String killerName, String victimName, String weaponName,
-                                            Integer killerTeam, Integer victimTeam) {
-        // Format: <color:#RRGGBB>PlayerName</color> x <color:#RRGGBB>PlayerName</color>  WeaponName
-        StringBuilder messageBuilder = new StringBuilder();
-
-        // Add killer name with team color
-        if (killerTeam != null && killerTeam >= 0) {
-            String killerColor = getTeamColorHex(killerTeam);
-            messageBuilder.append(String.format("<color:%s>%s</color>", killerColor, killerName));
-        } else {
-            messageBuilder.append(killerName);
-        }
-
-        messageBuilder.append(" x ");
-
-        // Add victim name with team color
-        if (victimTeam != null && victimTeam >= 0) {
-            String victimColor = getTeamColorHex(victimTeam);
-            messageBuilder.append(String.format("<color:%s>%s</color>", victimColor, victimName));
-        } else {
-            messageBuilder.append(victimName);
-        }
-
-        messageBuilder.append("  ").append("<color:%s>%s</color>".formatted(EventCategory.CHAT.defaultColor, weaponName));
-
-        return GameEvent.builder()
-                .message(messageBuilder.toString())
-                .category(EventCategory.KILL)
-                .color(EventCategory.KILL.getDefaultColor())
-                .target(EventTarget.builder().type(EventTarget.TargetType.ALL).build())
-                .displayDuration(3000L)
-                .build();
-    }
-
-    /**
-     * Helper method to get team color hex codes
-     */
-    private static String getTeamColorHex(int teamNumber) {
-        return switch (teamNumber) {
-            case 1 -> "#4CAF50";  // Green (Team 1)
-            case 2 -> "#F44336";  // Red (Team 2)
-            case 3 -> "#2196F3";  // Blue (Team 3)
-            case 4 -> "#FF9800";  // Orange (Team 4)
-            default -> "#FFFFFF"; // White (FFA/Unknown)
-        };
-    }
-
-    /**
-     * Create a player join event with team-colored player name
-     */
-    public static GameEvent createPlayerJoinEvent(String playerName, int teamNumber) {
-        StringBuilder messageBuilder = new StringBuilder();
-
-        // Add player name with team color
-        if (teamNumber > 0) {
-            String teamColor = getTeamColorHex(teamNumber);
-            messageBuilder.append(String.format("<color:%s>%s</color>", teamColor, playerName));
-        } else {
-            messageBuilder.append(playerName);
-        }
-
-        messageBuilder.append(" joined the game");
-
-        return GameEvent.builder()
-                .message(messageBuilder.toString())
-                .category(EventCategory.SYSTEM)
-                .color(EventCategory.SYSTEM.getDefaultColor())
-                .target(EventTarget.builder().type(EventTarget.TargetType.ALL).build())
-                .displayDuration(3000L)
-                .build();
-    }
-
-    /**
-     * Create a capture event
-     */
-    public static GameEvent createCaptureEvent(String playerName, String locationName) {
-        return GameEvent.builder()
-                .message(String.format("%s captured %s", playerName, locationName))
-                .category(EventCategory.CAPTURE)
-                .color(EventCategory.CAPTURE.getDefaultColor())
-                .target(EventTarget.builder().type(EventTarget.TargetType.ALL).build())
-                .displayDuration(3000L)
-                .build();
-    }
-
-    /**
-     * Create a team-specific event
-     */
-    public static GameEvent createTeamEvent(String message, int teamId, EventCategory category) {
-        return GameEvent.builder()
-                .message(message)
-                .category(category)
-                .color(category.getDefaultColor())
-                .target(EventTarget.builder()
-                        .type(EventTarget.TargetType.TEAM)
-                        .teamIds(Set.of(teamId))
-                        .build())
-                .displayDuration(3000L)
-                .build();
-    }
-
-    /**
-     * Create a system announcement
-     */
-    public static GameEvent createSystemEvent(String message) {
-        return GameEvent.builder()
-                .message(message)
-                .category(EventCategory.SYSTEM)
-                .color(EventCategory.SYSTEM.getDefaultColor())
-                .target(EventTarget.builder().type(EventTarget.TargetType.ALL).build())
-                .displayDuration(3000L)
-                .build();
-    }
-
     /**
      * Create a player-specific event
      */
@@ -244,81 +123,6 @@ public class GameEvent {
                         .type(EventTarget.TargetType.SPECIFIC)
                         .playerIds(Set.of(playerId))
                         .build())
-                .displayDuration(3000L)
-                .build();
-    }
-
-    /**
-     * Create an achievement event
-     */
-    public static GameEvent createAchievementEvent(String playerName, String achievement) {
-        return GameEvent.builder()
-                .message(String.format("%s earned: %s", playerName, achievement))
-                .category(EventCategory.ACHIEVEMENT)
-                .color(EventCategory.ACHIEVEMENT.getDefaultColor())
-                .target(EventTarget.builder().type(EventTarget.TargetType.ALL).build())
-                .displayDuration(3000L)
-                .build();
-    }
-
-    /**
-     * Create a headquarters destruction event
-     */
-    public static GameEvent createHeadquartersDestroyedEvent(int destroyedTeam, int attackingTeam) {
-        String teamColor = getTeamColorHex(attackingTeam);
-        String message = String.format("<color:%s>Team %d</color> destroyed Team %d's Headquarters!",
-                teamColor, attackingTeam, destroyedTeam);
-
-        return GameEvent.builder()
-                .message(message)
-                .category(EventCategory.CAPTURE)
-                .color(teamColor)
-                .target(EventTarget.builder().type(EventTarget.TargetType.ALL).build())
-                .displayDuration(5000L) // Longer display for major event
-                .build();
-    }
-
-    /**
-     * Create a player elimination event (when they run out of lives)
-     */
-    public static GameEvent createEliminationEvent(String playerName, int teamNumber, int livesRemaining) {
-        StringBuilder messageBuilder = new StringBuilder();
-        messageBuilder.append("💀 ");
-
-        // Add player name with team color
-        if (teamNumber > 0) {
-            String teamColor = getTeamColorHex(teamNumber);
-            messageBuilder.append(String.format("<color:%s>%s</color>", teamColor, playerName));
-        } else {
-            messageBuilder.append(playerName);
-        }
-
-        messageBuilder.append(" has been eliminated!");
-
-        // Add lives remaining if not completely out
-        if (livesRemaining > 0) {
-            messageBuilder.append(String.format(" (%d %s remaining)",
-                    livesRemaining, livesRemaining == 1 ? "life" : "lives"));
-        }
-
-        return GameEvent.builder()
-                .message(messageBuilder.toString())
-                .category(EventCategory.WARNING)
-                .color(EventCategory.WARNING.getDefaultColor())
-                .target(EventTarget.builder().type(EventTarget.TargetType.ALL).build())
-                .displayDuration(4000L) // Longer display for elimination
-                .build();
-    }
-
-    /**
-     * Create a custom event with full control
-     */
-    public static GameEvent createCustomEvent(String message, String color, EventTarget target) {
-        return GameEvent.builder()
-                .message(message)
-                .color(color)
-                .category(EventCategory.INFO)
-                .target(target)
                 .displayDuration(3000L)
                 .build();
     }

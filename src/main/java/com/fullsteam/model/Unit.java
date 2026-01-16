@@ -3,8 +3,8 @@ package com.fullsteam.model;
 import com.fullsteam.model.command.IdleCommand;
 import com.fullsteam.model.command.SortieCommand;
 import com.fullsteam.model.command.UnitCommand;
-import com.fullsteam.model.component.AndroidComponent;
 import com.fullsteam.model.component.APCComponent;
+import com.fullsteam.model.component.AndroidComponent;
 import com.fullsteam.model.component.CloakComponent;
 import com.fullsteam.model.component.GunshipComponent;
 import com.fullsteam.model.component.HangarComponent;
@@ -1008,7 +1008,7 @@ public class Unit extends GameEntity implements Targetable {
     /**
      * Use special ability on a target unit (e.g., Medic heal, Spy tracker gun)
      *
-     * @param target The unit to target
+     * @param target       The unit to target
      * @param gameEntities Game entities (for spy tracker bug)
      * @return true if ability was used successfully
      */

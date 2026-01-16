@@ -65,8 +65,8 @@ public abstract class Weapon {
 
         // Fire the weapon (implemented by subclass)
         List<AbstractOrdinance> ordinances = createOrdinances(
-            position, targetPosition, targetElevation, 
-            ownerId, ownerTeam, ignoredBody, gameEntities
+                position, targetPosition, targetElevation,
+                ownerId, ownerTeam, ignoredBody, gameEntities
         );
 
         // Record the fire time if successful

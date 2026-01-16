@@ -10,11 +10,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Defines the different types of units available in the RTS game.
- * Each unit type has specific attributes like cost, health, speed, damage, etc.
- * Shape rendering is handled by the number of sides (3=triangle, 4=rectangle, etc.)
- */
 @Getter
 public enum UnitType {
     // Worker unit - can harvest resources and construct buildings
@@ -774,38 +769,10 @@ public enum UnitType {
     private final int color; // hex color for rendering
     private final BuildingType producedBy; // which building produces this unit
     private final int upkeepCost; // supply/upkeep cost
-    /**
-     * Get vision range for this unit type
-     * Most units: 1.5x attack range
-     * Gigantonaut: terrible vision (0.5x attack range)
-     */
     private final double visionRange; // vision radius for fog of war
-
-    /**
-     * -- GETTER --
-     * Get elevation level for this unit type.
-     * Determines which weapons can target this unit.
-     * GROUND = standard units, LOW = VTOLs, HIGH = fixed-wing aircraft
-     */
     private final Elevation elevation;
-
-    /**
-     * Unit category for tech tree purposes.
-     * Determines which production building produces this unit.
-     */
     private final UnitCategory category;
-
-    /**
-     * Buildings required to be constructed before this unit can be trained.
-     * Empty set = no tech requirements (basic units)
-     * Example: CLOAK_TANK requires both RESEARCH_LAB and TECH_CENTER
-     */
     private final Set<BuildingType> requiredBuildings;
-
-    /**
-     * Point cost for faction customization.
-     * Used when creating custom factions with a point budget.
-     */
     private final int pointCost;
 
     /**

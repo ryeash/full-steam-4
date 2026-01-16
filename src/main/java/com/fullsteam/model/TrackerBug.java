@@ -9,7 +9,7 @@ import org.dyn4j.geometry.Vector2;
 /**
  * Represents a tracking device attached to an enemy unit by a Spy.
  * Provides vision of the tagged unit's location to the spy's team.
- * 
+ * <p>
  * TrackerBugs are not physical entities in the world - they're metadata attached to units
  * that grant vision to enemy teams.
  */
@@ -35,7 +35,7 @@ public class TrackerBug {
      * @param visionRange     Vision radius around tagged unit
      * @param durationMs      How long bug lasts (milliseconds)
      */
-    public TrackerBug(int targetUnitId, int ownerPlayerId, int ownerTeamNumber, 
+    public TrackerBug(int targetUnitId, int ownerPlayerId, int ownerTeamNumber,
                       double visionRange, long durationMs) {
         this.id = IdGenerator.nextEntityId();
         this.targetUnitId = targetUnitId;

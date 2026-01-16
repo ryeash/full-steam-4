@@ -6,7 +6,6 @@ import com.fullsteam.model.Elevation;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Ordinance;
 import com.fullsteam.model.Projectile;
-import com.fullsteam.model.Unit;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.dynamics.Body;

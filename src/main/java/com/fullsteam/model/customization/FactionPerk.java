@@ -565,7 +565,7 @@ public enum FactionPerk implements PerkEffect {
             builder.buildingStatModifiers(buildingMods);
         }
     },
-    
+
     VEHICLE_PRODUCTION_1(
             "Vehicle Production I",
             "Factories produce vehicles 20% faster",
@@ -596,7 +596,7 @@ public enum FactionPerk implements PerkEffect {
             builder.buildingStatModifiers(buildingMods);
         }
     },
-    
+
     LOGISTICS_NETWORK(
             "Logistics Network",
             "Buildings cost 15% less, build 20% faster",

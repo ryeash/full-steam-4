@@ -20,7 +20,7 @@ import java.util.Set;
 @Setter
 public class Projectile extends AbstractOrdinance {
     private double maxRange;
-    
+
     // Seeking missile support
     private Integer targetEntityId;  // ID of target being tracked (null if not seeking)
     private double turnRate;         // Radians per second (how fast missile can turn)
@@ -49,7 +49,7 @@ public class Projectile extends AbstractOrdinance {
         this.targetEntityId = targetEntityId;
         this.turnRate = turnRate;
         this.accelerationRate = accelerationRate;
-        
+
         body.translate(origin);
         body.setLinearDamping(linearDamping);
         body.setLinearVelocity(velocity); // Set physics body velocity
@@ -71,7 +71,7 @@ public class Projectile extends AbstractOrdinance {
         if (!active) {
             return;
         }
-        
+
         // Handle seeking behavior (update every 3 frames for performance)
         if (bulletEffects.contains(BulletEffect.SEEKING) && targetEntityId != null) {
             seekingUpdateCounter++;
@@ -80,63 +80,63 @@ public class Projectile extends AbstractOrdinance {
                 seekingUpdateCounter = 0;
             }
         }
-        
+
         // Deactivate if traveled too far
         if (origin.distance(getPosition()) >= maxRange) {
             active = false;
         }
     }
-    
+
     /**
      * Update seeking missile behavior - adjust velocity to track target
      */
     private void updateSeekingBehavior(GameEntities gameEntities) {
         // 1. Find target entity
         GameEntity target = findTarget(gameEntities);
-        
+
         // 2. If target is dead/invalid, continue on current trajectory
         if (target == null || !target.isActive()) {
             targetEntityId = null;  // Stop seeking
             return;
         }
-        
+
         // 3. Calculate direction to target
         Vector2 currentPos = getPosition();
         Vector2 targetPos = target.getPosition();
         Vector2 desiredDirection = targetPos.copy().subtract(currentPos).getNormalized();
-        
+
         // 4. Get current velocity direction
         Vector2 currentVelocity = body.getLinearVelocity();
         double currentSpeed = currentVelocity.getMagnitude();
-        
+
         // Don't seek if velocity is too low (avoid division by zero)
         if (currentSpeed < 10.0) {
             return;
         }
-        
+
         Vector2 currentDirection = currentVelocity.copy().getNormalized();
-        
+
         // 5. Calculate turn angle (limited by turnRate)
         double desiredAngle = Math.atan2(desiredDirection.y, desiredDirection.x);
         double currentAngle = Math.atan2(currentDirection.y, currentDirection.x);
         double angleDiff = normalizeAngle(desiredAngle - currentAngle);
-        
+
         // 6. Apply turn rate limit (missiles can't turn instantly)
         // Assuming 60 FPS, each update is ~0.0167 seconds, but we update every 3 frames = 0.05 seconds
         double deltaTime = 0.05; // 3 frames at 60 FPS
         double maxTurn = turnRate * deltaTime;
         double actualTurn = Math.max(-maxTurn, Math.min(maxTurn, angleDiff));
         double newAngle = currentAngle + actualTurn;
-        
+
         // 7. Apply acceleration (missiles speed up as they track)
         double newSpeed = currentSpeed + (accelerationRate * deltaTime);
-        
+
         // 8. Set new velocity
         Vector2 newDirection = new Vector2(Math.cos(newAngle), Math.sin(newAngle));
         Vector2 newVelocity = newDirection.multiply(newSpeed);
         body.setLinearVelocity(newVelocity);
     }
-    
+
     /**
      * Find the target entity being tracked
      */
@@ -146,16 +146,16 @@ public class Projectile extends AbstractOrdinance {
         if (unit != null) {
             return unit;
         }
-        
+
         // Check buildings
         Building building = gameEntities.getBuildings().get(targetEntityId);
         if (building != null) {
             return building;
         }
-        
+
         return null;
     }
-    
+
     /**
      * Normalize angle to [-PI, PI] range
      */

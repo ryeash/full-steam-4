@@ -198,7 +198,6 @@ public class RTSLobby {
     public synchronized void leaveMatchmaking(String gameId, String sessionToken) {
         MatchmakingGame game = matchmakingGames.get(gameId);
         if (game != null) {
-            game.releaseSlot(sessionToken);
             log.info("Player left matchmaking game: {}, session: {}, players: {}/{}",
                     gameId, sessionToken, game.getCurrentPlayers(), game.getMaxPlayers());
 
@@ -260,10 +259,6 @@ public class RTSLobby {
         @Getter
         private final long createdTime;
 
-        // Map session tokens to faction selections (ensures correct faction assignment)
-        private final Map<String, String> sessionTokenToFaction = new ConcurrentSkipListMap<>();
-        private final Map<String, Integer> sessionTokenToSlot = new ConcurrentSkipListMap<>();
-
         public MatchmakingGame(String gameId, int maxPlayers) {
             this.gameId = gameId;
             this.maxPlayers = maxPlayers;
@@ -286,47 +281,10 @@ public class RTSLobby {
             String sessionToken = IdGenerator.nextGameId(); // Reuse game ID generator for uniqueness
             int slot = currentPlayers;
 
-            sessionTokenToFaction.put(sessionToken, faction != null ? faction : "TERRAN");
-            sessionTokenToSlot.put(sessionToken, slot);
             currentPlayers++;
 
             log.info("Reserved slot {} for session {} with faction {}", slot, sessionToken, faction);
             return sessionToken;
-        }
-
-        /**
-         * Release a reserved slot (when player leaves before connecting)
-         */
-        public synchronized void releaseSlot(String sessionToken) {
-            if (sessionToken != null && sessionTokenToFaction.containsKey(sessionToken)) {
-                sessionTokenToFaction.remove(sessionToken);
-                sessionTokenToSlot.remove(sessionToken);
-                if (currentPlayers > 0) {
-                    currentPlayers--;
-                }
-                log.info("Released slot for session {}", sessionToken);
-            }
-        }
-
-        /**
-         * Get faction for a specific session token
-         */
-        @Deprecated // this is no longer needed since everything is customized
-        public synchronized String getFactionForSession(String sessionToken) {
-            String faction = sessionTokenToFaction.get(sessionToken);
-            if (faction != null) {
-                log.info("Retrieved faction {} for session {}", faction, sessionToken);
-                return faction;
-            }
-            log.warn("No faction found for session {}, defaulting to TERRAN", sessionToken);
-            return "TERRAN";
-        }
-
-        /**
-         * Get slot number for a specific session token
-         */
-        public synchronized Integer getSlotForSession(String sessionToken) {
-            return sessionTokenToSlot.get(sessionToken);
         }
 
         /**
@@ -339,15 +297,6 @@ public class RTSLobby {
 
         public boolean isReady() {
             return currentPlayers >= maxPlayers;
-        }
-
-        /**
-         * Legacy method for backward compatibility (used by debug games)
-         */
-        @Deprecated
-        public synchronized int incrementPlayers(String faction) {
-            String token = reserveSlot(faction);
-            return token != null ? sessionTokenToSlot.get(token) : -1;
         }
     }
 

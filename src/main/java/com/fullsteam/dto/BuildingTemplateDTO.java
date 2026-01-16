@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 public class BuildingTemplateDTO {
     private String id;
+    private String name;
+    private double size;
     private String buildingType;
     private String displayName;
     private String description;
@@ -38,6 +40,8 @@ public class BuildingTemplateDTO {
     public static BuildingTemplateDTO fromType(BuildingType template) {
         return BuildingTemplateDTO.builder()
                 .id(template.name())
+                .name(template.getDisplayName())
+                .size(template.getSize())
                 .buildingType(template.name())
                 .displayName(template.getDisplayName())
                 .description(generateDescription(template))

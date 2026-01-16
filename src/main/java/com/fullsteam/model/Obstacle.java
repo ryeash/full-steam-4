@@ -29,7 +29,7 @@ public class Obstacle extends GameEntity {
     private final Vector2[] vertices; // For irregular polygons
 
     private final boolean destructible;
-    
+
     // Resource harvesting fields
     private final boolean harvestable;
     private final ResourceType resourceType;
@@ -47,12 +47,12 @@ public class Obstacle extends GameEntity {
     public Obstacle(int id, double x, double y, double radius, boolean destructible) {
         this(id, x, y, radius, destructible, false, null, 0);
     }
-    
+
     // Circle constructor with harvestable resources
-    public Obstacle(int id, double x, double y, double radius, boolean destructible, 
+    public Obstacle(int id, double x, double y, double radius, boolean destructible,
                     boolean harvestable, ResourceType resourceType, double resources) {
-        super(id, createCircleBody(x, y, radius), 
-              harvestable ? Double.MAX_VALUE : (destructible ? calculateObstacleHealth(radius) : Double.MAX_VALUE));
+        super(id, createCircleBody(x, y, radius),
+                harvestable ? Double.MAX_VALUE : (destructible ? calculateObstacleHealth(radius) : Double.MAX_VALUE));
         this.shape = Shape.CIRCLE;
         this.size = radius;
         this.width = radius * 2;
@@ -75,12 +75,12 @@ public class Obstacle extends GameEntity {
     public Obstacle(int id, double x, double y, double width, double height, boolean destructible) {
         this(id, x, y, width, height, destructible, false, null, 0);
     }
-    
+
     // Rectangle constructor with harvestable resources
     public Obstacle(int id, double x, double y, double width, double height, boolean destructible,
                     boolean harvestable, ResourceType resourceType, double resources) {
-        super(id, createRectangleBody(x, y, width, height), 
-              harvestable ? Double.MAX_VALUE : (destructible ? calculateObstacleHealth(Math.max(width, height)) : Double.MAX_VALUE));
+        super(id, createRectangleBody(x, y, width, height),
+                harvestable ? Double.MAX_VALUE : (destructible ? calculateObstacleHealth(Math.max(width, height)) : Double.MAX_VALUE));
         this.shape = Shape.RECTANGLE;
         this.size = Math.max(width, height) / 2;
         this.width = width;
@@ -103,12 +103,12 @@ public class Obstacle extends GameEntity {
     public Obstacle(int id, double x, double y, double radius, int sides, boolean destructible) {
         this(id, x, y, radius, sides, destructible, false, null, 0);
     }
-    
+
     // Polygon constructor with harvestable resources
     public Obstacle(int id, double x, double y, double radius, int sides, boolean destructible,
                     boolean harvestable, ResourceType resourceType, double resources) {
-        super(id, createPolygonBody(x, y, radius, sides), 
-              harvestable ? Double.MAX_VALUE : (destructible ? calculateObstacleHealth(radius) : Double.MAX_VALUE));
+        super(id, createPolygonBody(x, y, radius, sides),
+                harvestable ? Double.MAX_VALUE : (destructible ? calculateObstacleHealth(radius) : Double.MAX_VALUE));
         this.shape = Shape.POLYGON;
         this.size = radius;
         this.width = radius * 2;
@@ -126,12 +126,12 @@ public class Obstacle extends GameEntity {
     public Obstacle(int id, double x, double y, Vector2[] vertices, boolean destructible) {
         this(id, x, y, vertices, destructible, false, null, 0);
     }
-    
+
     // Irregular polygon constructor with harvestable resources
     public Obstacle(int id, double x, double y, Vector2[] vertices, boolean destructible,
                     boolean harvestable, ResourceType resourceType, double resources) {
-        super(id, createIrregularPolygonBody(x, y, vertices), 
-              harvestable ? Double.MAX_VALUE : (destructible ? calculateObstacleHealth(calculateBoundingRadius(vertices)) : Double.MAX_VALUE));
+        super(id, createIrregularPolygonBody(x, y, vertices),
+                harvestable ? Double.MAX_VALUE : (destructible ? calculateObstacleHealth(calculateBoundingRadius(vertices)) : Double.MAX_VALUE));
         this.shape = Shape.IRREGULAR_POLYGON;
         this.size = calculateBoundingRadius(vertices);
         this.width = this.size * 2;
@@ -257,14 +257,8 @@ public class Obstacle extends GameEntity {
     }
 
     /**
-     * Get bounding radius for collision checks
-     */
-    public double getBoundingRadius() {
-        return size;
-    }
-    
-    /**
      * Harvest resources from this obstacle
+     *
      * @param amount Amount to harvest
      * @return Actual amount harvested (may be less if depleted)
      */
@@ -275,17 +269,17 @@ public class Obstacle extends GameEntity {
             }
             return 0;
         }
-        
+
         double harvested = Math.min(amount, remainingResources);
         remainingResources -= harvested;
-        
+
         if (remainingResources <= 0) {
             active = false; // Obstacle is depleted and disappears
         }
-        
+
         return harvested;
     }
-    
+
     /**
      * Get remaining resources as a percentage
      */
@@ -295,7 +289,7 @@ public class Obstacle extends GameEntity {
         }
         return remainingResources / maxResources;
     }
-    
+
     /**
      * Get harvest range
      */

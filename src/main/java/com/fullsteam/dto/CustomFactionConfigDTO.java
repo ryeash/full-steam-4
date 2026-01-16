@@ -1,6 +1,7 @@
 package com.fullsteam.dto;
 
 import com.fullsteam.model.customization.CustomFactionConfig;
+import com.fullsteam.model.customization.ValidationResult;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -30,38 +31,38 @@ public class CustomFactionConfigDTO {
     private int remainingPoints;
     private boolean isValid;
     private List<String> validationErrors;
-    
+
     public static CustomFactionConfigDTO fromConfig(CustomFactionConfig config) {
         // Ensure required items before validation
         config.ensureRequiredItems();
         config.ensureBundledUnits();
-        var validation = config.validate();
-        
+        ValidationResult validation = config.validate();
+
         return CustomFactionConfigDTO.builder()
-            .factionId(config.getFactionId())
-            .displayName(config.getDisplayName())
-            .themeColor(config.getThemeColor())
-            .icon(config.getIcon())
-            .selectedUnits(config.getSelectedUnits().stream()
-                .map(Enum::name)
-                .collect(Collectors.toList()))
-            .selectedBuildings(config.getSelectedBuildings().stream()
-                .map(Enum::name)
-                .collect(Collectors.toList()))
-            .selectedPerks(config.getSelectedPerks().stream()
-                .map(Enum::name)
-                .collect(Collectors.toList()))
-            .totalPointsSpent(config.getTotalPointsSpent())
-            .basedOnPreset(config.getBasedOnPreset())
-            .remainingPoints(config.getRemainingPoints())
-            .isValid(validation.isValid())
-            .validationErrors(validation.getErrors())
-            .build();
+                .factionId(config.getFactionId())
+                .displayName(config.getDisplayName())
+                .themeColor(config.getThemeColor())
+                .icon(config.getIcon())
+                .selectedUnits(config.getSelectedUnits().stream()
+                        .map(Enum::name)
+                        .collect(Collectors.toList()))
+                .selectedBuildings(config.getSelectedBuildings().stream()
+                        .map(Enum::name)
+                        .collect(Collectors.toList()))
+                .selectedPerks(config.getSelectedPerks().stream()
+                        .map(Enum::name)
+                        .collect(Collectors.toList()))
+                .totalPointsSpent(config.getTotalPointsSpent())
+                .basedOnPreset(config.getBasedOnPreset())
+                .remainingPoints(config.getRemainingPoints())
+                .isValid(validation.isValid())
+                .validationErrors(validation.getErrors())
+                .build();
     }
-    
+
     public static List<CustomFactionConfigDTO> fromConfigs(List<CustomFactionConfig> configs) {
         return configs.stream()
-            .map(CustomFactionConfigDTO::fromConfig)
-            .collect(Collectors.toList());
+                .map(CustomFactionConfigDTO::fromConfig)
+                .collect(Collectors.toList());
     }
 }

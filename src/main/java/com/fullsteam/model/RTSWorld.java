@@ -200,7 +200,7 @@ public class RTSWorld {
                 double roll = ThreadLocalRandom.current().nextDouble();
                 boolean harvestable = roll < 0.5;
                 boolean destructible = !harvestable && roll < 0.8; // 30% of remaining 50%
-                
+
                 // Harvestable obstacles contain resources
                 int resources = 0;
                 if (harvestable) {
@@ -231,7 +231,7 @@ public class RTSWorld {
     /**
      * Generate an obstacle with biome-specific shape characteristics
      */
-    private ObstacleSpawn generateBiomeObstacle(Vector2 position, double size, boolean harvestable, 
+    private ObstacleSpawn generateBiomeObstacle(Vector2 position, double size, boolean harvestable,
                                                 boolean destructible, int resources, Random random) {
         return switch (biome) {
             case GRASSLAND -> {
@@ -294,32 +294,32 @@ public class RTSWorld {
         for (ObstacleSpawn spawn : pattern) {
             Vector2 pos = spawn.getPosition();
             Vector2 mirroredPos = new Vector2(-pos.x, -pos.y);
-            
+
             if (spawn.getShape() == Obstacle.Shape.CIRCLE) {
                 mirrored.add(new ObstacleSpawn(
-                    mirroredPos, 
-                    spawn.getSize(), 
-                    spawn.isHarvestable(), 
-                    spawn.isDestructible(), 
-                    spawn.getResources()
+                        mirroredPos,
+                        spawn.getSize(),
+                        spawn.isHarvestable(),
+                        spawn.isDestructible(),
+                        spawn.getResources()
                 ));
             } else if (spawn.getShape() == Obstacle.Shape.POLYGON) {
                 mirrored.add(new ObstacleSpawn(
-                    mirroredPos, 
-                    spawn.getSize(), 
-                    spawn.getSides(), 
-                    spawn.isHarvestable(), 
-                    spawn.isDestructible(), 
-                    spawn.getResources()
+                        mirroredPos,
+                        spawn.getSize(),
+                        spawn.getSides(),
+                        spawn.isHarvestable(),
+                        spawn.isDestructible(),
+                        spawn.getResources()
                 ));
             } else {
                 // IRREGULAR_POLYGON - mirror the vertices too
                 mirrored.add(new ObstacleSpawn(
-                    mirroredPos, 
-                    spawn.getVertices(), 
-                    spawn.isHarvestable(), 
-                    spawn.isDestructible(), 
-                    spawn.getResources()
+                        mirroredPos,
+                        spawn.getVertices(),
+                        spawn.isHarvestable(),
+                        spawn.isDestructible(),
+                        spawn.getResources()
                 ));
             }
         }
@@ -331,32 +331,32 @@ public class RTSWorld {
         for (ObstacleSpawn spawn : pattern) {
             Vector2 pos = spawn.getPosition();
             Vector2 rotatedPos = new Vector2(pos.y, -pos.x);
-            
+
             if (spawn.getShape() == Obstacle.Shape.CIRCLE) {
                 rotated.add(new ObstacleSpawn(
-                    rotatedPos, 
-                    spawn.getSize(), 
-                    spawn.isHarvestable(), 
-                    spawn.isDestructible(), 
-                    spawn.getResources()
+                        rotatedPos,
+                        spawn.getSize(),
+                        spawn.isHarvestable(),
+                        spawn.isDestructible(),
+                        spawn.getResources()
                 ));
             } else if (spawn.getShape() == Obstacle.Shape.POLYGON) {
                 rotated.add(new ObstacleSpawn(
-                    rotatedPos, 
-                    spawn.getSize(), 
-                    spawn.getSides(), 
-                    spawn.isHarvestable(), 
-                    spawn.isDestructible(), 
-                    spawn.getResources()
+                        rotatedPos,
+                        spawn.getSize(),
+                        spawn.getSides(),
+                        spawn.isHarvestable(),
+                        spawn.isDestructible(),
+                        spawn.getResources()
                 ));
             } else {
                 // IRREGULAR_POLYGON
                 rotated.add(new ObstacleSpawn(
-                    rotatedPos, 
-                    spawn.getVertices(), 
-                    spawn.isHarvestable(), 
-                    spawn.isDestructible(), 
-                    spawn.getResources()
+                        rotatedPos,
+                        spawn.getVertices(),
+                        spawn.isHarvestable(),
+                        spawn.isDestructible(),
+                        spawn.getResources()
                 ));
             }
         }
@@ -372,32 +372,32 @@ public class RTSWorld {
         for (ObstacleSpawn spawn : pattern) {
             Vector2 pos = spawn.getPosition();
             Vector2 rotatedPos = new Vector2(-pos.y, pos.x);
-            
+
             if (spawn.getShape() == Obstacle.Shape.CIRCLE) {
                 rotated.add(new ObstacleSpawn(
-                    rotatedPos, 
-                    spawn.getSize(), 
-                    spawn.isHarvestable(), 
-                    spawn.isDestructible(), 
-                    spawn.getResources()
+                        rotatedPos,
+                        spawn.getSize(),
+                        spawn.isHarvestable(),
+                        spawn.isDestructible(),
+                        spawn.getResources()
                 ));
             } else if (spawn.getShape() == Obstacle.Shape.POLYGON) {
                 rotated.add(new ObstacleSpawn(
-                    rotatedPos, 
-                    spawn.getSize(), 
-                    spawn.getSides(), 
-                    spawn.isHarvestable(), 
-                    spawn.isDestructible(), 
-                    spawn.getResources()
+                        rotatedPos,
+                        spawn.getSize(),
+                        spawn.getSides(),
+                        spawn.isHarvestable(),
+                        spawn.isDestructible(),
+                        spawn.getResources()
                 ));
             } else {
                 // IRREGULAR_POLYGON
                 rotated.add(new ObstacleSpawn(
-                    rotatedPos, 
-                    spawn.getVertices(), 
-                    spawn.isHarvestable(), 
-                    spawn.isDestructible(), 
-                    spawn.getResources()
+                        rotatedPos,
+                        spawn.getVertices(),
+                        spawn.isHarvestable(),
+                        spawn.isDestructible(),
+                        spawn.getResources()
                 ));
             }
         }
