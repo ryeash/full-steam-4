@@ -30,14 +30,10 @@ public class GarrisonAPCCommand extends UnitCommand {
         Vector2 apcPos = apc.getPosition();
         double distance = unitPos.distance(apcPos);
         double garrisonRange = apc.getUnitType().getSize() + 10.0;
-
         if (distance <= garrisonRange) {
-            // Try to garrison the unit
-            boolean success = apc.garrisonUnit(unit);
-            return !success; // Command completes when garrison succeeds
+            return !apc.garrisonUnit(unit);
         }
-
-        return true; // Continue moving toward APC
+        return true;
     }
 
     @Override
@@ -54,14 +50,9 @@ public class GarrisonAPCCommand extends UnitCommand {
 
         // Move to APC if too far
         if (distance > garrisonRange) {
-            // Compute path to APC (need to update since APC can move!)
-            // Always recompute path since APC position changes
-            if (path.isEmpty() || lastPathTarget == null ||
-                    lastPathTarget.distance(apcPos) > 20.0) { // Recompute if APC moved significantly
+            if (path.isEmpty() || lastPathTarget == null || lastPathTarget.distance(apcPos) > 20.0) {
                 computePathTo(apcPos);
             }
-
-            // Follow path to APC
             followPathTo(apcPos, nearbyUnits, garrisonRange);
         } else {
             // In range, stop moving

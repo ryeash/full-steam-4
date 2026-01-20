@@ -2,7 +2,6 @@ package com.fullsteam.model.component;
 
 import com.fullsteam.model.Building;
 import com.fullsteam.model.BuildingType;
-import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.PlayerFaction;
 import com.fullsteam.model.ResourceType;
@@ -30,14 +29,6 @@ public class HarvestComponent extends AbstractUnitComponent {
     private double maxCarriedResources = BASE_MAX_CARRIED_RESOURCES;
     private Building targetRefinery = null;
 
-    @Override
-    public void update(GameEntities gameEntities) {
-        // Component doesn't do passive harvesting - harvesting is command-driven
-        // This method is here for future enhancements (e.g., auto-return when full)
-    }
-
-    // harvestFrom(ResourceDeposit) removed - use harvestFromObstacle(Obstacle) instead
-
     /**
      * Harvest from a harvestable obstacle.
      *
@@ -46,16 +37,12 @@ public class HarvestComponent extends AbstractUnitComponent {
      */
     public boolean harvestFromObstacle(Obstacle obstacle) {
         if (carriedResources >= maxCarriedResources) {
-            return true; // Full, should return to refinery
+            return true;
         }
-
         if (!obstacle.isHarvestable()) {
-            log.warn("Unit {} attempted to harvest from non-harvestable obstacle {}",
-                    unit.getId(), obstacle.getId());
-            return true; // Can't harvest, stop trying
+            log.warn("Unit {} attempted to harvest from non-harvestable obstacle {}", unit.getId(), obstacle.getId());
+            return true;
         }
-
-        // Apply resource collection multiplier from faction perks
         double effectiveHarvestRate = HARVEST_RATE;
         if (unit.getFaction() != null && unit.getFaction().getFactionDefinition() != null) {
             Map<UnitType, FactionDefinition.UnitStatModifier> unitMods = unit.getFaction().getFactionDefinition().getUnitStatModifiers();
@@ -63,13 +50,10 @@ public class HarvestComponent extends AbstractUnitComponent {
                 effectiveHarvestRate *= unitMods.get(unit.getUnitType()).getResourceCollectionMultiplier();
             }
         }
-
         double harvestAmount = effectiveHarvestRate * getDeltaTime();
         double actualHarvested = obstacle.harvest(harvestAmount);
         carriedResources += actualHarvested;
-
-        // Return true if full or obstacle is depleted
-        return carriedResources >= maxCarriedResources || actualHarvested == 0;
+        return carriedResources >= maxCarriedResources || obstacle.getRemainingResources() <= 0;
     }
 
     /**
@@ -88,7 +72,6 @@ public class HarvestComponent extends AbstractUnitComponent {
             return false;
         }
 
-        // Accept both REFINERY and HEADQUARTERS as valid dropoff points
         if (dropoff.getBuildingType() != BuildingType.REFINERY &&
                 dropoff.getBuildingType() != BuildingType.HEADQUARTERS) {
             log.warn("Unit {} attempted to deposit to invalid building type {} (building {})",
@@ -109,23 +92,6 @@ public class HarvestComponent extends AbstractUnitComponent {
     }
 
     /**
-     * Set the target dropoff building for this harvester.
-     *
-     * @param dropoff The building to return resources to (REFINERY or HEADQUARTERS)
-     */
-    public void setTargetRefinery(Building dropoff) {
-        if (dropoff != null &&
-                (dropoff.getBuildingType() == BuildingType.REFINERY ||
-                        dropoff.getBuildingType() == BuildingType.HEADQUARTERS) &&
-                dropoff.isActive()) {
-            this.targetRefinery = dropoff;
-        } else {
-            log.warn("Attempted to set invalid dropoff building for unit {} (type: {})",
-                    unit.getId(), dropoff != null ? dropoff.getBuildingType() : "null");
-        }
-    }
-
-    /**
      * Check if this harvester is currently carrying resources.
      *
      * @return true if carrying any resources
@@ -141,13 +107,6 @@ public class HarvestComponent extends AbstractUnitComponent {
      */
     public boolean isFull() {
         return carriedResources >= maxCarriedResources;
-    }
-
-    /**
-     * Get the percentage of capacity filled (0.0 to 1.0).
-     */
-    public double getCapacityPercent() {
-        return carriedResources / maxCarriedResources;
     }
 
     @Override

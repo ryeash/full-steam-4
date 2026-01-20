@@ -31,7 +31,8 @@ public interface IUnitComponent {
      *
      * @param gameEntities Reference to all game entities (for querying nearby entities, etc.)
      */
-    void update(GameEntities gameEntities);
+    default void update(GameEntities gameEntities) {
+    }
 
     /**
      * Called when the unit is destroyed.

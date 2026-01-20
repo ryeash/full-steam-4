@@ -17,9 +17,7 @@ import java.util.List;
 @Getter
 public class AttackMoveCommand extends UnitCommand {
     private final Vector2 destination;
-    // Note: path fields are now inherited from UnitCommand base class
 
-    // Auto-acquired target (unit, building, or wall)
     @Setter
     private Targetable autoTarget = null;
 
@@ -39,30 +37,24 @@ public class AttackMoveCommand extends UnitCommand {
 
     @Override
     public boolean update(double deltaTime) {
-        // Check if we've reached the destination
         double distance = unit.getPosition().distance(destination);
         if (distance < unit.getBody().getRotationDiscRadius() * 0.75D) {
             unit.getBody().setLinearVelocity(0, 0);
-            return false; // Command complete
+            return false;
         }
-
-        // Clear invalid auto-target
         if (autoTarget != null && !autoTarget.isActive()) {
             autoTarget = null;
         }
-
-        return true; // Still moving
+        return true;
     }
 
     @Override
     public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
         Vector2 currentPos = unit.getPosition();
 
-        // If we have an auto-target, move towards it
         if (autoTarget != null && autoTarget.isActive()) {
             Vector2 targetPos = autoTarget.getPosition();
 
-            // Get weapon range
             double weaponRange = unit.getWeapon() != null ?
                     unit.getWeapon().getRange() :
                     unit.getUnitType().getAttackRange();

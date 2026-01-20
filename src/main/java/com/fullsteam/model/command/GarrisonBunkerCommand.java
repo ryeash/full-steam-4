@@ -21,24 +21,18 @@ public class GarrisonBunkerCommand extends UnitCommand {
 
     @Override
     public boolean update(double deltaTime) {
-        // Command fails if bunker is destroyed or not active
         if (bunker == null || !bunker.isActive()) {
             return false;
         }
-
         // Check if unit is close enough to garrison
         Vector2 unitPos = unit.getPosition();
         Vector2 bunkerPos = bunker.getPosition();
         double distance = unitPos.distance(bunkerPos);
         double garrisonRange = bunker.getBuildingType().getSize() + 10.0;
-
         if (distance <= garrisonRange) {
-            // Try to garrison the unit
-            boolean success = bunker.garrisonUnit(unit);
-            return !success; // Command completes when garrison succeeds
+            return !bunker.garrisonUnit(unit);
         }
-
-        return true; // Continue moving toward bunker
+        return true;
     }
 
     @Override
@@ -55,12 +49,9 @@ public class GarrisonBunkerCommand extends UnitCommand {
 
         // Move to bunker if too far
         if (distance > garrisonRange) {
-            // Compute path if needed (bunker doesn't move)
             if (path.isEmpty() || lastPathTarget == null) {
                 computePathTo(bunkerPos);
             }
-
-            // Follow path to bunker
             followPathTo(bunkerPos, nearbyUnits, garrisonRange);
         } else {
             // In range, stop moving

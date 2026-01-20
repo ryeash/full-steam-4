@@ -23,7 +23,6 @@ public class AttackGroundCommand extends UnitCommand {
 
     @Override
     public boolean update(double deltaTime) {
-        // Command stays active until cancelled
         return true;
     }
 
@@ -33,17 +32,12 @@ public class AttackGroundCommand extends UnitCommand {
         double distance = currentPos.distance(groundTarget);
         double attackRange = unit.getUnitType().getAttackRange();
 
-        // Move into range if too far
         if (distance > attackRange * 0.9) {
-            // Compute path if needed (ground target is static)
             if (path.isEmpty() || lastPathTarget == null) {
                 computePathTo(groundTarget);
             }
-
-            // Follow path to ground target
             followPathTo(groundTarget, nearbyUnits, attackRange * 0.9);
         } else {
-            // In range, stop moving
             unit.getBody().setLinearVelocity(0, 0);
         }
     }
@@ -59,12 +53,8 @@ public class AttackGroundCommand extends UnitCommand {
 
         Elevation elevation = unit.getWeapon().getElevationTargeting().lowestTargetable();
 
-        // Check if in range
         if (distance <= unit.getWeapon().getRange()) {
-            // Stop moving when in range
             unit.getBody().setLinearVelocity(0, 0);
-
-            // Face target
             Vector2 direction = groundTarget.copy().subtract(currentPos);
             unit.setRotation(Math.atan2(direction.y, direction.x));
             return unit.fireAt(groundTarget, elevation, gameEntities);

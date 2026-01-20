@@ -29,7 +29,6 @@ public class AttackTargetableCommand extends UnitCommand {
 
     @Override
     public boolean update(double deltaTime) {
-        // Command fails if target is destroyed
         return target != null && target.isActive();
     }
 
@@ -44,31 +43,21 @@ public class AttackTargetableCommand extends UnitCommand {
         Vector2 targetPos = target.getPosition();
         double distance = currentPos.distance(targetPos);
 
-        // Get weapon range - handle units with component-managed weapons (e.g., Gunship)
         double weaponRange;
         if (unit.getWeapon() != null) {
             weaponRange = unit.getWeapon().getRange();
         } else {
-            // Fallback to UnitType range for units with component-managed weapons
             weaponRange = unit.getUnitType().getAttackRange();
         }
 
-        // Account for target size (larger targets can be hit from slightly further away)
         double effectiveRange = weaponRange + target.getTargetSize();
 
-        // Move into range if too far
         if (distance > effectiveRange * 0.9) {
-            // Recompute path periodically as target moves
-            // Static targets (buildings, walls) won't need frequent recomputation
-            if (path.isEmpty() || lastPathTarget == null ||
-                    lastPathTarget.distance(targetPos) > 50.0) { // Target moved significantly
+            if (path.isEmpty() || lastPathTarget == null || lastPathTarget.distance(targetPos) > 50.0) {
                 computePathTo(targetPos);
             }
-
-            // Follow path to target
             followPathTo(targetPos, nearbyUnits, effectiveRange * 0.9);
         } else {
-            // In range, stop moving
             unit.getBody().setLinearVelocity(0, 0);
         }
     }

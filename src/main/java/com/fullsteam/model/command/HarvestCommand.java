@@ -57,40 +57,25 @@ public class HarvestCommand extends UnitCommand {
     @Override
     public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
         Vector2 currentPos = unit.getPosition();
-
         if (returningResources && targetRefinery != null) {
-            // Moving to refinery
             Vector2 refineryPos = targetRefinery.getPosition();
             double distance = currentPos.distance(refineryPos);
-
             if (distance > 50.0) {
-                // Compute path if needed (refinery doesn't move)
-                if (path.isEmpty() || lastPathTarget == null ||
-                        lastPathTarget.distance(refineryPos) > 10.0) { // Check if target changed
+                if (path.isEmpty() || lastPathTarget == null || lastPathTarget.distance(refineryPos) > 10.0) {
                     computePathTo(refineryPos);
                 }
-
-                // Follow path to refinery
                 followPathTo(refineryPos, nearbyUnits, 50.0);
             } else {
                 unit.getBody().setLinearVelocity(0, 0);
             }
         } else if (obstacle != null && obstacle.isActive()) {
-            // Moving to obstacle
             Vector2 obstaclePos = obstacle.getPosition();
             double distance = currentPos.distance(obstaclePos);
-
-            // Calculate effective harvest range: harvest range + obstacle size (to reach edge, not center)
             double effectiveHarvestRange = obstacle.getHarvestRange() + obstacle.getSize();
-
             if (distance > effectiveHarvestRange) {
-                // Compute path if needed (obstacle doesn't move)
-                if (path.isEmpty() || lastPathTarget == null ||
-                        lastPathTarget.distance(obstaclePos) > 10.0) { // Check if target changed
+                if (path.isEmpty() || lastPathTarget == null || lastPathTarget.distance(obstaclePos) > 10.0) {
                     computePathTo(obstaclePos);
                 }
-
-                // Follow path to obstacle
                 followPathTo(obstaclePos, nearbyUnits, effectiveHarvestRange);
             } else {
                 unit.getBody().setLinearVelocity(0, 0);
@@ -109,8 +94,9 @@ public class HarvestCommand extends UnitCommand {
     @Override
     public boolean isMoving() {
         Vector2 targetPos = getTargetPosition();
-        if (targetPos == null) return false;
-
+        if (targetPos == null) {
+            return false;
+        }
         double distance = unit.getPosition().distance(targetPos);
         return distance > 50.0;
     }
@@ -118,8 +104,7 @@ public class HarvestCommand extends UnitCommand {
     @Override
     public String getDescription() {
         if (returningResources) {
-            return String.format("Returning resources to refinery %d",
-                    targetRefinery != null ? targetRefinery.getId() : -1);
+            return String.format("Returning resources to refinery %d", targetRefinery != null ? targetRefinery.getId() : -1);
         }
         return String.format("Harvesting obstacle %d (%s)",
                 obstacle != null ? obstacle.getId() : -1,

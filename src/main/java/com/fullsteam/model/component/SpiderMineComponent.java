@@ -1,12 +1,14 @@
 package com.fullsteam.model.component;
 
-import com.fullsteam.model.Building;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.FieldEffectType;
 import com.fullsteam.model.GameEntities;
-import com.fullsteam.model.Unit;
+import com.fullsteam.model.Targetable;
 import lombok.extern.slf4j.Slf4j;
 import org.dyn4j.geometry.Vector2;
+
+import java.util.Collection;
+import java.util.stream.Stream;
 
 /**
  * Component for SPIDER_MINE units.
@@ -19,7 +21,7 @@ import org.dyn4j.geometry.Vector2;
 @Slf4j
 public class SpiderMineComponent extends AbstractUnitComponent {
 
-    private static final double DETONATION_RANGE = 25.0; // Range to trigger detonation
+    private static final double DETONATION_RANGE = 10.0; // Range to trigger detonation
     private static final double EXPLOSION_RADIUS = 60.0; // Radius of the explosion
     private static final double ARMING_TIME = 0.5; // Time before mine becomes active (seconds)
 
@@ -32,11 +34,8 @@ public class SpiderMineComponent extends AbstractUnitComponent {
         if (detonated || !unit.isActive()) {
             return;
         }
-
-        // Update time alive
         timeAlive += getDeltaTime();
 
-        // Check if mine should arm
         if (!armed && timeAlive >= ARMING_TIME) {
             armed = true;
             log.info("Spider Mine {} armed and ready", unit.getId());
@@ -53,53 +52,28 @@ public class SpiderMineComponent extends AbstractUnitComponent {
      * If found, detonate the mine.
      */
     private void checkForEnemiesInRange(GameEntities gameEntities) {
-        Vector2 position = unit.getPosition();
-
-        // Check enemy units
-        for (Unit enemyUnit : gameEntities.getUnits().values()) {
-            if (isValidTarget(enemyUnit) && isInRange(position, enemyUnit.getPosition())) {
-                log.info("Spider Mine {} detected enemy unit {} - detonating!",
-                        unit.getId(), enemyUnit.getId());
-                detonate(gameEntities);
-                return;
-            }
-        }
-
-        // Check enemy buildings
-        for (Building enemyBuilding : gameEntities.getBuildings().values()) {
-            if (isValidTarget(enemyBuilding) && isInRange(position, enemyBuilding.getPosition())) {
-                log.info("Spider Mine {} detected enemy building {} - detonating!",
-                        unit.getId(), enemyBuilding.getId());
-                detonate(gameEntities);
-                return;
-            }
-        }
+        Stream.of(gameEntities.getUnits().values(), gameEntities.getBuildings().values())
+                .flatMap(Collection::stream)
+                .filter(enemyUnit -> isValidTarget(enemyUnit)
+                        && isInRange(unit.getPosition(), enemyUnit.getPosition(), enemyUnit.getTargetSize()))
+                .findFirst()
+                .ifPresent(t -> detonate(gameEntities));
     }
 
     /**
      * Check if a unit is a valid target (enemy, active, not garrisoned).
      */
-    private boolean isValidTarget(Unit target) {
-        return target.getTeamNumber() != unit.getTeamNumber()
-                && target.isActive()
-                && !target.isGarrisoned();
-    }
-
-    /**
-     * Check if a building is a valid target (enemy, active, not under construction).
-     */
-    private boolean isValidTarget(Building target) {
-        return target.getTeamNumber() != unit.getTeamNumber()
-                && target.isActive()
-                && !target.isUnderConstruction();
+    private boolean isValidTarget(Targetable target) {
+        return target.getTeamNumber() != unit.getTeamNumber() && target.isActive();
     }
 
     /**
      * Check if target position is within detonation range.
+     * Takes into account the target's radius so mines can detonate on large entities
+     * when they reach the edge, not just the center.
      */
-    private boolean isInRange(Vector2 minePos, Vector2 targetPos) {
-        double distance = minePos.distance(targetPos);
-        return distance <= DETONATION_RANGE;
+    private boolean isInRange(Vector2 minePos, Vector2 targetPos, double targetRadius) {
+        return minePos.distance(targetPos) <= (DETONATION_RANGE + targetRadius);
     }
 
     /**
@@ -140,33 +114,5 @@ public class SpiderMineComponent extends AbstractUnitComponent {
         if (!detonated) {
             log.info("Spider Mine {} destroyed before detonation (no explosion)", unit.getId());
         }
-    }
-
-    /**
-     * Check if the mine is armed and ready to detonate.
-     */
-    public boolean isArmed() {
-        return armed;
-    }
-
-    /**
-     * Check if the mine has detonated.
-     */
-    public boolean hasDetonated() {
-        return detonated;
-    }
-
-    /**
-     * Get the detonation range for spider mines.
-     */
-    public static double getDetonationRange() {
-        return DETONATION_RANGE;
-    }
-
-    /**
-     * Get the explosion radius for spider mines.
-     */
-    public static double getExplosionRadius() {
-        return EXPLOSION_RADIUS;
     }
 }
