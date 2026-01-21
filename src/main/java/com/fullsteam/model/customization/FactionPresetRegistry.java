@@ -8,9 +8,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Registry of preset faction configurations.
@@ -19,16 +21,16 @@ import java.util.Set;
 @Singleton
 public class FactionPresetRegistry {
 
-    private static final Map<String, CustomFactionConfig> PRESETS = new LinkedHashMap<>();
+    private static final Map<String, CustomFactionConfig> PRESETS = Stream.of(
+                    createIronFist(),
+                    createThunderRoad(),
+                    createStormWings(),
+                    createFortressGuard(),
+                    createSynthesisCore(),
+                    createLongReach()
+            )
+            .collect(Collectors.toMap(CustomFactionConfig::getFactionId, Function.identity()));
 
-    static {
-        PRESETS.put("IRON_FIST", createIronFist());               // Infantry-focused
-        PRESETS.put("THUNDER_ROAD", createThunderRoad());         // Mechanized-focused
-        PRESETS.put("STORM_WINGS", createStormWings());           // Air power-focused
-        PRESETS.put("FORTRESS_GUARD", createFortressGuard());     // Turtle/Defense-focused
-        PRESETS.put("SYNTHESIS_CORE", createSynthesisCore());     // Tech-focused (Beams/Androids)
-        PRESETS.put("LONG_REACH", createLongReach());             // Long-range artillery/sniper-focused
-    }
 
     /**
      * Get all available presets
@@ -64,8 +66,8 @@ public class FactionPresetRegistry {
      */
     private static CustomFactionConfig createIronFist() {
         CustomFactionConfig config = CustomFactionConfig.builder()
-                .factionId("IRON_FIST")
-                .displayName("Iron Fist Brigade")
+                .factionId("IRON_BRIGADE")
+                .displayName("Iron Brigade")
                 .themeColor("#2E8B57")
                 .icon("⚔️")
                 .selectedUnits(new HashSet<>(Arrays.asList(
@@ -121,8 +123,8 @@ public class FactionPresetRegistry {
      */
     private static CustomFactionConfig createThunderRoad() {
         CustomFactionConfig config = CustomFactionConfig.builder()
-                .factionId("THUNDER_ROAD")
-                .displayName("Thunder Road Division")
+                .factionId("TERRAN_ARMOR")
+                .displayName("Terran Armored Division")
                 .themeColor("#8B4513")
                 .icon("🚜")
                 .selectedUnits(new HashSet<>(Arrays.asList(
@@ -333,7 +335,7 @@ public class FactionPresetRegistry {
      */
     private static CustomFactionConfig createLongReach() {
         CustomFactionConfig config = CustomFactionConfig.builder()
-                .factionId("LONG_REACH")
+                .factionId("FARSIGHT")
                 .displayName("Farsight Artillery Corps")
                 .themeColor("#DC143C")
                 .icon("🎯")
@@ -348,7 +350,6 @@ public class FactionPresetRegistry {
                         UnitType.JEEP,               // Scout/spotter
                         UnitType.PULSE_ARTILLERY,
                         UnitType.SPIDER_MINE,        // Surprise ambush
-//                        UnitType.APC,              // Mobility
                         UnitType.ARTILLERY,          // Core siege weapon
                         UnitType.SAM_LAUNCHER,       // Long-range anti-air
                         // T3 ultimate range
@@ -368,7 +369,6 @@ public class FactionPresetRegistry {
                         BuildingType.PHOTON_SPIRE        // Ultimate range turret
                 )))
                 .selectedPerks(new HashSet<>(Arrays.asList(
-//                        FactionPerk.RESOURCE_BOOST_1,      // 4 pt - utility
                         FactionPerk.DAMAGE_BOOST_1,        // 4 pt - more firepower
                         FactionPerk.DAMAGE_BOOST_2,        // 8 pt - even more
                         FactionPerk.VETERAN_UNITS_1,       // 3 pt - durability
