@@ -76,9 +76,6 @@ public class Unit extends GameEntity implements Targetable {
     private Weapon weapon; // The weapon this unit fires (null for non-combat units)
     // Note: visionRange is now computed dynamically via getVisionRange()
 
-    // Building construction (for workers) - TODO: Move to ConstructComponent in future
-    private boolean isConstructing = false;
-
     // Selection state
     private boolean selected = false;
     private boolean garrisoned = false; // True if unit is inside a building
@@ -331,8 +328,6 @@ public class Unit extends GameEntity implements Targetable {
         }
     }
 
-    // ==================== Update Logic ====================
-
     @Override
     public void update(GameEntities gameEntities) {
         if (!active) {
@@ -353,8 +348,6 @@ public class Unit extends GameEntity implements Targetable {
                 currentCommand = new IdleCommand(this);
             }
         }
-
-        // Update all components
         for (IUnitComponent component : components.values()) {
             component.update(gameEntities);
         }
@@ -529,10 +522,9 @@ public class Unit extends GameEntity implements Targetable {
     /**
      * Set a new path for the unit to follow
      *
-     * @param path          The path to follow
-     * @param isPlayerOrder True if this is a player command (not AI)
+     * @param path The path to follow
      */
-    public void setPath(List<Vector2> path, boolean isPlayerOrder) {
+    public void setPath(List<Vector2> path) {
         this.currentPath = new ArrayList<>(path);
         this.currentPathIndex = 0;
         if (!path.isEmpty()) {
@@ -542,13 +534,6 @@ public class Unit extends GameEntity implements Targetable {
             // This allows units to move to new locations and defend there
             homePosition = path.get(path.size() - 1).copy();
         }
-    }
-
-    /**
-     * Set a new path for the unit to follow (AI order)
-     */
-    public void setPath(List<Vector2> path) {
-        setPath(path, false);
     }
 
     /**
@@ -722,7 +707,7 @@ public class Unit extends GameEntity implements Targetable {
             }
         }
 
-        return false; // Continue moving to refinery
+        return false;
     }
 
 
@@ -734,9 +719,6 @@ public class Unit extends GameEntity implements Targetable {
         if (building == null || !building.isActive()) {
             return;
         }
-
-        // Movement is handled by ConstructCommand.updateMovement()
-        // This method just does the actual construction work
 
         // Check if in range
         Vector2 currentPos = getPosition();
@@ -862,7 +844,7 @@ public class Unit extends GameEntity implements Targetable {
             return;
         }
         // Also check legacy isMoving flag (used by GarrisonComponent)
-        if (isMoving || isConstructing) {
+        if (isMoving) {
             return;
         }
 
@@ -951,7 +933,6 @@ public class Unit extends GameEntity implements Targetable {
 
         return isIdle
                 && !isMoving
-                && !isConstructing
                 && targetUnit == null
                 && targetBuilding == null
                 && distanceFromHome > 50.0; // Return if more than 50 units from home

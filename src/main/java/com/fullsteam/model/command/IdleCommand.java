@@ -13,7 +13,6 @@ import java.util.List;
  */
 public class IdleCommand extends UnitCommand {
 
-    private int scanCounter = 0; // Scan every N updates
     private final double defensiveLeashRange;
 
     public IdleCommand(Unit unit) {
@@ -25,12 +24,7 @@ public class IdleCommand extends UnitCommand {
     public boolean update(double deltaTime) {
         // Idle combat units should scan for enemies based on AI stance
         if (unit.canCurrentlyAttack() && unit.getAiStance().isAutoAttack() && gameEntities != null) {
-            scanCounter++;
-            // Scan every 30 frames (~0.5 seconds at 60fps)
-            if (scanCounter >= 30) {
-                scanCounter = 0;
-                scanForEnemies();
-            }
+            scanForEnemies();
         }
 
         return true;

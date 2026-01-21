@@ -250,12 +250,6 @@ public class RTSGameManager {
                     }
                 }
 
-                // Resource deposit is handled by Unit.returnResourcesToRefinery() 
-                // which is called from HarvestCommand.update()
-                // No need to duplicate the logic here
-
-                // Mining removed - workers now harvest resources from obstacles
-
                 unit.update(gameEntities);
 
                 // Update movement with steering behaviors (pass nearby units for separation)
@@ -555,7 +549,7 @@ public class RTSGameManager {
                                 gameConfig.getWorldHeight(),
                                 u.getUnitType().getElevation().isAirborne()
                         );
-                        u.setPath(path, true);
+                        u.setPath(path);
                     });
             log.info("Player {} issued force attack order to position ({}, {})",
                     playerId, targetPosition.x, targetPosition.y);
