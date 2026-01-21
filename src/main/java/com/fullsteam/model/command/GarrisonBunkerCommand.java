@@ -36,7 +36,7 @@ public class GarrisonBunkerCommand extends UnitCommand {
     }
 
     @Override
-    public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
+    public void updateMovement(double deltaTime) {
         if (bunker == null || !bunker.isActive()) {
             unit.getBody().setLinearVelocity(0, 0);
             return;
@@ -52,7 +52,7 @@ public class GarrisonBunkerCommand extends UnitCommand {
             if (path.isEmpty() || lastPathTarget == null) {
                 computePathTo(bunkerPos);
             }
-            followPathTo(bunkerPos, nearbyUnits, garrisonRange);
+            followPathTo(bunkerPos, nearbyUnits(), garrisonRange);
         } else {
             // In range, stop moving
             unit.getBody().setLinearVelocity(0, 0);

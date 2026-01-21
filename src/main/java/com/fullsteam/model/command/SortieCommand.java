@@ -109,7 +109,7 @@ public class SortieCommand extends UnitCommand {
     }
 
     @Override
-    public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
+    public void updateMovement(double deltaTime) {
         Building homeHangar = gameEntities.getBuildings().get(homeHangarId);
         if (homeHangar == null) return;
 

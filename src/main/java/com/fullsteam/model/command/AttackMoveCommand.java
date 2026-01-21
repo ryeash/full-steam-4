@@ -1,14 +1,12 @@
 package com.fullsteam.model.command;
 
 import com.fullsteam.model.AbstractOrdinance;
-import com.fullsteam.model.Building;
 import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Unit;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.geometry.Vector2;
 
-import java.util.Collection;
 import java.util.List;
 
 /**
@@ -45,11 +43,15 @@ public class AttackMoveCommand extends UnitCommand {
         if (autoTarget != null && !autoTarget.isActive()) {
             autoTarget = null;
         }
+
+        // Scan for enemies to auto-acquire targets
+        scanForEnemies();
+
         return true;
     }
 
     @Override
-    public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
+    public void updateMovement(double deltaTime) {
         Vector2 currentPos = unit.getPosition();
 
         if (autoTarget != null && autoTarget.isActive()) {
@@ -64,7 +66,7 @@ public class AttackMoveCommand extends UnitCommand {
 
             // Move into range if too far
             if (distance > effectiveRange * 0.9) {
-                unit.applySteeringForces(targetPos, nearbyUnits, deltaTime);
+                unit.applySteeringForces(targetPos, nearbyUnits(), deltaTime);
                 return;
             } else {
                 // In range, stop to attack
@@ -84,7 +86,7 @@ public class AttackMoveCommand extends UnitCommand {
             }
 
             // Apply steering forces towards current waypoint
-            unit.applySteeringForces(nextWaypoint, nearbyUnits, deltaTime);
+            unit.applySteeringForces(nextWaypoint, nearbyUnits(), deltaTime);
         } else if (destination != null) {
             // No path, move directly to destination
             double distance = currentPos.distance(destination);
@@ -96,7 +98,7 @@ public class AttackMoveCommand extends UnitCommand {
             }
 
             // Apply steering forces towards destination
-            unit.applySteeringForces(destination, nearbyUnits, deltaTime);
+            unit.applySteeringForces(destination, nearbyUnits(), deltaTime);
         }
     }
 
@@ -139,20 +141,15 @@ public class AttackMoveCommand extends UnitCommand {
 
     /**
      * Scan for enemies and auto-acquire target (uses unified Targetable finder)
-     * Called by RTSGameManager during enemy scanning
      */
-    public boolean scanForEnemies(Collection<Unit> allUnits, Collection<Building> allBuildings) {
-        if (!unit.getUnitType().canAttack()) {
+    private boolean scanForEnemies() {
+        if (gameEntities == null || !unit.getUnitType().canAttack()) {
             return false;
         }
 
-        Vector2 currentPos = unit.getPosition();
-        double visionRange = unit.getUnitType().getAttackRange() * 1.5;
-
         // Use unified targetable finder - automatically handles units, buildings, walls
         // and respects elevation targeting and cloak detection
-        Targetable nearestEnemy = gameEntities.findNearestEnemyTargetable(
-                unit);
+        Targetable nearestEnemy = gameEntities.findNearestEnemyTargetable(unit);
 
         if (nearestEnemy != null) {
             autoTarget = nearestEnemy;

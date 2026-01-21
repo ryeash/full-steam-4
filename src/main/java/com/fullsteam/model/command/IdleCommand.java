@@ -5,8 +5,6 @@ import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Unit;
 import org.dyn4j.geometry.Vector2;
 
-import java.util.List;
-
 /**
  * Command for idle units (no active orders)
  * Idle combat units will scan for enemies based on their AI stance
@@ -31,7 +29,7 @@ public class IdleCommand extends UnitCommand {
     }
 
     @Override
-    public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
+    public void updateMovement(double deltaTime) {
         // No movement for idle units
         unit.getBody().setLinearVelocity(0, 0);
     }

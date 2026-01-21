@@ -99,7 +99,7 @@ public class OnStationCommand extends UnitCommand {
     }
 
     @Override
-    public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
+    public void updateMovement(double deltaTime) {
         // Gunships just patrol - they don't chase targets (engage while moving)
         boolean isGunship = unit.getComponent(GunshipComponent.class).isPresent();
 

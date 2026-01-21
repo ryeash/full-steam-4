@@ -7,14 +7,19 @@ import com.fullsteam.games.IdGenerator;
 import com.fullsteam.model.command.AttackGroundCommand;
 import com.fullsteam.model.command.AttackMoveCommand;
 import com.fullsteam.model.command.AttackTargetableCommand;
+import com.fullsteam.model.command.AutoHealCommand;
+import com.fullsteam.model.command.AutoRepairCommand;
 import com.fullsteam.model.command.ConstructCommand;
 import com.fullsteam.model.command.GarrisonAPCCommand;
 import com.fullsteam.model.command.GarrisonBunkerCommand;
 import com.fullsteam.model.command.HarvestCommand;
+import com.fullsteam.model.command.IdleCommand;
 import com.fullsteam.model.command.MoveCommand;
 import com.fullsteam.model.command.OnStationCommand;
+import com.fullsteam.model.command.ReturnHomeCommand;
 import com.fullsteam.model.command.ReturnToHangarCommand;
 import com.fullsteam.model.command.SortieCommand;
+import com.fullsteam.model.command.UnitCommand;
 import com.fullsteam.model.component.APCComponent;
 import com.fullsteam.model.component.AndroidComponent;
 import com.fullsteam.model.component.AndroidFactoryComponent;
@@ -41,7 +46,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -227,97 +231,17 @@ public class RTSGameManager {
                     return;
                 }
 
-                // Help workers find/update their target refinery when returning resources
-                if (unit.getCurrentCommand() instanceof HarvestCommand harvestCmd) {
-                    if (harvestCmd.isReturningResources()) {
-                        Building currentRefinery = harvestCmd.getTargetRefinery();
-
-                        // Re-evaluate refinery if:
-                        // 1. No refinery assigned yet
-                        // 2. Current refinery is no longer valid (destroyed or under construction)
-                        // 3. Periodically check for a closer one (every 60 frames / ~1 second)
-                        boolean needsReevaluation = currentRefinery == null ||
-                                !currentRefinery.isActive() ||
-                                currentRefinery.isUnderConstruction() ||
-                                (frameCount % 60 == 0);
-
-                        if (needsReevaluation) {
-                            Building refinery = findNearestRefinery(unit);
-                            if (refinery != currentRefinery) {
-                                harvestCmd.setTargetRefinery(refinery);
-                            }
-                        }
-                    }
-                }
-
+                // Update unit state
                 unit.update(gameEntities);
-
-                // Update movement with steering behaviors (pass nearby units for separation)
-                List<Unit> nearbyUnits = units.values().stream()
-                        .filter(u -> u.isActive() && u != unit)
-                        .filter(u -> unit.getPosition().distance(u.getPosition()) < 150.0) // Within 150 units
-                        .collect(Collectors.toList());
-                unit.updateMovement(deltaTime, nearbyUnits);
-
-                // Check if unit fired ordinance
-                if (unit.getUnitType().canAttack()) {
-                    // Clear invalid targets (used by GarrisonComponent)
-                    if (unit.getTargetUnit() != null && !unit.getTargetUnit().isActive()) {
-                        unit.setTargetUnit(null);
-                    }
-                    if (unit.getTargetBuilding() != null && !unit.getTargetBuilding().isActive()) {
-                        unit.setTargetBuilding(null);
-                    }
-
-                    // Check if target is too far away (out of vision range)
-                    if (unit.getTargetUnit() != null) {
-                        double distance = unit.getPosition().distance(unit.getTargetUnit().getPosition());
-                        double visionRange = unit.getUnitType().getAttackRange() * 2.0; // 2x attack range
-                        if (distance > visionRange) {
-                            unit.setTargetUnit(null); // Target escaped
-                        }
-                    }
-                    if (unit.getTargetBuilding() != null) {
-                        double distance = unit.getPosition().distance(unit.getTargetBuilding().getPosition());
-                        double visionRange = unit.getUnitType().getAttackRange() * 2.0; // 2x attack range
-                        if (distance > visionRange) {
-                            unit.setTargetBuilding(null); // Target too far
-                        }
-                    }
-
-                    // Commands handle their own target validation as well
-                    List<AbstractOrdinance> ordinances = List.of();
-                    if (unit.getCurrentCommand() != null) {
-                        ordinances = unit.getCurrentCommand().updateCombat(deltaTime);
-                    }
-
-                    // Add projectiles or beams to world
-                    for (AbstractOrdinance ordinance : ordinances) {
-                        gameEntities.add(ordinance);
-                    }
+                if (unit.getCurrentCommand() != null) {
+                    UnitCommand cmd = unit.getCurrentCommand();
+                    cmd.updateMovement(deltaTime);
+                    cmd.updateTargetValidation();
+                    cmd.updateCombat(deltaTime).forEach(gameEntities::add);
                 }
 
-                // AttackMoveCommand still uses the old scanForEnemies method (legacy)
-                if (unit.getCurrentCommand() instanceof AttackMoveCommand attackMoveCmd) {
-                    attackMoveCmd.scanForEnemies(Collections.unmodifiableCollection(units.values()), Collections.unmodifiableCollection(buildings.values()));
-                }
-                unit.scanForHealTargets(new ArrayList<>(units.values()));
-                unit.scanForRepairTargets(new ArrayList<>(buildings.values()), new ArrayList<>(units.values()));
-
-                // AI behavior: return to home position if needed (defensive stance)
-                if (unit.shouldReturnHome()) {
-                    List<Vector2> path = Pathfinding.findPath(
-                            unit.getPosition(),
-                            unit.getHomePosition(),
-                            obstacles.values(),
-                            buildings.values(),
-                            unit.getUnitType().getSize(),
-                            gameConfig.getWorldWidth(),
-                            gameConfig.getWorldHeight(),
-                            unit.getUnitType().getElevation().isAirborne()
-                    );
-                    unit.setPath(path);
-                }
+                // AI behaviors: Issue AI commands when unit has no player orders
+                issueAICommandsIfNeeded(unit);
             });
 
             // Update all buildings and collect projectiles from turrets
@@ -1212,8 +1136,50 @@ public class RTSGameManager {
     }
 
     /**
-     * Find the nearest refinery for a worker unit
+     * Issue AI commands to units that have no player orders.
+     * This includes auto-heal, auto-repair, and return-to-home behaviors.
      */
+    private void issueAICommandsIfNeeded(Unit unit) {
+        // Don't interrupt player orders
+        if (unit.getCurrentCommand() != null && unit.getCurrentCommand().isPlayerOrder()) {
+            return;
+        }
+
+        // Also check legacy isMoving flag (used by GarrisonComponent)
+        if (unit.isMoving()) {
+            return;
+        }
+
+        // Check if unit is idle (no command or idle command)
+        boolean isIdle = (unit.getCurrentCommand() == null || unit.getCurrentCommand() instanceof IdleCommand);
+
+        // Priority 1: Medics auto-heal damaged friendly units
+        if (unit.getUnitType().canHeal() && isIdle) {
+            // Issue auto-heal command
+            unit.issueCommand(new AutoHealCommand(unit), gameEntities);
+            return;
+        }
+
+        // Priority 2: Engineers auto-repair damaged friendly units/buildings
+        if (unit.getUnitType().canRepair() && isIdle) {
+            // Issue auto-repair command
+            unit.issueCommand(new AutoRepairCommand(unit), gameEntities);
+            return;
+        }
+
+        // Priority 3: Return to home position if in defensive stance and far from home
+        if (unit.shouldReturnHome()) {
+            unit.issueCommand(new ReturnHomeCommand(unit, unit.getHomePosition()), gameEntities);
+            return;
+        }
+    }
+
+    /**
+     * Find the nearest refinery for a worker unit
+     *
+     * @deprecated This method is no longer used by RTSGameManager - HarvestCommand now handles refinery finding internally
+     */
+    @Deprecated
     private Building findNearestRefinery(Unit worker) {
         log.debug("Finding refinery for worker {} (owner {}), total buildings: {}",
                 worker.getId(), worker.getOwnerId(), buildings.size());

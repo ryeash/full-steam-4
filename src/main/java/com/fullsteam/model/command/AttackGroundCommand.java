@@ -27,7 +27,7 @@ public class AttackGroundCommand extends UnitCommand {
     }
 
     @Override
-    public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
+    public void updateMovement(double deltaTime) {
         Vector2 currentPos = unit.getPosition();
         double distance = currentPos.distance(groundTarget);
         double attackRange = unit.getUnitType().getAttackRange();
@@ -36,7 +36,7 @@ public class AttackGroundCommand extends UnitCommand {
             if (path.isEmpty() || lastPathTarget == null) {
                 computePathTo(groundTarget);
             }
-            followPathTo(groundTarget, nearbyUnits, attackRange * 0.9);
+            followPathTo(groundTarget, nearbyUnits(), attackRange * 0.9);
         } else {
             unit.getBody().setLinearVelocity(0, 0);
         }

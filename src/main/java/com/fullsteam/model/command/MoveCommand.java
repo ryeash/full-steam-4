@@ -42,7 +42,7 @@ public class MoveCommand extends UnitCommand {
     }
 
     @Override
-    public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
+    public void updateMovement(double deltaTime) {
         Vector2 currentPos = unit.getPosition();
 
         // Follow path if we have one
@@ -56,7 +56,7 @@ public class MoveCommand extends UnitCommand {
             }
 
             // Apply steering forces towards current waypoint
-            unit.applySteeringForces(nextWaypoint, nearbyUnits, deltaTime);
+            unit.applySteeringForces(nextWaypoint, nearbyUnits(), deltaTime);
         } else if (destination != null) {
             // No path, move directly to destination
             double distance = currentPos.distance(destination);
@@ -68,7 +68,7 @@ public class MoveCommand extends UnitCommand {
             }
 
             // Apply steering forces towards destination
-            unit.applySteeringForces(destination, nearbyUnits, deltaTime);
+            unit.applySteeringForces(destination, nearbyUnits(), deltaTime);
         }
     }
 

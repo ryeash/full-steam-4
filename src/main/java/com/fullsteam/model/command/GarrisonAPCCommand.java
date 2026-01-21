@@ -4,8 +4,6 @@ import com.fullsteam.model.Unit;
 import lombok.Getter;
 import org.dyn4j.geometry.Vector2;
 
-import java.util.List;
-
 /**
  * Command for a unit to enter an APC (Armored Personnel Carrier) for garrison transport.
  */
@@ -37,7 +35,7 @@ public class GarrisonAPCCommand extends UnitCommand {
     }
 
     @Override
-    public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
+    public void updateMovement(double deltaTime) {
         if (apc == null || !apc.isActive()) {
             unit.getBody().setLinearVelocity(0, 0);
             return;
@@ -53,7 +51,7 @@ public class GarrisonAPCCommand extends UnitCommand {
             if (path.isEmpty() || lastPathTarget == null || lastPathTarget.distance(apcPos) > 20.0) {
                 computePathTo(apcPos);
             }
-            followPathTo(apcPos, nearbyUnits, garrisonRange);
+            followPathTo(apcPos, nearbyUnits(), garrisonRange);
         } else {
             // In range, stop moving
             unit.getBody().setLinearVelocity(0, 0);

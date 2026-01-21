@@ -78,7 +78,7 @@ public class ReturnToHangarCommand extends UnitCommand {
     }
 
     @Override
-    public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
+    public void updateMovement(double deltaTime) {
         if (hangar == null) {
             return;
         }

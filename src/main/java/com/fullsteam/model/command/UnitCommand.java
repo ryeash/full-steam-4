@@ -9,6 +9,7 @@ import org.dyn4j.geometry.Vector2;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Base class for all unit commands (move, attack, harvest, etc.)
@@ -147,10 +148,9 @@ public abstract class UnitCommand {
     /**
      * Execute movement logic for this command
      *
-     * @param deltaTime   Time since last update
-     * @param nearbyUnits Units near this unit (for steering behaviors)
+     * @param deltaTime Time since last update
      */
-    public abstract void updateMovement(double deltaTime, List<Unit> nearbyUnits);
+    public abstract void updateMovement(double deltaTime);
 
     /**
      * Check if this command should engage in combat
@@ -160,6 +160,55 @@ public abstract class UnitCommand {
      */
     public List<AbstractOrdinance> updateCombat(double deltaTime) {
         return List.of(); // Override in combat commands
+    }
+
+    /**
+     * Validate and clear invalid targets (destroyed units/buildings, out of vision range, etc.)
+     * Called before updateCombat() to ensure targets are still valid.
+     * Override in commands that need custom target validation logic.
+     */
+    public void updateTargetValidation() {
+        // Only validate targets for units that can attack
+        if (!unit.getUnitType().canAttack()) {
+            return;
+        }
+
+        // Clear invalid unit targets (destroyed or inactive)
+        if (unit.getTargetUnit() != null && !unit.getTargetUnit().isActive()) {
+            unit.setTargetUnit(null);
+        }
+
+        // Clear invalid building targets (destroyed or inactive)
+        if (unit.getTargetBuilding() != null && !unit.getTargetBuilding().isActive()) {
+            unit.setTargetBuilding(null);
+        }
+
+        // Check if unit target is too far away (out of vision range)
+        if (unit.getTargetUnit() != null) {
+            double distance = unit.getPosition().distance(unit.getTargetUnit().getPosition());
+            double visionRange = unit.getUnitType().getAttackRange() * 2.0; // 2x attack range
+            if (distance > visionRange) {
+                unit.setTargetUnit(null); // Target escaped
+            }
+        }
+
+        // Check if building target is too far away (out of vision range)
+        if (unit.getTargetBuilding() != null) {
+            double distance = unit.getPosition().distance(unit.getTargetBuilding().getPosition());
+            double visionRange = unit.getUnitType().getAttackRange() * 2.0; // 2x attack range
+            if (distance > visionRange) {
+                unit.setTargetBuilding(null); // Target too far
+            }
+        }
+    }
+
+    protected List<Unit> nearbyUnits() {
+        return gameEntities.getUnits()
+                .values()
+                .stream()
+                .filter(u -> u.isActive() && u != unit)
+                .filter(u -> unit.getPosition().distance(u.getPosition()) < 150.0) // Within 150 units
+                .collect(Collectors.toList());
     }
 
     /**

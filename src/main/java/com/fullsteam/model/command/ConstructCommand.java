@@ -5,8 +5,6 @@ import com.fullsteam.model.Unit;
 import lombok.Getter;
 import org.dyn4j.geometry.Vector2;
 
-import java.util.List;
-
 /**
  * Command to construct or help construct a building
  */
@@ -33,7 +31,7 @@ public class ConstructCommand extends UnitCommand {
     }
 
     @Override
-    public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
+    public void updateMovement(double deltaTime) {
         if (building == null || !building.isActive()) {
             unit.getBody().setLinearVelocity(0, 0);
             return;
@@ -52,7 +50,7 @@ public class ConstructCommand extends UnitCommand {
             }
 
             // Follow path to building
-            followPathTo(buildingPos, nearbyUnits, constructionRange);
+            followPathTo(buildingPos, nearbyUnits(), constructionRange);
         } else {
             // In range, stop moving
             unit.getBody().setLinearVelocity(0, 0);

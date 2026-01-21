@@ -33,7 +33,7 @@ public class AttackTargetableCommand extends UnitCommand {
     }
 
     @Override
-    public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
+    public void updateMovement(double deltaTime) {
         if (target == null || !target.isActive()) {
             unit.getBody().setLinearVelocity(0, 0);
             return;
@@ -56,7 +56,7 @@ public class AttackTargetableCommand extends UnitCommand {
             if (path.isEmpty() || lastPathTarget == null || lastPathTarget.distance(targetPos) > 50.0) {
                 computePathTo(targetPos);
             }
-            followPathTo(targetPos, nearbyUnits, effectiveRange * 0.9);
+            followPathTo(targetPos, nearbyUnits(), effectiveRange * 0.9);
         } else {
             unit.getBody().setLinearVelocity(0, 0);
         }

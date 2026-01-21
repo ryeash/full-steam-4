@@ -373,15 +373,6 @@ public class Unit extends GameEntity implements Targetable {
     }
 
     /**
-     * Update movement with steering behaviors (called from RTSGameManager with nearby units)
-     */
-    public void updateMovement(double deltaTime, List<Unit> nearbyUnits) {
-        if (currentCommand != null) {
-            currentCommand.updateMovement(deltaTime, nearbyUnits);
-        }
-    }
-
-    /**
      * Calculate seek steering force towards a target position
      */
     private Vector2 calculateSeek(Vector2 target) {
