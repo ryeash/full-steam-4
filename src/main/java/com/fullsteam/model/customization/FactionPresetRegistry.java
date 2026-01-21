@@ -6,7 +6,6 @@ import jakarta.inject.Singleton;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -29,14 +28,14 @@ public class FactionPresetRegistry {
                     createSynthesisCore(),
                     createLongReach()
             )
-            .collect(Collectors.toMap(CustomFactionConfig::getFactionId, Function.identity()));
+            .collect(Collectors.toUnmodifiableMap(CustomFactionConfig::getFactionId, Function.identity()));
 
 
     /**
      * Get all available presets
      */
     public static Collection<CustomFactionConfig> getAllPresets() {
-        return Collections.unmodifiableCollection(PRESETS.values());
+        return PRESETS.values();
     }
 
     /**
@@ -50,7 +49,7 @@ public class FactionPresetRegistry {
      * Get preset IDs
      */
     public static Set<String> getPresetIds() {
-        return Collections.unmodifiableSet(PRESETS.keySet());
+        return PRESETS.keySet();
     }
 
     /**
