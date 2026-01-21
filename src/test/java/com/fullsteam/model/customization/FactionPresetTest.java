@@ -37,26 +37,18 @@ public class FactionPresetTest extends BaseTestClass {
         assertFalse(presets.isEmpty(), "Should have at least one preset");
         
         // Verify expected presets exist
-        assertTrue(FactionPresetRegistry.hasPreset("TERRAN_STANDARD"), 
-                "TERRAN_STANDARD preset should exist");
-        assertTrue(FactionPresetRegistry.hasPreset("TERRAN_INFANTRY"), 
-                "TERRAN_INFANTRY preset should exist");
-        assertTrue(FactionPresetRegistry.hasPreset("TERRAN_MECHANIZED"), 
-                "TERRAN_MECHANIZED preset should exist");
-        assertTrue(FactionPresetRegistry.hasPreset("NOMADS_RAIDERS"), 
-                "NOMADS_RAIDERS preset should exist");
-        assertTrue(FactionPresetRegistry.hasPreset("NOMADS_GUERRILLA"), 
-                "NOMADS_GUERRILLA preset should exist");
-        assertTrue(FactionPresetRegistry.hasPreset("SYNTHESIS_SHIELDED"), 
-                "SYNTHESIS_SHIELDED preset should exist");
-        assertTrue(FactionPresetRegistry.hasPreset("SYNTHESIS_ANDROIDS"), 
-                "SYNTHESIS_ANDROIDS preset should exist");
-        assertTrue(FactionPresetRegistry.hasPreset("TECH_ALLIANCE_BEAMS"), 
-                "TECH_ALLIANCE_BEAMS preset should exist");
-        assertTrue(FactionPresetRegistry.hasPreset("STORM_WINGS_BOMBERS"), 
-                "STORM_WINGS_BOMBERS preset should exist");
-        assertTrue(FactionPresetRegistry.hasPreset("STORM_WINGS_INTERCEPTORS"), 
-                "STORM_WINGS_INTERCEPTORS preset should exist");
+        assertTrue(FactionPresetRegistry.hasPreset("IRON_FIST"), 
+                "IRON_FIST preset should exist");
+        assertTrue(FactionPresetRegistry.hasPreset("THUNDER_ROAD"), 
+                "THUNDER_ROAD preset should exist");
+        assertTrue(FactionPresetRegistry.hasPreset("STORM_WINGS"), 
+                "STORM_WINGS preset should exist");
+        assertTrue(FactionPresetRegistry.hasPreset("FORTRESS_GUARD"), 
+                "FORTRESS_GUARD preset should exist");
+        assertTrue(FactionPresetRegistry.hasPreset("SYNTHESIS_CORE"), 
+                "SYNTHESIS_CORE preset should exist");
+        assertTrue(FactionPresetRegistry.hasPreset("LONG_REACH"), 
+                "LONG_REACH preset should exist");
     }
 
     @ParameterizedTest(name = "{0} should be valid")

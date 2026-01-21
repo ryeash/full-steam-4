@@ -690,6 +690,29 @@ public enum UnitType {
             3        // faction customization point cost
     ),
 
+    // LASER_GUNSHIP - Advanced VTOL gunship with beam weapons
+    // Low-altitude flying beam platform, controllable like standard units
+    // Instant-hit laser weapons for precision air-to-ground strikes
+    LASER_GUNSHIP(
+            "Laser Gunship",
+            750,     // resource cost (expensive - flying beam platform)
+            40,      // build time (seconds)
+            280,     // max health (moderate durability)
+            140.0,   // movement speed (slower than scout, faster than heavy gunship)
+            35,      // damage (instant-hit beam, good DPS)
+            1.8,     // attack rate (fast for sustained beam fire)
+            260,     // attack range (good engagement range)
+            22.0,    // size (radius) - medium aircraft
+            0x00BFFF, // deep sky blue (laser color)
+            BuildingType.AIRFIELD,
+            45,      // upkeep cost (high)
+            450.0,   // vision range (excellent aerial vision)
+            Elevation.LOW, // VTOL - can hover, vulnerable to rockets,
+            UnitCategory.FLYER, // category
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3
+            8        // faction customization point cost
+    ),
+
     // BOMBER - Sortie-based heavy bomber aircraft
     // Housed in Hangar, executes bombing runs on command, then returns to base
     // NOT controllable like regular units - sortie-based only
@@ -1341,6 +1364,60 @@ public enum UnitType {
                 Convex skidRight = Geometry.createPolygon(rightSkid);
 
                 yield List.of(body, tail, skidLeft, skidRight);
+            }
+
+            // Laser Gunship - Futuristic VTOL with laser weapon pods
+            case LASER_GUNSHIP -> {
+                // Main fuselage (angular, tech-focused design)
+                Vector2[] fuselage = new Vector2[]{
+                        new Vector2(size * 0.85, 0),                   // Nose (front, sharp)
+                        new Vector2(size * 0.5, size * 0.35),          // Top-front
+                        new Vector2(-size * 0.3, size * 0.4),          // Top-mid
+                        new Vector2(-size * 0.6, size * 0.2),          // Top-rear
+                        new Vector2(-size * 0.6, -size * 0.2),         // Bottom-rear
+                        new Vector2(-size * 0.3, -size * 0.4),         // Bottom-mid
+                        new Vector2(size * 0.5, -size * 0.35)          // Bottom-front
+                };
+                Convex body = Geometry.createPolygon(fuselage);
+
+                // Left laser weapon pod (angular housing)
+                Vector2[] leftPod = new Vector2[]{
+                        new Vector2(size * 0.6, size * 0.45),          // Front inner
+                        new Vector2(size * 0.8, size * 0.55),          // Front outer (emitter)
+                        new Vector2(-size * 0.2, size * 0.65),         // Rear outer
+                        new Vector2(-size * 0.3, size * 0.5)           // Rear inner
+                };
+                Convex podLeft = Geometry.createPolygon(leftPod);
+
+                // Right laser weapon pod (angular housing, mirrored)
+                Vector2[] rightPod = new Vector2[]{
+                        new Vector2(size * 0.6, -size * 0.45),         // Front inner
+                        new Vector2(-size * 0.3, -size * 0.5),         // Rear inner
+                        new Vector2(-size * 0.2, -size * 0.65),        // Rear outer
+                        new Vector2(size * 0.8, -size * 0.55)          // Front outer (emitter)
+                };
+                Convex podRight = Geometry.createPolygon(rightPod);
+
+                // Rear stabilizer/engine (diamond shape)
+                Vector2[] stabilizer = new Vector2[]{
+                        new Vector2(-size * 0.5, 0),                   // Front point
+                        new Vector2(-size * 0.75, size * 0.15),        // Top point
+                        new Vector2(-size * 0.95, 0),                  // Rear point
+                        new Vector2(-size * 0.75, -size * 0.15)        // Bottom point
+                };
+                Convex rearStab = Geometry.createPolygon(stabilizer);
+
+                // Cockpit canopy (small angular prism at front)
+                Vector2[] canopy = new Vector2[]{
+                        new Vector2(size * 0.7, 0),                    // Front point
+                        new Vector2(size * 0.4, size * 0.2),           // Top
+                        new Vector2(size * 0.2, size * 0.15),          // Rear top
+                        new Vector2(size * 0.2, -size * 0.15),         // Rear bottom
+                        new Vector2(size * 0.4, -size * 0.2)           // Bottom
+                };
+                Convex cockpit = Geometry.createPolygon(canopy);
+
+                yield List.of(body, podLeft, podRight, rearStab, cockpit);
             }
 
             // Interceptor - Sleek delta-wing fighter jet

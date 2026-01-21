@@ -320,6 +320,16 @@ public class WeaponFactory {
                     elevationTargeting
             );
 
+            case LASER_GUNSHIP -> new BeamWeapon(
+                    damage, range, attackRate,
+                    4.5,  // beam width (thicker than infantry, vehicle-mounted)
+                    0.45, // duration (visible beam)
+                    Beam.BeamType.LASER,
+                    Ordinance.LASER,
+                    Set.of(),
+                    elevationTargeting
+            );
+
             case INTERCEPTOR -> new ProjectileWeapon(
                     damage, range, attackRate,
                     800,  // projectile speed (very fast seeking missiles)

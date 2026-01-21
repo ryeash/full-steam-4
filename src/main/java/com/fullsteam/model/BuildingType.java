@@ -255,7 +255,7 @@ public enum BuildingType {
             false,     // power consumption
             -40,    // vision range (good)
             430.0,        // faction customization point cost
-            12),
+            8),
 
     // Autonomous android production facility
     ANDROID_FACTORY(
@@ -285,7 +285,7 @@ public enum BuildingType {
             false,     // power consumption
             -75,    // vision range (excellent, defensive)
             480.0,        // faction customization point cost
-            12),
+            10),
 
     // Ultimate command center
     COMMAND_CITADEL(
@@ -300,7 +300,7 @@ public enum BuildingType {
             false,     // power consumption
             -50,   // vision range (HUGE, command center bonus)
             1000.0,        // faction customization point cost
-            12),
+            10),
 
     // Air unit production - requires Tech Center
     AIRFIELD(

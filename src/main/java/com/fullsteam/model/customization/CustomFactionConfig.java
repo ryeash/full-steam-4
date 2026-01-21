@@ -199,6 +199,10 @@ public class CustomFactionConfig {
             total += perk.getPointCost();
         }
 
+        if (total > MAX_POINTS) {
+            throw new IllegalArgumentException("total points exceeds maximum allowed: " + displayName + " " + total);
+        }
+
         return total;
     }
 

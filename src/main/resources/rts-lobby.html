@@ -239,18 +239,9 @@
     // Populate preset dropdown from API data
     function populatePresetDropdown(presets) {
         const select = document.getElementById('preset-select');
-        if (!select || !presets) return;
-        
-        // Group presets by faction family (first word of display name)
-        const grouped = {};
-        presets.forEach(preset => {
-            // Extract faction family from display name (e.g., "Terran" from "Terran Coalition")
-            const family = preset.displayName.split(' ')[0];
-            if (!grouped[family]) {
-                grouped[family] = [];
-            }
-            grouped[family].push(preset);
-        });
+        if (!select || !presets) {
+            return;
+        }
         
         // Clear existing options except the first one (Custom Configuration)
         while (select.options.length > 1) {
@@ -258,21 +249,12 @@
         }
         
         // Add presets grouped by faction family
-        Object.keys(grouped).sort().forEach(family => {
-            const optgroup = document.createElement('optgroup');
-            optgroup.label = family;
-            
-            grouped[family].forEach(preset => {
-                const option = document.createElement('option');
-                option.value = preset.id;
-                option.textContent = `${preset.icon} ${preset.displayName}`;
-                optgroup.appendChild(option);
-            });
-            
-            select.appendChild(optgroup);
+        presets.forEach(preset => {
+            const option = document.createElement('option');
+            option.value = preset.id;
+            option.textContent = `${preset.icon} ${preset.displayName}`;
+            select.appendChild(option);
         });
-        
-        console.log(`Loaded ${presets.length} presets into dropdown`);
     }
     
     // Render the inline customizer UI
@@ -551,8 +533,6 @@
             recalculateInlinePoints();
             renderInlineCustomizer();
             saveInlineCustomizerToStorage();
-            
-            console.log('Loaded preset:', preset.displayName);
         } catch (error) {
             console.error('Failed to load preset:', error);
             alert('Failed to load preset. Please try again.');
