@@ -189,20 +189,5 @@ public class BeamWeapon extends Weapon {
         // No hit - beam travels full distance
         return start.copy().add(direction.copy().multiply(maxRange));
     }
-
-    @Override
-    public Weapon copy() {
-        return new BeamWeapon(
-                damage,
-                range,
-                attackRate,
-                beamWidth,
-                beamDuration,
-                beamType,
-                ordinanceType,
-                Set.copyOf(bulletEffects),
-                elevationTargeting
-        );
-    }
 }
 

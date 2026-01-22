@@ -83,17 +83,4 @@ public class GrenadeWeapon extends Weapon {
 
         return List.of(grenade);
     }
-
-    @Override
-    public Weapon copy() {
-        return new GrenadeWeapon(
-                damage,
-                range,
-                attackRate,
-                projectileSpeed,
-                linearDamping,
-                projectileSize,
-                elevationTargeting
-        );
-    }
 }

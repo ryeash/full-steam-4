@@ -482,7 +482,7 @@ public class WeaponFactory {
                 0.2,   // damping
                 6.0,   // size (large flak burst)
                 Ordinance.FLAK,
-                Set.of(BulletEffect.FLAK, BulletEffect.EXPLOSIVE),
+                Set.of(BulletEffect.SEEKING, BulletEffect.EXPLOSIVE),
                 ElevationTargeting.LOW_AND_HIGH // Anti-air only (LOW and HIGH altitude)
         );
     }

@@ -64,10 +64,7 @@ public abstract class Weapon {
         }
 
         // Fire the weapon (implemented by subclass)
-        List<AbstractOrdinance> ordinances = createOrdinances(
-                position, targetPosition, targetElevation,
-                ownerId, ownerTeam, ignoredBody, gameEntities
-        );
+        List<AbstractOrdinance> ordinances = createOrdinances(position, targetPosition, targetElevation, ownerId, ownerTeam, ignoredBody, gameEntities);
 
         // Record the fire time if successful
         if (!ordinances.isEmpty()) {
@@ -120,24 +117,10 @@ public abstract class Weapon {
     }
 
     /**
-     * Get effective range.
-     *
-     * @return Weapon range
-     */
-    public double getEffectiveRange() {
-        return range;
-    }
-
-    /**
      * Mark that this weapon has fired (updates lastFireTime).
      * Should be called after successfully firing.
      */
     public void recordFire() {
         this.lastFireTime = System.currentTimeMillis();
     }
-
-    /**
-     * Create a copy of this weapon (useful for sharing weapon definitions)
-     */
-    public abstract Weapon copy();
 }

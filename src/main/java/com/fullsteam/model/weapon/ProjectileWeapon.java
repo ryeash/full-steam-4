@@ -178,21 +178,5 @@ public class ProjectileWeapon extends Weapon {
 
         return closestTarget != null ? closestTarget.getId() : null;
     }
-
-    @Override
-    public Weapon copy() {
-        return new ProjectileWeapon(
-                damage,
-                range,
-                attackRate,
-                projectileSpeed,
-                linearDamping,
-                projectileSize,
-                ordinanceType,
-                Set.copyOf(bulletEffects),
-                elevationTargeting,
-                accuracy
-        );
-    }
 }
 

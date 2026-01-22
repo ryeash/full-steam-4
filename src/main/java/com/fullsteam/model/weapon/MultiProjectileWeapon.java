@@ -177,26 +177,6 @@ public class MultiProjectileWeapon extends Weapon {
 
         return ordinances;
     }
-
-    @Override
-    public Weapon copy() {
-        MultiProjectileWeapon copy = new MultiProjectileWeapon(
-                damage,
-                range,
-                attackRate,
-                projectileSpeed,
-                linearDamping,
-                projectileSize,
-                ordinanceType,
-                Set.copyOf(bulletEffects),
-                projectileCount,
-                spreadDistance,
-                spreadAngle,
-                elevationTargeting
-        );
-        copy.spreadAngle = this.spreadAngle;
-        return copy;
-    }
 }
 
 
