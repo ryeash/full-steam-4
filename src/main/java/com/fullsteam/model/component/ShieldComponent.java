@@ -17,11 +17,10 @@ import org.dyn4j.geometry.Vector2;
  * <p>
  * Used by: SHIELD_GENERATOR
  */
-@Slf4j
 @Getter
 @Setter
 public class ShieldComponent extends AbstractBuildingComponent {
-    private static final double DEFAULT_SHIELD_RADIUS = 200.0;
+    public static final double DEFAULT_SHIELD_RADIUS = 200.0;
 
     private Body sensorBody = null;
     private final double radius;

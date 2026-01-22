@@ -22,7 +22,7 @@ import org.dyn4j.geometry.Vector2;
 @Getter
 @Setter
 public class ShieldTankComponent implements IUnitComponent {
-    private static final double SHIELD_RADIUS = 120.0; // Smaller than building shields (200.0)
+    public static final double SHIELD_RADIUS = ShieldComponent.DEFAULT_SHIELD_RADIUS * 0.6;
 
     private Unit unit;
     private GameEntities gameEntities;
