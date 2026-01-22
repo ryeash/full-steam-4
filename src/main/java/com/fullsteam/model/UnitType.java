@@ -78,7 +78,7 @@ public enum UnitType {
     // Laser Infantry - advanced infantry with beam weapons
     LASER_INFANTRY(
             "Laser Infantry",
-            125,     // resource cost (more expensive than regular infantry)
+            120,     // resource cost (more expensive than regular infantry)
             7,       // build time (seconds)
             128,     // max health
             120.0,   // movement speed (same as infantry)
@@ -88,7 +88,7 @@ public enum UnitType {
             12.0,    // size (radius)
             0x00FFFF, // cyan (to distinguish from regular infantry)
             BuildingType.BARRACKS,
-            12,      // upkeep cost (higher than infantry)
+            8,      // upkeep cost (higher than infantry)
             360.0,   // vision range (slightly better than infantry),
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
@@ -496,11 +496,11 @@ public enum UnitType {
 
     // ===== TECH ALLIANCE BEAM WEAPON UNITS =====
 
-    // PLASMA_TROOPER - Basic beam infantry (Tech Alliance equivalent of Infantry)
-    PLASMA_TROOPER(
-            "Plasma Trooper",
-            100,     // resource cost
-            6,       // build time (seconds)
+    // Triple-beam infantry (Tech Alliance equivalent of Infantry)
+    TRIDENT_TROOPER(
+            "Trident Trooper",
+            170,     // resource cost
+            12,       // build time (seconds)
             136,     // max health
             115.0,   // movement speed
             14,      // damage (instant hit beam weapon)
@@ -509,7 +509,7 @@ public enum UnitType {
             12.0,    // size (radius)
             0x00FF7F, // spring green (plasma color)
             BuildingType.BARRACKS,
-            11,      // upkeep cost
+            12,      // upkeep cost
             355.0,    // vision range (standard beam infantry),
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
@@ -980,7 +980,7 @@ public enum UnitType {
             }
 
             // Plasma Trooper - energy prism with plasma containment geometry
-            case PLASMA_TROOPER -> {
+            case TRIDENT_TROOPER -> {
                 // Main plasma containment chamber (hexagonal prism)
                 Vector2[] chamber = new Vector2[]{
                         new Vector2(-size * 0.7, 0),

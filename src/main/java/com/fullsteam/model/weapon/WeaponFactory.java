@@ -245,13 +245,16 @@ public class WeaponFactory {
                     elevationTargeting
             );
 
-            case PLASMA_TROOPER -> new BeamWeapon(
+            case TRIDENT_TROOPER -> new MultiBeamWeapon(
                     damage, range, attackRate,
-                    3.0,  // beam width (thicker)
+                    2.5,  // beam width (slightly thinner per beam)
                     0.4,  // duration
                     Beam.BeamType.PLASMA,
                     Ordinance.LASER,
                     Set.of(),
+                    3,    // beam count (triple shot)
+                    0.0,  // spread distance (not parallel)
+                    Math.toRadians(15), // spread angle (15 degree cone)
                     elevationTargeting
             );
 

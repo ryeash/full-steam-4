@@ -290,7 +290,7 @@ public class FactionPresetRegistry {
                         // T1 basics
                         UnitType.WORKER,
                         UnitType.LASER_INFANTRY,     // Beam infantry
-                        UnitType.PLASMA_TROOPER,     // Fast beam infantry
+                        UnitType.TRIDENT_TROOPER,     // Fast beam infantry
                         // T2 beam units
                         UnitType.ION_RANGER,         // Beam sniper
                         UnitType.PHOTON_SCOUT,       // Beam scout vehicle

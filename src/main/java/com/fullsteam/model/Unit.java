@@ -1115,7 +1115,7 @@ public class Unit extends GameEntity implements Targetable {
      */
     public boolean isInfantry() {
         return switch (unitType) {
-            case INFANTRY, SHOTGUN_INFANTRY, LASER_INFANTRY, ROCKET_SOLDIER, SNIPER, MEDIC, ENGINEER, PLASMA_TROOPER,
+            case INFANTRY, SHOTGUN_INFANTRY, LASER_INFANTRY, ROCKET_SOLDIER, SNIPER, MEDIC, ENGINEER, TRIDENT_TROOPER,
                  ION_RANGER -> true;
             default -> false;
         };
