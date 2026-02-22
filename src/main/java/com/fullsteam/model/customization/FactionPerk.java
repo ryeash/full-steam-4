@@ -12,6 +12,7 @@ import com.fullsteam.model.UnitType;
 import com.fullsteam.model.factions.FactionDefinition;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.dyn4j.geometry.Vector2;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -617,6 +618,552 @@ public enum FactionPerk implements PerkEffect {
                         .build());
             }
             builder.buildingStatModifiers(buildingMods);
+        }
+    },
+
+    // ===== UNIT CREATION PERKS =====
+    BATTLE_HARDENED(
+            "Battle Hardened",
+            "Newly created units gain +30% damage for 30 seconds",
+            5,
+            Set.of()
+    ) {
+        private static final double DAMAGE_BONUS = 1.30;
+        private static final long BUFF_DURATION_MS = 30000;
+        private final Map<Integer, Long> buffedUnits = new HashMap<>();
+
+        @Override
+        public void onUnitCreated(Unit unit, PlayerFaction faction, RTSGameManager game) {
+            // Track this unit as buffed
+            buffedUnits.put(unit.getId(), System.currentTimeMillis() + BUFF_DURATION_MS);
+            log.debug("Player {} - Battle Hardened: Unit {} created with temporary damage buff", 
+                    faction.getPlayerId(), unit.getId());
+        }
+
+        @Override
+        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
+            Long expiryTime = buffedUnits.get(attacker.getId());
+            if (expiryTime != null) {
+                long currentTime = System.currentTimeMillis();
+                if (currentTime < expiryTime) {
+                    // Apply bonus damage
+                    double bonusDamage = damage * (DAMAGE_BONUS - 1.0);
+                    target.takeDamage(bonusDamage);
+                    log.trace("Player {} - Battle Hardened: Unit {} dealt {} bonus damage", 
+                            faction.getPlayerId(), attacker.getId(), bonusDamage);
+                } else {
+                    // Buff expired, remove from tracking
+                    buffedUnits.remove(attacker.getId());
+                }
+            }
+        }
+
+        @Override
+        public void onUnitDestroyed(Unit unit, PlayerFaction faction, RTSGameManager game) {
+            // Clean up tracking
+            buffedUnits.remove(unit.getId());
+        }
+    },
+
+    FIELD_PROMOTION(
+            "Field Promotion",
+            "Every 10th unit created gains +20% HP permanently",
+            4,
+            Set.of()
+    ) {
+        private static final double HP_BONUS = 1.20;
+        private static final int PROMOTION_INTERVAL = 10;
+        private int unitCounter = 0;
+
+        @Override
+        public void onUnitCreated(Unit unit, PlayerFaction faction, RTSGameManager game) {
+            unitCounter++;
+            if (unitCounter % PROMOTION_INTERVAL == 0) {
+                // Promote this unit
+                double currentMaxHp = unit.getMaxHealth();
+                double newMaxHp = currentMaxHp * HP_BONUS;
+                unit.setMaxHealth(newMaxHp);
+                unit.setHealth(newMaxHp); // Heal to full with new max
+
+                log.info("Player {} - Field Promotion: Unit {} promoted with +20% HP ({}th unit)", 
+                        faction.getPlayerId(), unit.getId(), unitCounter);
+
+                // Send notification
+                if (game != null) {
+                    game.sendGameEvent(GameEvent.createPlayerEvent(
+                            String.format("⭐ Unit promoted! +20%% HP (%dth unit)", unitCounter),
+                            faction.getPlayerId(),
+                            GameEvent.EventCategory.INFO
+                    ));
+                }
+            }
+        }
+    },
+
+    REINFORCEMENT_PROTOCOL(
+            "Reinforcement Protocol",
+            "When a unit is created, nearby damaged units heal 15 HP",
+            4,
+            Set.of()
+    ) {
+        private static final double HEAL_AMOUNT = 15.0;
+        private static final double HEAL_RADIUS = 200.0;
+
+        @Override
+        public void onUnitCreated(Unit unit, PlayerFaction faction, RTSGameManager game) {
+            if (game == null || game.getGameEntities() == null) return;
+
+            // Find nearby damaged friendly units
+            int healedCount = 0;
+            Vector2 unitPos = unit.getPosition();
+            for (Unit nearbyUnit : game.getGameEntities().getUnits().values()) {
+                if (nearbyUnit.getOwnerId() == faction.getPlayerId() &&
+                        nearbyUnit.getId() != unit.getId() &&
+                        nearbyUnit.getHealth() < nearbyUnit.getMaxHealth()) {
+
+                    double distance = unitPos.distance(nearbyUnit.getPosition());
+
+                    if (distance <= HEAL_RADIUS) {
+                        double newHealth = Math.min(
+                                nearbyUnit.getHealth() + HEAL_AMOUNT,
+                                nearbyUnit.getMaxHealth()
+                        );
+                        nearbyUnit.setHealth(newHealth);
+                        healedCount++;
+                    }
+                }
+            }
+
+            if (healedCount > 0) {
+                log.debug("Player {} - Reinforcement Protocol: Healed {} nearby units", 
+                        faction.getPlayerId(), healedCount);
+            }
+        }
+    },
+
+    MASS_PRODUCTION_BONUS(
+            "Mass Production Bonus",
+            "Units cost 3% less for each unit of same type alive (max 15% reduction)",
+            5,
+            Set.of()
+    ) {
+        private static final double COST_REDUCTION_PER_UNIT = 0.03;
+        private static final double MAX_REDUCTION = 0.15;
+
+        @Override
+        public void applyToDefinition(FactionDefinition.FactionDefinitionBuilder builder, CustomFactionConfig config) {
+            // This perk applies dynamically, but we need to implement the logic in the cost calculation
+            // For now, we'll note that this requires integration with the production system
+            // The actual discount is calculated when units are produced based on current unit counts
+        }
+
+        @Override
+        public void onUnitCreated(Unit unit, PlayerFaction faction, RTSGameManager game) {
+            // Calculate current discount for this unit type
+            if (game != null && game.getGameEntities() != null) {
+                int sameTypeCount = (int) game.getGameEntities().getUnits().values().stream()
+                        .filter(u -> u.getOwnerId() == faction.getPlayerId() &&
+                                u.getUnitType() == unit.getUnitType() &&
+                                u.getId() != unit.getId())
+                        .count();
+
+                double discount = Math.min(sameTypeCount * COST_REDUCTION_PER_UNIT, MAX_REDUCTION);
+                if (discount > 0) {
+                    log.debug("Player {} - Mass Production Bonus: {} units of type {} alive, {}% discount applied",
+                            faction.getPlayerId(), sameTypeCount, unit.getUnitType(), (int) (discount * 100));
+                }
+            }
+        }
+    },
+
+    // ===== BUILDING CREATION PERKS =====
+    EXPANSION_BONUS(
+            "Expansion Bonus",
+            "Each building increases resource generation by 2% (max 30%)",
+            5,
+            Set.of()
+    ) {
+        private static final double BONUS_PER_BUILDING = 0.02;
+        private static final double MAX_BONUS = 0.30;
+
+        @Override
+        public void onBuildingCreated(Building building, PlayerFaction faction, RTSGameManager game) {
+            if (game == null || game.getGameEntities() == null) return;
+
+            // Count total buildings for this faction
+            long buildingCount = game.getGameEntities().getBuildings().values().stream()
+                    .filter(b -> b.getOwnerId() == faction.getPlayerId())
+                    .count();
+
+            double bonus = Math.min(buildingCount * BONUS_PER_BUILDING, MAX_BONUS);
+
+            log.info("Player {} - Expansion Bonus: {} buildings, +{}% resource generation",
+                    faction.getPlayerId(), buildingCount, (int) (bonus * 100));
+
+            // Note: The actual resource bonus would need to be applied to workers/harvesters
+            // This requires integration with the resource collection system
+            if (buildingCount % 5 == 0) {
+                game.sendGameEvent(GameEvent.createPlayerEvent(
+                        String.format("📈 Expansion Bonus: +%d%% resource generation", (int) (bonus * 100)),
+                        faction.getPlayerId(),
+                        GameEvent.EventCategory.INFO
+                ));
+            }
+        }
+    },
+
+    FORWARD_OPERATING_BASE(
+            "Forward Operating Base",
+            "Buildings built 500+ units from HQ provide +150 vision radius",
+            4,
+            Set.of()
+    ) {
+        private static final double DISTANCE_THRESHOLD = 500.0;
+        private static final double VISION_BONUS = 150.0;
+
+        @Override
+        public void onBuildingCreated(Building building, PlayerFaction faction, RTSGameManager game) {
+            if (game == null || game.getGameEntities() == null) return;
+
+            // Find HQ
+            Building hq = game.getGameEntities().getBuildings().values().stream()
+                    .filter(b -> b.getOwnerId() == faction.getPlayerId() &&
+                            b.getBuildingType() == BuildingType.HEADQUARTERS)
+                    .findFirst()
+                    .orElse(null);
+
+            if (hq != null) {
+                double distance = building.getPosition().distance(hq.getPosition());
+
+                if (distance >= DISTANCE_THRESHOLD) {
+                    // Apply vision bonus
+                    building.addVisionRangeBonus(VISION_BONUS);
+
+                    log.info("Player {} - Forward Operating Base: Building {} at distance {} granted +{} vision",
+                            faction.getPlayerId(), building.getId(), (int) distance, (int) VISION_BONUS);
+
+                    game.sendGameEvent(GameEvent.createPlayerEvent(
+                            "🔭 Forward base established! +150 vision radius",
+                            faction.getPlayerId(),
+                            GameEvent.EventCategory.INFO
+                    ));
+                }
+            }
+        }
+    },
+
+    INFRASTRUCTURE_NETWORK(
+            "Infrastructure Network",
+            "Each building reduces next building's build time by 5% (max 30%)",
+            5,
+            Set.of()
+    ) {
+        private static final double REDUCTION_PER_BUILDING = 0.05;
+        private static final double MAX_REDUCTION = 0.30;
+
+        @Override
+        public void onBuildingCreated(Building building, PlayerFaction faction, RTSGameManager game) {
+            if (game == null || game.getGameEntities() == null) return;
+
+            long buildingCount = game.getGameEntities().getBuildings().values().stream()
+                    .filter(b -> b.getOwnerId() == faction.getPlayerId())
+                    .count();
+
+            double reduction = Math.min((buildingCount - 1) * REDUCTION_PER_BUILDING, MAX_REDUCTION);
+
+            if (reduction > 0) {
+                log.debug("Player {} - Infrastructure Network: {} buildings, {}% build time reduction for next building",
+                        faction.getPlayerId(), buildingCount, (int) (reduction * 100));
+            }
+
+            // Note: The actual build time reduction needs to be applied during construction
+            // This requires integration with the building construction system
+        }
+    },
+
+    // ===== DAMAGE DEALING PERKS =====
+    MOMENTUM(
+            "Momentum",
+            "Units gain +1% damage per hit (max +25%), resets after 5 seconds of not attacking",
+            6,
+            Set.of()
+    ) {
+        private static final double DAMAGE_PER_STACK = 0.01;
+        private static final int MAX_STACKS = 25;
+        private static final long RESET_TIME_MS = 5000;
+        private final Map<Integer, Integer> momentumStacks = new HashMap<>();
+        private final Map<Integer, Long> lastAttackTime = new HashMap<>();
+
+        @Override
+        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
+            int unitId = attacker.getId();
+            long currentTime = System.currentTimeMillis();
+
+            // Check if momentum should reset
+            Long lastAttack = lastAttackTime.get(unitId);
+            if (lastAttack != null && currentTime - lastAttack > RESET_TIME_MS) {
+                momentumStacks.remove(unitId);
+                log.debug("Player {} - Momentum: Unit {} momentum reset", faction.getPlayerId(), unitId);
+            }
+
+            // Increment stacks
+            int stacks = momentumStacks.getOrDefault(unitId, 0);
+            stacks = Math.min(stacks + 1, MAX_STACKS);
+            momentumStacks.put(unitId, stacks);
+            lastAttackTime.put(unitId, currentTime);
+
+            // Apply bonus damage
+            if (stacks > 1) { // First hit doesn't get bonus
+                double bonusDamage = damage * (stacks - 1) * DAMAGE_PER_STACK;
+                target.takeDamage(bonusDamage);
+                log.trace("Player {} - Momentum: Unit {} at {} stacks dealt {} bonus damage",
+                        faction.getPlayerId(), unitId, stacks, bonusDamage);
+            }
+        }
+
+        @Override
+        public void onUnitDestroyed(Unit unit, PlayerFaction faction, RTSGameManager game) {
+            momentumStacks.remove(unit.getId());
+            lastAttackTime.remove(unit.getId());
+        }
+    },
+
+    SUPPRESSION_FIRE(
+            "Suppression Fire",
+            "Units that deal damage slow targets by 15% for 3 seconds",
+            5,
+            Set.of()
+    ) {
+        private static final double SLOW_AMOUNT = 0.15;
+        private static final long SLOW_DURATION_MS = 3000;
+        private final Map<Integer, Long> slowedTargets = new HashMap<>();
+
+        @Override
+        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
+            if (!(target instanceof Unit)) return;
+
+            Unit targetUnit = (Unit) target;
+            int targetId = targetUnit.getId();
+            long currentTime = System.currentTimeMillis();
+
+            // Apply or refresh slow
+            if (!slowedTargets.containsKey(targetId)) {
+                // First time slowing this unit
+                targetUnit.setSpeedMultiplier(1.0 - SLOW_AMOUNT);
+                log.debug("Player {} - Suppression Fire: Target {} slowed by {}%",
+                        faction.getPlayerId(), targetId, (int) (SLOW_AMOUNT * 100));
+            }
+
+            // Update slow expiry time
+            slowedTargets.put(targetId, currentTime + SLOW_DURATION_MS);
+        }
+
+        @Override
+        public void onUnitCreated(Unit unit, PlayerFaction faction, RTSGameManager game) {
+            // Clean up expired slows
+            long currentTime = System.currentTimeMillis();
+            slowedTargets.entrySet().removeIf(entry -> {
+                if (currentTime >= entry.getValue()) {
+                    // Slow expired - restore speed if unit still exists
+                    if (game != null && game.getGameEntities() != null) {
+                        Unit slowedUnit = game.getGameEntities().getUnits().get(entry.getKey());
+                        if (slowedUnit != null && slowedUnit.getSpeedMultiplier() < 1.0) {
+                            slowedUnit.setSpeedMultiplier(1.0);
+                            log.debug("Suppression Fire: Slow expired on unit {}", entry.getKey());
+                        }
+                    }
+                    return true; // Remove from map
+                }
+                return false; // Keep in map
+            });
+        }
+
+        @Override
+        public void onUnitDestroyed(Unit unit, PlayerFaction faction, RTSGameManager game) {
+            // Clean up tracking for destroyed unit
+            slowedTargets.remove(unit.getId());
+        }
+    },
+
+    COMBAT_MEDIC_PROTOCOL(
+            "Combat Medic Protocol",
+            "When infantry deal damage, nearby friendly infantry heal 2 HP",
+            5,
+            Set.of()
+    ) {
+        private static final double HEAL_AMOUNT = 2.0;
+        private static final double HEAL_RADIUS = 150.0;
+
+        @Override
+        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
+            if (attacker.getUnitType().getCategory() != UnitCategory.INFANTRY) return;
+            if (game == null || game.getGameEntities() == null) return;
+
+            // Heal nearby friendly infantry
+            int healedCount = 0;
+            Vector2 attackerPos = attacker.getPosition();
+            for (Unit nearbyUnit : game.getGameEntities().getUnits().values()) {
+                if (nearbyUnit.getOwnerId() == faction.getPlayerId() &&
+                        nearbyUnit.getUnitType().getCategory() == UnitCategory.INFANTRY &&
+                        nearbyUnit.getHealth() < nearbyUnit.getMaxHealth() &&
+                        nearbyUnit.getId() != attacker.getId()) {
+
+                    double distance = attackerPos.distance(nearbyUnit.getPosition());
+
+                    if (distance <= HEAL_RADIUS) {
+                        double newHealth = Math.min(
+                                nearbyUnit.getHealth() + HEAL_AMOUNT,
+                                nearbyUnit.getMaxHealth()
+                        );
+                        nearbyUnit.setHealth(newHealth);
+                        healedCount++;
+                    }
+                }
+            }
+
+            if (healedCount > 0) {
+                log.trace("Player {} - Combat Medic Protocol: Healed {} nearby infantry",
+                        faction.getPlayerId(), healedCount);
+            }
+        }
+    },
+
+    ARMOR_PENETRATION_RESEARCH(
+            "Armor Penetration Research",
+            "Every 1000 damage dealt increases all damage by 1% (max 10%)",
+            6,
+            Set.of()
+    ) {
+        private static final double DAMAGE_THRESHOLD = 1000.0;
+        private static final double DAMAGE_BONUS_PER_TIER = 0.01;
+        private static final int MAX_TIERS = 10;
+        private double totalDamageDealt = 0.0;
+        private int currentTier = 0;
+
+        @Override
+        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
+            totalDamageDealt += damage;
+
+            int newTier = Math.min((int) (totalDamageDealt / DAMAGE_THRESHOLD), MAX_TIERS);
+            if (newTier > currentTier) {
+                currentTier = newTier;
+                log.info("Player {} - Armor Penetration Research: Tier {} unlocked! +{}% damage",
+                        faction.getPlayerId(), currentTier, (int) (currentTier * DAMAGE_BONUS_PER_TIER * 100));
+
+                if (game != null) {
+                    game.sendGameEvent(GameEvent.createPlayerEvent(
+                            String.format("🔬 Research breakthrough! +%d%% damage", (int) (currentTier * DAMAGE_BONUS_PER_TIER * 100)),
+                            faction.getPlayerId(),
+                            GameEvent.EventCategory.INFO
+                    ));
+                }
+            }
+
+            // Apply bonus damage from current tier
+            if (currentTier > 0) {
+                double bonusDamage = damage * currentTier * DAMAGE_BONUS_PER_TIER;
+                target.takeDamage(bonusDamage);
+            }
+        }
+    },
+
+    VAMPIRIC_WEAPONS(
+            "Vampiric Weapons",
+            "Units heal for 8% of damage dealt",
+            6,
+            Set.of()
+    ) {
+        private static final double LIFESTEAL_PERCENT = 0.08;
+
+        @Override
+        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
+            double healAmount = damage * LIFESTEAL_PERCENT;
+            double newHealth = Math.min(
+                    attacker.getHealth() + healAmount,
+                    attacker.getMaxHealth()
+            );
+            attacker.setHealth(newHealth);
+
+            log.trace("Player {} - Vampiric Weapons: Unit {} healed {} HP from damage",
+                    faction.getPlayerId(), attacker.getId(), healAmount);
+        }
+    },
+
+    CRITICAL_STRIKE(
+            "Critical Strike",
+            "15% chance to deal double damage",
+            5,
+            Set.of()
+    ) {
+        private static final double CRIT_CHANCE = 0.15;
+        private static final double CRIT_MULTIPLIER = 2.0;
+        private final java.util.Random random = new java.util.Random();
+
+        @Override
+        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
+            if (random.nextDouble() < CRIT_CHANCE) {
+                // Deal bonus damage (original damage already applied)
+                double bonusDamage = damage * (CRIT_MULTIPLIER - 1.0);
+                target.takeDamage(bonusDamage);
+
+                log.debug("Player {} - Critical Strike: Unit {} dealt {} bonus damage (crit!)",
+                        faction.getPlayerId(), attacker.getId(), bonusDamage);
+            }
+        }
+    },
+
+    OVERCHARGE(
+            "Overcharge",
+            "After dealing 500 damage, next attack deals +50% damage",
+            5,
+            Set.of()
+    ) {
+        private static final double DAMAGE_THRESHOLD = 500.0;
+        private static final double BONUS_MULTIPLIER = 1.50;
+        private final Map<Integer, Double> damageAccumulated = new HashMap<>();
+        private final Map<Integer, Boolean> overchargeReady = new HashMap<>();
+
+        @Override
+        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
+            int unitId = attacker.getId();
+
+            // Check if overcharge is ready
+            if (overchargeReady.getOrDefault(unitId, false)) {
+                // Apply overcharge
+                double bonusDamage = damage * (BONUS_MULTIPLIER - 1.0);
+                target.takeDamage(bonusDamage);
+
+                log.info("Player {} - Overcharge: Unit {} dealt {} bonus damage (overcharged!)",
+                        faction.getPlayerId(), unitId, bonusDamage);
+
+                if (game != null) {
+                    game.sendGameEvent(GameEvent.createPlayerEvent(
+                            "⚡ Overcharge activated!",
+                            faction.getPlayerId(),
+                            GameEvent.EventCategory.INFO
+                    ));
+                }
+
+                // Reset
+                overchargeReady.put(unitId, false);
+                damageAccumulated.put(unitId, 0.0);
+            } else {
+                // Accumulate damage
+                double accumulated = damageAccumulated.getOrDefault(unitId, 0.0) + damage;
+                damageAccumulated.put(unitId, accumulated);
+
+                if (accumulated >= DAMAGE_THRESHOLD) {
+                    overchargeReady.put(unitId, true);
+                    log.debug("Player {} - Overcharge: Unit {} ready for overcharge!",
+                            faction.getPlayerId(), unitId);
+                }
+            }
+        }
+
+        @Override
+        public void onUnitDestroyed(Unit unit, PlayerFaction faction, RTSGameManager game) {
+            damageAccumulated.remove(unit.getId());
+            overchargeReady.remove(unit.getId());
         }
     };
 

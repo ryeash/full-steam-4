@@ -44,6 +44,9 @@ public class Building extends GameEntity implements Targetable {
     private boolean underConstruction = true;
     private double constructionProgress = 0; // 0 to maxHealth
 
+    // Vision range bonus (from perks or other effects)
+    private double visionRangeBonus = 0.0;
+
     private static final int COMMAND_CITADEL_UPKEEP_BONUS = 50; // +50 max upkeep
 
     /**
@@ -445,9 +448,27 @@ public class Building extends GameEntity implements Targetable {
                 .orElse(null);
     }
 
-    // Note: getMaxHealth() is inherited from GameEntity and uses the maxHealth field
-    // which is set correctly in the constructor with faction modifiers applied.
-    // We do NOT override it to avoid confusion between the field and dynamically calculated values.
+    /**
+     * Get the effective vision range for this building, including any bonuses from perks.
+     * This is used by the fog of war system to determine what this building can see.
+     *
+     * @return The total vision range (base + bonuses)
+     */
+    public double getEffectiveVisionRange() {
+        return buildingType.getVisionRange() + visionRangeBonus;
+    }
+
+    /**
+     * Add a vision range bonus to this building (from perks or other effects).
+     * This is cumulative with any existing bonuses.
+     *
+     * @param bonus The vision range bonus to add
+     */
+    public void addVisionRangeBonus(double bonus) {
+        this.visionRangeBonus += bonus;
+        log.debug("Building {} ({}) vision range bonus increased by {} (total bonus: {})",
+                id, buildingType.getDisplayName(), bonus, visionRangeBonus);
+    }
 }
 
 

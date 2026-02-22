@@ -74,7 +74,8 @@ public class Unit extends GameEntity implements Targetable {
 
     // Weapon system
     private Weapon weapon; // The weapon this unit fires (null for non-combat units)
-    // Note: visionRange is now computed dynamically via getVisionRange()
+
+    private double speedMultiplier = 1.0; // 1.0 = normal speed, 0.5 = 50% speed, etc.
 
     // Selection state
     private boolean selected = false;
@@ -1066,14 +1067,27 @@ public class Unit extends GameEntity implements Targetable {
     }
 
     /**
-     * Get effective movement speed with faction modifiers applied.
+     * Get effective movement speed with faction modifiers and temporary effects applied.
      * Returns 0 if unit is deployed
      */
     public double getMovementSpeed() {
         // Base speed from unit type with faction modifiers
         double baseSpeed = unitType.getMovementSpeed();
-        double multiplier = getUnitStatMultiplier(FactionDefinition.UnitStatModifier::getSpeedMultiplier);
-        return baseSpeed * multiplier;
+        double factionMultiplier = getUnitStatMultiplier(FactionDefinition.UnitStatModifier::getSpeedMultiplier);
+        // Apply temporary speed modifier (from slows, buffs, etc.)
+        return baseSpeed * factionMultiplier * speedMultiplier;
+    }
+
+    /**
+     * Set the speed multiplier for this unit (from temporary effects like slows).
+     * 1.0 = normal speed, 0.5 = 50% speed, 1.5 = 150% speed, etc.
+     * This is separate from faction modifiers and stacks multiplicatively.
+     *
+     * @param multiplier The speed multiplier to set
+     */
+    public void setSpeedMultiplier(double multiplier) {
+        this.speedMultiplier = Math.max(0.0, multiplier); // Prevent negative speed
+        log.trace("Unit {} speed multiplier set to {}", id, this.speedMultiplier);
     }
 
     /**

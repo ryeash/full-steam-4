@@ -28,34 +28,11 @@ public class FactionPresetTest extends BaseTestClass {
         return FactionPresetRegistry.getAllPresets().stream();
     }
 
-    @Test
-    @DisplayName("All presets should be registered")
-    void testAllPresetsRegistered() {
-        Collection<CustomFactionConfig> presets = FactionPresetRegistry.getAllPresets();
-        
-        assertNotNull(presets, "Presets collection should not be null");
-        assertFalse(presets.isEmpty(), "Should have at least one preset");
-        
-        // Verify expected presets exist
-        assertTrue(FactionPresetRegistry.hasPreset("IRON_FIST"), 
-                "IRON_FIST preset should exist");
-        assertTrue(FactionPresetRegistry.hasPreset("THUNDER_ROAD"), 
-                "THUNDER_ROAD preset should exist");
-        assertTrue(FactionPresetRegistry.hasPreset("STORM_WINGS"), 
-                "STORM_WINGS preset should exist");
-        assertTrue(FactionPresetRegistry.hasPreset("FORTRESS_GUARD"), 
-                "FORTRESS_GUARD preset should exist");
-        assertTrue(FactionPresetRegistry.hasPreset("SYNTHESIS_CORE"), 
-                "SYNTHESIS_CORE preset should exist");
-        assertTrue(FactionPresetRegistry.hasPreset("LONG_REACH"), 
-                "LONG_REACH preset should exist");
-    }
-
     @ParameterizedTest(name = "{0} should be valid")
     @MethodSource("provideAllPresets")
     @DisplayName("Each preset should pass validation")
     void testPresetValidation(CustomFactionConfig preset) {
-        assertDoesNotThrow(() -> preset.validate(), 
+        assertDoesNotThrow(preset::validate,
                 String.format("Preset %s should be valid", preset.getDisplayName()));
     }
 

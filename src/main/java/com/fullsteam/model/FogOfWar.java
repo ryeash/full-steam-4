@@ -47,7 +47,7 @@ public class FogOfWar {
         // Add vision from friendly buildings (only if construction is complete)
         for (Building building : allBuildings) {
             if (building.isActive() && building.getTeamNumber() == teamNumber && !building.isUnderConstruction()) {
-                visionSources.add(new VisionSource(building.getPosition(), building.getBuildingType().getVisionRange()));
+                visionSources.add(new VisionSource(building.getPosition(), building.getEffectiveVisionRange()));
             }
         }
 
@@ -125,7 +125,7 @@ public class FogOfWar {
         // Add vision from friendly buildings (only if construction is complete)
         for (Building building : allBuildings) {
             if (building.isActive() && building.getTeamNumber() == teamNumber && !building.isUnderConstruction()) {
-                visionSources.add(new VisionSource(building.getPosition(), building.getBuildingType().getVisionRange()));
+                visionSources.add(new VisionSource(building.getPosition(), building.getEffectiveVisionRange()));
             }
         }
 
@@ -256,7 +256,7 @@ public class FogOfWar {
         // Add vision from friendly buildings (only if construction is complete)
         for (Building building : allBuildings) {
             if (building.isActive() && building.getTeamNumber() == teamNumber && !building.isUnderConstruction()) {
-                visionSources.add(new VisionSource(building.getPosition(), building.getBuildingType().getVisionRange()));
+                visionSources.add(new VisionSource(building.getPosition(), building.getEffectiveVisionRange()));
             }
         }
 
