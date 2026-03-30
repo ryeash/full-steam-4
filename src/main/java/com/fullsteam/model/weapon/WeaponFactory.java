@@ -462,7 +462,7 @@ public class WeaponFactory {
         return new BeamWeapon(
                 250.0, // damage (massive)
                 400.0, // range (very long)
-                0.286, // attack rate (1 shot every 3.5 seconds)
+                0.390, // attack rate
                 3.0,   // beam width (thick, powerful beam)
                 0.3,   // duration (visible for 0.3 seconds)
                 Beam.BeamType.LASER,
