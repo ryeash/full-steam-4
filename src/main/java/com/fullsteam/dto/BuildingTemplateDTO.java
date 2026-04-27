@@ -71,7 +71,7 @@ public class BuildingTemplateDTO {
             case HEADQUARTERS -> categories.add(UnitCategory.WORKER);
             case BARRACKS -> categories.add(UnitCategory.INFANTRY);
             case FACTORY -> categories.add(UnitCategory.VEHICLE);
-            case AIRFIELD, HANGAR -> categories.add(UnitCategory.FLYER);
+            case AIRFIELD -> categories.add(UnitCategory.FLYER);
         }
         return categories;
     }

@@ -131,6 +131,10 @@ public class GarrisonComponent extends AbstractBuildingComponent {
         return garrisonedUnits.size();
     }
 
+    public List<Unit> getGarrisonedUnitsSnapshot() {
+        return List.copyOf(garrisonedUnits);
+    }
+
     /**
      * Fire weapons from garrisoned units (called by RTSGameManager)
      * Each unit independently acquires targets and fires based on its own stats

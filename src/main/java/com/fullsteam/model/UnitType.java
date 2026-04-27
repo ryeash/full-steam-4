@@ -727,7 +727,7 @@ public enum UnitType {
             0,       // attack range (N/A - bombs are dropped, not fired)
             21.0,    // size (radius) - larger aircraft
             0x2F4F4F, // dark slate gray (bomber color)
-            BuildingType.HANGAR, // Housed in hangar, not produced at airfield
+            BuildingType.AIRFIELD,
             50,      // upkeep cost (HIGH - strategic bomber)
             400.0,   // vision range (good but not scout-level)
             Elevation.HIGH, // Fixed-wing - requires AA weapons,
@@ -750,7 +750,7 @@ public enum UnitType {
             300,     // attack range (long-range seeking missiles)
             14.0,    // size (radius) - sleek fighter
             0xFF4500, // orange-red (fighter jet color)
-            BuildingType.HANGAR, // Housed in hangar
+            BuildingType.AIRFIELD,
             40,      // upkeep cost (high)
             500.0,   // vision range (excellent, interceptor)
             Elevation.HIGH, // Fixed-wing - high-altitude fighter,
@@ -771,7 +771,7 @@ public enum UnitType {
             280,     // attack range (good engagement range)
             31.0,    // size (radius) - heavy aircraft
             0x8B0000, // dark red (intimidating gunship color)
-            BuildingType.HANGAR, // Produced at Hangar (sortie-based)
+            BuildingType.AIRFIELD,
             55,      // upkeep cost (high)
             480.0,   // vision range (excellent, attack helicopter)
             Elevation.HIGH, // Fixed-wing sortie aircraft,

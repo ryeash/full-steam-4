@@ -29,7 +29,7 @@ public enum UnitCategory {
             case WORKER -> BuildingType.HEADQUARTERS;
             case INFANTRY -> BuildingType.BARRACKS;
             case VEHICLE -> BuildingType.FACTORY;
-            case FLYER -> null; // Special case: AIRFIELD or HANGAR
+            case FLYER -> null; // Special case: AIRFIELD
         };
     }
 
@@ -41,7 +41,7 @@ public enum UnitCategory {
             case WORKER -> buildingType == BuildingType.HEADQUARTERS;
             case INFANTRY -> buildingType == BuildingType.BARRACKS;
             case VEHICLE -> buildingType == BuildingType.FACTORY;
-            case FLYER -> buildingType == BuildingType.AIRFIELD || buildingType == BuildingType.HANGAR;
+            case FLYER -> buildingType == BuildingType.AIRFIELD;
         };
     }
 }

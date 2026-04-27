@@ -18,13 +18,13 @@ import java.util.List;
  * Mission Phases:
  * 1. OUTBOUND - Fly to target location
  * 2. ATTACK - Execute bombing run (drop payload)
- * 3. INBOUND - Return to home hangar
- * 4. LANDING - Command completes, aircraft returns to hangar component
+ * 3. INBOUND - Return to home airfield
+ * 4. LANDING - Command completes, aircraft returns to airfield housing
  * <p>
  * Unlike regular units, sortie aircraft:
  * - Cannot be directly controlled during mission
  * - Automatically return to base after attack
- * - Are destroyed if hangar is destroyed while deployed
+ * - Are destroyed if home airfield is destroyed while deployed
  */
 @Slf4j
 @Getter
@@ -34,33 +34,32 @@ public class SortieCommand extends UnitCommand {
         OUTBOUND,   // Flying to target
         ATTACK,     // Executing attack
         INBOUND,    // Returning to base
-        LANDING     // Approaching hangar (mission complete)
+        LANDING     // Approaching base (mission complete)
     }
 
     private final Vector2 targetLocation;
-    private final int homeHangarId; // Building ID of the hangar this aircraft launched from
+    private final int homeBaseBuildingId; // Airfield id this aircraft launched from
     private SortiePhase currentPhase;
     private boolean payloadDelivered;
     private double attackTimer; // Tracks time spent in attack phase
 
-    public SortieCommand(Unit unit, Vector2 targetLocation, int homeHangarId, boolean isPlayerOrder) {
+    public SortieCommand(Unit unit, Vector2 targetLocation, int homeBaseBuildingId, boolean isPlayerOrder) {
         super(unit, isPlayerOrder);
         this.targetLocation = targetLocation.copy();
-        this.homeHangarId = homeHangarId;
+        this.homeBaseBuildingId = homeBaseBuildingId;
         this.currentPhase = SortiePhase.OUTBOUND;
         this.payloadDelivered = false;
         this.attackTimer = 0;
 
-        log.info("Bomber {} beginning sortie to ({}, {}), home hangar: {}",
-                unit.getId(), targetLocation.x, targetLocation.y, homeHangarId);
+        log.info("Bomber {} beginning sortie to ({}, {}), home airfield: {}",
+                unit.getId(), targetLocation.x, targetLocation.y, homeBaseBuildingId);
     }
 
     @Override
     public boolean update(double deltaTime) {
-        // Check if home hangar still exists
-        Building homeHangar = gameEntities.getBuildings().get(homeHangarId);
-        if (homeHangar == null || !homeHangar.isActive()) {
-            log.warn("Bomber {} home hangar destroyed - aircraft lost", unit.getId());
+        Building homeBase = gameEntities.getBuildings().get(homeBaseBuildingId);
+        if (homeBase == null || !homeBase.isActive()) {
+            log.warn("Bomber {} home airfield destroyed - aircraft lost", unit.getId());
             unit.setActive(false); // Destroy unit (no base to return to)
             return false; // Command complete (unit destroyed)
         }
@@ -92,9 +91,9 @@ public class SortieCommand extends UnitCommand {
                 break;
 
             case INBOUND:
-                double distanceToHangar = currentPos.distance(homeHangar.getPosition());
-                if (distanceToHangar < 60.0) { // Close to hangar
-                    log.info("Bomber {} landing at hangar {}", unit.getId(), homeHangarId);
+                double distanceToHangar = currentPos.distance(homeBase.getPosition());
+                if (distanceToHangar < 60.0) { // Close to airfield
+                    log.info("Bomber {} landing at airfield {}", unit.getId(), homeBaseBuildingId);
                     currentPhase = SortiePhase.LANDING;
                 }
                 break;
@@ -110,8 +109,8 @@ public class SortieCommand extends UnitCommand {
 
     @Override
     public void updateMovement(double deltaTime) {
-        Building homeHangar = gameEntities.getBuildings().get(homeHangarId);
-        if (homeHangar == null) return;
+        Building homeBase = gameEntities.getBuildings().get(homeBaseBuildingId);
+        if (homeBase == null) return;
 
         switch (currentPhase) {
             case OUTBOUND:
@@ -130,8 +129,8 @@ public class SortieCommand extends UnitCommand {
                 break;
 
             case INBOUND:
-                // Fly straight back to hangar
-                moveTowardsTarget(homeHangar.getPosition());
+                // Fly straight back to airfield
+                moveTowardsTarget(homeBase.getPosition());
                 break;
 
             case LANDING:
@@ -211,8 +210,8 @@ public class SortieCommand extends UnitCommand {
         return switch (currentPhase) {
             case OUTBOUND, ATTACK -> targetLocation;
             case INBOUND, LANDING -> {
-                Building hangar = gameEntities.getBuildings().get(homeHangarId);
-                yield hangar != null ? hangar.getPosition() : targetLocation;
+                Building b = gameEntities.getBuildings().get(homeBaseBuildingId);
+                yield b != null ? b.getPosition() : targetLocation;
             }
         };
     }

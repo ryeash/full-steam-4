@@ -198,8 +198,7 @@ public class FactionPresetRegistry {
                         BuildingType.POWER_PLANT,
                         BuildingType.BARRACKS,
                         BuildingType.FACTORY,        // For ground vehicles
-                        BuildingType.AIRFIELD,       // Core air production
-                        BuildingType.HANGAR,         // Sortie aircraft
+                        BuildingType.AIRFIELD,       // Air production + sortie aircraft housing
                         BuildingType.RESEARCH_LAB,
                         BuildingType.TECH_CENTER,
                         BuildingType.REFINERY,

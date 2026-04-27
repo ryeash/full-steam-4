@@ -317,21 +317,6 @@ public enum BuildingType {
             420.0,         // faction customization point cost
             5),
 
-    // Aircraft housing - must be built near Airfield, houses sortie-based aircraft
-    HANGAR(
-            "Hangar",
-            BuildingCategory.PRODUCTION,
-            // resource cost (cheaper than airfield, but requires one)
-            400,       // build time (seconds)
-            25,      // max health
-            600,     // size (radius) - medium building
-            35.0,  // dark blue-gray (hangar color)
-            0x4A5568,    // can produce units (produces one bomber per hangar)
-            true,     // power consumption
-            -20,    // vision range (moderate)
-            350.0,         // faction customization point cost
-            5),
-
     TEMPEST_SPIRE(
             "Tempest Spire",
             BuildingCategory.DEFENSE,
@@ -395,9 +380,6 @@ public enum BuildingType {
      * @return the required building type, or null if no proximity requirement
      */
     public BuildingType getProximityRequirement() {
-        if (this == HANGAR) {
-            return AIRFIELD;
-        }
         return null;
     }
 
@@ -407,9 +389,6 @@ public enum BuildingType {
      * @return the maximum distance in pixels, or 0 if no proximity requirement
      */
     public double getProximityRange() {
-        if (this == HANGAR) {
-            return 200.0;
-        }
         return 0;
     }
 
@@ -420,9 +399,6 @@ public enum BuildingType {
      * @return number of dependent buildings this can support, or 0 if none
      */
     public int getSupportCapacity() {
-        if (this == AIRFIELD) {
-            return 4;
-        }
         return 0;
     }
 
@@ -434,7 +410,7 @@ public enum BuildingType {
             case HEADQUARTERS, REFINERY, BARRACKS, POWER_PLANT, BUNKER, WALL -> 1;
             case FACTORY, RESEARCH_LAB, TURRET, SHIELD_GENERATOR, ROCKET_TURRET, FLAK_TURRET -> 2;
             case TECH_CENTER, BANK, SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE,
-                 COMMAND_CITADEL, LASER_TURRET, AIRFIELD, HANGAR, TEMPEST_SPIRE -> 3;
+                 COMMAND_CITADEL, LASER_TURRET, AIRFIELD, TEMPEST_SPIRE -> 3;
         };
     }
 
@@ -600,18 +576,6 @@ public enum BuildingType {
                 yield List.of(runway, tower);
             }
 
-            // Hangar - rectangular building with angled roof
-            case HANGAR -> {
-                // Main hangar body (wide rectangle)
-                Convex body = Geometry.createRectangle(size * 1.8, size * 1.2);
-
-                // Small entrance/door area (rectangle at front)
-                Convex entrance = Geometry.createRectangle(size * 0.5, size * 0.3);
-                entrance.translate(size * 0.65, 0);
-
-                yield List.of(body, entrance);
-            }
-
             // Tempest Spire - weather control tower with antenna arrays
             case TEMPEST_SPIRE -> {
                 // Central tower (tall octagon)
@@ -661,9 +625,6 @@ public enum BuildingType {
 
             // T3 - Requires Power Plant + Research Lab
             case TECH_CENTER, BANK, LASER_TURRET, AIRFIELD -> List.of(POWER_PLANT, RESEARCH_LAB);
-
-            // Special case for HANGAR
-            case HANGAR -> List.of(POWER_PLANT, RESEARCH_LAB, AIRFIELD);
 
             // Requires Power Plant + Research Lab  + TECH_CENTER
             case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL, TEMPEST_SPIRE ->

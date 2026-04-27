@@ -71,9 +71,19 @@ class RTSEngine {
         this.specialAbilityTargetingMode = false;
         this.specialAbilityTargetType = null; // 'unit' or 'building'
         
-        // Sortie targeting mode (for bombers)
+        // Sortie / deploy targeting (airfield housed aircraft)
         this.sortieTargetingMode = false;
-        this.sortieHangarId = null; // ID of the hangar issuing the sortie
+        this.sortieBuildingId = null;
+        this.sortieHousedUnitId = null;
+        this.sortieAircraftType = null;
+        
+        // Right mouse: deferred order vs camera pan (drag)
+        this.rightButtonDown = false;
+        this.rightDragPanActive = false;
+        this.rightDownScreen = null;
+        this.lastRightPanScreen = null;
+        this.pendingRightClickWorld = null;
+        this.pendingRightForceAttack = false;
         
         this.init();
     }
@@ -226,6 +236,8 @@ class RTSEngine {
         // Keyboard events
         window.addEventListener('keydown', (e) => this.onKeyDown(e));
         window.addEventListener('keyup', (e) => this.onKeyUp(e));
+        // Release right-drag even if pointer leaves canvas
+        window.addEventListener('mouseup', (e) => this.onWindowMouseUp(e));
     }
     
     setupUI() {
@@ -828,6 +840,8 @@ class RTSEngine {
                 unitContainer.healthBar.fill(this.getHealthColor(healthPercent));
             }
         }
+        
+        this.updateSupportWorkVisual(unitContainer, unitData);
         
         // Update selection indicator and track selected units
         if (unitContainer.selectionCircle) {
@@ -1949,19 +1963,6 @@ class RTSEngine {
             buildingContainer.productionBar.visible = false;
         }
         
-        // Update hangar production progress (for HANGAR buildings)
-        if (buildingData.type === 'HANGAR' && buildingData.hangarProducing && buildingData.hangarProductionPercent > 0) {
-            if (buildingContainer.productionBar) {
-                buildingContainer.productionBar.visible = true;
-                const productionOffset = buildingContainer.productionBarOffset || 40;
-                buildingContainer.productionBar.clear();
-                buildingContainer.productionBar.rect(-40, -productionOffset, 80 * buildingData.hangarProductionPercent, 5);
-                buildingContainer.productionBar.fill(0x00BFFF); // Deep sky blue for production
-            }
-        } else if (buildingData.type === 'HANGAR' && buildingContainer.productionBar) {
-            buildingContainer.productionBar.visible = false;
-        }
-        
         // Update production queue count (next to progress bar)
         if (buildingData.productionQueueSize > 0 || buildingData.productionPercent > 0) {
             if (!buildingContainer.queueText) {
@@ -2082,22 +2083,93 @@ class RTSEngine {
             }
         }
         
-        // Update hangar label (for hangars)
-        if (buildingContainer.hangarLabel) {
-            if (buildingData.hangarOccupied !== undefined && buildingData.hangarCapacity !== undefined) {
-                // Show aircraft status with sortie indicator
-                const occupied = buildingData.hangarOccupied || 0;
-                const capacity = buildingData.hangarCapacity || 1;
-                const onSortie = buildingData.hangarOnSortie ? ' ✈' : '';
-                buildingContainer.hangarLabel.text = `[${occupied}/${capacity}]${onSortie}`;
-                buildingContainer.hangarLabel.visible = true;
-            } else {
-                buildingContainer.hangarLabel.visible = false;
-            }
+        if (buildingContainer.airfieldBerthLabel) {
+            const cap = buildingData.aircraftBerthCapacity || 4;
+            const used = (buildingData.housedUnits && buildingData.housedUnits.length) || 0;
+            buildingContainer.airfieldBerthLabel.text = `[${used}/${cap}]`;
+            buildingContainer.airfieldBerthLabel.visible = buildingData.type === 'AIRFIELD';
         }
+        
+        this.updateBuildingLowPowerOverlay(buildingContainer, buildingData);
         
         // Store data
         buildingContainer.buildingData = buildingData;
+    }
+    
+    /**
+     * Spark / icon above worker, medic, engineer when supportActivity is set by server.
+     */
+    updateSupportWorkVisual(container, unitData) {
+        const act = unitData.supportActivity;
+        if (!act) {
+            if (container.supportWorkGfx) {
+                container.supportWorkGfx.visible = false;
+            }
+            return;
+        }
+        if (!container.supportWorkGfx) {
+            const g = new PIXI.Graphics();
+            g.zIndex = 10;
+            container.sortableChildren = true;
+            container.addChild(g);
+            container.supportWorkGfx = g;
+        }
+        const g = container.supportWorkGfx;
+        g.visible = true;
+        g.clear();
+        const off = container.healthBarOffset || 28;
+        const t = performance.now() / 1000;
+        const colors = {
+            BUILD: 0xffaa44,
+            MINE: 0xffdd44,
+            CARRY: 0xcc8844,
+            HEAL: 0x44ff88,
+            REPAIR: 0x44ccff
+        };
+        const col = colors[act] || 0xffffff;
+        const pulse = 0.55 + 0.45 * Math.sin(t * 8);
+        for (let i = 0; i < 5; i++) {
+            const ang = t * 4 + (i / 5) * Math.PI * 2;
+            const r = 6 + pulse * 2;
+            const px = Math.cos(ang) * r;
+            const py = Math.sin(ang) * r - off - 4;
+            g.circle(px, py, 2 + pulse * 0.5);
+            g.fill({ color: col, alpha: 0.75 });
+        }
+        g.circle(0, -off - 4, 3.5);
+        g.stroke({ width: 1.5, color: col, alpha: 0.9 });
+    }
+    
+    /**
+     * Flashing power warning on the player's own buildings when faction has low power.
+     */
+    updateBuildingLowPowerOverlay(buildingContainer, buildingData) {
+        const low = this.myFaction && this.myFaction.hasLowPower
+            && buildingData.ownerId === this.myPlayerId
+            && buildingData.active !== false;
+        if (!low) {
+            if (buildingContainer.lowPowerOverlay) {
+                buildingContainer.lowPowerOverlay.visible = false;
+            }
+            return;
+        }
+        if (!buildingContainer.lowPowerOverlay) {
+            const g = new PIXI.Graphics();
+            g.zIndex = 20;
+            buildingContainer.sortableChildren = true;
+            buildingContainer.addChild(g);
+            buildingContainer.lowPowerOverlay = g;
+        }
+        const g = buildingContainer.lowPowerOverlay;
+        g.visible = true;
+        g.clear();
+        const top = -(buildingContainer.typeInfo?.size || 40) - 18;
+        const flash = 0.4 + 0.6 * Math.abs(Math.sin(performance.now() / 180));
+        g.moveTo(0, top);
+        g.lineTo(-5, top - 10);
+        g.lineTo(3, top - 8);
+        g.lineTo(-4, top - 22);
+        g.stroke({ width: 3, color: 0xffee44, alpha: flash });
     }
     
     createBuildingGraphics(buildingData) {
@@ -2127,7 +2199,6 @@ class RTSEngine {
             'TEMPEST_SPIRE': { sides: 8, size: 45, color: 0x4682B4, rotation: 0 },
             // Air unit production
             'AIRFIELD': { sides: 8, size: 60, color: 0x708090, rotation: 0 },
-            'HANGAR': { sides: 4, size: 35, color: 0x4A5568, rotation: 0 }
         };
         
         const typeInfo = buildingTypes[buildingData.type] || { sides: 4, size: 50, color: 0xFFFFFF, rotation: 0 };
@@ -2192,7 +2263,6 @@ class RTSEngine {
             'POWER_PLANT': 'P',
             'RESEARCH_LAB': 'RL',
             'AIRFIELD': 'AF',
-            'HANGAR': 'H',
             'TECH_CENTER': 'TC',
             'SHIELD_GENERATOR': 'SG',
             'BANK': '$',
@@ -2263,20 +2333,19 @@ class RTSEngine {
             container.garrisonLabel = garrisonLabel;
         }
         
-        // Create hangar indicator (for hangars)
-        if (buildingData.type === 'HANGAR') {
-            const hangarLabel = new PIXI.Text('', {
+        if (buildingData.type === 'AIRFIELD') {
+            const berthLabel = new PIXI.Text('', {
                 fontFamily: 'Arial',
                 fontSize: 14,
                 fill: 0xFFFFFF,
                 stroke: { color: 0x000000, width: 2 }
             });
-            hangarLabel.anchor.set(0.5, 0.5);
-            hangarLabel.scale.y = -1; // Flip vertically
-            hangarLabel.y = typeInfo.size + 25; // Below building
-            hangarLabel.visible = false;
-            container.addChild(hangarLabel);
-            container.hangarLabel = hangarLabel;
+            berthLabel.anchor.set(0.5, 0.5);
+            berthLabel.scale.y = -1;
+            berthLabel.y = typeInfo.size + 25;
+            berthLabel.visible = false;
+            container.addChild(berthLabel);
+            container.airfieldBerthLabel = berthLabel;
         }
         
         return container;
@@ -3081,6 +3150,28 @@ class RTSEngine {
                     powerValue.style.color = '#00ff00'; // Green for good power
                 }
             }
+            
+            const lowBanner = document.getElementById('low-power-banner');
+            if (lowBanner) {
+                lowBanner.style.display = this.myFaction.hasLowPower ? 'flex' : 'none';
+            }
+            const resourcePanel = document.getElementById('resource-panel');
+            if (resourcePanel) {
+                if (this.myFaction.hasLowPower) {
+                    resourcePanel.classList.add('low-power-critical');
+                } else {
+                    resourcePanel.classList.remove('low-power-critical');
+                }
+            }
+        } else {
+            const lowBanner = document.getElementById('low-power-banner');
+            if (lowBanner) {
+                lowBanner.style.display = 'none';
+            }
+            const resourcePanel = document.getElementById('resource-panel');
+            if (resourcePanel) {
+                resourcePanel.classList.remove('low-power-critical');
+            }
         }
     }
     
@@ -3270,6 +3361,14 @@ class RTSEngine {
         */
     }
     
+    clampCameraToWorld() {
+        const padding = 500 / this.camera.zoom;
+        const halfWidth = this.worldBounds.width / 2;
+        const halfHeight = this.worldBounds.height / 2;
+        this.camera.x = Math.max(-halfWidth - padding, Math.min(halfWidth + padding, this.camera.x));
+        this.camera.y = Math.max(-halfHeight - padding, Math.min(halfHeight + padding, this.camera.y));
+    }
+    
     update() {
         // Update camera with WASD (fixed inverted controls)
         const cameraSpeed = 10 / this.camera.zoom;
@@ -3278,13 +3377,7 @@ class RTSEngine {
         if (this.keys['a'] || this.keys['A'] || this.keys['ArrowLeft']) this.camera.x -= cameraSpeed;
         if (this.keys['d'] || this.keys['D'] || this.keys['ArrowRight']) this.camera.x += cameraSpeed;
         
-        // Clamp camera to world bounds (with some padding based on zoom)
-        const padding = 500 / this.camera.zoom; // More padding when zoomed in
-        const halfWidth = this.worldBounds.width / 2;
-        const halfHeight = this.worldBounds.height / 2;
-        this.camera.x = Math.max(-halfWidth - padding, Math.min(halfWidth + padding, this.camera.x));
-        this.camera.y = Math.max(-halfHeight - padding, Math.min(halfHeight + padding, this.camera.y));
-        
+        this.clampCameraToWorld();
         this.updateCameraTransform();
         
         // Update selection box visualization
@@ -3379,19 +3472,30 @@ class RTSEngine {
                     this.selectionStart = this.mouseWorldPos;
                 }
             }
-        } else if (e.button === 2) { // Right click
+        } else if (e.button === 2) { // Right click — defer orders vs camera pan until mouseup
             if (this.buildMode) {
                 this.exitBuildMode();
-            } else if (this.selectedBuilding && this.selectedBuilding.canProduceUnits && this.selectedBuilding.ownerId === this.myPlayerId) {
-                // Set rally point for selected production building
-                this.setRallyPoint(this.selectedBuilding.id, this.mouseWorldPos);
-            } else {
-                // Check for force attack modifier (CMD on Mac, CTRL on Windows/Linux)
-                const forceAttack = e.metaKey || e.ctrlKey;
-                
-                // Issue move/attack order for units
-                this.issueOrder(this.mouseWorldPos, forceAttack);
+                return;
             }
+            if (this.sortieTargetingMode) {
+                this.exitSortieTargetingMode();
+                this.showGameEvent('Sortie order cancelled', 'warning');
+                return;
+            }
+            if (this.attackMoveMode) {
+                this.exitAttackMoveMode();
+                return;
+            }
+            if (this.specialAbilityTargetingMode) {
+                this.exitSpecialAbilityTargetingMode();
+                return;
+            }
+            this.rightButtonDown = true;
+            this.rightDragPanActive = false;
+            this.rightDownScreen = { x: e.clientX, y: e.clientY };
+            this.lastRightPanScreen = { x: e.clientX, y: e.clientY };
+            this.pendingRightClickWorld = { x: this.mouseWorldPos.x, y: this.mouseWorldPos.y };
+            this.pendingRightForceAttack = e.metaKey || e.ctrlKey;
         }
     }
     
@@ -3399,9 +3503,30 @@ class RTSEngine {
         const screenPos = { x: e.clientX, y: e.clientY };
         this.mouseWorldPos = this.screenToWorld(screenPos);
         
+        if (this.rightButtonDown && this.rightDownScreen) {
+            const dxs = e.clientX - this.rightDownScreen.x;
+            const dys = e.clientY - this.rightDownScreen.y;
+            if (!this.rightDragPanActive && (dxs * dxs + dys * dys) > 36) {
+                this.rightDragPanActive = true;
+                this.lastRightPanScreen = { x: e.clientX, y: e.clientY };
+            }
+            if (this.rightDragPanActive && this.lastRightPanScreen) {
+                const dx = e.clientX - this.lastRightPanScreen.x;
+                const dy = e.clientY - this.lastRightPanScreen.y;
+                this.lastRightPanScreen = { x: e.clientX, y: e.clientY };
+                const invZ = 1 / this.camera.zoom;
+                this.camera.x += dx * invZ;
+                this.camera.y -= dy * invZ;
+                this.clampCameraToWorld();
+                this.updateCameraTransform();
+            }
+        }
+        
         // Update cursor based on modifier keys
         const forceAttackMode = e.metaKey || e.ctrlKey;
-        if (forceAttackMode && this.selectedUnits.size > 0) {
+        if (this.rightDragPanActive) {
+            this.app.canvas.style.cursor = 'grabbing';
+        } else if (forceAttackMode && this.selectedUnits.size > 0) {
             this.app.canvas.style.cursor = 'crosshair'; // Attack cursor
         } else if (this.buildMode) {
             this.app.canvas.style.cursor = 'cell'; // Build cursor
@@ -3415,6 +3540,38 @@ class RTSEngine {
             this.finishSelection();
             this.isSelecting = false;
             this.selectionStart = null;
+        }
+        if (e.button === 2) {
+            this.finishRightMouseInteraction();
+        }
+    }
+    
+    onWindowMouseUp(e) {
+        if (e.button === 2) {
+            this.finishRightMouseInteraction();
+        }
+    }
+    
+    finishRightMouseInteraction() {
+        if (!this.rightButtonDown) {
+            return;
+        }
+        const wasPan = this.rightDragPanActive;
+        const world = this.pendingRightClickWorld;
+        const forceAttack = this.pendingRightForceAttack;
+        this.rightButtonDown = false;
+        this.rightDragPanActive = false;
+        this.rightDownScreen = null;
+        this.lastRightPanScreen = null;
+        this.pendingRightClickWorld = null;
+        this.pendingRightForceAttack = false;
+        if (wasPan || !world) {
+            return;
+        }
+        if (this.selectedBuilding && this.selectedBuilding.canProduceUnits && this.selectedBuilding.ownerId === this.myPlayerId) {
+            this.setRallyPoint(this.selectedBuilding.id, world);
+        } else {
+            this.issueOrder(world, forceAttack);
         }
     }
     
@@ -3722,11 +3879,15 @@ class RTSEngine {
     /**
      * Ungarrison units from a bunker
      */
-    ungarrisonUnit(buildingId, ungarrisonAll) {
-        this.sendInput({
+    ungarrisonUnit(buildingId, ungarrisonAll, unitId = null) {
+        const payload = {
             ungarrisonBuildingId: buildingId,
-            ungarrisonAll: ungarrisonAll
-        });
+            ungarrisonAll: !!ungarrisonAll
+        };
+        if (unitId != null && !ungarrisonAll) {
+            payload.ungarrisonUnitId = unitId;
+        }
+        this.sendInput(payload);
     }
     
     enterBuildMode(buildingType) {
@@ -4129,13 +4290,11 @@ class RTSEngine {
         // Hide build menu when selecting a building
         this.hideBuildMenu();
         
-        // Show production UI selectively:
+        const btype = buildingData.type || buildingData.buildingType;
         const shouldShowUI = !buildingData.underConstruction
-            && (buildingData.canProduceUnits || buildingData.buildingType === 'BUNKER');
+            && (buildingData.canProduceUnits || btype === 'BUNKER');
         
-        if (buildingData.buildingType === 'HANGAR') {
-            this.updateHangarPanel(buildingData);
-        } else if (shouldShowUI) {
+        if (shouldShowUI) {
             this.showProductionUI(buildingData);
         } else {
             this.hideProductionUI();
@@ -4171,34 +4330,15 @@ class RTSEngine {
         healthText.innerHTML = `<span>Health:</span><span>${Math.floor(buildingData.health)}/${buildingData.maxHealth}</span>`;
         panel.appendChild(healthText);
         
-        // Garrison info (for bunkers)
         if (buildingData.type === 'BUNKER') {
             const garrisonInfo = document.createElement('div');
             garrisonInfo.className = 'unit-stat';
             garrisonInfo.innerHTML = `<span>Garrison:</span><span>${buildingData.garrisonCount || 0}/${buildingData.maxGarrisonCapacity || 0}</span>`;
             panel.appendChild(garrisonInfo);
-            
-            // Ungarrison button (if units are garrisoned)
-            if (buildingData.garrisonCount > 0) {
-                const ungarrisonTitle = document.createElement('div');
-                ungarrisonTitle.style.marginTop = '15px';
-                ungarrisonTitle.style.fontWeight = 'bold';
-                ungarrisonTitle.style.color = '#FFD700';
-                ungarrisonTitle.textContent = 'Garrison:';
-                panel.appendChild(ungarrisonTitle);
-                
-                const ungarrisonButton = document.createElement('button');
-                ungarrisonButton.className = 'build-button';
-                ungarrisonButton.textContent = 'Ungarrison One';
-                ungarrisonButton.onclick = () => this.ungarrisonUnit(buildingData.id, false);
-                panel.appendChild(ungarrisonButton);
-                
-                const ungarrisonAllButton = document.createElement('button');
-                ungarrisonAllButton.className = 'build-button';
-                ungarrisonAllButton.textContent = 'Ungarrison All';
-                ungarrisonAllButton.onclick = () => this.ungarrisonUnit(buildingData.id, true);
-                panel.appendChild(ungarrisonAllButton);
-            }
+        }
+
+        if (buildingData.housedUnits && buildingData.housedUnits.length > 0) {
+            this.renderHousedUnitsPanel(panel, buildingData);
         }
 
         // Production buttons
@@ -4401,7 +4541,6 @@ class RTSEngine {
             'BANK': '💰',
             'BUNKER': '🏰',
             'AIRFIELD': '✈️',
-            'HANGAR': '🛩️',
             'SANDSTORM_GENERATOR': '🌪️',
             'QUANTUM_NEXUS': '⚛️',
             'PHOTON_SPIRE': '💎',
@@ -4750,72 +4889,168 @@ class RTSEngine {
         }
     }
     
-    /**
-     * Enter sortie targeting mode for a hangar
-     * @param {number} hangarId - ID of the hangar issuing the sortie
-     * @param {string} aircraftType - Type of aircraft (BOMBER or INTERCEPTOR)
-     */
-    enterSortieTargetingMode(hangarId, aircraftType) {
+    renderHousedUnitsPanel(panel, buildingData) {
+        const prev = panel.querySelector('.housed-units-section');
+        if (prev) prev.remove();
+        const wrap = document.createElement('div');
+        wrap.className = 'housed-units-section';
+        wrap.style.marginTop = '12px';
+        wrap.style.padding = '8px';
+        wrap.style.background = 'rgba(0,0,0,0.45)';
+        wrap.style.borderRadius = '6px';
+        const title = document.createElement('div');
+        title.style.fontWeight = 'bold';
+        title.style.color = '#FFD700';
+        title.style.marginBottom = '6px';
+        title.textContent = 'Housed units';
+        wrap.appendChild(title);
+
+        const mine = buildingData.ownerId === this.myPlayerId;
+
+        const actionBtnStyle = {
+            padding: '1px 5px',
+            fontSize: '11px',
+            lineHeight: '1.15',
+            minWidth: '22px',
+            height: '22px',
+            borderRadius: '3px',
+            cursor: 'pointer',
+            border: '1px solid rgba(255,255,255,0.35)',
+            background: 'rgba(40,40,55,0.95)',
+            color: '#eee',
+            flexShrink: '0'
+        };
+
+        for (const row of buildingData.housedUnits) {
+            const rowEl = document.createElement('div');
+            rowEl.className = 'housed-unit-row';
+            rowEl.style.display = 'flex';
+            rowEl.style.alignItems = 'center';
+            rowEl.style.justifyContent = 'space-between';
+            rowEl.style.gap = '10px';
+            rowEl.style.marginTop = '6px';
+
+            let label = '';
+            if (row.producingType) {
+                const nm = this.unitTypes[row.producingType]?.displayName || row.producingType;
+                const pct = Math.floor((row.productionProgress || 0) * 100);
+                label = `Producing: ${nm} (${pct}%)`;
+            } else {
+                const nm = this.unitTypes[row.unitType]?.displayName || row.unitType;
+                label = `${nm}  HP ${Math.floor(row.health)}/${Math.floor(row.maxHealth)}`;
+                if (row.deployed) label += '  [Deployed]';
+            }
+            const lab = document.createElement('span');
+            lab.textContent = label;
+            lab.style.flex = '1 1 auto';
+            lab.style.minWidth = '0';
+            lab.style.overflow = 'hidden';
+            lab.style.textOverflow = 'ellipsis';
+            lab.style.whiteSpace = 'nowrap';
+            lab.style.fontSize = '13px';
+            rowEl.appendChild(lab);
+
+            const actions = row.actions || [];
+            if (mine && actions.length > 0) {
+                const actionBar = document.createElement('div');
+                actionBar.className = 'housed-unit-actions';
+                actionBar.style.display = 'flex';
+                actionBar.style.alignItems = 'center';
+                actionBar.style.gap = '4px';
+                actionBar.style.flexShrink = '0';
+                actionBar.style.marginLeft = 'auto';
+
+                for (const act of actions) {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    Object.assign(btn.style, actionBtnStyle);
+                    if (act === 'LAUNCH') {
+                        btn.textContent = row.unitType === 'BOMBER' ? '💣' : '📍';
+                        btn.title = row.unitType === 'BOMBER' ? 'Sortie — click target on map' : 'Deploy — click station on map';
+                        btn.onclick = () => this.enterSortieTargetingMode(buildingData.id, row.unitId, row.unitType);
+                    } else if (act === 'RTB') {
+                        btn.textContent = '🏠';
+                        btn.title = 'Return to base';
+                        btn.onclick = () => this.issueRTBOrder(buildingData.id, row.unitId);
+                    } else if (act === 'SCRAP') {
+                        btn.textContent = '✖';
+                        btn.title = 'Scrap (no refund)';
+                        btn.onclick = () => this.issueScrapHousedUnit(buildingData.id, row.unitId);
+                    } else if (act === 'EXIT') {
+                        btn.textContent = '🚪';
+                        btn.title = 'Exit bunker';
+                        btn.onclick = () => this.ungarrisonUnit(buildingData.id, false, row.unitId);
+                    } else if (act === 'CANCEL_PRODUCTION') {
+                        btn.textContent = '⏹';
+                        btn.title = 'Cancel current production (refunds cost)';
+                        btn.onclick = () => this.issueCancelAirfieldProduction(buildingData.id);
+                    } else {
+                        continue;
+                    }
+                    actionBar.appendChild(btn);
+                }
+                rowEl.appendChild(actionBar);
+            }
+            wrap.appendChild(rowEl);
+        }
+        panel.appendChild(wrap);
+    }
+
+    enterSortieTargetingMode(buildingId, housedUnitId, aircraftType) {
         this.sortieTargetingMode = true;
-        this.sortieHangarId = hangarId;
-        this.sortieAircraftType = aircraftType; // Store for different targeting messages
-        
-        // Visual feedback based on aircraft type
-        const message = aircraftType === 'INTERCEPTOR' 
-            ? 'Click location for interceptor patrol station'
-            : 'Click target location for bombing run';
+        this.sortieBuildingId = buildingId;
+        this.sortieHousedUnitId = housedUnitId;
+        this.sortieAircraftType = aircraftType;
+
+        const message = (aircraftType === 'INTERCEPTOR' || aircraftType === 'GUNSHIP')
+            ? 'Click map location for patrol station'
+            : 'Click map location for bombing run';
         this.showGameEvent(message, 'info');
-        
-        // Change cursor (could be enhanced with custom cursor)
         document.body.style.cursor = 'crosshair';
     }
-    
-    /**
-     * Exit sortie targeting mode
-     */
+
     exitSortieTargetingMode() {
         this.sortieTargetingMode = false;
-        this.sortieHangarId = null;
+        this.sortieBuildingId = null;
+        this.sortieHousedUnitId = null;
+        this.sortieAircraftType = null;
         document.body.style.cursor = 'default';
     }
-    
-    /**
-     * Issue sortie order to bomber
-     * Called when player clicks target location while in sortie targeting mode
-     * @param {number} targetX - World X coordinate
-     * @param {number} targetY - World Y coordinate
-     */
+
     issueSortieOrder(targetX, targetY) {
-        if (!this.sortieTargetingMode || !this.sortieHangarId) {
+        if (!this.sortieTargetingMode || this.sortieBuildingId == null || this.sortieHousedUnitId == null) {
             return;
         }
-        
-        const input = {
-            sortieHangarId: this.sortieHangarId,
-            sortieTargetLocation: {
-                x: targetX,
-                y: targetY
-            }
-        };
-        
-        this.sendInput(input);
+        this.sendInput({
+            sortieBuildingId: this.sortieBuildingId,
+            sortieHousedUnitId: this.sortieHousedUnitId,
+            sortieTargetLocation: { x: targetX, y: targetY }
+        });
         this.exitSortieTargetingMode();
-        this.showGameEvent('Sortie order issued', 'info');
+        this.showGameEvent('Order issued', 'info');
     }
-    
-    /**
-     * Issue RTB (Return To Base) order to recall aircraft
-     * @param {number} hangarId - ID of the hangar to recall aircraft to
-     */
-    issueRTBOrder(hangarId) {
-        const input = {
-            rtbHangarId: hangarId
-        };
-        
-        this.sendInput(input);
+
+    issueRTBOrder(buildingId, housedUnitId) {
+        this.sendInput({
+            rtbBuildingId: buildingId,
+            rtbHousedUnitId: housedUnitId
+        });
         this.showGameEvent('Aircraft returning to base', 'info');
     }
-    
+
+    issueScrapHousedUnit(buildingId, unitId) {
+        this.sendInput({
+            scrapFromBuildingId: buildingId,
+            scrapHousedUnitId: unitId
+        });
+    }
+
+    issueCancelAirfieldProduction(buildingId) {
+        this.sendInput({
+            cancelAirfieldProductionBuildingId: buildingId
+        });
+    }
+
     /**
      * Draw sortie flight path on bomber unit graphics
      * @param {PIXI.Container} container - Bomber unit container
@@ -4857,123 +5092,5 @@ class RTSEngine {
             graphics.circle(homePos.x - currentPos.x, homePos.y - currentPos.y, 15);
             graphics.stroke({ width: 2, color: 0x00FF00, alpha: 0.8 });
         }
-    }
-    
-    /**
-     * Update hangar building panel to show bomber status
-     * @param {object} buildingData - Hangar building data from server
-     */
-    updateHangarPanel(buildingData) {
-        const panel = document.getElementById('unit-info-panel');
-        if (!panel) return;
-        
-        // Remove existing hangar status if present
-        const existingStatus = panel.querySelector('.hangar-status');
-        if (existingStatus) {
-            existingStatus.remove();
-        }
-        
-        // Create hangar status section
-        const hangarStatusDiv = document.createElement('div');
-        hangarStatusDiv.className = 'hangar-status';
-        hangarStatusDiv.style.marginTop = '15px';
-        hangarStatusDiv.style.padding = '10px';
-        hangarStatusDiv.style.background = 'rgba(0,0,0,0.5)';
-        hangarStatusDiv.style.borderRadius = '5px';
-        
-        // Title
-        const title = document.createElement('div');
-        title.style.fontWeight = 'bold';
-        title.style.color = '#00CED1';
-        title.style.marginBottom = '8px';
-        title.textContent = '🛩️ Hangar Status';
-        hangarStatusDiv.appendChild(title);
-        
-        // Aircraft status
-        const aircraftStatus = document.createElement('div');
-        aircraftStatus.className = 'unit-stat';
-        const hasAircraft = buildingData.hangarOccupied > 0;
-        
-        // Get aircraft type name (from backend) or default to 'Empty'
-        let aircraftText = 'Empty';
-        if (hasAircraft && buildingData.hangarAircraftType) {
-            aircraftText = this.unitTypes[buildingData.hangarAircraftType]?.displayName || buildingData.hangarAircraftType;
-        } else if (hasAircraft) {
-            aircraftText = 'Aircraft'; // Fallback if type not provided
-        }
-        
-        aircraftStatus.innerHTML = `<span>Housed Unit:</span><span>${aircraftText}</span>`;
-        hangarStatusDiv.appendChild(aircraftStatus);
-        
-        // Mission status (if aircraft exists)
-        if (hasAircraft) {
-            const missionStatus = document.createElement('div');
-            missionStatus.className = 'unit-stat';
-            const onSortie = buildingData.hangarOnSortie || false;
-            const statusText = onSortie ? 'ON SORTIE' : 'READY';
-            const statusColor = onSortie ? '#FF6600' : '#00FF00';
-            missionStatus.innerHTML = `<span>Status:</span><span style="color: ${statusColor}">${statusText}</span>`;
-            hangarStatusDiv.appendChild(missionStatus);
-            
-            // Aircraft health (if housed and not on sortie)
-            if (!onSortie && buildingData.hangarAircraftHealth !== undefined) {
-                const healthStatus = document.createElement('div');
-                healthStatus.className = 'unit-stat';
-                healthStatus.innerHTML = `<span>Aircraft HP:</span><span>${Math.floor(buildingData.hangarAircraftHealth)}/${buildingData.hangarAircraftMaxHealth}</span>`;
-                hangarStatusDiv.appendChild(healthStatus);
-            }
-            
-            // Sortie button (only if ready - not on sortie) OR RTB button (if on sortie)
-            if (!onSortie) {
-                const sortieButton = document.createElement('button');
-                sortieButton.className = 'build-button';
-                
-                // Different button text based on aircraft type
-                const aircraftType = buildingData.hangarAircraftType || 'BOMBER';
-                const buttonText = aircraftType === 'INTERCEPTOR' ? '🛩️ DEPLOY ON STATION' : '📍 LAUNCH SORTIE';
-                
-                sortieButton.textContent = buttonText;
-                sortieButton.style.marginTop = '10px';
-                sortieButton.style.width = '100%';
-                sortieButton.style.background = '#FF6600';
-                sortieButton.style.border = '2px solid #FF8833';
-                sortieButton.onclick = () => this.enterSortieTargetingMode(buildingData.id, aircraftType);
-                hangarStatusDiv.appendChild(sortieButton);
-            } else {
-                // RTB (Return To Base) button - recall aircraft
-                const rtbButton = document.createElement('button');
-                rtbButton.className = 'build-button';
-                
-                // Different button text based on aircraft type
-                const aircraftType = buildingData.hangarAircraftType || 'BOMBER';
-                const buttonText = (aircraftType === 'INTERCEPTOR' || aircraftType === 'GUNSHIP') 
-                    ? '🏠 RECALL' 
-                    : '🏠 RETURN TO BASE';
-                
-                rtbButton.textContent = buttonText;
-                rtbButton.style.marginTop = '10px';
-                rtbButton.style.width = '100%';
-                rtbButton.style.background = '#00AA00';
-                rtbButton.style.border = '2px solid #00CC00';
-                rtbButton.onclick = () => this.issueRTBOrder(buildingData.id);
-                hangarStatusDiv.appendChild(rtbButton);
-            }
-        } else if (buildingData.hangarProducing) {
-            // Show production status
-            const productionStatus = document.createElement('div');
-            productionStatus.className = 'unit-stat';
-            const progress = Math.floor((buildingData.hangarProductionPercent || 0) * 100);
-            
-            // Show what type is being produced
-            let producingText = 'Aircraft';
-            if (buildingData.hangarProducingType) {
-                producingText = this.unitTypes[buildingData.hangarProducingType]?.displayName || buildingData.hangarProducingType;
-            }
-            
-            productionStatus.innerHTML = `<span>Producing ${producingText}:</span><span>${progress}%</span>`;
-            hangarStatusDiv.appendChild(productionStatus);
-        }
-        
-        panel.appendChild(hangarStatusDiv);
     }
 }

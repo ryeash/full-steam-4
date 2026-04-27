@@ -62,13 +62,22 @@ public class RTSPlayerInput {
     // Garrison/Ungarrison
     private Integer garrisonOrder; // Building ID to garrison into (bunker)
     private Integer ungarrisonBuildingId; // Building ID to ungarrison from
+    /** When set (and not ungarrisonAll), exit this specific unit from bunker or APC. */
+    private Integer ungarrisonUnitId;
     private boolean ungarrisonAll; // If true, ungarrison all units from building
     private Integer specialAbilityTargetBuilding; // Target building ID for repair
 
-    // Sortie orders (for bomber aircraft)
-    private Integer sortieHangarId; // Hangar ID to launch sortie from
-    private org.dyn4j.geometry.Vector2 sortieTargetLocation; // Target location for bombing run
-    private Integer rtbHangarId; // Hangar ID to recall aircraft to (Return To Base)
+    // Sortie / deploy (housed aircraft at airfield)
+    private Integer sortieBuildingId;
+    private Integer sortieHousedUnitId;
+    private org.dyn4j.geometry.Vector2 sortieTargetLocation;
+    private Integer rtbBuildingId;
+    private Integer rtbHousedUnitId;
+    /** Scrap a housed (non-deployed) aircraft at an airfield — no refund. */
+    private Integer scrapFromBuildingId;
+    private Integer scrapHousedUnitId;
+    /** Cancel current unit production at this building (refunds credits for that unit). */
+    private Integer cancelAirfieldProductionBuildingId;
 
     // Camera/viewport
     private double cameraX;

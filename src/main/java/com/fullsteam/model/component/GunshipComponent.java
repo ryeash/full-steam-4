@@ -35,7 +35,7 @@ public class GunshipComponent extends AbstractUnitComponent {
     private int currentAmmoAir;
 
     private boolean onSortie = false;
-    private Integer hangarId;
+    private Integer homeBaseBuildingId;
 
     public GunshipComponent() {
         // Create dual weapons
@@ -110,16 +110,16 @@ public class GunshipComponent extends AbstractUnitComponent {
     /**
      * Deploy the gunship on a sortie mission.
      */
-    public void deploy(int hangarId) {
-        this.hangarId = hangarId;
+    public void deploy(int airfieldBuildingId) {
+        this.homeBaseBuildingId = airfieldBuildingId;
         this.onSortie = true;
         this.sortieStartTime = System.currentTimeMillis();
         this.currentFuel = MAX_FUEL;
         this.currentAmmoGround = MAX_AMMO_GROUND;
         this.currentAmmoAir = MAX_AMMO_AIR;
         this.lowFuelWarning = false;
-        log.info("Gunship {} deployed from hangar {} - Fuel: {}s, MG Ammo: {}, Flak Ammo: {}",
-                unit.getId(), hangarId, (int) currentFuel, currentAmmoGround, currentAmmoAir);
+        log.info("Gunship {} deployed from airfield {} - Fuel: {}s, MG Ammo: {}, Flak Ammo: {}",
+                unit.getId(), airfieldBuildingId, (int) currentFuel, currentAmmoGround, currentAmmoAir);
     }
 
     /**
@@ -138,8 +138,8 @@ public class GunshipComponent extends AbstractUnitComponent {
      * Return the gunship to its home hangar.
      */
     private void returnToHangar() {
-        if (hangarId == null) {
-            log.error("Gunship {} has no hangar ID! Cannot return.", unit.getId());
+        if (homeBaseBuildingId == null) {
+            log.error("Gunship {} has no home airfield ID! Cannot return.", unit.getId());
             return;
         }
 
@@ -148,8 +148,8 @@ public class GunshipComponent extends AbstractUnitComponent {
             return;
         }
 
-        log.info("Gunship {} returning to hangar {}", unit.getId(), hangarId);
-        ReturnToHangarCommand returnCommand = new ReturnToHangarCommand(unit, hangarId, false);
+        log.info("Gunship {} returning to airfield {}", unit.getId(), homeBaseBuildingId);
+        ReturnToHangarCommand returnCommand = new ReturnToHangarCommand(unit, homeBaseBuildingId, false);
         unit.issueCommand(returnCommand, gameEntities);
     }
 

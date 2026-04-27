@@ -109,7 +109,8 @@ public class RTSLobby {
      * @return Map containing gameId and sessionToken
      */
     public synchronized Map<String, String> joinMatchmaking(String gameId, String biome, String obstacleDensity,
-                                                            String faction, Integer maxPlayers) {
+                                                            String faction, Integer maxPlayers,
+                                                            Double configuredWorldWidth, Double configuredWorldHeight) {
         Map<String, String> map = new HashMap<>();
 
         // If gameId is specified, join that specific game
@@ -159,14 +160,20 @@ public class RTSLobby {
         // Determine max players (default to 2 if not specified, max 4)
         int players = (maxPlayers != null && maxPlayers >= 2 && maxPlayers <= 4) ? maxPlayers : 2;
 
-        // Determine world size based on player count
-        int worldSize = calculateWorldSize(players);
+        double worldWidth = calculateWorldSize(players);
+        double worldHeight = worldWidth;
+        if (configuredWorldWidth != null && configuredWorldHeight != null
+                && configuredWorldWidth >= 3000.0 && configuredWorldWidth <= 10000.0
+                && configuredWorldHeight >= 3000.0 && configuredWorldHeight <= 10000.0) {
+            worldWidth = configuredWorldWidth;
+            worldHeight = configuredWorldHeight;
+        }
 
         // Create a new matchmaking game with selected configuration
         GameConfig config = GameConfig.builder()
                 .maxPlayers(players)
-                .worldWidth(worldSize)
-                .worldHeight(worldSize)
+                .worldWidth(worldWidth)
+                .worldHeight(worldHeight)
                 .biome(selectedBiome)
                 .obstacleDensity(selectedDensity)
                 .build();

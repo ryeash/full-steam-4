@@ -7,7 +7,7 @@ import com.fullsteam.model.component.APCComponent;
 import com.fullsteam.model.component.AndroidComponent;
 import com.fullsteam.model.component.CloakComponent;
 import com.fullsteam.model.component.GunshipComponent;
-import com.fullsteam.model.component.HangarComponent;
+import com.fullsteam.model.component.AirfieldAircraftHousingComponent;
 import com.fullsteam.model.component.HarvestComponent;
 import com.fullsteam.model.component.HealComponent;
 import com.fullsteam.model.component.IUnitComponent;
@@ -345,8 +345,8 @@ public class Unit extends GameEntity implements Targetable {
                     return; // Unit is being removed/returned to hangar
                 }
 
-                // Command completed, switch to idle
-                currentCommand = new IdleCommand(this);
+                // Command completed, switch to idle (must use issueCommand so IdleCommand gets gameEntities)
+                issueCommand(new IdleCommand(this), gameEntities);
             }
         }
         for (IUnitComponent component : components.values()) {
@@ -363,13 +363,12 @@ public class Unit extends GameEntity implements Targetable {
         // launched again before it's properly housed
         this.setActive(false);
 
-        int hangarId = sortieCmd.getHomeHangarId();
-        Building hangar = gameEntities.getBuildings().get(hangarId);
+        int baseId = sortieCmd.getHomeBaseBuildingId();
+        Building airfield = gameEntities.getBuildings().get(baseId);
 
-        if (hangar != null && hangar.isActive()) {
-            // Return to hangar component
-            hangar.getComponent(HangarComponent.class)
-                    .ifPresent(hangarComponent -> hangarComponent.returnFromSortie(this));
+        if (airfield != null && airfield.isActive()) {
+            airfield.getComponent(AirfieldAircraftHousingComponent.class)
+                    .ifPresent(housing -> housing.returnFromSortie(this));
         }
     }
 

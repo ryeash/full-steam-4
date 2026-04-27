@@ -52,17 +52,31 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
             createFlakExplosionEffect(projectile);
         } else if (projectile.getBulletEffects().contains(BulletEffect.ELECTRIC)) {
             createElectricFieldEffect(projectile);
-        } else if (affectedTarget instanceof Unit unit && projectile.getBulletEffects().contains(BulletEffect.TRACKER_BUG)) {
-            // Create tracker bug attached to this unit
-            TrackerBug trackerBug = new TrackerBug(
-                    unit.getId(),
-                    projectile.getOwnerId(),
-                    projectile.getOwnerTeam(),
-                    UnitType.SPY.getVisionRange(), // Vision range (same as Spy's vision)
-                    60000  // 60 seconds duration
-            );
-            gameEntities.addTrackerBug(trackerBug);
-            log.info("Tracker bug {} attached to unit {} by player {}", trackerBug.getId(), unit.getId(), projectile.getOwnerId());
+        } else if (projectile.getBulletEffects().contains(BulletEffect.TRACKER_BUG)) {
+            if (affectedTarget instanceof Unit unit) {
+                TrackerBug trackerBug = new TrackerBug(
+                        unit.getId(),
+                        TrackerBug.AttachmentKind.UNIT,
+                        projectile.getOwnerId(),
+                        projectile.getOwnerTeam(),
+                        UnitType.SPY.getVisionRange(),
+                        60000
+                );
+                gameEntities.addTrackerBug(trackerBug);
+                log.info("Tracker bug {} attached to unit {} by player {}", trackerBug.getId(), unit.getId(), projectile.getOwnerId());
+            } else if (affectedTarget instanceof Building building) {
+                TrackerBug trackerBug = new TrackerBug(
+                        building.getId(),
+                        TrackerBug.AttachmentKind.BUILDING,
+                        projectile.getOwnerId(),
+                        projectile.getOwnerTeam(),
+                        UnitType.SPY.getVisionRange(),
+                        60000
+                );
+                gameEntities.addTrackerBug(trackerBug);
+                log.info("Tracker bug {} attached to building {} by player {}",
+                        trackerBug.getId(), building.getId(), projectile.getOwnerId());
+            }
         }
     }
 
@@ -97,7 +111,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
         log.debug("Projectile {} hit building {} for {} damage (destroyed: {})",
                 projectile.getId(), building.getId(), projectile.getDamage(), destroyed);
-        handleTerminalEffects(projectile);
+        handleTerminalEffects(projectile, building);
     }
 
     /**

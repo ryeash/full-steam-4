@@ -4,7 +4,7 @@ import com.fullsteam.model.component.AndroidFactoryComponent;
 import com.fullsteam.model.component.BankComponent;
 import com.fullsteam.model.component.DefenseComponent;
 import com.fullsteam.model.component.GarrisonComponent;
-import com.fullsteam.model.component.HangarComponent;
+import com.fullsteam.model.component.AirfieldAircraftHousingComponent;
 import com.fullsteam.model.component.IBuildingComponent;
 import com.fullsteam.model.component.ProductionComponent;
 import com.fullsteam.model.component.SandstormComponent;
@@ -80,14 +80,17 @@ public class Building extends GameEntity implements Targetable {
      * This method adds the appropriate components to buildings that need them.
      */
     private void initializeComponents(GameEntities gameEntities) {
-        // Add ProductionComponent to buildings that can produce units (except Android Factory and Hangar)
+        // Add ProductionComponent to buildings that can produce units (except Android Factory)
         // Android Factory uses AndroidFactoryComponent for autonomous production
-        // Hangar uses HangarComponent for bomber production (one bomber per hangar)
         if (buildingType.isCanProduceUnits()
-                && buildingType != BuildingType.ANDROID_FACTORY
-                && buildingType != BuildingType.HANGAR) {
+                && buildingType != BuildingType.ANDROID_FACTORY) {
             addComponent(new ProductionComponent(null));
             log.debug("Building {} ({}) initialized with ProductionComponent", id, buildingType.getDisplayName());
+        }
+
+        if (buildingType == BuildingType.AIRFIELD) {
+            addComponent(new AirfieldAircraftHousingComponent());
+            log.debug("Building {} ({}) initialized with AirfieldAircraftHousingComponent", id, buildingType.getDisplayName());
         }
 
         if (buildingType == BuildingType.BANK) {
@@ -146,11 +149,6 @@ public class Building extends GameEntity implements Targetable {
                     .map(FactionDefinition.BuildingStatModifier::getGarrisonCapacityBonus)
                     .orElse(0);
             addComponent(new GarrisonComponent(baseGarrisonCapacity + garrisonCapacityBonus));
-        }
-
-        if (buildingType == BuildingType.HANGAR) {
-            addComponent(new HangarComponent());
-            log.debug("Building {} ({}) initialized with HangarComponent", id, buildingType.getDisplayName());
         }
 
         // initialize each building component

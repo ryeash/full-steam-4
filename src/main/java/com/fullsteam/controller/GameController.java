@@ -104,31 +104,66 @@ public class GameController {
 
     @Post("/api/rts/matchmaking/join")
     @Produces(MediaType.APPLICATION_JSON)
-    public Map<String, String> joinMatchmaking(@Body Map<String, String> config) {
+    public Map<String, String> joinMatchmaking(@Body Map<String, Object> config) {
         try {
             // Extract configuration from request body
-            String gameId = config != null ? config.get("gameId") : null;
-            String biome = config != null ? config.get("biome") : null;
-            String obstacleDensity = config != null ? config.get("obstacleDensity") : null;
-            String faction = config != null ? config.get("faction") : null;
+            String gameId = config != null ? stringVal(config.get("gameId")) : null;
+            String biome = config != null ? stringVal(config.get("biome")) : null;
+            String obstacleDensity = config != null ? stringVal(config.get("obstacleDensity")) : null;
+            String faction = config != null ? stringVal(config.get("faction")) : null;
 
             // Parse maxPlayers if provided
             Integer maxPlayers = null;
             if (config != null && config.containsKey("maxPlayers")) {
-                try {
-                    maxPlayers = Integer.parseInt(config.get("maxPlayers"));
-                } catch (NumberFormatException e) {
+                maxPlayers = parseInteger(config.get("maxPlayers"));
+                if (maxPlayers == null) {
                     log.warn("Invalid maxPlayers value: {}", config.get("maxPlayers"));
                 }
             }
 
-            Map<String, String> result = rtsLobby.joinMatchmaking(gameId, biome, obstacleDensity, faction, maxPlayers);
+            Double worldWidth = parseDouble(config != null ? config.get("worldWidth") : null);
+            Double worldHeight = parseDouble(config != null ? config.get("worldHeight") : null);
+
+            Map<String, String> result = rtsLobby.joinMatchmaking(gameId, biome, obstacleDensity, faction, maxPlayers,
+                    worldWidth, worldHeight);
             result.put("status", "joined");
             return result;
         } catch (Exception e) {
             log.error("Error joining matchmaking", e);
             throw new HttpStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Failed to join matchmaking: " + e.getMessage());
+        }
+    }
+
+    private static String stringVal(Object o) {
+        return o == null ? null : String.valueOf(o);
+    }
+
+    private static Integer parseInteger(Object o) {
+        if (o == null) {
+            return null;
+        }
+        if (o instanceof Number n) {
+            return n.intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(o));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static Double parseDouble(Object o) {
+        if (o == null) {
+            return null;
+        }
+        if (o instanceof Number n) {
+            return n.doubleValue();
+        }
+        try {
+            return Double.parseDouble(String.valueOf(o));
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 

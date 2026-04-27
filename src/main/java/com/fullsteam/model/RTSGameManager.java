@@ -23,9 +23,11 @@ import com.fullsteam.model.command.UnitCommand;
 import com.fullsteam.model.component.APCComponent;
 import com.fullsteam.model.component.AndroidComponent;
 import com.fullsteam.model.component.AndroidFactoryComponent;
+import com.fullsteam.model.component.AirfieldAircraftHousingComponent;
+import com.fullsteam.model.component.GarrisonComponent;
 import com.fullsteam.model.component.GunshipComponent;
-import com.fullsteam.model.component.HangarComponent;
 import com.fullsteam.model.component.IBuildingComponent;
+import com.fullsteam.model.component.ProductionComponent;
 import com.fullsteam.model.component.InterceptorComponent;
 import com.fullsteam.model.component.ShieldComponent;
 import com.fullsteam.model.customization.CustomFactionConfig;
@@ -668,8 +670,18 @@ public class RTSGameManager {
                     }
                     log.info("Player {} ungarrisoned {} units from bunker {}",
                             playerId, ungarrisoned.size(), bunker.getId());
+                } else if (input.getUngarrisonUnitId() != null) {
+                    Unit target = units.get(input.getUngarrisonUnitId());
+                    Unit ungarrisoned = bunker.ungarrisonUnit(target);
+                    if (ungarrisoned != null && !world.containsBody(ungarrisoned.getBody())) {
+                        world.addBody(ungarrisoned.getBody());
+                    }
+                    if (ungarrisoned != null) {
+                        log.info("Player {} ungarrisoned unit {} from bunker {}",
+                                playerId, ungarrisoned.getId(), bunker.getId());
+                    }
                 } else {
-                    // Ungarrison one unit
+                    // Ungarrison one unit (FIFO)
                     Unit ungarrisoned = bunker.ungarrisonUnit(null);
                     if (ungarrisoned != null) {
                         // Re-add unit to the physics world
@@ -696,6 +708,16 @@ public class RTSGameManager {
                         }
                         log.info("Player {} ungarrisoned {} units from APC {}",
                                 playerId, ungarrisoned.size(), apc.getId());
+                    } else if (input.getUngarrisonUnitId() != null) {
+                        Unit target = units.get(input.getUngarrisonUnitId());
+                        Unit ungarrisoned = apc.ungarrisonUnit(target);
+                        if (ungarrisoned != null && !world.containsBody(ungarrisoned.getBody())) {
+                            world.addBody(ungarrisoned.getBody());
+                        }
+                        if (ungarrisoned != null) {
+                            log.info("Player {} ungarrisoned unit {} from APC {}",
+                                    playerId, ungarrisoned.getId(), apc.getId());
+                        }
                     } else {
                         // Ungarrison one unit
                         Unit ungarrisoned = apc.ungarrisonUnit(null);
@@ -712,27 +734,52 @@ public class RTSGameManager {
             }
         }
 
-        // Handle sortie orders (aircraft from hangars)
-        if (input.getSortieHangarId() != null && input.getSortieTargetLocation() != null) {
-            Building hangar = buildings.get(input.getSortieHangarId());
-            if (hangar != null && hangar.getBuildingType() == BuildingType.HANGAR &&
-                    hangar.belongsTo(playerId) && !hangar.isUnderConstruction()) {
+        if (input.getCancelAirfieldProductionBuildingId() != null) {
+            Building b = buildings.get(input.getCancelAirfieldProductionBuildingId());
+            if (b != null && b.belongsTo(playerId) && !b.isUnderConstruction()
+                    && b.getBuildingType().isCanProduceUnits()) {
+                UnitType cancelled = b.cancelCurrentProduction();
+                if (cancelled != null) {
+                    int refund = faction.getUnitCost(cancelled);
+                    faction.addResources(ResourceType.CREDITS, refund);
+                    log.info("Player {} cancelled production of {} at building {} (refunded {})",
+                            playerId, cancelled.getDisplayName(), b.getId(), refund);
+                }
+            }
+        }
 
-                // Get the hangar component
-                HangarComponent hangarComponent = hangar.getComponent(HangarComponent.class).orElse(null);
-                if (hangarComponent != null && hangarComponent.isReadyForSortie()) {
-                    // Launch aircraft from hangar (adds to world)
-                    Unit aircraft = hangarComponent.launchAircraft();
+        if (input.getScrapFromBuildingId() != null && input.getScrapHousedUnitId() != null) {
+            Building af = buildings.get(input.getScrapFromBuildingId());
+            if (af != null && af.getBuildingType() == BuildingType.AIRFIELD
+                    && af.belongsTo(playerId) && !af.isUnderConstruction()) {
+                af.getComponent(AirfieldAircraftHousingComponent.class).ifPresent(housing -> {
+                    if (housing.scrapHousedAircraft(input.getScrapHousedUnitId())) {
+                        log.info("Player {} scrapped housed unit {} at airfield {} (no refund)",
+                                playerId, input.getScrapHousedUnitId(), af.getId());
+                    }
+                });
+            }
+        }
+
+        // Handle sortie / deploy (housed aircraft at airfield)
+        if (input.getSortieBuildingId() != null && input.getSortieHousedUnitId() != null && input.getSortieTargetLocation() != null) {
+            Building airfield = buildings.get(input.getSortieBuildingId());
+            if (airfield != null && airfield.getBuildingType() == BuildingType.AIRFIELD &&
+                    airfield.belongsTo(playerId) && !airfield.isUnderConstruction()) {
+
+                AirfieldAircraftHousingComponent housing = airfield.getComponent(AirfieldAircraftHousingComponent.class).orElse(null);
+                int housedUnitId = input.getSortieHousedUnitId();
+                if (housing != null && housing.isReadyForSortie(housedUnitId)) {
+                    Unit aircraft = housing.launchAircraft(housedUnitId);
                     if (aircraft != null) {
                         UnitType aircraftType = aircraft.getUnitType();
+                        int baseId = airfield.getId();
 
-                        // Issue appropriate command based on aircraft type
                         if (aircraftType == UnitType.BOMBER) {
-                            // Bomber: Execute bombing run at target location
                             aircraft.setActive(true);
-                            aircraft.issueCommand(new SortieCommand(aircraft, input.getSortieTargetLocation(), hangar.getId(), true), gameEntities);
-                            log.info("Player {} launched bomber {} from hangar {} to target ({}, {})",
-                                    playerId, aircraft.getId(), hangar.getId(),
+                            aircraft.issueCommand(new SortieCommand(aircraft, input.getSortieTargetLocation(), baseId, true), gameEntities);
+                            log.info("Player {} launched bomber {} from airfield {} to target ({}, {})",
+                                    playerId, aircraft.getId(), baseId,
                                     input.getSortieTargetLocation().x, input.getSortieTargetLocation().y);
                             sendGameEvent(GameEvent.createPlayerEvent(
                                     "✈️ Bomber launched on sortie",
@@ -740,14 +787,12 @@ public class RTSGameManager {
                                     GameEvent.EventCategory.INFO
                             ));
                         } else if (aircraftType == UnitType.INTERCEPTOR) {
-                            // Interceptor: Deploy to patrol station
-                            // Activate the interceptor component to start fuel tracking
                             aircraft.getComponent(InterceptorComponent.class)
-                                    .ifPresent(interceptorComp -> interceptorComp.deploy(hangar.getId()));
+                                    .ifPresent(interceptorComp -> interceptorComp.deploy(baseId));
 
                             aircraft.issueCommand(new OnStationCommand(aircraft, input.getSortieTargetLocation(), true), gameEntities);
-                            log.info("Player {} deployed interceptor {} from hangar {} to patrol station ({}, {})",
-                                    playerId, aircraft.getId(), hangar.getId(),
+                            log.info("Player {} deployed interceptor {} from airfield {} to patrol station ({}, {})",
+                                    playerId, aircraft.getId(), baseId,
                                     input.getSortieTargetLocation().x, input.getSortieTargetLocation().y);
                             sendGameEvent(GameEvent.createPlayerEvent(
                                     "🛩️ Interceptor deployed on station",
@@ -755,14 +800,12 @@ public class RTSGameManager {
                                     GameEvent.EventCategory.INFO
                             ));
                         } else if (aircraftType == UnitType.GUNSHIP) {
-                            // Gunship: Deploy to patrol station (like Interceptor)
-                            // Activate the gunship component to start fuel tracking
                             aircraft.getComponent(GunshipComponent.class)
-                                    .ifPresent(gunshipComp -> gunshipComp.deploy(hangar.getId()));
+                                    .ifPresent(gunshipComp -> gunshipComp.deploy(baseId));
 
                             aircraft.issueCommand(new OnStationCommand(aircraft, input.getSortieTargetLocation(), true), gameEntities);
-                            log.info("Player {} deployed gunship {} from hangar {} to patrol station ({}, {})",
-                                    playerId, aircraft.getId(), hangar.getId(),
+                            log.info("Player {} deployed gunship {} from airfield {} to patrol station ({}, {})",
+                                    playerId, aircraft.getId(), baseId,
                                     input.getSortieTargetLocation().x, input.getSortieTargetLocation().y);
                             sendGameEvent(GameEvent.createPlayerEvent(
                                     "🚁 Gunship deployed on station",
@@ -770,10 +813,9 @@ public class RTSGameManager {
                                     GameEvent.EventCategory.INFO
                             ));
                         } else {
-                            // Generic fallback for future aircraft types
-                            aircraft.issueCommand(new SortieCommand(aircraft, input.getSortieTargetLocation(), hangar.getId(), true), gameEntities);
-                            log.info("Player {} launched {} {} from hangar {} to target ({}, {})",
-                                    playerId, aircraftType.name(), aircraft.getId(), hangar.getId(),
+                            aircraft.issueCommand(new SortieCommand(aircraft, input.getSortieTargetLocation(), baseId, true), gameEntities);
+                            log.info("Player {} launched {} {} from airfield {} to target ({}, {})",
+                                    playerId, aircraftType.name(), aircraft.getId(), baseId,
                                     input.getSortieTargetLocation().x, input.getSortieTargetLocation().y);
                             sendGameEvent(GameEvent.createPlayerEvent(
                                     "✈️ Aircraft launched on sortie",
@@ -782,12 +824,9 @@ public class RTSGameManager {
                             ));
                         }
                     }
-                } else if (hangarComponent != null && !hangarComponent.isReadyForSortie()) {
-                    String reason = hangarComponent.getHousedAircraft() == null ? "Hangar is empty" :
-                            hangarComponent.isOnSortie() ? "Aircraft already on sortie" :
-                                    "Aircraft is damaged and repairing";
+                } else if (housing != null) {
                     sendGameEvent(GameEvent.createPlayerEvent(
-                            "⚠️ Cannot launch sortie: " + reason,
+                            "⚠️ Cannot launch: aircraft not ready, wrong berth, or already deployed",
                             playerId,
                             GameEvent.EventCategory.WARNING
                     ));
@@ -795,33 +834,31 @@ public class RTSGameManager {
             }
         }
 
-        // Handle RTB (Return To Base) orders - recall aircraft from sortie
-        if (input.getRtbHangarId() != null) {
-            Building hangar = buildings.get(input.getRtbHangarId());
-            if (hangar != null && hangar.getBuildingType() == BuildingType.HANGAR &&
-                    hangar.belongsTo(playerId) && !hangar.isUnderConstruction()) {
+        // Return To Base — recall a deployed housed aircraft
+        if (input.getRtbBuildingId() != null && input.getRtbHousedUnitId() != null) {
+            Building airfield = buildings.get(input.getRtbBuildingId());
+            if (airfield != null && airfield.getBuildingType() == BuildingType.AIRFIELD &&
+                    airfield.belongsTo(playerId) && !airfield.isUnderConstruction()) {
 
-                // Get the hangar component
-                HangarComponent hangarComponent = hangar.getComponent(HangarComponent.class).orElse(null);
-                if (hangarComponent != null && hangarComponent.isOnSortie()) {
-                    Unit aircraft = hangarComponent.getHousedAircraft();
-                    if (aircraft != null && units.containsKey(aircraft.getId())) {
-                        // Issue return to hangar command
-                        aircraft.issueCommand(new ReturnToHangarCommand(aircraft, hangar.getId(), true), gameEntities);
-                        log.info("Player {} recalled aircraft {} to hangar {}",
-                                playerId, aircraft.getId(), hangar.getId());
+                AirfieldAircraftHousingComponent housing = airfield.getComponent(AirfieldAircraftHousingComponent.class).orElse(null);
+                int uid = input.getRtbHousedUnitId();
+                if (housing != null && housing.isDeployed(uid)) {
+                    Unit aircraft = units.get(uid);
+                    if (aircraft != null) {
+                        aircraft.issueCommand(new ReturnToHangarCommand(aircraft, airfield.getId(), true), gameEntities);
+                        log.info("Player {} recalled aircraft {} to airfield {}",
+                                playerId, aircraft.getId(), airfield.getId());
                         sendGameEvent(GameEvent.createPlayerEvent(
                                 "✈️ Aircraft returning to base",
                                 playerId,
                                 GameEvent.EventCategory.INFO
                         ));
                     } else {
-                        log.warn("Player {} tried to recall aircraft from hangar {} but aircraft not found in world",
-                                playerId, hangar.getId());
+                        log.warn("Player {} RTB for unit {} not in world", playerId, uid);
                     }
                 } else {
-                    log.warn("Player {} tried to recall aircraft from hangar {} but no aircraft is on sortie",
-                            playerId, hangar.getId());
+                    log.warn("Player {} RTB for airfield {} unit {} — not deployed from this field",
+                            playerId, airfield.getId(), uid);
                 }
             }
         }
@@ -1014,25 +1051,14 @@ public class RTSGameManager {
                     int cost = faction.getUnitCost(unitType);
                     faction.removeResources(ResourceType.CREDITS, cost);
 
-                    // Special handling for Hangar - uses HangarComponent instead of ProductionComponent
-                    if (building.getBuildingType() == BuildingType.HANGAR) {
-                        building.getComponent(HangarComponent.class).ifPresent(hangarComp -> {
-                            if (!hangarComp.startAircraftProduction(unitType)) {
-                                // Refund if failed to start production
-                                faction.addResources(ResourceType.CREDITS, cost);
-                                sendGameEvent(GameEvent.createPlayerEvent(
-                                        "⚠️ Hangar already has an aircraft or is producing one!",
-                                        playerId,
-                                        GameEvent.EventCategory.WARNING
-                                ));
-                            } else {
-                                log.info("Player {} started {} production at Hangar {} (cost: {})",
-                                        playerId, unitType.getDisplayName(), buildingId, cost);
-                            }
-                        });
+                    if (!building.queueUnitProduction(unitType)) {
+                        faction.addResources(ResourceType.CREDITS, cost);
+                        sendGameEvent(GameEvent.createPlayerEvent(
+                                "⚠️ Could not queue unit production (invalid type or queue rules).",
+                                playerId,
+                                GameEvent.EventCategory.WARNING
+                        ));
                     } else {
-                        // Standard production for other buildings
-                        building.queueUnitProduction(unitType);
                         log.info("Player {} queued {} production at building {} (cost: {})",
                                 playerId, unitType, buildingId, cost);
                     }
@@ -1250,9 +1276,9 @@ public class RTSGameManager {
                 return true; // Remove expired bugs
             }
 
-            // Remove if target is dead
+            // Remove if target is dead or gone
             if (!bug.isTargetAlive(gameEntities)) {
-                log.info("Tracker bug {} removed - target unit is dead", bug.getId());
+                log.info("Tracker bug {} removed - tagged entity no longer valid", bug.getId());
                 return true;
             }
 
@@ -1538,39 +1564,35 @@ public class RTSGameManager {
                             }
                         });
 
-                // Unregister sortie aircraft from its hangar (if it's a sortie-based unit)
+                // Unregister sortie aircraft from airfield housing (if sortie-based)
                 if (unit.getUnitType().isSortieBased()) {
-                    Integer hangarId = null;
+                    Integer baseBuildingId = null;
 
-                    // Check interceptor component for hangar ID
                     Optional<InterceptorComponent> interceptorComp = unit.getComponent(InterceptorComponent.class);
-                    if (interceptorComp.isPresent() && interceptorComp.get().getHangarId() != null) {
-                        hangarId = interceptorComp.get().getHangarId();
+                    if (interceptorComp.isPresent() && interceptorComp.get().getHomeBaseBuildingId() != null) {
+                        baseBuildingId = interceptorComp.get().getHomeBaseBuildingId();
                     }
 
-                    // Check gunship component for hangar ID  
-                    if (hangarId == null) {
+                    if (baseBuildingId == null) {
                         Optional<GunshipComponent> gunshipComp = unit.getComponent(GunshipComponent.class);
-                        if (gunshipComp.isPresent() && gunshipComp.get().getHangarId() != null) {
-                            hangarId = gunshipComp.get().getHangarId();
+                        if (gunshipComp.isPresent() && gunshipComp.get().getHomeBaseBuildingId() != null) {
+                            baseBuildingId = gunshipComp.get().getHomeBaseBuildingId();
                         }
                     }
 
-                    // Check if it's a bomber (via SortieCommand)
-                    if (hangarId == null && unit.getCurrentCommand() instanceof SortieCommand sortieCmd) {
-                        hangarId = sortieCmd.getHomeHangarId();
+                    if (baseBuildingId == null && unit.getCurrentCommand() instanceof SortieCommand sortieCmd) {
+                        baseBuildingId = sortieCmd.getHomeBaseBuildingId();
                     }
 
-                    // Clear aircraft from hangar if we found the hangar ID
-                    if (hangarId != null) {
-                        final Integer finalHangarId = hangarId; // Make final for lambda
-                        Building hangar = buildings.get(finalHangarId);
-                        if (hangar != null && hangar.isActive()) {
-                            hangar.getComponent(HangarComponent.class)
+                    if (baseBuildingId != null) {
+                        final int finalBaseId = baseBuildingId;
+                        Building airfield = buildings.get(finalBaseId);
+                        if (airfield != null && airfield.isActive()) {
+                            airfield.getComponent(AirfieldAircraftHousingComponent.class)
                                     .ifPresent(hc -> {
-                                        log.info("Sortie aircraft {} destroyed - clearing from hangar {}",
-                                                unit.getId(), finalHangarId);
-                                        hc.clearAircraft();
+                                        log.info("Sortie aircraft {} destroyed — freeing berth at airfield {}",
+                                                unit.getId(), finalBaseId);
+                                        hc.clearBerthForUnit(unit.getId());
                                     });
                         }
                     }
@@ -2170,6 +2192,44 @@ public class RTSGameManager {
     }
 
     /**
+     * Non-combat activity hint for worker/medic/engineer so the client can show work visuals.
+     */
+    private String computeSupportActivity(Unit unit) {
+        UnitType t = unit.getUnitType();
+        if (t != UnitType.WORKER && t != UnitType.MEDIC && t != UnitType.ENGINEER) {
+            return null;
+        }
+        UnitCommand cmd = unit.getCurrentCommand();
+        if (cmd instanceof ConstructCommand) {
+            return "BUILD";
+        }
+        if (cmd instanceof HarvestCommand h) {
+            return h.isReturningResources() ? "CARRY" : "MINE";
+        }
+        if (cmd instanceof AutoHealCommand) {
+            return "HEAL";
+        }
+        if (cmd instanceof AutoRepairCommand) {
+            return "REPAIR";
+        }
+        // Manual heal/repair uses special ability while on idle/move — brief pulse after each use
+        SpecialAbility ab = t.getSpecialAbility();
+        long last = unit.getLastSpecialAbilityTime();
+        if (last > 0) {
+            long elapsed = System.currentTimeMillis() - last;
+            if (elapsed >= 0 && elapsed < 400) {
+                if (ab == SpecialAbility.HEAL) {
+                    return "HEAL";
+                }
+                if (ab == SpecialAbility.REPAIR) {
+                    return "REPAIR";
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Serialize a unit for network transmission
      *
      * @param unit             The unit to serialize
@@ -2210,6 +2270,11 @@ public class RTSGameManager {
             data.put("maxGarrisonCapacity", unit.getComponent(APCComponent.class)
                     .map(APCComponent::getMaxGarrisonCapacity)
                     .orElse(3));
+        }
+
+        String supportActivity = computeSupportActivity(unit);
+        if (supportActivity != null) {
+            data.put("supportActivity", supportActivity);
         }
 
         // Add physics body vertices for accurate client-side rendering
@@ -2258,38 +2323,59 @@ public class RTSGameManager {
                             : 0);
                 });
 
-        // Garrison state (for Bunker)
-        if (building.getBuildingType() == com.fullsteam.model.BuildingType.BUNKER) {
+        if (building.getBuildingType() == BuildingType.BUNKER) {
             data.put("garrisonCount", building.getGarrisonCount());
             data.put("maxGarrisonCapacity", building.getMaxGarrisonCapacity());
+            building.getComponent(GarrisonComponent.class).ifPresent(gc -> {
+                List<Map<String, Object>> rows = new ArrayList<>();
+                for (Unit u : gc.getGarrisonedUnitsSnapshot()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("unitId", u.getId());
+                    row.put("unitType", u.getUnitType().name());
+                    row.put("health", u.getHealth());
+                    row.put("maxHealth", u.getMaxHealth());
+                    row.put("deployed", false);
+                    row.put("actions", List.of("EXIT"));
+                    rows.add(row);
+                }
+                data.put("housedUnits", rows);
+            });
         }
 
-        // Hangar state (for Hangar buildings)
-        if (building.getBuildingType() == BuildingType.HANGAR) {
-            building.getComponent(HangarComponent.class).ifPresent(hangarComp -> {
-                // Production state
-                data.put("hangarProducing", hangarComp.isProducingAircraft());
-                data.put("hangarProductionPercent", hangarComp.getProductionProgressPercent());
-
-                // Housed aircraft status
-                boolean hasAircraft = hangarComp.getHousedAircraft() != null;
-                data.put("hangarOccupied", hasAircraft ? 1 : 0);
-                data.put("hangarCapacity", 1); // Always 1 for now
-                data.put("hangarOnSortie", hangarComp.isOnSortie());
-
-                // Include aircraft type name for display
-                if (hasAircraft) {
-                    data.put("hangarAircraftType", hangarComp.getHousedAircraft().getUnitType().name());
-                    data.put("hangarAircraftHealth", hangarComp.getHousedAircraft().getHealth());
-                    data.put("hangarAircraftMaxHealth", hangarComp.getHousedAircraft().getMaxHealth());
-                    data.put("hangarAircraftId", hangarComp.getHousedAircraft().getId());
-                }
-
-                // Include producing type if currently producing
-                if (hangarComp.isProducingAircraft() && hangarComp.getProducingType() != null) {
-                    data.put("hangarProducingType", hangarComp.getProducingType().name());
+        if (building.getBuildingType() == BuildingType.AIRFIELD) {
+            List<Map<String, Object>> rows = new ArrayList<>();
+            building.getComponent(ProductionComponent.class).ifPresent(pc -> {
+                UnitType cur = pc.getCurrentProductionUnitType();
+                if (cur != null && cur.isSortieBased()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("berthIndex", -1);
+                    row.put("producingType", cur.name());
+                    row.put("productionProgress", pc.getProductionPercent());
+                    row.put("deployed", false);
+                    row.put("actions", List.of("CANCEL_PRODUCTION"));
+                    rows.add(row);
                 }
             });
+            building.getComponent(AirfieldAircraftHousingComponent.class).ifPresent(housing -> {
+                int berthIndex = 0;
+                for (AirfieldAircraftHousingComponent.Berth berth : housing.getBerthsView()) {
+                    if (berth.getHousedUnit() != null) {
+                        Unit u = berth.getHousedUnit();
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("berthIndex", berthIndex);
+                        row.put("unitId", u.getId());
+                        row.put("unitType", u.getUnitType().name());
+                        row.put("health", u.getHealth());
+                        row.put("maxHealth", u.getMaxHealth());
+                        row.put("deployed", berth.isDeployed());
+                        row.put("actions", berth.isDeployed() ? List.of("RTB") : List.of("LAUNCH", "SCRAP"));
+                        rows.add(row);
+                    }
+                    berthIndex++;
+                }
+                data.put("aircraftBerthCapacity", AirfieldAircraftHousingComponent.MAX_BERTHS);
+            });
+            data.put("housedUnits", rows);
         }
 
         return data;

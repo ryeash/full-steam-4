@@ -15,6 +15,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.dyn4j.geometry.Vector2;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
@@ -46,11 +47,13 @@ public class ProductionComponent extends AbstractBuildingComponent {
     @Override
     public void update(boolean hasLowPower) {
         double deltaTime = gameEntities.getWorld().getTimeStep().getDeltaTime();
-        // Start next production if none active
         if (currentProduction == null && !productionQueue.isEmpty()) {
-            currentProduction = productionQueue.poll();
-            productionProgress = 0;
-            log.info("Building {} started producing {}", building.getId(), currentProduction.unitType);
+            ProductionOrder next = pollNextStartableOrder();
+            if (next != null) {
+                currentProduction = next;
+                productionProgress = 0;
+                log.info("Building {} started producing {}", building.getId(), currentProduction.getUnitType());
+            }
         }
 
         // Update current production (only if not low power)
@@ -70,8 +73,8 @@ public class ProductionComponent extends AbstractBuildingComponent {
             productionProgress += deltaTime * effectiveSpeed;
 
             // Check if production is complete
-            if (productionProgress >= currentProduction.unitType.getBuildTimeSeconds()) {
-                UnitType unitType = currentProduction.unitType;
+            if (productionProgress >= currentProduction.getUnitType().getBuildTimeSeconds()) {
+                UnitType unitType = currentProduction.getUnitType();
                 currentProduction = null;
                 productionProgress = 0;
 
@@ -88,24 +91,33 @@ public class ProductionComponent extends AbstractBuildingComponent {
                 // Initialize components
                 unit.initializeComponents(gameEntities);
 
-                // Sortie-based units (e.g., Bombers) are now produced directly by their component (HangarComponent)
-                // and should never reach ProductionComponent, so we don't need special handling here.
-                // Regular units spawn on the map
-                Vector2 spawnPos = findSpawnPosition(gameEntities, building, unit);
-                unit.setPosition(spawnPos);
+                if (building.getBuildingType() == BuildingType.AIRFIELD && unitType.isSortieBased()) {
+                    AirfieldAircraftHousingComponent housing = building.getComponent(AirfieldAircraftHousingComponent.class)
+                            .orElse(null);
+                    if (housing == null || !housing.houseProducedAircraft(unit)) {
+                        log.error("Airfield {} could not house produced sortie {} — unit discarded",
+                                building.getId(), unit.getId());
+                        unit.setActive(false);
+                    } else {
+                        faction.getFactionDefinition().onUnitCreated(unit, faction, gameEntities.getRtsGameManager());
+                        log.info("Airfield {} completed {} — housed as id {}",
+                                building.getId(), unitType.getDisplayName(), unit.getId());
+                    }
+                } else {
+                    Vector2 spawnPos = findSpawnPosition(gameEntities, building, unit);
+                    unit.setPosition(spawnPos);
 
-                gameEntities.getUnits().put(unit.getId(), unit);
-                gameEntities.getWorld().addBody(unit.getBody());
+                    gameEntities.getUnits().put(unit.getId(), unit);
+                    gameEntities.getWorld().addBody(unit.getBody());
 
-                // Trigger perk hooks for unit creation
-                faction.getFactionDefinition().onUnitCreated(unit, faction, gameEntities.getRtsGameManager());
+                    faction.getFactionDefinition().onUnitCreated(unit, faction, gameEntities.getRtsGameManager());
 
-                // Order unit to rally point
-                if (rallyPoint != null) {
-                    unit.issueCommand(new MoveCommand(unit, rallyPoint, false), gameEntities);
+                    if (rallyPoint != null) {
+                        unit.issueCommand(new MoveCommand(unit, rallyPoint, false), gameEntities);
+                    }
+
+                    log.info("Unit {} spawned at position {}", unitType, spawnPos);
                 }
-
-                log.info("Unit {} spawned at position {}", unitType, spawnPos);
             }
         } else if (hasLowPower && currentProduction != null) {
             // Production is paused due to low power
@@ -136,6 +148,11 @@ public class ProductionComponent extends AbstractBuildingComponent {
             return false;
         }
 
+        if (unitType.isSortieBased() && building.getBuildingType() != BuildingType.AIRFIELD) {
+            log.warn("Sortie unit {} can only be queued at an airfield", unitType);
+            return false;
+        }
+
         // Validate building category matches unit category
         if (!validateBuildingCategory(building.getBuildingType(), unitType.getCategory())) {
             log.warn("Building {} cannot produce {} (category mismatch)",
@@ -155,8 +172,7 @@ public class ProductionComponent extends AbstractBuildingComponent {
             case WORKER -> buildingType == BuildingType.HEADQUARTERS;
             case INFANTRY -> buildingType == BuildingType.BARRACKS;
             case VEHICLE -> buildingType == BuildingType.FACTORY;
-            case FLYER -> buildingType == BuildingType.AIRFIELD ||
-                    buildingType == BuildingType.HANGAR;
+            case FLYER -> buildingType == BuildingType.AIRFIELD;
         };
     }
 
@@ -184,7 +200,36 @@ public class ProductionComponent extends AbstractBuildingComponent {
         if (currentProduction == null) {
             return 0;
         }
-        return productionProgress / currentProduction.unitType.getBuildTimeSeconds();
+        return productionProgress / currentProduction.getUnitType().getBuildTimeSeconds();
+    }
+
+    /**
+     * Active production unit type, or null if idle.
+     */
+    public UnitType getCurrentProductionUnitType() {
+        return currentProduction != null ? currentProduction.getUnitType() : null;
+    }
+
+    /**
+     * For airfields: start the first queued order that can run (non-sortie always; sortie only if a berth is free).
+     * Otherwise FIFO.
+     */
+    private ProductionOrder pollNextStartableOrder() {
+        if (productionQueue.isEmpty()) {
+            return null;
+        }
+        if (building.getBuildingType() != BuildingType.AIRFIELD) {
+            return productionQueue.poll();
+        }
+        var housing = building.getComponent(AirfieldAircraftHousingComponent.class);
+        for (ProductionOrder order : new ArrayList<>(productionQueue)) {
+            if (!order.getUnitType().isSortieBased() || housing.map(AirfieldAircraftHousingComponent::hasEmptyBerthForHousing).orElse(false)) {
+                if (productionQueue.remove(order)) {
+                    return order;
+                }
+            }
+        }
+        return null;
     }
 
     /**

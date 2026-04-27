@@ -45,7 +45,7 @@ public class IdleCommand extends UnitCommand {
         if (unit.getAiStance() == AIStance.DEFENSIVE && unit.getHomePosition() != null) {
             double distanceFromHome = currentPos.distance(unit.getHomePosition());
             if (distanceFromHome > defensiveLeashRange) {
-                unit.setCurrentCommand(new AttackMoveCommand(unit, unit.getHomePosition(), false));
+                unit.issueCommand(new AttackMoveCommand(unit, unit.getHomePosition(), false), gameEntities);
                 return;
             }
         }

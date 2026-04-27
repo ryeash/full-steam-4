@@ -124,7 +124,7 @@ public class APCComponent extends AbstractUnitComponent {
         toUngarrison.getBody().getTransform().setTranslation(exitPos.x, exitPos.y);
         toUngarrison.setGarrisoned(false);
         toUngarrison.getBody().setEnabled(true);
-        toUngarrison.setCurrentCommand(new IdleCommand(toUngarrison));
+        toUngarrison.issueCommand(new IdleCommand(toUngarrison), gameEntities);
 
         log.info("Unit {} ungarrisoned from APC {} ({}/{})",
                 toUngarrison.getId(), unit.getId(), garrisonedUnits.size(), getMaxGarrisonCapacity());

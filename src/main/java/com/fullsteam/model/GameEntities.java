@@ -89,7 +89,7 @@ public class GameEntities {
      */
     public void addTrackerBug(TrackerBug bug) {
         trackerBugs.put(bug.getId(), bug);
-        log.info("Added tracker bug {} targeting unit {}", bug.getId(), bug.getTargetUnitId());
+        log.info("Added tracker bug {} on {} {}", bug.getId(), bug.getAttachmentKind(), bug.getTargetId());
     }
 
     public Targetable findNearestEnemyTargetable(Unit attacker) {

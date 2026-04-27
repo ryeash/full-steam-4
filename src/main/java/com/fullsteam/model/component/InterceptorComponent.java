@@ -37,11 +37,8 @@ public class InterceptorComponent extends AbstractUnitComponent {
      */
     // Mission state
     private boolean onSortie = false;
-    /**
-     * -- GETTER --
-     * Get the ID of the interceptor's home hangar.
-     */
-    private Integer hangarId; // ID of home hangar
+    /** Home airfield building id when deployed. */
+    private Integer homeBaseBuildingId;
 
     public InterceptorComponent(Unit unit) {
         // Start with full fuel and ammo when created
@@ -81,15 +78,15 @@ public class InterceptorComponent extends AbstractUnitComponent {
      * Deploy the interceptor on a sortie mission.
      * Starts fuel consumption using absolute timestamp.
      */
-    public void deploy(int hangarId) {
-        this.hangarId = hangarId;
+    public void deploy(int airfieldBuildingId) {
+        this.homeBaseBuildingId = airfieldBuildingId;
         this.onSortie = true;
         this.sortieStartTime = System.currentTimeMillis(); // Record absolute start time
         this.currentFuel = MAX_FUEL; // Reset to full
         this.lowFuelWarning = false;
         this.lowAmmoWarning = false;
-        log.info("Interceptor {} deployed from hangar {} at {} - Fuel: {}s, Ammo: {}",
-                unit.getId(), hangarId, sortieStartTime, (int) currentFuel, currentAmmo);
+        log.info("Interceptor {} deployed from airfield {} at {} - Fuel: {}s, Ammo: {}",
+                unit.getId(), airfieldBuildingId, sortieStartTime, (int) currentFuel, currentAmmo);
     }
 
     /**
@@ -149,8 +146,8 @@ public class InterceptorComponent extends AbstractUnitComponent {
      * Issues a ReturnToHangarCommand to fly back to the hangar location.
      */
     private void returnToHangar() {
-        if (hangarId == null) {
-            log.error("Interceptor {} has no hangar ID! Cannot return.", unit.getId());
+        if (homeBaseBuildingId == null) {
+            log.error("Interceptor {} has no home airfield ID! Cannot return.", unit.getId());
             return;
         }
 
@@ -159,8 +156,8 @@ public class InterceptorComponent extends AbstractUnitComponent {
             return;
         }
 
-        log.info("Interceptor {} returning to hangar {}", unit.getId(), hangarId);
-        ReturnToHangarCommand returnCommand = new ReturnToHangarCommand(unit, hangarId, false);
+        log.info("Interceptor {} returning to airfield {}", unit.getId(), homeBaseBuildingId);
+        ReturnToHangarCommand returnCommand = new ReturnToHangarCommand(unit, homeBaseBuildingId, false);
         unit.issueCommand(returnCommand, gameEntities);
     }
 
