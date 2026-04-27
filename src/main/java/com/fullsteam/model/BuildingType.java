@@ -80,22 +80,6 @@ public enum BuildingType {
             360.0,         // faction customization point cost
             0),
 
-    // Defensive structure - blocks movement
-    WALL(
-            "Wall",
-            "Cheap barrier segment that blocks ground movement until destroyed or bypassed.",
-            BuildingCategory.DEFENSE,
-            // resource cost
-            50,        // build time (seconds)
-            5,      // max health
-            500,     // size (radius) - small for tight placement
-            15.0,  // slate gray
-            0x708090,    // cannot produce units
-            false,        // no power needed
-            0,
-            250.0,         // faction customization point cost
-            1),
-
     // Vehicle production
     FACTORY(
             "Factory",
@@ -431,7 +415,7 @@ public enum BuildingType {
      */
     public int getRequiredTechTier() {
         return switch (this) {
-            case HEADQUARTERS, REFINERY, BARRACKS, POWER_PLANT, BUNKER, WALL -> 1;
+            case HEADQUARTERS, REFINERY, BARRACKS, POWER_PLANT, BUNKER -> 1;
             case FACTORY, RESEARCH_LAB, TURRET, SHIELD_GENERATOR, ROCKET_TURRET, FLAK_TURRET -> 2;
             case TECH_CENTER, BANK, SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE,
                  COMMAND_CITADEL, LASER_TURRET, AIRFIELD, TEMPEST_SPIRE -> 3;
@@ -496,9 +480,6 @@ public enum BuildingType {
 
             // Tech Center - large octagon (advanced tech)
             case TECH_CENTER -> List.of(Geometry.createPolygonalCircle(8, size));
-
-            // Wall - small square segment
-            case WALL -> List.of(Geometry.createSquare(size * 2.0));
 
             // Turret - pentagonal defensive structure
             case TURRET -> List.of(Geometry.createPolygonalCircle(5, size));
@@ -642,7 +623,7 @@ public enum BuildingType {
     public List<BuildingType> getTechRequirements() {
         return switch (this) {
             // T1 - Always available
-            case HEADQUARTERS, POWER_PLANT, BARRACKS, REFINERY, BUNKER, WALL -> List.of();
+            case HEADQUARTERS, POWER_PLANT, BARRACKS, REFINERY, BUNKER -> List.of();
 
             // T2 - Requires Power Plant
             case RESEARCH_LAB, FACTORY, TURRET, ROCKET_TURRET, FLAK_TURRET, SHIELD_GENERATOR -> List.of(POWER_PLANT);

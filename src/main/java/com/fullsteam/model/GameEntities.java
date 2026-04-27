@@ -27,7 +27,6 @@ public class GameEntities {
     private final Map<Integer, PlayerFaction> playerFactions;
     private final Map<Integer, Unit> units;
     private final Map<Integer, Building> buildings;
-    private final Map<Integer, WallSegment> wallSegments;
     private final Map<Integer, Obstacle> obstacles;
     private final Map<Integer, Projectile> projectiles;
     private final Map<Integer, Beam> beams;
@@ -47,7 +46,6 @@ public class GameEntities {
         this.playerFactions = new ConcurrentSkipListMap<>();
         this.units = new ConcurrentSkipListMap<>();
         this.buildings = new ConcurrentSkipListMap<>();
-        this.wallSegments = new ConcurrentSkipListMap<>();
         this.obstacles = new ConcurrentSkipListMap<>();
         this.projectiles = new ConcurrentSkipListMap<>();
         this.beams = new ConcurrentSkipListMap<>();
@@ -75,8 +73,6 @@ public class GameEntities {
             createBeamFieldEffects(b);
         } else if (e instanceof FieldEffect fe) {
             fieldEffects.put(fe.getId(), fe);
-        } else if (e instanceof WallSegment ws) {
-            wallSegments.put(ws.getId(), ws);
         } else {
             throw new UnsupportedOperationException();
         }
@@ -106,7 +102,7 @@ public class GameEntities {
      * @return The nearest enemy targetable, or null if none found
      */
     public Targetable findNearestEnemyTargetable(Vector2 position, int teamNumber, Weapon weapon) {
-        return Stream.of(units.values(), buildings.values(), wallSegments.values())
+        return Stream.of(units.values(), buildings.values())
                 .flatMap(Collection::stream)
                 .filter(u -> u.isValidTargetFor(weapon, teamNumber, position))
                 .min(Comparator.comparingDouble(u -> u.getPosition().distance(position)))

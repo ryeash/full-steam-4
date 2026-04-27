@@ -27,7 +27,6 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
     private final Map<Integer, Unit> units;
     private final Map<Integer, Building> buildings;
     private final Map<Integer, Obstacle> obstacles;
-    private final Map<Integer, WallSegment> wallSegments;
 
     public RTSCollisionProcessor(GameEntities gameEntities) {
         this.world = gameEntities.getWorld();
@@ -35,7 +34,6 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         this.units = gameEntities.getUnits();
         this.buildings = gameEntities.getBuildings();
         this.obstacles = gameEntities.getObstacles();
-        this.wallSegments = gameEntities.getWallSegments();
     }
 
     /**
@@ -112,15 +110,6 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         log.debug("Projectile {} hit building {} for {} damage (destroyed: {})",
                 projectile.getId(), building.getId(), projectile.getDamage(), destroyed);
         handleTerminalEffects(projectile, building);
-    }
-
-    /**
-     * Handle a projectile hitting a wall segment
-     */
-    private void handleProjectileWallSegmentHit(Projectile projectile, WallSegment segment, Vector2 hitPosition) {
-        projectile.getAffectedPlayers().add(segment.getId());
-        segment.takeDamage(projectile.getDamage());
-        handleTerminalEffects(projectile);
     }
 
     /**
@@ -451,19 +440,6 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
             }
         }
 
-        // Check distance to wall segments
-        for (WallSegment segment : wallSegments.values()) {
-            if (!segment.isActive()) {
-                continue;
-            }
-
-            double distance = position.distance(segment.getPosition());
-            double minDistance = unitSize + 15; // Wall segments are thin, use fixed buffer
-            if (distance < minDistance) {
-                return false; // Too close to wall
-            }
-        }
-
         // Check distance to other units (avoid spawning on top of existing units)
         for (Unit unit : units.values()) {
             if (!unit.isActive()) {
@@ -675,34 +651,6 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 return false; // No physics collision
             }
 
-            // Check if projectile hits a wall segment
-            if (other instanceof WallSegment segment) {
-                // Walls are at GROUND elevation - only hit if projectile is also at GROUND
-                if (projectile.getCurrentElevation() != Elevation.GROUND) {
-                    return false; // Projectile at higher elevation passes over walls
-                }
-
-                if (segment.getTeamNumber() == projectile.getOwnerTeam()) {
-                    return false; // Pass through friendly walls (no physics or damage)
-                }
-
-                if (!segment.isActive()) {
-                    return false;
-                }
-
-                // Check if already hit this segment
-                if (projectile.getAffectedPlayers().contains(segment.getId())) {
-                    return false;
-                }
-
-                // Apply damage
-                handleProjectileWallSegmentHit(projectile, segment, hitPosition);
-
-                // Walls always stop projectiles
-                projectile.setActive(false);
-                return false; // No physics collision
-            }
-
             // Check if projectile hits an obstacle
             if (other instanceof Obstacle) {
                 // Obstacles are at GROUND elevation - only hit if projectile is also at GROUND
@@ -799,32 +747,6 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                 return false; // No physics collision (sensor)
             }
 
-            // Check if beam hits a wall segment
-            if (other instanceof WallSegment segment) {
-                // Walls are at GROUND elevation - only hit if beam is also at GROUND
-                if (beam.getCurrentElevation() != Elevation.GROUND) {
-                    return false; // Beam at higher elevation passes over walls
-                }
-
-                // Skip friendly fire
-                if (segment.getTeamNumber() == beam.getOwnerTeam()) {
-                    return false;
-                }
-
-                if (!segment.isActive()) {
-                    return false;
-                }
-
-                // Check if already damaged this segment
-                if (beam.getAffectedPlayers().contains(segment.getId())) {
-                    return false;
-                }
-
-                // Apply damage
-                handleBeamWallSegmentHit(beam, segment, hitPosition);
-                return false; // No physics collision (sensor)
-            }
-
             // Check if beam hits an obstacle
             if (other instanceof Obstacle obstacle) {
                 // Obstacles are at GROUND elevation - only hit if beam is also at GROUND
@@ -874,7 +796,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
             }
 
             // Field effects pass through obstacles and walls (they're area effects)
-            if (other instanceof Obstacle || other instanceof WallSegment) {
+            if (other instanceof Obstacle) {
                 return false;
             }
 
@@ -913,20 +835,6 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
 
         log.debug("Beam {} hit building {} for {} damage",
                 beam.getId(), building.getId(), beam.getDamage());
-    }
-
-    /**
-     * Handle a beam hitting a wall segment
-     */
-    private void handleBeamWallSegmentHit(Beam beam, WallSegment segment, Vector2 hitPosition) {
-        // Mark segment as affected
-        beam.getAffectedPlayers().add(segment.getId());
-
-        // Apply damage
-        segment.takeDamage(beam.getDamage());
-
-        log.debug("Beam {} hit wall segment {} for {} damage",
-                beam.getId(), segment.getId(), beam.getDamage());
     }
 
     /**

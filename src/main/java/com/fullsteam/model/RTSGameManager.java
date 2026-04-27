@@ -115,7 +115,6 @@ public class RTSGameManager {
     private final Map<Integer, Projectile> projectiles;
     private final Map<Integer, Beam> beams;
     private final Map<Integer, FieldEffect> fieldEffects;
-    private final Map<Integer, WallSegment> wallSegments;
 
     // Collision processor
     private final RTSCollisionProcessor collisionProcessor;
@@ -153,7 +152,6 @@ public class RTSGameManager {
         this.projectiles = gameEntities.getProjectiles();
         this.beams = gameEntities.getBeams();
         this.fieldEffects = gameEntities.getFieldEffects();
-        this.wallSegments = gameEntities.getWallSegments();
 
         // Initialize RTS world with symmetric layout
         long worldSeed = System.currentTimeMillis();
@@ -269,26 +267,17 @@ public class RTSGameManager {
 
                 // If construction just completed, send notification and handle post-construction logic
                 if (wasUnderConstruction && !building.isUnderConstruction()) {
-                    // Send construction complete notification (except for walls - too spammy)
-                    if (building.getBuildingType() != BuildingType.WALL && faction != null) {
-                        String buildingName = building.getBuildingType().name()
-                                .replace("_", " ")
-                                .toLowerCase();
-                        // Capitalize first letter
-                        buildingName = buildingName.substring(0, 1).toUpperCase() + buildingName.substring(1);
+                    String buildingName = building.getBuildingType().name()
+                            .replace("_", " ")
+                            .toLowerCase();
+                    // Capitalize first letter
+                    buildingName = buildingName.substring(0, 1).toUpperCase() + buildingName.substring(1);
 
-                        sendGameEvent(GameEvent.createPlayerEvent(
-                                "🏗️ " + buildingName + " construction complete",
-                                faction.getPlayerId(),
-                                GameEvent.EventCategory.INFO
-                        ));
-                    }
-
-                    // Create wall segments for wall posts
-                    if (building.getBuildingType() == BuildingType.WALL) {
-                        createWallSegments(building);
-                        log.debug("Wall post {} construction completed, creating wall segments", building.getId());
-                    }
+                    sendGameEvent(GameEvent.createPlayerEvent(
+                            "🏗️ " + buildingName + " construction complete",
+                            faction.getPlayerId(),
+                            GameEvent.EventCategory.INFO
+                    ));
                 }
             });
 
@@ -449,17 +438,6 @@ public class RTSGameManager {
                         .filter(u -> u.belongsTo(playerId) && u.isSelected())
                         .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
                         .filter(Unit::canTargetBuildings) // Check if weapon can hit GROUND elevation (buildings)
-                        .forEach(u -> u.issueCommand(new AttackTargetableCommand(u, target, true), gameEntities));
-            }
-        }
-
-        if (input.getAttackWallSegmentOrder() != null) {
-            WallSegment target = wallSegments.get(input.getAttackWallSegmentOrder());
-            if (target != null) {
-                units.values().stream()
-                        .filter(u -> u.belongsTo(playerId) && u.isSelected())
-                        .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
-                        .filter(Unit::canTargetBuildings) // Wall segments are GROUND elevation like buildings
                         .forEach(u -> u.issueCommand(new AttackTargetableCommand(u, target, true), gameEntities));
             }
         }
@@ -1078,84 +1056,6 @@ public class RTSGameManager {
 
         // Research system removed - building research handlers deleted
         // Units and modifiers are now configured during faction customization
-    }
-
-    /**
-     * Create wall segments connecting a new wall post to nearby wall posts
-     */
-    private void createWallSegments(Building newWallPost) {
-        if (newWallPost.getBuildingType() != BuildingType.WALL) {
-            return;
-        }
-
-        Vector2 newPos = newWallPost.getPosition();
-        double maxConnectionDistance = 200.0; // Maximum distance to connect wall posts
-        double minConnectionDistance = 40.0; // Minimum distance (prevent overlapping posts)
-
-        // Find all nearby wall posts from the same team
-        for (Building building : buildings.values()) {
-            if (building.getId() == newWallPost.getId()) {
-                continue; // Skip self
-            }
-
-            if (building.getBuildingType() != BuildingType.WALL) {
-                continue; // Only connect to other wall posts
-            }
-
-            if (building.getTeamNumber() != newWallPost.getTeamNumber()) {
-                continue; // Only connect to same team walls
-            }
-
-            // Only connect to completed wall posts
-            if (building.isUnderConstruction()) {
-                continue; // Skip wall posts still under construction
-            }
-
-            double distance = newPos.distance(building.getPosition());
-
-            // Check if within connection range
-            if (distance >= minConnectionDistance && distance <= maxConnectionDistance) {
-                // Check if segment doesn't already exist
-                if (!wallSegmentExists(newWallPost, building)) {
-                    createWallSegment(newWallPost, building);
-                }
-            }
-        }
-    }
-
-    /**
-     * Check if a wall segment already exists between two posts
-     */
-    private boolean wallSegmentExists(Building post1, Building post2) {
-        for (WallSegment segment : wallSegments.values()) {
-            if ((segment.getPost1() == post1 && segment.getPost2() == post2) ||
-                    (segment.getPost1() == post2 && segment.getPost2() == post1)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Create a wall segment between two wall posts
-     */
-    private void createWallSegment(Building post1, Building post2) {
-        gameEntities.add(new WallSegment(post1, post2, post1.getOwnerId(), post1.getTeamNumber()));
-    }
-
-    /**
-     * Remove wall segments connected to a destroyed post
-     */
-    private void removeWallSegmentsForPost(Building wallPost) {
-        wallSegments.entrySet().removeIf(entry -> {
-            WallSegment segment = entry.getValue();
-            if (segment.getPost1() == wallPost || segment.getPost2() == wallPost) {
-                world.removeBody(segment.getBody());
-                log.debug("Removed wall segment {} (connected post destroyed)", entry.getKey());
-                return true;
-            }
-            return false;
-        });
     }
 
     /**
@@ -1810,11 +1710,6 @@ public class RTSGameManager {
                     ));
                 }
 
-                // Remove wall segments connected to this wall post
-                if (building.getBuildingType() == BuildingType.WALL) {
-                    removeWallSegmentsForPost(building);
-                }
-
                 // Ungarrison all units from bunkers when destroyed
                 if (building.getBuildingType() == BuildingType.BUNKER && building.getGarrisonCount() > 0) {
                     List<Unit> ungarrisonedUnits = building.ungarrisonAllUnits();
@@ -1843,17 +1738,6 @@ public class RTSGameManager {
                 }
 
                 world.removeBody(building.getBody());
-                return true;
-            }
-            return false;
-        });
-
-        // Remove wall segments with destroyed posts or that are themselves destroyed
-        wallSegments.entrySet().removeIf(entry -> {
-            WallSegment segment = entry.getValue();
-            if (!segment.isActive() || segment.hasDestroyedPost()) {
-                world.removeBody(segment.getBody());
-                log.debug("Removed wall segment {}", entry.getKey());
                 return true;
             }
             return false;
@@ -2016,13 +1900,6 @@ public class RTSGameManager {
                 .map(Obstacle::getId)
                 .collect(Collectors.toList());
         state.put("activeObstacleIds", activeObstacleIds);
-
-        // Wall segments respect fog of war (player-built structures)
-        List<WallSegment> visibleWallSegments = FogOfWar.getVisibleWallSegments(gameEntities, teamNumber);
-        List<Map<String, Object>> wallSegmentsList = visibleWallSegments.stream()
-                .map(this::serializeWallSegment)
-                .collect(Collectors.toList());
-        state.put("wallSegments", wallSegmentsList);
 
         // Player factions - send only dynamic resource/state info
         Map<Integer, Map<String, Object>> factionsMap = new LinkedHashMap<>();
@@ -2639,24 +2516,6 @@ public class RTSGameManager {
         }
         data.put("buildingCosts", buildingCosts);
 
-        return data;
-    }
-
-    /**
-     * Serialize a wall segment for network transmission
-     */
-    private Map<String, Object> serializeWallSegment(WallSegment segment) {
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("id", segment.getId());
-        data.put("x", segment.getPosition().x);
-        data.put("y", segment.getPosition().y);
-        data.put("rotation", segment.getRotation());
-        data.put("length", segment.getLength());
-        data.put("health", segment.getHealth());
-        data.put("maxHealth", segment.getMaxHealth());
-        data.put("team", segment.getTeamNumber());
-        data.put("post1Id", segment.getPost1().getId());
-        data.put("post2Id", segment.getPost2().getId());
         return data;
     }
 

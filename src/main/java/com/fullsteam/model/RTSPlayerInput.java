@@ -22,7 +22,6 @@ public class RTSPlayerInput {
     // Attack orders
     private Integer attackUnitOrder; // Target unit ID
     private Integer attackBuildingOrder; // Target building ID
-    private Integer attackWallSegmentOrder; // Target wall segment ID
     private Vector2 forceAttackOrder; // Force attack ground at position (CMD/CTRL + right click)
 
     // Resource gathering

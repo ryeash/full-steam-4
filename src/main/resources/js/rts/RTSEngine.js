@@ -15,7 +15,6 @@ class RTSEngine {
         this.projectiles = new Map();
         this.beams = new Map();
         this.fieldEffects = new Map();
-        this.wallSegments = new Map();
         
         // Static game data (loaded once from gameInitialization message)
         this.unitTypes = null; // Map of unit type name -> static properties
@@ -136,7 +135,7 @@ class RTSEngine {
          * Z-Index Rendering Order (from back to front):
          * -2: World bounds (background)
          * -1: Obstacles and resource deposits
-         *  0: Buildings and wall segments
+         *  0: Buildings
          *  1: Ground units
          * 1.5: Field effects (explosions, fire, etc.)
          *  2: Low altitude air units (Scout Drone)
@@ -688,25 +687,6 @@ class RTSEngine {
             });
         }
         
-        // Update wall segments
-        if (state.wallSegments) {
-            const currentSegmentIds = new Set(state.wallSegments.map(s => s.id));
-            
-            // Remove wall segments that no longer exist
-            this.wallSegments.forEach((segmentContainer, id) => {
-                if (!currentSegmentIds.has(id)) {
-                    this.gameContainer.removeChild(segmentContainer);
-                    segmentContainer.destroy();
-                    this.wallSegments.delete(id);
-                }
-            });
-            
-            // Update or create wall segments
-            state.wallSegments.forEach(segmentData => {
-                this.updateWallSegment(segmentData);
-            });
-        }
-        
         // Update projectiles
         if (state.projectiles) {
             const currentProjectileIds = new Set(state.projectiles.map(p => p.id));
@@ -968,23 +948,6 @@ class RTSEngine {
         // ANIMATE AIR UNITS (bobbing, rotor spinning, etc.)
         if (unitContainer.isAirUnit) {
             this.updateAirUnitAnimation(unitContainer);
-        }
-        
-        // UPDATE BOMBER SORTIE PATH (if bomber with active sortie)
-        if (unitData.type === 'BOMBER' && unitContainer.isBomber) {
-            if (unitData.currentCommand && unitData.currentCommand.type === 'SORTIE') {
-                // Draw sortie flight path
-                this.drawSortiePath(unitContainer, {
-                    phase: unitData.currentCommand.phase,
-                    targetLocation: unitData.currentCommand.targetLocation,
-                    homeLocation: unitData.currentCommand.homeLocation
-                });
-            } else {
-                // Clear sortie path if no active sortie
-                if (unitContainer.sortiePath) {
-                    unitContainer.sortiePath.visible = false;
-                }
-            }
         }
         
         // Store data
@@ -1459,12 +1422,6 @@ class RTSEngine {
         selectionCircle.stroke({ width: 2, color: 0x00FF00 });
         container.addChild(selectionCircle);
         container.selectionCircle = selectionCircle;
-        
-        // 10. SORTIE PATH VISUALIZATION (if sortie data available)
-        const sortiePath = new PIXI.Graphics();
-        sortiePath.visible = false;
-        container.addChild(sortiePath);
-        container.sortiePath = sortiePath;
         
         // Store animation state
         container.animationTime = Math.random() * Math.PI * 2;
@@ -2190,7 +2147,6 @@ class RTSEngine {
             'FACTORY': { sides: 4, size: 55, color: 0x696969, rotation: 0 },
             'RESEARCH_LAB': { sides: 6, size: 50, color: 0x00CED1, rotation: Math.PI / 6 },
             'TECH_CENTER': { sides: 8, size: 60, color: 0x4169E1, rotation: Math.PI / 8 },
-            'WALL': { sides: 4, size: 15, color: 0x708090, rotation: 0 },
             'TURRET': { sides: 5, size: 25, color: 0xFF4500, rotation: 0 },
             'ROCKET_TURRET': { sides: 6, size: 25, color: 0xFF6347, rotation: 0 },
             'LASER_TURRET': { sides: 8, size: 25, color: 0x00FFFF, rotation: Math.PI / 8 },
@@ -2262,7 +2218,6 @@ class RTSEngine {
             'REFINERY': 'R',
             'BARRACKS': 'B',
             'FACTORY': 'F',
-            'WALL': 'W',
             'TURRET': 'T',
             'ROCKET_TURRET': 'RT',
             'LASER_TURRET': 'LT',
@@ -2441,73 +2396,6 @@ class RTSEngine {
         
         // Store merged data
         obstacleContainer.obstacleData = fullData;
-    }
-    
-    updateWallSegment(segmentData) {
-        let segmentContainer = this.wallSegments.get(segmentData.id);
-        
-        if (!segmentContainer) {
-            // Create new wall segment
-            segmentContainer = this.createWallSegmentGraphics(segmentData);
-            this.wallSegments.set(segmentData.id, segmentContainer);
-            this.gameContainer.addChild(segmentContainer);
-            
-            // Wall segments render at same layer as buildings
-            segmentContainer.zIndex = 0;
-        }
-        
-        // Update position and rotation
-        segmentContainer.position.set(segmentData.x, segmentData.y);
-        segmentContainer.rotation = segmentData.rotation;
-        
-        // Update health bar
-        if (segmentContainer.healthBar) {
-            const healthPercent = segmentData.health / segmentData.maxHealth;
-            
-            // Hide health bar if at full health
-            if (healthPercent >= 1.0) {
-                segmentContainer.healthBar.visible = false;
-            } else {
-                segmentContainer.healthBar.visible = true;
-                segmentContainer.healthBar.clear();
-                segmentContainer.healthBar.rect(-segmentData.length / 2, -15, segmentData.length * healthPercent, 5);
-                segmentContainer.healthBar.fill(this.getHealthColor(healthPercent));
-            }
-        }
-        
-        // Store data
-        segmentContainer.segmentData = segmentData;
-    }
-    
-    createWallSegmentGraphics(segmentData) {
-        const container = new PIXI.Container();
-        
-        // Team colors
-        const teamColors = {
-            1: 0x0000FF, // Blue
-            2: 0xFF0000, // Red
-            3: 0x00FF00, // Green
-            4: 0xFFFF00  // Yellow
-        };
-        const teamColor = teamColors[segmentData.team] || 0x808080;
-        
-        // Wall segment rectangle
-        const wall = new PIXI.Graphics();
-        const thickness = 8;
-        wall.rect(-segmentData.length / 2, -thickness / 2, segmentData.length, thickness);
-        wall.fill(teamColor);
-        wall.stroke({ width: 2, color: this.darkenColor(teamColor, 0.5) });
-        container.addChild(wall);
-        
-        // Health bar (above wall)
-        const healthBar = new PIXI.Graphics();
-        const healthPercent = segmentData.health / segmentData.maxHealth;
-        healthBar.rect(-segmentData.length / 2, -15, segmentData.length * healthPercent, 5);
-        healthBar.fill(this.getHealthColor(healthPercent));
-        container.addChild(healthBar);
-        container.healthBar = healthBar;
-        
-        return container;
     }
     
     createObstacleGraphics(obstacleData) {
@@ -3779,25 +3667,6 @@ class RTSEngine {
             }
         });
         
-        // Check if clicking on a wall segment
-        let targetWallSegment = null;
-        minDist = 100;
-        
-        this.wallSegments.forEach((container, id) => {
-            const segmentData = container.segmentData;
-            if (segmentData) {
-                const dist = Math.sqrt(
-                    Math.pow(segmentData.x - worldPos.x, 2) + 
-                    Math.pow(segmentData.y - worldPos.y, 2)
-                );
-                // Wall segments are rectangles, use approximate collision
-                if (dist < minDist && dist < segmentData.length / 2 + 20) {
-                    minDist = dist;
-                    targetWallSegment = segmentData;
-                }
-            }
-        });
-        
         // Check if clicking on an obstacle (some are harvestable)
         let targetObstacle = null;
         let targetHarvestableObstacle = null;
@@ -3845,14 +3714,6 @@ class RTSEngine {
                 this.sendInput({ garrisonOrder: targetBuilding.id });
             } else {
                 // Move near friendly building
-                this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
-            }
-        } else if (targetWallSegment) {
-            if (targetWallSegment.team !== this.myTeam) {
-                // Attack enemy wall segment
-                this.sendInput({ attackWallSegmentOrder: targetWallSegment.id });
-            } else {
-                // Move near friendly wall
                 this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
             }
         } else if (targetHarvestableObstacle) {
@@ -4538,7 +4399,6 @@ class RTSEngine {
             'POWER_PLANT': '⚡',
             'BARRACKS': '🏰',
             'REFINERY': '🏭',
-            'WALL': '🧱',
             'RESEARCH_LAB': '🔬',
             'FACTORY': '🚗',
             'TURRET': '🎯',
@@ -5060,48 +4920,5 @@ class RTSEngine {
         this.sendInput({
             cancelAirfieldProductionBuildingId: buildingId
         });
-    }
-
-    /**
-     * Draw sortie flight path on bomber unit graphics
-     * @param {PIXI.Container} container - Bomber unit container
-     * @param {object} sortieData - Sortie command data from server
-     */
-    drawSortiePath(container, sortieData) {
-        if (!container.sortiePath || !sortieData) {
-            return;
-        }
-        
-        const graphics = container.sortiePath;
-        graphics.clear();
-        graphics.visible = true;
-        
-        const currentPos = container.position;
-        const targetPos = sortieData.targetLocation;
-        const homePos = sortieData.homeLocation;
-        
-        // Determine current phase and draw appropriate path
-        const phase = sortieData.phase || 'OUTBOUND';
-        
-        if (phase === 'OUTBOUND' || phase === 'ATTACK') {
-            // Draw path to target
-            graphics.moveTo(-currentPos.x, -currentPos.y);
-            graphics.lineTo(targetPos.x - currentPos.x, targetPos.y - currentPos.y);
-            graphics.stroke({ width: 2, color: 0xFF6600, alpha: 0.6, dash: [10, 5] });
-            
-            // Draw target marker
-            graphics.circle(targetPos.x - currentPos.x, targetPos.y - currentPos.y, 15);
-            graphics.stroke({ width: 2, color: 0xFF0000, alpha: 0.8 });
-            
-        } else if (phase === 'INBOUND' || phase === 'LANDING') {
-            // Draw path back to home
-            graphics.moveTo(-currentPos.x, -currentPos.y);
-            graphics.lineTo(homePos.x - currentPos.x, homePos.y - currentPos.y);
-            graphics.stroke({ width: 2, color: 0x00AAFF, alpha: 0.6, dash: [10, 5] });
-            
-            // Draw home marker
-            graphics.circle(homePos.x - currentPos.x, homePos.y - currentPos.y, 15);
-            graphics.stroke({ width: 2, color: 0x00FF00, alpha: 0.8 });
-        }
     }
 }
