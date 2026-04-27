@@ -74,8 +74,8 @@ public class CustomFactionBuilder {
             if (tempDef.getBuildingCostMultiplier() != 1.0) {
                 builder.buildingCostMultiplier(tempDef.getBuildingCostMultiplier());
             }
-            if (tempDef.getUpkeepMultiplier() != 1.0) {
-                builder.upkeepMultiplier(tempDef.getUpkeepMultiplier());
+            if (tempDef.getArmyRentCostMultiplier() != 1.0) {
+                builder.armyRentCostMultiplier(tempDef.getArmyRentCostMultiplier());
             }
             if (tempDef.getBuildingHealthMultiplier() != 1.0) {
                 builder.buildingHealthMultiplier(tempDef.getBuildingHealthMultiplier());

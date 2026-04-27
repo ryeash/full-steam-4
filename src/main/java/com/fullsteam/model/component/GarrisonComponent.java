@@ -136,6 +136,17 @@ public class GarrisonComponent extends AbstractBuildingComponent {
     }
 
     /**
+     * Remove a unit from this bunker without spawning it (e.g. desertion / elimination).
+     */
+    public boolean removeGarrisonedUnitForDesertion(Unit u) {
+        if (!garrisonedUnits.remove(u)) {
+            return false;
+        }
+        u.setGarrisoned(false);
+        return true;
+    }
+
+    /**
      * Fire weapons from garrisoned units (called by RTSGameManager)
      * Each unit independently acquires targets and fires based on its own stats
      */

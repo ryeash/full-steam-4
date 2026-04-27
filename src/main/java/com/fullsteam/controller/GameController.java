@@ -86,7 +86,9 @@ public class GameController {
         Map<String, Object> lobbyInfo = new HashMap<>();
         lobbyInfo.put("playerCount", rtsLobby.getGlobalPlayerCount());
 
-        List<Map<String, Object>> matchmakingGames = rtsLobby.getMatchmakingGames().stream()
+        List<Map<String, Object>> matchmakingGames = rtsLobby.getMatchmakingGames()
+                .stream()
+                .filter(g -> g.getCurrentPlayers() < g.getMaxPlayers())
                 .map(game -> {
                     Map<String, Object> gameInfo = new HashMap<>();
                     gameInfo.put("gameId", game.getGameId());

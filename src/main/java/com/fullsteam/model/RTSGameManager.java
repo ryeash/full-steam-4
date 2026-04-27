@@ -21,14 +21,14 @@ import com.fullsteam.model.command.ReturnToHangarCommand;
 import com.fullsteam.model.command.SortieCommand;
 import com.fullsteam.model.command.UnitCommand;
 import com.fullsteam.model.component.APCComponent;
+import com.fullsteam.model.component.AirfieldAircraftHousingComponent;
 import com.fullsteam.model.component.AndroidComponent;
 import com.fullsteam.model.component.AndroidFactoryComponent;
-import com.fullsteam.model.component.AirfieldAircraftHousingComponent;
 import com.fullsteam.model.component.GarrisonComponent;
 import com.fullsteam.model.component.GunshipComponent;
 import com.fullsteam.model.component.IBuildingComponent;
-import com.fullsteam.model.component.ProductionComponent;
 import com.fullsteam.model.component.InterceptorComponent;
+import com.fullsteam.model.component.ProductionComponent;
 import com.fullsteam.model.component.ShieldComponent;
 import com.fullsteam.model.customization.CustomFactionConfig;
 import com.fullsteam.model.factions.FactionDefinition;
@@ -84,6 +84,10 @@ public class RTSGameManager {
     private final RTSWorld rtsWorld;
     private double lastUpdateTime = System.nanoTime() / 1e9;
     private long frameCount = 0;
+    /**
+     * Wall-clock baseline for periodic army upkeep charges ({@link ArmyEconomy#UPKEEP_INTERVAL_MS}).
+     */
+    private long lastArmyRentWallClockMs = System.currentTimeMillis();
 
     // Player management
     private final Map<Integer, PlayerSession> playerSessions = new ConcurrentHashMap<>();
@@ -214,10 +218,16 @@ public class RTSGameManager {
             lastUpdateTime = currentTime;
             frameCount++;
 
-            // Recalculate upkeep and power for all factions every 60 frames (~1 second)
+            // Recalculate army upkeep projection, population, and power every 60 frames (~1.2s)
             if (frameCount % 60 == 0) {
-                recalculateUpkeep();
+                recalculateFactionArmyEconomy();
                 recalculatePower();
+            }
+
+            long nowWall = System.currentTimeMillis();
+            if (nowWall - lastArmyRentWallClockMs >= ArmyEconomy.UPKEEP_INTERVAL_MS) {
+                lastArmyRentWallClockMs = nowWall;
+                processArmyRentCharges();
             }
 
             // Research system removed - units are now selected during faction customization
@@ -1019,19 +1029,6 @@ public class RTSGameManager {
                         return;
                     }
 
-                    // Check if player can afford the upkeep
-                    if (!faction.canAffordUpkeep(unitType.getUpkeepCost())) {
-                        log.warn("Player {} tried to produce {} but upkeep limit reached ({}/{})",
-                                playerId, unitType, faction.getCurrentUpkeep(), faction.getMaxUpkeep());
-                        sendGameEvent(GameEvent.createPlayerEvent(
-                                String.format("⚠️ Cannot produce unit: Upkeep limit reached (%d/%d)!",
-                                        faction.getCurrentUpkeep(), faction.getMaxUpkeep()),
-                                playerId,
-                                GameEvent.EventCategory.WARNING
-                        ));
-                        return;
-                    }
-
                     // Check if player can afford the unit
                     if (!canAffordUnit(faction, unitType)) {
                         int cost = faction.getUnitCost(unitType);
@@ -1330,7 +1327,7 @@ public class RTSGameManager {
      */
     private void checkWinConditions() {
         // Don't check win conditions for first 5 seconds (let players join)
-        if (System.currentTimeMillis() - gameStartTime < 5000) {
+        if (gameOver || System.currentTimeMillis() - gameStartTime < 5000) {
             return;
         }
 
@@ -1421,49 +1418,188 @@ public class RTSGameManager {
     }
 
     /**
-     * Recalculate upkeep for all factions by counting all active units
-     * This ensures accuracy even if units are created outside normal spawn flow
+     * Recalculate population and projected periodic army upkeep (credits per interval) for every faction.
+     * Upkeep is a fraction of each unit's build cost for the owning faction, including garrisoned and
+     * airfield-berth aircraft; multiplied by faction perks and Command Citadel discounts.
      */
-    private void recalculateUpkeep() {
-        // Reset all faction upkeep and unit counts
-        playerFactions.values().forEach(faction -> {
-            faction.setCurrentUpkeep(0);
-            faction.setUnitCount(0);
-        });
+    private void recalculateFactionArmyEconomy() {
+        playerFactions.values().forEach(f -> f.setUnitCount(0));
 
-        // Count all active units
-        units.values().stream()
-                .filter(Unit::isActive)
-                .forEach(unit -> {
-                    PlayerFaction faction = playerFactions.get(unit.getOwnerId());
-                    if (faction != null) {
-                        faction.addUpkeep(unit.getUnitType().getUpkeepCost());
+        for (Unit unit : units.values()) {
+            if (!unit.isActive()) {
+                continue;
+            }
+            PlayerFaction faction = playerFactions.get(unit.getOwnerId());
+            if (faction != null) {
+                faction.incrementUnitCount();
+            }
+        }
+
+        for (Building building : buildings.values()) {
+            if (!building.isActive() || building.isUnderConstruction()) {
+                continue;
+            }
+            PlayerFaction faction = playerFactions.get(building.getOwnerId());
+            if (faction == null) {
+                continue;
+            }
+            building.getComponent(AirfieldAircraftHousingComponent.class).ifPresent(housing -> {
+                for (AirfieldAircraftHousingComponent.Berth berth : housing.getBerthsView()) {
+                    if (berth.getHousedUnit() != null && !berth.isDeployed()) {
                         faction.incrementUnitCount();
                     }
-                });
+                }
+            });
+        }
 
-        // Apply upkeep bonuses from Command Citadels
-        applyUpkeepBonuses();
+        playerFactions.values().forEach(f -> f.setCurrentUpkeep(computeArmyRentCharge(f)));
+    }
+
+    private int countCompletedCommandCitadels(int playerId) {
+        return (int) buildings.values().stream()
+                .filter(b -> b.getOwnerId() == playerId && b.isActive() && !b.isUnderConstruction())
+                .filter(b -> b.getBuildingType() == BuildingType.COMMAND_CITADEL)
+                .count();
+    }
+
+    private double armyRentGlobalMultiplier(PlayerFaction faction) {
+        return faction.getFactionDefinition().getArmyRentCostMultiplier()
+                * ArmyEconomy.commandCitadelRentMultiplier(countCompletedCommandCitadels(faction.getPlayerId()));
+    }
+
+    private int computeArmyRentCharge(PlayerFaction faction) {
+        int playerId = faction.getPlayerId();
+        int raw = 0;
+        for (Unit u : units.values()) {
+            if (!u.isActive() || u.getOwnerId() != playerId) {
+                continue;
+            }
+            raw += ArmyEconomy.periodicRentForUnit(faction, u.getUnitType());
+        }
+        for (Building b : buildings.values()) {
+            if (!b.isActive() || b.isUnderConstruction() || b.getOwnerId() != playerId) {
+                continue;
+            }
+            Optional<AirfieldAircraftHousingComponent> housing = b.getComponent(AirfieldAircraftHousingComponent.class);
+            if (housing.isEmpty()) {
+                continue;
+            }
+            for (AirfieldAircraftHousingComponent.Berth berth : housing.get().getBerthsView()) {
+                if (berth.getHousedUnit() != null && !berth.isDeployed()) {
+                    raw += ArmyEconomy.periodicRentForUnit(faction, berth.getHousedUnit().getUnitType());
+                }
+            }
+        }
+        if (raw <= 0) {
+            return 0;
+        }
+        return Math.max(0, (int) Math.round(raw * armyRentGlobalMultiplier(faction)));
     }
 
     /**
-     * Apply upkeep bonuses from Command Citadels
+     * Charge army upkeep or desert one unit when the player cannot pay.
      */
-    private void applyUpkeepBonuses() {
-        playerFactions.forEach((playerId, faction) -> {
-            // Calculate base max upkeep from faction definition
-            int baseMaxUpkeep = faction.getFactionDefinition().getUpkeepLimit(PlayerFaction.BASE_MAX_UPKEEP);
+    private void processArmyRentCharges() {
+        recalculateFactionArmyEconomy();
+        for (PlayerFaction faction : playerFactions.values()) {
+            int due = faction.getCurrentUpkeep();
+            if (due <= 0) {
+                continue;
+            }
+            if (faction.hasResources(ResourceType.CREDITS, due)) {
+                faction.removeResources(ResourceType.CREDITS, due);
+                log.debug("Player {} paid {} credits army upkeep", faction.getPlayerId(), due);
+                sendGameEvent(GameEvent.createPlayerEvent(
+                        String.format("💸 Army upkeep (%d credits) paid", due),
+                        faction.getPlayerId(),
+                        GameEvent.EventCategory.INFO
+                ));
+            } else {
+                log.warn("Player {} could not pay army upkeep ({} due, {} credits) — deserting one unit",
+                        faction.getPlayerId(), due, faction.getResourceAmount(ResourceType.CREDITS));
+                // zero out resources, player should be punished for over-extending
+                faction.removeResources(ResourceType.CREDITS, faction.getResourceAmount(ResourceType.CREDITS));
+                desertHighestRentUnit(faction);
+                sendGameEvent(GameEvent.createPlayerEvent(
+                        String.format("💸 Army upkeep (%d credits) unpaid — your most expensive unit deserted!", due),
+                        faction.getPlayerId(),
+                        GameEvent.EventCategory.WARNING
+                ));
+            }
+        }
+    }
 
-            // Add bonuses from active Command Citadels
-            int upkeepBonus = buildings.values().stream()
-                    .filter(b -> b.getOwnerId() == playerId)
-                    .filter(b -> b.getBuildingType() == BuildingType.COMMAND_CITADEL)
-                    .filter(b -> !b.isUnderConstruction())
-                    .mapToInt(Building::getUpkeepBonus)
-                    .sum();
+    private void detachUnitFromContainmentForDesertion(Unit unit) {
+        for (Building b : buildings.values()) {
+            b.getComponent(GarrisonComponent.class).ifPresent(gc -> gc.removeGarrisonedUnitForDesertion(unit));
+        }
+        for (Unit carrier : units.values()) {
+            carrier.getComponent(APCComponent.class).ifPresent(apc -> apc.removeGarrisonedUnitForDesertion(unit));
+        }
+    }
 
-            faction.setMaxUpkeep(baseMaxUpkeep + upkeepBonus);
-        });
+    /**
+     * Removes the single active unit with highest per-tick upkeep slice (ties: higher unit id).
+     * Includes aircraft parked in airfield berths (not deployed).
+     */
+    private void desertHighestRentUnit(PlayerFaction faction) {
+        int playerId = faction.getPlayerId();
+        Unit best = null;
+        int bestRent = -1;
+
+        for (Unit u : units.values()) {
+            if (!u.isActive() || u.getOwnerId() != playerId) {
+                continue;
+            }
+            int r = ArmyEconomy.periodicRentForUnit(faction, u.getUnitType());
+            if (r > bestRent || (r == bestRent && (best == null || u.getId() > best.getId()))) {
+                bestRent = r;
+                best = u;
+            }
+        }
+
+        for (Building b : buildings.values()) {
+            if (!b.isActive() || b.getOwnerId() != playerId) {
+                continue;
+            }
+            Optional<AirfieldAircraftHousingComponent> housing = b.getComponent(AirfieldAircraftHousingComponent.class);
+            if (housing.isEmpty()) {
+                continue;
+            }
+            for (AirfieldAircraftHousingComponent.Berth berth : housing.get().getBerthsView()) {
+                if (berth.getHousedUnit() == null || berth.isDeployed()) {
+                    continue;
+                }
+                Unit u = berth.getHousedUnit();
+                int r = ArmyEconomy.periodicRentForUnit(faction, u.getUnitType());
+                if (r > bestRent || (r == bestRent && (best == null || u.getId() > best.getId()))) {
+                    bestRent = r;
+                    best = u;
+                }
+            }
+        }
+
+        if (best == null || bestRent <= 0) {
+            return;
+        }
+
+        detachUnitFromContainmentForDesertion(best);
+
+        final int desertUnitId = best.getId();
+        if (units.containsKey(desertUnitId)) {
+            best.setActive(false);
+        } else {
+            for (Building b : buildings.values()) {
+                if (!b.isActive()) {
+                    continue;
+                }
+                if (b.getComponent(AirfieldAircraftHousingComponent.class)
+                        .map(h -> h.scrapHousedAircraft(desertUnitId))
+                        .orElse(false)) {
+                    break;
+                }
+            }
+        }
     }
 
     /**
@@ -1763,8 +1899,7 @@ public class RTSGameManager {
         // Use faction-modified cost
         int cost = faction.getUnitCost(unitType);
         return faction.hasResources(ResourceType.CREDITS, cost)
-                && faction.canBuildMoreUnits()
-                && faction.canAffordUpkeep(unitType.getUpkeepCost());
+                && faction.canBuildMoreUnits();
     }
 
     /**
@@ -1942,7 +2077,7 @@ public class RTSGameManager {
         data.put("unitCount", faction.getUnitCount());
         data.put("maxUnits", faction.getMaxUnits());
         data.put("currentUpkeep", faction.getCurrentUpkeep());
-        data.put("maxUpkeep", faction.getMaxUpkeep());
+        data.put("armyRentIntervalMs", ArmyEconomy.UPKEEP_INTERVAL_MS);
         data.put("powerGenerated", faction.getPowerGenerated());
         data.put("powerConsumed", faction.getPowerConsumed());
         data.put("hasLowPower", faction.isHasLowPower());
@@ -1972,6 +2107,7 @@ public class RTSGameManager {
         // World dimensions (never change)
         init.put("worldWidth", gameConfig.getWorldWidth());
         init.put("worldHeight", gameConfig.getWorldHeight());
+        init.put("armyRentIntervalMs", ArmyEconomy.UPKEEP_INTERVAL_MS);
 
         // Obstacles - full static data (position, shape, type)
         // Only health and resources will be updated in game state
@@ -1993,7 +2129,9 @@ public class RTSGameManager {
             typeData.put("buildTimeSeconds", unitType.getBuildTimeSeconds());
             typeData.put("producedBy", unitType.getProducedBy().name());
             typeData.put("category", unitType.getCategory().name());
-            typeData.put("upkeep", unitType.getUpkeepCost());
+            int upkeepBase = ArmyEconomy.periodicUpkeepFromBuildCost(unitType, unitType.getResourceCost());
+            typeData.put("periodicArmyRentBase", upkeepBase);
+            typeData.put("upkeep", upkeepBase);
             typeData.put("visionRange", unitType.getVisionRange());
             typeData.put("specialAbility", unitType.getSpecialAbility().name());
 
@@ -2090,7 +2228,10 @@ public class RTSGameManager {
                 unit.put("unitType", unitType.name());
                 unit.put("displayName", unitType.getDisplayName());
                 unit.put("cost", faction.getUnitCost(unitType));
-                unit.put("upkeep", unitType.getUpkeepCost());
+                int initRentSlice = ArmyEconomy.periodicRentForUnit(faction, unitType);
+                int initRent = Math.max(0, (int) Math.round(initRentSlice * armyRentGlobalMultiplier(faction)));
+                unit.put("periodicArmyRent", initRent);
+                unit.put("upkeep", initRent);
                 unit.put("maxHealth", unitType.getMaxHealth());
                 unit.put("damage", unitType.getDamage());
                 unit.put("speed", unitType.getMovementSpeed());
@@ -2394,7 +2535,7 @@ public class RTSGameManager {
         data.put("unitCount", faction.getUnitCount());
         data.put("maxUnits", faction.getMaxUnits());
         data.put("currentUpkeep", faction.getCurrentUpkeep());
-        data.put("maxUpkeep", faction.getMaxUpkeep());
+        data.put("armyRentIntervalMs", ArmyEconomy.UPKEEP_INTERVAL_MS);
         data.put("powerGenerated", faction.getPowerGenerated());
         data.put("powerConsumed", faction.getPowerConsumed());
         data.put("hasLowPower", faction.isHasLowPower());
@@ -2445,7 +2586,10 @@ public class RTSGameManager {
                 unit.put("unitType", unitType.name());
                 unit.put("displayName", unitType.getDisplayName());
                 unit.put("cost", faction.getUnitCost(unitType));
-                unit.put("upkeep", unitType.getUpkeepCost());
+                int upkeepSlice = ArmyEconomy.periodicRentForUnit(faction, unitType);
+                int upkeepWithMods = Math.max(0, (int) Math.round(upkeepSlice * armyRentGlobalMultiplier(faction)));
+                unit.put("periodicArmyRent", upkeepWithMods);
+                unit.put("upkeep", upkeepWithMods);
                 unit.put("maxHealth", (int) unitType.getMaxHealth());
                 unit.put("damage", (int) unitType.getDamage());
                 unit.put("speed", unitType.getMovementSpeed());
@@ -2470,18 +2614,21 @@ public class RTSGameManager {
         // Faction-modified costs for units (client needs this for UI)
         // Only include costs for units that are actually available (via research)
         Map<String, Integer> unitCosts = new LinkedHashMap<>();
-        Map<String, Integer> unitUpkeep = new LinkedHashMap<>();
+        Map<String, Integer> unitPeriodicArmyRent = new LinkedHashMap<>();
         for (String unitName : availableUnits) {
             try {
                 UnitType unitType = UnitType.valueOf(unitName);
                 unitCosts.put(unitName, faction.getUnitCost(unitType));
-                unitUpkeep.put(unitName, unitType.getUpkeepCost());
+                int upkeepSlice = ArmyEconomy.periodicRentForUnit(faction, unitType);
+                int upkeepWithMods = Math.max(0, (int) Math.round(upkeepSlice * armyRentGlobalMultiplier(faction)));
+                unitPeriodicArmyRent.put(unitName, upkeepWithMods);
             } catch (IllegalArgumentException e) {
                 log.warn("Invalid unit type in availableUnits: {}", unitName);
             }
         }
         data.put("unitCosts", unitCosts);
-        data.put("unitUpkeep", unitUpkeep);
+        data.put("unitPeriodicArmyRent", unitPeriodicArmyRent);
+        data.put("unitUpkeep", unitPeriodicArmyRent);
 
         // Faction-modified costs for buildings
         Map<String, Integer> buildingCosts = new LinkedHashMap<>();

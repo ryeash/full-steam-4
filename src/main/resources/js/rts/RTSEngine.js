@@ -22,6 +22,8 @@ class RTSEngine {
         this.buildingTypes = null; // Map of building type name -> static properties
         this.obstaclesStatic = null; // Map of obstacle id -> static properties
         this.initialized = false; // Flag to track if we've received initialization
+        /** Milliseconds between army upkeep charges (from server). */
+        this.armyRentIntervalMs = 30000;
         
         // Player state
         this.gameId = null;
@@ -387,6 +389,10 @@ class RTSEngine {
             this.worldBounds.width = data.worldWidth;
             this.worldBounds.height = data.worldHeight;
             this.drawWorldBounds();
+        }
+        
+        if (data.armyRentIntervalMs) {
+            this.armyRentIntervalMs = data.armyRentIntervalMs;
         }
         
         // Create obstacles from static data
@@ -3132,8 +3138,10 @@ class RTSEngine {
             
             document.getElementById('player-info').textContent = `Team: ${this.myTeam}`;
             document.getElementById('credits-value').textContent = this.myFaction.credits;
-            document.getElementById('upkeep-value').textContent = 
-                `${this.myFaction.currentUpkeep}/${this.myFaction.maxUpkeep}`;
+            const rentMs = this.myFaction.armyRentIntervalMs ?? this.armyRentIntervalMs ?? 30000;
+            const rentSec = rentMs / 1000;
+            document.getElementById('upkeep-value').textContent =
+                `${this.myFaction.currentUpkeep} / ${rentSec}s`;
             
             // Update power display
             const powerValue = document.getElementById('power-value');
@@ -4362,7 +4370,8 @@ class RTSEngine {
                 const canAfford = this.myMoney >= unitInfo.cost;
                 
                 // Create button content
-                let buttonHTML = `${unitInfo.name} <span class="build-cost">(💰${unitInfo.cost} ⚙️${unitInfo.upkeep})</span>`;
+                const tickRent = unitInfo.periodicArmyRent ?? unitInfo.upkeep ?? 0;
+                let buttonHTML = `${unitInfo.name} <span class="build-cost">(💰${unitInfo.cost} ⏱${tickRent})</span>`;
                 
                 if (!isUnlocked) {
                     // Add locked icon for tech-locked units
@@ -4586,7 +4595,8 @@ class RTSEngine {
                 cost: unitInfo.cost, // Faction-modified cost
                 baseCost: unitInfo.baseCost,
                 costModifier: unitInfo.costModifier,
-                upkeep: unitInfo.upkeep
+                upkeep: unitInfo.periodicArmyRent ?? unitInfo.upkeep,
+                periodicArmyRent: unitInfo.periodicArmyRent ?? unitInfo.upkeep
             }));
         
         return units;
@@ -4616,7 +4626,8 @@ class RTSEngine {
                     cost: unitInfo.cost,
                     baseCost: unitInfo.baseCost,
                     costModifier: unitInfo.costModifier,
-                    upkeep: unitInfo.upkeep,
+                    upkeep: unitInfo.periodicArmyRent ?? unitInfo.upkeep,
+                    periodicArmyRent: unitInfo.periodicArmyRent ?? unitInfo.upkeep,
                     unlocked: isUnlocked,
                     lockReason: this.getUnitLockReason(unitInfo)
                 };

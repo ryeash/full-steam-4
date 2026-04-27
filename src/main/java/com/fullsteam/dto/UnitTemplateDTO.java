@@ -1,5 +1,6 @@
 package com.fullsteam.dto;
 
+import com.fullsteam.model.ArmyEconomy;
 import com.fullsteam.model.UnitType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,6 +36,7 @@ public class UnitTemplateDTO {
     private double speed;
     private double range;
     private int baseCost;
+    /** Approximate periodic army upkeep from base build cost (before faction modifiers). */
     private int upkeep;
 
     public static UnitTemplateDTO fromType(UnitType template) {
@@ -56,7 +58,7 @@ public class UnitTemplateDTO {
                 .speed(template.getMovementSpeed())
                 .range(template.getAttackRange())
                 .baseCost(template.getResourceCost())
-                .upkeep(template.getUpkeepCost())
+                .upkeep(ArmyEconomy.periodicUpkeepFromBuildCost(template, template.getResourceCost()))
                 .build();
     }
 

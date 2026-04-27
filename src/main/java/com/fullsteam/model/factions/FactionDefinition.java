@@ -35,10 +35,10 @@ public class FactionDefinition {
     private Set<FactionPerk> activePerks = Set.of();
 
     /**
-     * Upkeep limit multiplier (1.0 = normal, 1.5 = +50% upkeep)
+     * Multiplier on periodic army upkeep (credits per interval). 1.0 = normal; 0.85 = 15% cheaper upkeep.
      */
     @Builder.Default
-    private final double upkeepMultiplier = 1.0;
+    private final double armyRentCostMultiplier = 1.0;
 
     /**
      * Power efficiency multiplier (1.0 = normal, 0.7 = -30% consumption)
@@ -111,13 +111,6 @@ public class FactionDefinition {
         BuildingStatModifier modifier = buildingStatModifiers.get(buildingType);
         double multiplier = modifier != null ? modifier.healthMultiplier : buildingHealthMultiplier;
         return baseHealth * multiplier;
-    }
-
-    /**
-     * Get the effective upkeep limit
-     */
-    public int getUpkeepLimit(int baseLimit) {
-        return (int) Math.round(baseLimit * upkeepMultiplier);
     }
 
     /**

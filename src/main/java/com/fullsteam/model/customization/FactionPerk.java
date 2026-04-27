@@ -126,36 +126,36 @@ public enum FactionPerk implements PerkEffect {
 
     // ===== MILITARY PERKS =====
     UPKEEP_INCREASE_1(
-            "Increased Upkeep I",
-            "+25% upkeep limit",
+            "Army Logistics I",
+            "-15% periodic army upkeep",
             3,
             Set.of()
     ) {
         @Override
         public void applyToDefinition(FactionDefinition.FactionDefinitionBuilder builder, CustomFactionConfig config) {
-            builder.upkeepMultiplier(1.25);
+            builder.armyRentCostMultiplier(0.85);
         }
     },
     UPKEEP_INCREASE_2(
-            "Increased Upkeep II",
-            "+50% upkeep limit",
+            "Army Logistics II",
+            "-30% periodic army upkeep",
             6,
             Set.of("UPKEEP_INCREASE_1")
     ) {
         @Override
         public void applyToDefinition(FactionDefinition.FactionDefinitionBuilder builder, CustomFactionConfig config) {
-            builder.upkeepMultiplier(1.50);
+            builder.armyRentCostMultiplier(0.70);
         }
     },
     UPKEEP_INCREASE_3(
-            "Increased Upkeep III",
-            "+75% upkeep limit",
+            "Army Logistics III",
+            "-45% periodic army upkeep",
             10,
             Set.of("UPKEEP_INCREASE_2")
     ) {
         @Override
         public void applyToDefinition(FactionDefinition.FactionDefinitionBuilder builder, CustomFactionConfig config) {
-            builder.upkeepMultiplier(1.75);
+            builder.armyRentCostMultiplier(0.55);
         }
     },
 

@@ -13,7 +13,6 @@ import java.util.Set;
  */
 @Data
 public class PlayerFaction {
-    public static final int BASE_MAX_UPKEEP = 275;
 
     private final int playerId;
     private final int teamNumber;
@@ -29,9 +28,10 @@ public class PlayerFaction {
     private int unitCount = 0;
     private int maxUnits = 100; // Population cap
 
-    // Upkeep/supply system
+    /**
+     * Credits charged per army upkeep interval (after faction + citadel discounts). Sent to client for UI.
+     */
     private int currentUpkeep = 0;
-    private int maxUpkeep; // Supply cap (base value, modified by faction)
 
     // Power system
     private int powerGenerated = 0;
@@ -46,7 +46,6 @@ public class PlayerFaction {
         this.teamNumber = teamNumber;
         this.playerName = playerName;
         this.factionDefinition = customDefinition;
-        this.maxUpkeep = factionDefinition.getUpkeepLimit(BASE_MAX_UPKEEP); // Base 250
         this.resources.put(ResourceType.CREDITS, 1000); // Starting credits
     }
 
@@ -97,20 +96,6 @@ public class PlayerFaction {
      */
     public void incrementUnitCount() {
         unitCount++;
-    }
-
-    /**
-     * Check if this faction can afford the upkeep cost
-     */
-    public boolean canAffordUpkeep(int upkeepCost) {
-        return currentUpkeep + upkeepCost <= maxUpkeep;
-    }
-
-    /**
-     * Add upkeep cost
-     */
-    public void addUpkeep(int upkeepCost) {
-        currentUpkeep += upkeepCost;
     }
 
     /**

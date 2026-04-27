@@ -149,6 +149,17 @@ public class APCComponent extends AbstractUnitComponent {
     }
 
     /**
+     * Remove a unit from this APC without spawning it (e.g. desertion / elimination).
+     */
+    public boolean removeGarrisonedUnitForDesertion(Unit u) {
+        if (!garrisonedUnits.remove(u)) {
+            return false;
+        }
+        u.setGarrisoned(false);
+        return true;
+    }
+
+    /**
      * Calculate exit position to ungarrison units (behind the APC).
      */
     private Vector2 calculateExitPosition() {

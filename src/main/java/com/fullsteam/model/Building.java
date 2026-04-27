@@ -47,8 +47,6 @@ public class Building extends GameEntity implements Targetable {
     // Vision range bonus (from perks or other effects)
     private double visionRangeBonus = 0.0;
 
-    private static final int COMMAND_CITADEL_UPKEEP_BONUS = 50; // +50 max upkeep
-
     /**
      * Constructor with custom max health (for faction modifiers)
      */
@@ -353,16 +351,6 @@ public class Building extends GameEntity implements Targetable {
      */
     public boolean belongsTo(int playerId) {
         return this.ownerId == playerId;
-    }
-
-    /**
-     * Get the upkeep bonus from Command Citadel
-     */
-    public int getUpkeepBonus() {
-        if (buildingType == BuildingType.COMMAND_CITADEL) {
-            return COMMAND_CITADEL_UPKEEP_BONUS;
-        }
-        return 0;
     }
 
     /**

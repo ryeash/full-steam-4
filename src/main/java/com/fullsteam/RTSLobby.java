@@ -48,7 +48,7 @@ public class RTSLobby {
      */
     public RTSGameManager createGame() {
         return createGameWithConfig(GameConfig.builder()
-                .maxPlayers(4) // 4 players for RTS
+                .maxPlayers(4)
                 .worldHeight(4000)
                 .worldWidth(4000)
                 .build());
@@ -232,14 +232,6 @@ public class RTSLobby {
     }
 
     /**
-     * Check if a matchmaking game is ready to start
-     */
-    public boolean isGameReady(String gameId) {
-        MatchmakingGame game = matchmakingGames.get(gameId);
-        return game != null && game.getCurrentPlayers() >= game.getMaxPlayers();
-    }
-
-    /**
      * Create a matchmaking entry for a debug game (to track faction selection)
      *
      * @return The session token for the player
@@ -312,64 +304,10 @@ public class RTSLobby {
      */
     private void cleanupFinishedGames() {
         try {
-            int removedCount = 0;
-
-            // Remove finished games from active games
-            List<String> toRemove = new ArrayList<>();
-            for (Map.Entry<String, RTSGameManager> entry : activeGames.entrySet()) {
-                RTSGameManager game = entry.getValue();
-
-                // Remove if game is over or has been running for too long without players
-                if (game.isGameOver()) {
-                    toRemove.add(entry.getKey());
-                    log.info("Removing finished game: {}", entry.getKey());
-                } else if (game.getGameEntities().getPlayerFactions().isEmpty() &&
-                        System.currentTimeMillis() - game.getGameStartTime() > 300000) { // 5 minutes
-                    toRemove.add(entry.getKey());
-                    log.info("Removing abandoned game: {}", entry.getKey());
+            for (MatchmakingGame value : matchmakingGames.values()) {
+                if (activeGames.containsKey(value.getGameId())) {
+                    matchmakingGames.remove(value.getGameId());
                 }
-            }
-
-            for (String gameId : toRemove) {
-                RTSGameManager game = activeGames.remove(gameId);
-                if (game != null) {
-                    game.stopGame();
-                    removedCount++;
-                }
-            }
-
-            // Remove old matchmaking games that never filled OR have finished
-            List<String> oldMatchmakingGames = new ArrayList<>();
-            long now = System.currentTimeMillis();
-            for (Map.Entry<String, MatchmakingGame> entry : matchmakingGames.entrySet()) {
-                MatchmakingGame mmGame = entry.getValue();
-                RTSGameManager game = activeGames.get(entry.getKey());
-
-                // Remove if:
-                // 1. Older than 10 minutes and not full (stale waiting games), OR
-                // 2. The associated game is over (finished games)
-                if ((now - mmGame.getCreatedTime() > 600000 && !mmGame.isReady()) ||
-                        (game != null && game.isGameOver())) {
-                    oldMatchmakingGames.add(entry.getKey());
-                    log.info("Removing matchmaking entry for game: {} (stale={}, gameOver={})",
-                            entry.getKey(),
-                            !mmGame.isReady(),
-                            game != null && game.isGameOver());
-                }
-            }
-
-            for (String gameId : oldMatchmakingGames) {
-                matchmakingGames.remove(gameId);
-                RTSGameManager game = activeGames.remove(gameId);
-                if (game != null) {
-                    game.stopGame();
-                    removedCount++;
-                }
-            }
-
-            if (removedCount > 0) {
-                log.info("Cleanup completed: removed {} games. Active games: {}, Matchmaking games: {}",
-                        removedCount, activeGames.size(), matchmakingGames.size());
             }
         } catch (Throwable t) {
             log.error("error cleaning up inactive games", t);
