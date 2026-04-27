@@ -42,7 +42,7 @@ public class UnitTemplateDTO {
                 .id(template.getDisplayName())
                 .unitType(template.name())
                 .displayName(template.getDisplayName())
-                .description(generateDescription(template))
+                .description(template.getDescription())
                 .pointCost(template.getPointCost())
                 .category(template.getCategory().name())
                 .unitCategory(template.getCategory().name())
@@ -97,24 +97,5 @@ public class UnitTemplateDTO {
         tags.add(unitType.getElevation().name());
 
         return tags;
-    }
-
-    /**
-     * Generate a description for the unit
-     */
-    private static String generateDescription(UnitType unitType) {
-        if (unitType.canHarvest()) {
-            return "Harvests resources and constructs buildings";
-        }
-        if (unitType.isSupport()) {
-            return "Support unit that heals nearby allies";
-        }
-        if (unitType.canAttack()) {
-            String damageType = unitType.getDamage() > 30 ? "Heavy" : "Standard";
-            String rangeType = unitType.getAttackRange() > 150 ? "long-range" : "close-range";
-            return String.format("%s %s %s combat unit",
-                    damageType, rangeType, unitType.getCategory().name().toLowerCase());
-        }
-        return unitType.getDisplayName();
     }
 }

@@ -19,6 +19,7 @@ public enum BuildingType {
     // Main base - produces workers, required to win
     HEADQUARTERS(
             "Headquarters",
+            "Your main base—trains workers, generates power, and must survive to stay in the fight.",
             BuildingCategory.ECONOMY,
             // free (starting building)
             0,        // no build time
@@ -34,6 +35,7 @@ public enum BuildingType {
     // Resource collection point
     REFINERY(
             "Refinery",
+            "Resource drop-off for workers; extends your economy beyond the starting stockpile.",
             BuildingCategory.ECONOMY,
             // resource cost
             300,       // build time (seconds)
@@ -49,6 +51,7 @@ public enum BuildingType {
     // Infantry production
     BARRACKS(
             "Barracks",
+            "Produces infantry—from basic riflemen to medics, engineers, and elite specialists.",
             BuildingCategory.PRODUCTION,
             // resource cost
             200,       // build time (seconds)
@@ -64,6 +67,7 @@ public enum BuildingType {
     // Power generation - required for advanced buildings
     POWER_PLANT(
             "Power Plant",
+            "Generates electricity; build more before advanced structures brown out your grid.",
             BuildingCategory.ECONOMY,
             // resource cost
             250,       // build time (seconds)
@@ -79,6 +83,7 @@ public enum BuildingType {
     // Defensive structure - blocks movement
     WALL(
             "Wall",
+            "Cheap barrier segment that blocks ground movement until destroyed or bypassed.",
             BuildingCategory.DEFENSE,
             // resource cost
             50,        // build time (seconds)
@@ -94,6 +99,7 @@ public enum BuildingType {
     // Vehicle production
     FACTORY(
             "Factory",
+            "Vehicle production—from scouts and transports to tanks, artillery, and super-heavies.",
             BuildingCategory.PRODUCTION,
             // resource cost
             400,       // build time (seconds)
@@ -109,6 +115,7 @@ public enum BuildingType {
     // Research and tech unlocking - unlocks T2
     RESEARCH_LAB(
             "Research Lab",
+            "Standard tech structure unlocks tier-2 tech.",
             BuildingCategory.TECH,
             // resource cost
             500,       // build time (seconds)
@@ -124,6 +131,7 @@ public enum BuildingType {
     // Elite tech unlocking - unlocks T3
     TECH_CENTER(
             "Tech Center",
+            "High end research hub unlocks tier-3 tech.",
             BuildingCategory.TECH,
             // resource cost
             800,       // build time (seconds)
@@ -140,6 +148,7 @@ public enum BuildingType {
     // Defensive structure - attacks enemies with cannon
     TURRET(
             "Turret",
+            "Automated cannon emplacement—reliable general-purpose base and chokepoint defense.",
             BuildingCategory.DEFENSE,
             // resource cost
             250,       // build time (seconds)
@@ -155,6 +164,7 @@ public enum BuildingType {
     // Defensive structure - fires rockets with explosive damage
     ROCKET_TURRET(
             "Rocket Turret",
+            "Long-range rocket battery—explosive volleys excel versus armor and grouped targets.",
             BuildingCategory.DEFENSE,
             // resource cost (more expensive than basic turret)
             350,       // build time (seconds)
@@ -170,6 +180,7 @@ public enum BuildingType {
     // Defensive structure - dedicated anti-aircraft flak cannon
     FLAK_TURRET(
             "Flak Turret",
+            "Dedicated anti-air turret shredding low-altitude aircraft with flak bursts.",
             BuildingCategory.DEFENSE,
             // resource cost (cheaper than rocket turret, accessible T2)
             300,       // build time (seconds)
@@ -185,6 +196,7 @@ public enum BuildingType {
     // Defensive structure - fires laser beams
     LASER_TURRET(
             "Laser Turret",
+            "High-tech beam turret—long reach, sustained damage, and hungry power draw.",
             BuildingCategory.DEFENSE,
             // resource cost (expensive advanced turret)
             400,       // build time (seconds)
@@ -200,6 +212,7 @@ public enum BuildingType {
     // Defensive structure - infantry can garrison inside and fire out
     BUNKER(
             "Bunker",
+            "Hardened garrison structure—infantry inside gain protection and extra defensive fireports.",
             BuildingCategory.DEFENSE,
             // resource cost - reduced to make it accessible as T1
             250,       // build time (seconds)
@@ -215,6 +228,7 @@ public enum BuildingType {
     // Defensive structure - projects shield that destroys incoming projectiles
     SHIELD_GENERATOR(
             "Shield Generator",
+            "Projects a bubble shield that blocks hostile projectiles for units and structures inside.",
             BuildingCategory.DEFENSE,
             // resource cost
             400,       // build time (seconds)
@@ -227,9 +241,9 @@ public enum BuildingType {
             380.0,         // faction customization point cost
             4),
 
-    // Economic building - generates passive income based on current credits (compound interest)
     BANK(
             "Bank",
+            "Generates interest income based on current credit count.",
             BuildingCategory.ECONOMY,
             // resource cost (expensive T3 building)
             600,       // build time (seconds)
@@ -245,6 +259,7 @@ public enum BuildingType {
     // Creates sandstorms for area denial
     SANDSTORM_GENERATOR(
             "Sandstorm Generator",
+            "Summons a sandstorm aura that damages and disrupts enemies caught in the storm.",
             BuildingCategory.DEFENSE,
             // resource cost
             600,       // build time (seconds)
@@ -260,6 +275,7 @@ public enum BuildingType {
     // Autonomous android production facility
     ANDROID_FACTORY(
             "Android Factory",
+            "Autonomous factory that continuously builds free Android combat units without a queue.",
             BuildingCategory.PRODUCTION,
             // resource cost
             700,       // build time (seconds)
@@ -275,6 +291,7 @@ public enum BuildingType {
     // Defensive laser tower
     PHOTON_SPIRE(
             "Photon Spire",
+            "Defensive photon lance tower.",
             BuildingCategory.DEFENSE,
             // resource cost
             650,       // build time (seconds)
@@ -288,8 +305,10 @@ public enum BuildingType {
             10),
 
     // Ultimate command center
+    // TODO: may become obsolete with change to upkeep
     COMMAND_CITADEL(
             "Command Citadel",
+            "Massive fortified command hub with huge vision—an anchor for super-late economies.",
             BuildingCategory.DEFENSE,
             // resource cost (expensive)
             700,       // build time (seconds)
@@ -305,6 +324,7 @@ public enum BuildingType {
     // Air unit production - requires Tech Center
     AIRFIELD(
             "Airfield",
+            "Produces and houses aircraft—VTOL gunships plus sortie-based bombers and fighters.",
             BuildingCategory.PRODUCTION,
             // resource cost
             600,       // build time (seconds)
@@ -319,6 +339,7 @@ public enum BuildingType {
 
     TEMPEST_SPIRE(
             "Tempest Spire",
+            "Anti-air guided missile launch platform.",
             BuildingCategory.DEFENSE,
             // resource cost (expensive)
             700,       // build time (seconds)
@@ -332,6 +353,7 @@ public enum BuildingType {
             12);
 
     private final String displayName;
+    private final String description;
     private final BuildingCategory buildingCategory;
     private final int resourceCost;
     private final int buildTimeSeconds;
@@ -344,6 +366,7 @@ public enum BuildingType {
     private final int pointCost; // faction customization point cost
 
     BuildingType(String displayName,
+                 String description,
                  BuildingCategory buildingCategory,
                  int resourceCost,
                  int buildTimeSeconds,
@@ -355,6 +378,7 @@ public enum BuildingType {
                  double visionRange,
                  int pointCost) {
         this.displayName = displayName;
+        this.description = description;
         this.buildingCategory = buildingCategory;
         this.resourceCost = resourceCost;
         this.buildTimeSeconds = buildTimeSeconds;

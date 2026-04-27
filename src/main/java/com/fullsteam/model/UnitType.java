@@ -15,6 +15,7 @@ public enum UnitType {
     // Worker unit - can harvest resources and construct buildings
     WORKER(
             "Worker",
+            "Harvests resources from the map and constructs new buildings for your faction.",
             50,      // resource cost
             10,      // build time (seconds)
             75,      // max health
@@ -36,6 +37,7 @@ public enum UnitType {
     // Infantry - basic combat unit
     INFANTRY(
             "Infantry",
+            "Core rifle infantry—fast, affordable, and effective against light targets.",
             75,      // resource cost
             5,       // build time (seconds)
             128,     // max health
@@ -57,6 +59,7 @@ public enum UnitType {
     // Shotgun Infantry - powerful close-range infantry
     SHOTGUN_INFANTRY(
             "Shotgun Infantry",
+            "Close-quarters specialist; devastating burst damage that falls off at range.",
             120,     // resource cost (60% more than infantry)
             7,       // build time (seconds)
             140,     // max health (slightly more durable)
@@ -78,6 +81,7 @@ public enum UnitType {
     // Laser Infantry - advanced infantry with beam weapons
     LASER_INFANTRY(
             "Laser Infantry",
+            "Armored trooper with a sustained-fire laser rifle for longer reach and punch.",
             120,     // resource cost (more expensive than regular infantry)
             7,       // build time (seconds)
             128,     // max health
@@ -99,6 +103,7 @@ public enum UnitType {
     // Medic - support unit that heals nearby friendlies
     MEDIC(
             "Medic",
+            "Support infantry that heals nearby friendlies on cooldown; cannot attack.",
             100,     // resource cost
             8,       // build time (seconds)
             90,      // max health
@@ -120,6 +125,7 @@ public enum UnitType {
     // Rocket Soldier - anti-vehicle infantry
     ROCKET_SOLDIER(
             "Rocket Soldier",
+            "Anti-armor infantry; rockets excel versus vehicles and hardened targets.",
             150,     // resource cost
             8,       // build time (seconds)
             112,     // max health
@@ -141,6 +147,7 @@ public enum UnitType {
     // Sniper - long-range precision unit
     SNIPER(
             "Sniper",
+            "Long-range marksman with slow, heavy shots—fragile but lethal from distance.",
             200,     // resource cost
             10,      // build time (seconds)
             80,      // max health
@@ -162,6 +169,7 @@ public enum UnitType {
     // Engineer - repairs buildings and vehicles
     ENGINEER(
             "Engineer",
+            "Repairs damaged friendly vehicles and buildings on cooldown; cannot attack.",
             150,     // resource cost
             12,      // build time (seconds)
             105,     // max health
@@ -183,6 +191,7 @@ public enum UnitType {
     // Spy - permanently cloaked infiltrator with tracker gun for vision sharing
     SPY(
             "Spy",
+            "Permanently cloaked infiltrator; tracker darts tag enemies to grant your team vision on them.",
             300,     // resource cost (expensive specialist)
             20,      // build time (seconds)
             60,      // max health (very fragile)
@@ -204,6 +213,7 @@ public enum UnitType {
     // Grenadier - AOE infantry, anti-structure specialist
     GRENADIER(
             "Grenadier",
+            "Lobs explosive grenades with area damage—strong versus clumped units and structures.",
             175,     // resource cost (between rocket soldier and sniper)
             9,       // build time (seconds)
             85,      // max health (moderate, less than infantry)
@@ -225,6 +235,7 @@ public enum UnitType {
     // Minigunner - high fire rate, low damage, inaccurate suppression infantry
     MINIGUNNER(
             "Minigunner",
+            "Suppression specialist with an extreme fire rate and modest damage per bullet.",
             140,     // resource cost (between infantry and grenadier)
             8,       // build time (seconds)
             120,     // max health (moderate durability)
@@ -246,6 +257,7 @@ public enum UnitType {
     // Jeep - fast light vehicle
     JEEP(
             "Jeep",
+            "Fast light scout car with strong vision for mapping and early harassment.",
             200,     // resource cost
             10,      // build time (seconds)
             168,     // max health
@@ -267,6 +279,7 @@ public enum UnitType {
     // Tank - heavy armored vehicle
     TANK(
             "Tank",
+            "Main battle tank—slow, heavily armored, and built to brawl with enemy armor.",
             400,     // resource cost
             15,      // build time (seconds)
             390,     // max health
@@ -288,6 +301,7 @@ public enum UnitType {
     // Flak Tank - early-game anti-air vehicle
     FLAK_TANK(
             "Flak Tank",
+            "Mobile anti-air platform that shreds aircraft; lighter than a main battle tank.",
             350,     // resource cost (cheaper than tank, more than jeep)
             12,      // build time (seconds)
             280,     // max health (lighter than main tank)
@@ -309,6 +323,7 @@ public enum UnitType {
     // SAM Launcher - dedicated long-range anti-aircraft platform
     SAM_LAUNCHER(
             "SAM Launcher",
+            "Long-range anti-air missile battery on treads—fragile but devastating to flyers.",
             450,     // resource cost (specialized AA vehicle)
             18,      // build time (seconds)
             240,     // max health (fragile, needs protection)
@@ -330,6 +345,7 @@ public enum UnitType {
     // Shield Tank - mobile shield generator, defensive support
     SHIELD_TANK(
             "Shield Tank",
+            "Support armor that projects a protective shield bubble for nearby allies; unarmed.",
             550,     // resource cost (expensive support vehicle)
             22,      // build time (seconds)
             320,     // max health (durable, needs to survive to project shield)
@@ -351,6 +367,7 @@ public enum UnitType {
     // Spider Mine - autonomous proximity mine that self-destructs on enemy contact
     SPIDER_MINE(
             "Spider Mine",
+            "Cheap mobile mine that detonates for massive damage when enemies enter proximity.",
             75,      // resource cost (cheap expendable unit)
             6,       // build time (seconds)
             40,      // max health (fragile, dies easily)
@@ -372,6 +389,7 @@ public enum UnitType {
     // APC - Armored Personnel Carrier (mobile bunker for infantry transport)
     APC(
             "APC",
+            "Armored transport; garrisoned infantry can fire out while the APC moves.",
             250,     // resource cost (transport vehicle)
             14,      // build time (seconds)
             280,     // max health (armored)
@@ -393,6 +411,7 @@ public enum UnitType {
     // Artillery - long range siege unit
     ARTILLERY(
             "Artillery",
+            "Slow siege cannon with extreme range—needs escorts and spotters to shine.",
             500,     // resource cost
             20,      // build time (seconds)
             180,     // max health
@@ -414,6 +433,7 @@ public enum UnitType {
     // GIGANTONAUT - Super heavy artillery
     GIGANTONAUT(
             "Gigantonaut",
+            "Colossal self-propelled siege piece; high range and damage, low speed.",
             1200,    // resource cost (VERY EXPENSIVE!)
             35,      // build time (seconds) (LONG!)
             360,     // max health
@@ -435,6 +455,7 @@ public enum UnitType {
     // Cloak Tank - invisible until attacking or detected
     CLOAK_TANK(
             "Cloak Tank",
+            "Stealthed medium tank—stays hidden until it fires or is detected at close range.",
             800,     // resource cost
             25,      // build time (seconds)
             260,     // max health
@@ -455,6 +476,7 @@ public enum UnitType {
 
     RAIDER(
             "Raider",
+            "Blazing-fast raider craft for deep strikes, flanks, and hunting soft targets.",
             900,     // resource cost
             28,      // build time (seconds)
             364,     // max health
@@ -476,6 +498,7 @@ public enum UnitType {
     // COLOSSUS - massive walker
     COLOSSUS(
             "Colossus",
+            "Massive bipedal war walker with huge health and multi-projectile cannons.",
             1600,    // resource cost (VERY EXPENSIVE!)
             45,      // build time (seconds) (VERY LONG!)
             2640,    // max health
@@ -494,11 +517,10 @@ public enum UnitType {
             10       // faction customization point cost
     ),
 
-    // ===== TECH ALLIANCE BEAM WEAPON UNITS =====
-
     // Triple-beam infantry (Tech Alliance equivalent of Infantry)
     TRIDENT_TROOPER(
             "Trident Trooper",
+            "Tech-alliance rifleman firing instant-hit energy beams instead of ballistic rounds.",
             170,     // resource cost
             12,       // build time (seconds)
             136,     // max health
@@ -520,6 +542,7 @@ public enum UnitType {
     // ION_RANGER - Long-range beam sniper
     ION_RANGER(
             "Ion Ranger",
+            "Long-range beam sniper—slow shots with very high single-target burst at distance.",
             250,     // resource cost
             12,      // build time (seconds)
             96,      // max health
@@ -541,6 +564,7 @@ public enum UnitType {
     // PHOTON_SCOUT - Fast beam vehicle
     PHOTON_SCOUT(
             "Photon Scout",
+            "Fast beam-armed scout vehicle with excellent vision for tech-army reconnaissance.",
             220,     // resource cost
             11,      // build time (seconds)
             154,     // max health
@@ -562,6 +586,7 @@ public enum UnitType {
     // BEAM_TANK - Heavy beam vehicle
     BEAM_TANK(
             "Beam Tank",
+            "Heavy armored tank mounting sustained laser fire—durable mid-line breaker.",
             450,     // resource cost
             16,      // build time (seconds)
             400,     // max health
@@ -583,6 +608,7 @@ public enum UnitType {
     // PULSE_ARTILLERY - Long-range beam artillery
     PULSE_ARTILLERY(
             "Pulse Artillery",
+            "Slow beam artillery platform—melts static defenses and blobs from extreme range.",
             550,     // resource cost
             22,      // build time (seconds)
             168,     // max health
@@ -603,6 +629,7 @@ public enum UnitType {
 
     PHOTON_TITAN(
             "Photon Titan",
+            "Super-heavy walker with a high damage beam weapon.",
             1400,    // resource cost (VERY EXPENSIVE!)
             40,      // build time (seconds) (LONG!)
             420,     // max health
@@ -625,6 +652,7 @@ public enum UnitType {
     // Free to produce, zero upkeep, controlled by Android Factory
     ANDROID(
             "Android",
+            "Autonomous soldier produced free by the Android Factory—no credits cost, no upkeep.",
             0,       // resource cost (FREE!)
             15,      // build time (seconds)
             100,     // max health (moderate)
@@ -649,6 +677,7 @@ public enum UnitType {
     // First air unit, cheap and fast, excellent vision
     SCOUT_DRONE(
             "Scout Drone",
+            "Fast cheap VTOL with best-in-class vision—ideal for air scouting and light harassment.",
             150,     // resource cost (cheap for air unit)
             12,      // build time (seconds)
             80,      // max health (fragile)
@@ -672,6 +701,7 @@ public enum UnitType {
     // Fires dual rockets, slower than scout drone but more powerful
     HELICOPTER(
             "Attack Helicopter",
+            "Versatile low-altitude gunship firing rockets at ground targets; controllable like a tank.",
             350,     // resource cost (moderate)
             18,      // build time (seconds)
             150,     // max health (fragile but more durable than scout)
@@ -695,6 +725,7 @@ public enum UnitType {
     // Instant-hit laser weapons for precision air-to-ground strikes
     LASER_GUNSHIP(
             "Laser Gunship",
+            "Advanced VTOL with instant-hit lasers—precision air-to-ground without ballistic delay.",
             750,     // resource cost (expensive - flying beam platform)
             40,      // build time (seconds)
             280,     // max health (moderate durability)
@@ -718,6 +749,7 @@ public enum UnitType {
     // NOT controllable like regular units - sortie-based only
     BOMBER(
             "Bomber",
+            "Strategic bomber housed at the airfield; flies a player-ordered sortie then returns to berth.",
             800,     // resource cost (EXPENSIVE - strategic asset)
             60,      // build time (seconds)
             250,     // max health (more durable than scout)
@@ -741,6 +773,7 @@ public enum UnitType {
     // Can be sent to patrol areas (ON_STATION), limited fuel and ammo
     INTERCEPTOR(
             "Interceptor",
+            "High-speed fighter for air superiority; scrambles from the airfield and uses sortie fuel.",
             600,     // resource cost (expensive)
             45,      // build time (seconds)
             200,     // max health (moderate durability)
@@ -762,6 +795,7 @@ public enum UnitType {
     // GUNSHIP - Heavy sortie-based attack aircraft with dual weapons
     GUNSHIP(
             "Gunship",
+            "Heavy sortie attack craft with dual weapons—durable airfield-housed fire support platform.",
             1100,    // resource cost (expensive heavy aircraft)
             50,      // build time (seconds)
             380,     // max health (durable for sustained combat)
@@ -781,6 +815,7 @@ public enum UnitType {
     );
 
     private final String displayName;
+    private final String description;
     private final int resourceCost;
     private final int buildTimeSeconds;
     private final double maxHealth;
@@ -2415,11 +2450,26 @@ public enum UnitType {
         };
     }
 
-    UnitType(String displayName, int resourceCost, int buildTimeSeconds, double maxHealth,
-             double movementSpeed, double damage, double attackRate, double attackRange,
-             double size, int color, BuildingType producedBy, int upkeepCost, double visionRange,
-             Elevation elevation, UnitCategory category, Set<BuildingType> requiredBuildings, int pointCost) {
+    UnitType(String displayName,
+             String description,
+             int resourceCost,
+             int buildTimeSeconds,
+             double maxHealth,
+             double movementSpeed,
+             double damage,
+             double attackRate,
+             double attackRange,
+             double size,
+             int color,
+             BuildingType producedBy,
+             int upkeepCost,
+             double visionRange,
+             Elevation elevation,
+             UnitCategory category,
+             Set<BuildingType> requiredBuildings,
+             int pointCost) {
         this.displayName = displayName;
+        this.description = description;
         this.resourceCost = resourceCost;
         this.buildTimeSeconds = buildTimeSeconds;
         this.maxHealth = maxHealth;

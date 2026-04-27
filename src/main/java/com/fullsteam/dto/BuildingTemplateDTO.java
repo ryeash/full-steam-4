@@ -44,7 +44,7 @@ public class BuildingTemplateDTO {
                 .size(template.getSize())
                 .buildingType(template.name())
                 .displayName(template.getDisplayName())
-                .description(generateDescription(template))
+                .description(template.getDescription())
                 .pointCost(template.getPointCost())
                 .category(template.getBuildingCategory().name())
                 .producesUnitCategories(getProducedUnitCategories(template)
@@ -131,38 +131,6 @@ public class BuildingTemplateDTO {
         }
 
         return tags;
-    }
-
-    /**
-     * Generate a description for the building
-     */
-    private static String generateDescription(BuildingType buildingType) {
-        if (buildingType == BuildingType.HEADQUARTERS) {
-            return "Main base building. Produces workers and serves as a tech anchor.";
-        }
-        if (buildingType.isCanProduceUnits()) {
-            List<UnitCategory> categories = getProducedUnitCategories(buildingType);
-            if (!categories.isEmpty()) {
-                return String.format("Produces %s units", categories.get(0).name().toLowerCase());
-            }
-            return "Production building";
-        }
-        if (isTurret(buildingType)) {
-            return "Automated defense turret that attacks enemy units";
-        }
-        if (buildingType == BuildingType.BUNKER) {
-            return "Garrison building that houses infantry units";
-        }
-        if (buildingType == BuildingType.POWER_PLANT) {
-            return "Generates power for your base";
-        }
-        if (buildingType == BuildingType.REFINERY) {
-            return "Enables resource harvesting from resource nodes";
-        }
-        if (buildingType == BuildingType.RESEARCH_LAB) {
-            return "Enables research of combat and economy upgrades";
-        }
-        return buildingType.getDisplayName();
     }
 
     private static boolean isTurret(BuildingType buildingType) {
