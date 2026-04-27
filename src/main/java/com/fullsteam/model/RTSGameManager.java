@@ -2007,12 +2007,8 @@ public class RTSGameManager {
             typeData.put("upkeep", upkeepBase);
             typeData.put("visionRange", unitType.getVisionRange());
             typeData.put("specialAbility", unitType.getSpecialAbility().name());
-
-            // Visual properties for rendering
             typeData.put("color", unitType.getColor());
             typeData.put("elevation", unitType.getElevation().name());
-            // NOTE: Removed 'sides' - units always send vertices from physics body
-
             unitTypes.put(unitType.name(), typeData);
         }
         init.put("unitTypes", unitTypes);

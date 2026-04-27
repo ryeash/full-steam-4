@@ -23,6 +23,21 @@ class RTSEngine {
         this.initialized = false; // Flag to track if we've received initialization
         /** Milliseconds between army upkeep charges (from server). */
         this.armyUpkeepIntervalMs = 30000;
+
+        /** Cached `availableBuildings` lookup by type; invalidated when faction menu data changes. */
+        this._buildingInfoByType = null;
+        /** When unchanged, {@link #updateBuildMenuAvailability} skips DOM work. */
+        this._lastBuildMenuStateKey = null;
+        /** Build preview: last mouse world position for movement detection. */
+        this._buildPreviewMouse = { x: NaN, y: NaN };
+        this._buildPreviewCacheType = null;
+        this._buildPreviewValidity = true;
+        this._buildPreviewFrame = 0;
+        this._buildPreviewDrawn = { valid: null, size: null, type: null };
+        /** Cached DOM refs for HUD (resource panel); filled in {@link #cacheHudDomRefs}. */
+        this.dom = {};
+        /** Cached unit info panel elements; refreshed if disconnected (e.g. after building UI). */
+        this._unitInfoEls = null;
         
         // Player state
         this.gameId = null;
@@ -242,13 +257,52 @@ class RTSEngine {
     }
     
     setupUI() {
-        // Setup build menu buttons
+        this.cacheHudDomRefs();
+        // Setup build menu buttons (static HTML may have none; generateBuildMenu wires new buttons)
         document.querySelectorAll('.build-button').forEach(button => {
             button.addEventListener('click', () => {
                 const buildingType = button.getAttribute('data-building');
                 this.enterBuildMode(buildingType);
             });
         });
+    }
+
+    /**
+     * Cache stable HUD elements. Call again if templates are re-injected.
+     */
+    cacheHudDomRefs() {
+        this.dom = {
+            playerInfo: document.getElementById('player-info'),
+            creditsValue: document.getElementById('credits-value'),
+            upkeepValue: document.getElementById('upkeep-value'),
+            powerValue: document.getElementById('power-value'),
+            lowPowerBanner: document.getElementById('low-power-banner'),
+            resourcePanel: document.getElementById('resource-panel'),
+        };
+        this.refreshUnitInfoDomRefs();
+    }
+
+    /** Re-query unit info panel nodes when present in the document (cleared by building production UI). */
+    refreshUnitInfoDomRefs() {
+        const panel = document.getElementById('unit-info-panel');
+        const singleInfo = document.getElementById('single-unit-info');
+        const multiInfo = document.getElementById('multi-unit-info');
+        this._unitInfoEls = {
+            panel,
+            singleInfo,
+            multiInfo,
+            unitName: document.getElementById('unit-name'),
+            unitHealth: document.getElementById('unit-health'),
+            unitType: document.getElementById('unit-type'),
+            unitHealthFill: document.getElementById('unit-health-fill'),
+            abilityDiv: document.getElementById('unit-special-ability'),
+            abilityName: document.getElementById('unit-ability-name'),
+            unitCountList: document.getElementById('unit-count-list'),
+        };
+    }
+
+    invalidateBuildingInfoMap() {
+        this._buildingInfoByType = null;
     }
     
     async connectToServer() {
@@ -416,7 +470,10 @@ class RTSEngine {
                 availableBuildings: factionStatic.buildingInfo || [],
                 availableUnits: factionStatic.unitInfo || []
             };
-            
+            this.invalidateBuildingInfoMap();
+            this._lastBuildMenuStateKey = null;
+            this.refreshUnitInfoDomRefs();
+
             // Generate build menu now that we have faction data
             if (!this.buildMenuGenerated) {
                 this.generateBuildMenu();
@@ -3003,53 +3060,54 @@ class RTSEngine {
     }
     
     updateResourceDisplay() {
+        const d = this.dom;
         if (this.myFaction) {
             // Store credits for easy access
             this.myMoney = this.myFaction.credits || 0;
-            
-            document.getElementById('player-info').textContent = `Team: ${this.myTeam}`;
-            document.getElementById('credits-value').textContent = this.myFaction.credits;
+
+            if (d.playerInfo) {
+                d.playerInfo.textContent = `Team: ${this.myTeam}`;
+            }
+            if (d.creditsValue) {
+                d.creditsValue.textContent = this.myFaction.credits;
+            }
             const rentMs = this.myFaction.armyUpkeepIntervalMs ?? this.armyUpkeepIntervalMs ?? 30000;
             const rentSec = rentMs / 1000;
-            document.getElementById('upkeep-value').textContent =
-                `${this.myFaction.currentUpkeep} / ${rentSec}s`;
-            
+            if (d.upkeepValue) {
+                d.upkeepValue.textContent =
+                    `${this.myFaction.currentUpkeep} / ${rentSec}s`;
+            }
+
             // Update power display
-            const powerValue = document.getElementById('power-value');
-            if (powerValue) {
+            if (d.powerValue) {
                 const powerText = `${this.myFaction.powerConsumed}/${this.myFaction.powerGenerated}`;
-                powerValue.textContent = powerText;
-                
-                // Color code based on power status
+                d.powerValue.textContent = powerText;
+
                 if (this.myFaction.hasLowPower) {
-                    powerValue.style.color = '#ff4444'; // Red for low power
+                    d.powerValue.style.color = '#ff4444';
                 } else if (this.myFaction.powerGenerated - this.myFaction.powerConsumed < 20) {
-                    powerValue.style.color = '#ffaa00'; // Orange for close to low power
+                    d.powerValue.style.color = '#ffaa00';
                 } else {
-                    powerValue.style.color = '#00ff00'; // Green for good power
+                    d.powerValue.style.color = '#00ff00';
                 }
             }
-            
-            const lowBanner = document.getElementById('low-power-banner');
-            if (lowBanner) {
-                lowBanner.style.display = this.myFaction.hasLowPower ? 'flex' : 'none';
+
+            if (d.lowPowerBanner) {
+                d.lowPowerBanner.style.display = this.myFaction.hasLowPower ? 'flex' : 'none';
             }
-            const resourcePanel = document.getElementById('resource-panel');
-            if (resourcePanel) {
+            if (d.resourcePanel) {
                 if (this.myFaction.hasLowPower) {
-                    resourcePanel.classList.add('low-power-critical');
+                    d.resourcePanel.classList.add('low-power-critical');
                 } else {
-                    resourcePanel.classList.remove('low-power-critical');
+                    d.resourcePanel.classList.remove('low-power-critical');
                 }
             }
         } else {
-            const lowBanner = document.getElementById('low-power-banner');
-            if (lowBanner) {
-                lowBanner.style.display = 'none';
+            if (d.lowPowerBanner) {
+                d.lowPowerBanner.style.display = 'none';
             }
-            const resourcePanel = document.getElementById('resource-panel');
-            if (resourcePanel) {
-                resourcePanel.classList.remove('low-power-critical');
+            if (d.resourcePanel) {
+                d.resourcePanel.classList.remove('low-power-critical');
             }
         }
     }
@@ -3059,11 +3117,17 @@ class RTSEngine {
         if (this.selectedBuilding) {
             return;
         }
-        
-        const panel = document.getElementById('unit-info-panel');
-        const singleInfo = document.getElementById('single-unit-info');
-        const multiInfo = document.getElementById('multi-unit-info');
-        
+
+        const u = this._unitInfoEls;
+        if (!u?.panel || !u.panel.isConnected
+                || (u.singleInfo && !u.panel.contains(u.singleInfo))) {
+            this.refreshUnitInfoDomRefs();
+        }
+
+        const panel = this._unitInfoEls?.panel;
+        const singleInfo = this._unitInfoEls?.singleInfo;
+        const multiInfo = this._unitInfoEls?.multiInfo;
+
         // Safety check - if elements don't exist, bail out
         if (!panel || !singleInfo || !multiInfo) {
             return;
@@ -3087,13 +3151,14 @@ class RTSEngine {
             multiInfo.style.display = 'none';
             
             const unit = selectedUnits[0];
-            const unitName = document.getElementById('unit-name');
-            const unitHealth = document.getElementById('unit-health');
-            const unitType = document.getElementById('unit-type');
-            const unitHealthFill = document.getElementById('unit-health-fill');
-            const abilityDiv = document.getElementById('unit-special-ability');
-            const abilityName = document.getElementById('unit-ability-name');
-            
+            const els = this._unitInfoEls;
+            const unitName = els.unitName;
+            const unitHealth = els.unitHealth;
+            const unitType = els.unitType;
+            const unitHealthFill = els.unitHealthFill;
+            const abilityDiv = els.abilityDiv;
+            const abilityName = els.abilityName;
+
             // Update with null checks
             if (unitName) unitName.textContent = unit.type;
             if (unitHealth) unitHealth.textContent = `${Math.round(unit.health)}/${Math.round(unit.maxHealth)}`;
@@ -3167,7 +3232,7 @@ class RTSEngine {
             });
             
             // Display counts
-            const countList = document.getElementById('unit-count-list');
+            const countList = this._unitInfoEls.unitCountList;
             if (countList) {
                 countList.innerHTML = '';
                 for (const [type, count] of Object.entries(unitCounts)) {
@@ -3274,24 +3339,50 @@ class RTSEngine {
             this.selectionBoxGraphics.clear();
         }
         
-        // Update build preview
+        // Update build preview (throttled validity + redraw only when geometry/colors change)
         if (this.buildMode && this.buildPreview) {
-            this.buildPreview.position.set(this.mouseWorldPos.x, this.mouseWorldPos.y);
-            
-            // Update color based on validity
-            const isValid = this.isValidBuildLocation(this.mouseWorldPos, this.buildingType);
-            if (this.buildPreview.shapeGraphics) {
+            const mx = this.mouseWorldPos.x;
+            const my = this.mouseWorldPos.y;
+            this.buildPreview.position.set(mx, my);
+
+            const btype = this.buildingType;
+            const pm = this._buildPreviewMouse;
+            const dx = mx - pm.x;
+            const dy = my - pm.y;
+            const movedSq = dx * dx + dy * dy;
+            const movedMuch = !Number.isFinite(pm.x) || movedSq > 9; // > 3 world units
+            const typeChanged = this._buildPreviewCacheType !== btype;
+            this._buildPreviewFrame = (this._buildPreviewFrame || 0) + 1;
+
+            let isValid;
+            if (typeChanged || movedMuch || (this._buildPreviewFrame % 3 === 0)) {
+                isValid = this.isValidBuildLocation(this.mouseWorldPos, btype);
+                this._buildPreviewValidity = isValid;
+                this._buildPreviewCacheType = btype;
+            } else {
+                isValid = this._buildPreviewValidity;
+            }
+            pm.x = mx;
+            pm.y = my;
+
+            const buildingInfo = this.getBuildingInfo(btype);
+            const sz = buildingInfo.size;
+            const dr = this._buildPreviewDrawn;
+            if (this.buildPreview.shapeGraphics
+                    && (dr.valid !== isValid || dr.size !== sz || dr.type !== btype)) {
                 this.buildPreview.shapeGraphics.clear();
-                const buildingInfo = this.getBuildingInfo(this.buildingType);
-                this.buildPreview.shapeGraphics.circle(0, 0, buildingInfo.size);
-                this.buildPreview.shapeGraphics.fill({ 
-                    color: isValid ? 0x00FF00 : 0xFF0000, 
-                    alpha: 0.3 
+                this.buildPreview.shapeGraphics.circle(0, 0, sz);
+                this.buildPreview.shapeGraphics.fill({
+                    color: isValid ? 0x00FF00 : 0xFF0000,
+                    alpha: 0.3
                 });
-                this.buildPreview.shapeGraphics.stroke({ 
-                    width: 2, 
-                    color: isValid ? 0xFFFFFF : 0xFF0000 
+                this.buildPreview.shapeGraphics.stroke({
+                    width: 2,
+                    color: isValid ? 0xFFFFFF : 0xFF0000
                 });
+                dr.valid = isValid;
+                dr.size = sz;
+                dr.type = btype;
             }
         }
     }
@@ -3745,7 +3836,11 @@ class RTSEngine {
     enterBuildMode(buildingType) {
         this.buildMode = true;
         this.buildingType = buildingType;
-        
+        this._buildPreviewMouse = { x: NaN, y: NaN };
+        this._buildPreviewCacheType = null;
+        this._buildPreviewFrame = 0;
+        this._buildPreviewDrawn = { valid: null, size: null, type: null };
+
         // Get building info
         const buildingInfo = this.getBuildingInfo(buildingType);
         
@@ -3785,7 +3880,8 @@ class RTSEngine {
     exitBuildMode() {
         this.buildMode = false;
         this.buildingType = null;
-        
+        this._buildPreviewDrawn = { valid: null, size: null, type: null };
+
         if (this.buildPreview) {
             this.gameContainer.removeChild(this.buildPreview);
             this.buildPreview = null;
@@ -3856,8 +3952,24 @@ class RTSEngine {
     }
     
     getBuildingInfo(buildingType) {
-        return this.myFactionData.availableBuildings.filter(b => b.buildingType === buildingType)[0]
-            || { size: 40, cost: 100, name: 'Building' };
+        const fallback = { size: 40, cost: 100, name: 'Building' };
+        if (!this.myFactionData?.availableBuildings) {
+            return fallback;
+        }
+        if (!this._buildingInfoByType) {
+            this._buildingInfoByType = new Map();
+            for (const b of this.myFactionData.availableBuildings) {
+                this._buildingInfoByType.set(b.buildingType, b);
+            }
+        }
+        return this._buildingInfoByType.get(buildingType) || fallback;
+    }
+
+    /** Squared distance between two points (avoids sqrt in hot paths). */
+    _distSq(ax, ay, bx, by) {
+        const dx = ax - bx;
+        const dy = ay - by;
+        return dx * dx + dy * dy;
     }
     
     isValidBuildLocation(worldPos, buildingType) {
@@ -3868,12 +3980,10 @@ class RTSEngine {
         for (const [id, container] of this.buildings) {
             const building = container.buildingData;
             if (building) {
-                const dist = Math.sqrt(
-                    Math.pow(building.x - worldPos.x, 2) + 
-                    Math.pow(building.y - worldPos.y, 2)
-                );
+                const distSq = this._distSq(building.x, building.y, worldPos.x, worldPos.y);
                 const minDist = size + building.size + 20; // 20 unit buffer
-                if (dist < minDist) {
+                const minDistSq = minDist * minDist;
+                if (distSq < minDistSq) {
                     return false;
                 }
             }
@@ -3895,14 +4005,11 @@ class RTSEngine {
                     continue; // Skip boundary obstacles
                 }
                 
-                // Use simple distance check for all obstacles
-                const dist = Math.sqrt(
-                    Math.pow(obstacle.x - worldPos.x, 2) + 
-                    Math.pow(obstacle.y - worldPos.y, 2)
-                );
+                const distSq = this._distSq(obstacle.x, obstacle.y, worldPos.x, worldPos.y);
                 const minDist = size + obstacle.size + 10; // 10 unit buffer
+                const minDistSq = minDist * minDist;
                 
-                if (dist < minDist) {
+                if (distSq < minDistSq) {
                     return false;
                 }
             }
@@ -3947,20 +4054,27 @@ class RTSEngine {
     }
     
     updateBuildMenuAvailability(buildings) {
-        // Find player's buildings
-        const myBuildings = buildings.filter(b => b.ownerId === this.myPlayerId && b.active && !b.underConstruction);
-        const myBuildingTypes = new Set(myBuildings.map(b => b.type));
-        
-        // Get player's current credits (with safety checks)
-        const myCredits = this.myFaction && this.myFaction.credits 
-            ? this.myFaction.credits 
-            : 0;
-        
         // If faction data not loaded yet, can't update availability
         if (!this.myFactionData || !this.myFactionData.availableBuildings) {
             return;
         }
-        
+
+        // Find player's buildings
+        const myBuildings = buildings.filter(b => b.ownerId === this.myPlayerId && b.active && !b.underConstruction);
+        const myBuildingTypes = new Set(myBuildings.map(b => b.type));
+
+        // Get player's current credits (with safety checks)
+        const myCredits = this.myFaction && this.myFaction.credits
+            ? this.myFaction.credits
+            : 0;
+
+        const sortedTypes = [...myBuildingTypes].sort().join(',');
+        const menuStateKey = `${myCredits}|${sortedTypes}`;
+        if (menuStateKey === this._lastBuildMenuStateKey) {
+            return;
+        }
+        this._lastBuildMenuStateKey = menuStateKey;
+
         // Update each button
         document.querySelectorAll('.build-button').forEach(button => {
             const buildingType = button.getAttribute('data-building');
@@ -4087,6 +4201,7 @@ class RTSEngine {
     hideLoadingScreen() {
         document.getElementById('loading-screen').style.display = 'none';
         document.getElementById('rts-ui').style.display = 'block';
+        this.cacheHudDomRefs();
     }
     
     getBuildingAtPosition(worldPos) {
@@ -4282,7 +4397,9 @@ class RTSEngine {
                 throw new Error(`Failed to fetch faction data for ${factionType}`);
             }
             this.myFactionData = await response.json();
-            
+            this.invalidateBuildingInfoMap();
+            this._lastBuildMenuStateKey = null;
+
             // Generate build menu dynamically based on faction data
             this.generateBuildMenu();
             this.buildMenuGenerated = true;
@@ -4299,7 +4416,8 @@ class RTSEngine {
             console.warn('Cannot generate build menu: faction data not loaded');
             return;
         }
-        
+        this.invalidateBuildingInfoMap();
+
         const buildMenu = document.getElementById('build-menu');
         if (!buildMenu) return;
         
