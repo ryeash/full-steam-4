@@ -36,6 +36,10 @@ public class BuildingTemplateDTO {
     private double maxHealth;
     private int baseCost;
     private int powerValue;
+    /** Short map label (matches in-game HUD). */
+    private String label;
+    /** Menu / picker emoji (matches in-game UI). */
+    private String menuIcon;
 
     public static BuildingTemplateDTO fromType(BuildingType template) {
         return BuildingTemplateDTO.builder()
@@ -59,6 +63,8 @@ public class BuildingTemplateDTO {
                 .maxHealth(template.getMaxHealth())
                 .baseCost(template.getResourceCost())
                 .powerValue(template.getPowerValue())
+                .label(template.getLabel())
+                .menuIcon(template.getMenuIcon())
                 .build();
     }
 
@@ -136,6 +142,7 @@ public class BuildingTemplateDTO {
     private static boolean isTurret(BuildingType buildingType) {
         return buildingType == BuildingType.TURRET ||
                 buildingType == BuildingType.ROCKET_TURRET ||
+                buildingType == BuildingType.FLAK_TURRET ||
                 buildingType == BuildingType.LASER_TURRET ||
                 buildingType == BuildingType.TEMPEST_SPIRE;
     }

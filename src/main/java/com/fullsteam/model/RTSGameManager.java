@@ -1954,14 +1954,10 @@ public class RTSGameManager {
         data.put("unitCount", faction.getUnitCount());
         data.put("maxUnits", faction.getMaxUnits());
         data.put("currentUpkeep", faction.getCurrentUpkeep());
-        data.put("armyRentIntervalMs", ArmyEconomy.UPKEEP_INTERVAL_MS);
+        data.put("armyUpkeepIntervalMs", ArmyEconomy.UPKEEP_INTERVAL_MS);
         data.put("powerGenerated", faction.getPowerGenerated());
         data.put("powerConsumed", faction.getPowerConsumed());
         data.put("hasLowPower", faction.isHasLowPower());
-
-        // Note: buildingInfo, unitInfo, costs, availableUnits/Buildings 
-        // are sent in initialization and only updated when tech unlocks
-
         return data;
     }
 
@@ -2026,6 +2022,8 @@ public class RTSGameManager {
         for (BuildingType buildingType : BuildingType.sorted()) {
             Map<String, Object> typeData = new LinkedHashMap<>();
             typeData.put("displayName", buildingType.getDisplayName());
+            typeData.put("label", buildingType.getLabel());
+            typeData.put("menuIcon", buildingType.getMenuIcon());
             typeData.put("size", buildingType.getSize());
             typeData.put("maxHealth", buildingType.getMaxHealth());
             typeData.put("powerValue", buildingType.getPowerValue());

@@ -30,7 +30,9 @@ public enum BuildingType {
             true,       // power generation
             50,    // vision range (excellent, main base)
             500.0,         // faction customization point cost
-            0),
+            0,
+            "H",
+            "\uD83C\uDFDB\uFE0F"),
 
     // Resource collection point
     REFINERY(
@@ -46,7 +48,9 @@ public enum BuildingType {
             false,     // power consumption
             -10,    // vision range (moderate, economic building)
             350.0,         // faction customization point cost
-            2),
+            2,
+            "R",
+            "\uD83C\uDFED"),
 
     // Infantry production
     BARRACKS(
@@ -62,7 +66,9 @@ public enum BuildingType {
             true,     // power consumption
             -25,    // vision range (good, production building)
             380.0,         // faction customization point cost
-            3),
+            3,
+            "B",
+            "\uD83C\uDFF0"),
 
     // Power generation - required for advanced buildings
     POWER_PLANT(
@@ -78,7 +84,9 @@ public enum BuildingType {
             false,      // power generation
             100,    // vision range (moderate, utility building)
             360.0,         // faction customization point cost
-            0),
+            0,
+            "P",
+            "\u26A1"),
 
     // Vehicle production
     FACTORY(
@@ -94,7 +102,9 @@ public enum BuildingType {
             true,     // power consumption
             -30,    // vision range (good, production building)
             390.0,         // faction customization point cost
-            5),
+            5,
+            "F",
+            "\uD83D\uDE97"),
 
     // Research and tech unlocking - unlocks T2
     RESEARCH_LAB(
@@ -110,7 +120,9 @@ public enum BuildingType {
             false,     // power consumption
             -35,    // vision range (good, tech building)
             400.0,         // faction customization point cost
-            4),
+            4,
+            "RL",
+            "\uD83D\uDD2C"),
 
     // Elite tech unlocking - unlocks T3
     TECH_CENTER(
@@ -126,7 +138,9 @@ public enum BuildingType {
             false,     // power consumption
             -50,    // vision range (excellent, advanced tech)
             420.0,         // faction customization point cost
-            6),
+            6,
+            "TC",
+            "\uD83E\uDDEA"),
 
 
     // Defensive structure - attacks enemies with cannon
@@ -143,7 +157,9 @@ public enum BuildingType {
             false,     // power consumption
             -35,    // vision range (excellent, needs to spot threats)
             450.0,         // faction customization point cost
-            2),
+            2,
+            "T",
+            "\uD83C\uDFAF"),
 
     // Defensive structure - fires rockets with explosive damage
     ROCKET_TURRET(
@@ -159,7 +175,9 @@ public enum BuildingType {
             false,     // power consumption (higher than basic)
             -50,    // vision range (excellent, long-range targeting)
             480.0,         // faction customization point cost
-            3),
+            3,
+            "RT",
+            "\uD83D\uDE80"),
 
     // Defensive structure - dedicated anti-aircraft flak cannon
     FLAK_TURRET(
@@ -175,7 +193,9 @@ public enum BuildingType {
             false,     // power consumption (moderate)
             -45,    // vision range (excellent, needs to spot aircraft)
             500.0,         // faction customization point cost
-            3),
+            3,
+            "FT",
+            "\uD83D\uDCA5"),
 
     // Defensive structure - fires laser beams
     LASER_TURRET(
@@ -191,7 +211,9 @@ public enum BuildingType {
             false,     // power consumption (highest - energy weapon)
             -65,    // vision range (best, advanced sensors)
             500.0,         // faction customization point cost
-            4),
+            4,
+            "LT",
+            "\uD83D\uDD37"),
 
     // Defensive structure - infantry can garrison inside and fire out
     BUNKER(
@@ -207,7 +229,9 @@ public enum BuildingType {
             false,     // power consumption
             -15,    // vision range (excellent, defensive structure)
             420.0,         // faction customization point cost
-            3),
+            3,
+            "\u2694",
+            "\uD83C\uDFF0"),
 
     // Defensive structure - projects shield that destroys incoming projectiles
     SHIELD_GENERATOR(
@@ -223,7 +247,9 @@ public enum BuildingType {
             false,     // power consumption
             -40,    // vision range (good, defensive utility)
             380.0,         // faction customization point cost
-            4),
+            4,
+            "SG",
+            "\uD83D\uDEE1\uFE0F"),
 
     BANK(
             "Bank",
@@ -238,7 +264,9 @@ public enum BuildingType {
             false,     // power consumption
             -30,    // vision range (moderate, economic building)
             350.0,         // faction customization point cost
-            4),
+            4,
+            "$",
+            "\uD83D\uDCB0"),
 
     // Creates sandstorms for area denial
     SANDSTORM_GENERATOR(
@@ -254,7 +282,9 @@ public enum BuildingType {
             false,     // power consumption
             -40,    // vision range (good)
             430.0,        // faction customization point cost
-            8),
+            8,
+            "\u2601",
+            "\uD83C\uDF2A\uFE0F"),
 
     // Autonomous android production facility
     ANDROID_FACTORY(
@@ -270,7 +300,9 @@ public enum BuildingType {
             true,     // power consumption
             -60,    // vision range (excellent)
             420.0,        // faction customization point cost
-            12),
+            12,
+            "A",
+            "\uD83E\uDD16"),
 
     // Defensive laser tower
     PHOTON_SPIRE(
@@ -286,7 +318,9 @@ public enum BuildingType {
             false,     // power consumption
             -75,    // vision range (excellent, defensive)
             480.0,        // faction customization point cost
-            10),
+            10,
+            "\u26A1",
+            "\uD83D\uDC8E"),
 
     // Ultimate command center
     // TODO: may become obsolete with change to upkeep
@@ -303,7 +337,9 @@ public enum BuildingType {
             false,     // power consumption
             -50,   // vision range (HUGE, command center bonus)
             1000.0,        // faction customization point cost
-            10),
+            10,
+            "CC",
+            "\uD83C\uDFF0"),
 
     // Air unit production - requires Tech Center
     AIRFIELD(
@@ -319,7 +355,9 @@ public enum BuildingType {
             true,     // power consumption
             -40,    // vision range (good, airfield tower)
             420.0,         // faction customization point cost
-            5),
+            5,
+            "AF",
+            "\u2708\uFE0F"),
 
     TEMPEST_SPIRE(
             "Tempest Spire",
@@ -334,7 +372,9 @@ public enum BuildingType {
             false,     // power consumption
             -60,    // vision range (excellent, weather tower)
             600.0,        // faction customization point cost
-            12);
+            12,
+            "\u26C8",
+            "\u26C8\uFE0F");
 
     private final String displayName;
     private final String description;
@@ -348,6 +388,10 @@ public enum BuildingType {
     private final int powerValue; // Power generation (positive) or consumption (negative)
     private final double visionRange; // vision radius for fog of war
     private final int pointCost; // faction customization point cost
+    /** Short text on the field map (client HUD). */
+    private final String label;
+    /** Emoji for build menus / UI (client). */
+    private final String menuIcon;
 
     BuildingType(String displayName,
                  String description,
@@ -360,7 +404,9 @@ public enum BuildingType {
                  boolean canProduceUnits,
                  int powerValue,
                  double visionRange,
-                 int pointCost) {
+                 int pointCost,
+                 String label,
+                 String menuIcon) {
         this.displayName = displayName;
         this.description = description;
         this.buildingCategory = buildingCategory;
@@ -373,6 +419,8 @@ public enum BuildingType {
         this.powerValue = powerValue;
         this.visionRange = visionRange;
         this.pointCost = pointCost;
+        this.label = label;
+        this.menuIcon = menuIcon;
     }
 
     public static List<BuildingType> sorted() {

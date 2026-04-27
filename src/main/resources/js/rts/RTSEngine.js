@@ -11,7 +11,7 @@ class RTSEngine {
         // Game entities
         this.units = new Map();
         this.buildings = new Map();
-        this.obstacles = new Map(); // Some obstacles are harvestable and contain resources
+        this.obstacles = new Map();
         this.projectiles = new Map();
         this.beams = new Map();
         this.fieldEffects = new Map();
@@ -22,7 +22,7 @@ class RTSEngine {
         this.obstaclesStatic = null; // Map of obstacle id -> static properties
         this.initialized = false; // Flag to track if we've received initialization
         /** Milliseconds between army upkeep charges (from server). */
-        this.armyRentIntervalMs = 30000;
+        this.armyUpkeepIntervalMs = 30000;
         
         // Player state
         this.gameId = null;
@@ -390,8 +390,8 @@ class RTSEngine {
             this.drawWorldBounds();
         }
         
-        if (data.armyRentIntervalMs) {
-            this.armyRentIntervalMs = data.armyRentIntervalMs;
+        if (data.armyUpkeepIntervalMs) {
+            this.armyUpkeepIntervalMs = data.armyUpkeepIntervalMs;
         }
         
         // Create obstacles from static data
@@ -2149,6 +2149,7 @@ class RTSEngine {
             'TECH_CENTER': { sides: 8, size: 60, color: 0x4169E1, rotation: Math.PI / 8 },
             'TURRET': { sides: 5, size: 25, color: 0xFF4500, rotation: 0 },
             'ROCKET_TURRET': { sides: 6, size: 25, color: 0xFF6347, rotation: 0 },
+            'FLAK_TURRET': { sides: 6, size: 25, color: 0xA0A0A0, rotation: 0 },
             'LASER_TURRET': { sides: 8, size: 25, color: 0x00FFFF, rotation: Math.PI / 8 },
             'SHIELD_GENERATOR': { sides: 6, size: 30, color: 0x00BFFF, rotation: 0 },
             'BANK': { sides: 8, size: 35, color: 0xFFD700, rotation: Math.PI / 8 },
@@ -2166,7 +2167,8 @@ class RTSEngine {
         const typeInfo = buildingTypes[buildingData.type] || { sides: 4, size: 50, color: 0xFFFFFF, rotation: 0 };
         
         // Create a rotating container for turret buildings
-        const hasTurret = buildingData.type === 'TURRET' || buildingData.type === 'ROCKET_TURRET' || buildingData.type === 'LASER_TURRET';
+        const hasTurret = buildingData.type === 'TURRET' || buildingData.type === 'ROCKET_TURRET'
+            || buildingData.type === 'FLAK_TURRET' || buildingData.type === 'LASER_TURRET';
         let rotatingContainer;
         
         if (hasTurret) {
@@ -2212,30 +2214,11 @@ class RTSEngine {
             container.turretBarrel = barrel;
         }
         
-        // Add building type letter label
-        const labelMap = {
-            'HEADQUARTERS': 'H',
-            'REFINERY': 'R',
-            'BARRACKS': 'B',
-            'FACTORY': 'F',
-            'TURRET': 'T',
-            'ROCKET_TURRET': 'RT',
-            'LASER_TURRET': 'LT',
-            'POWER_PLANT': 'P',
-            'RESEARCH_LAB': 'RL',
-            'AIRFIELD': 'AF',
-            'TECH_CENTER': 'TC',
-            'SHIELD_GENERATOR': 'SG',
-            'BANK': '$',
-            'BUNKER': '⚔',
-            'PHOTON_SPIRE': '⚡',
-            'QUANTUM_NEXUS': '◈',
-            'SANDSTORM_GENERATOR': '☁',
-            'ANDROID_FACTORY': 'A',
-            'COMMAND_CITADEL': 'CC',
-            'TEMPEST_SPIRE': '⛈'
-        };
-        const label = new PIXI.Text(labelMap[buildingData.type] || '?', {
+        // Building type letter / short label (server-authoritative via gameInitialization.buildingTypes)
+        const labelText = (this.buildingTypes && this.buildingTypes[buildingData.type] && this.buildingTypes[buildingData.type].label)
+            ? this.buildingTypes[buildingData.type].label
+            : '?';
+        const label = new PIXI.Text(labelText, {
             fontFamily: 'Arial',
             fontSize: typeInfo.size * 0.6,
             fontWeight: 'bold',
@@ -3026,7 +3009,7 @@ class RTSEngine {
             
             document.getElementById('player-info').textContent = `Team: ${this.myTeam}`;
             document.getElementById('credits-value').textContent = this.myFaction.credits;
-            const rentMs = this.myFaction.armyRentIntervalMs ?? this.armyRentIntervalMs ?? 30000;
+            const rentMs = this.myFaction.armyUpkeepIntervalMs ?? this.armyUpkeepIntervalMs ?? 30000;
             const rentSec = rentMs / 1000;
             document.getElementById('upkeep-value').textContent =
                 `${this.myFaction.currentUpkeep} / ${rentSec}s`;
@@ -4394,30 +4377,10 @@ class RTSEngine {
      * Get display icon for a building type
      */
     getBuildingIcon(buildingType) {
-        const icons = {
-            'HEADQUARTERS': '🏛️',
-            'POWER_PLANT': '⚡',
-            'BARRACKS': '🏰',
-            'REFINERY': '🏭',
-            'RESEARCH_LAB': '🔬',
-            'FACTORY': '🚗',
-            'TURRET': '🎯',
-            'ROCKET_TURRET': '🚀',
-            'FLAK_TURRET': '💥',
-            'LASER_TURRET': '🔷',
-            'SHIELD_GENERATOR': '🛡️',
-            'TECH_CENTER': '🧪',
-            'BANK': '💰',
-            'BUNKER': '🏰',
-            'AIRFIELD': '✈️',
-            'SANDSTORM_GENERATOR': '🌪️',
-            'QUANTUM_NEXUS': '⚛️',
-            'PHOTON_SPIRE': '💎',
-            'ANDROID_FACTORY': '🤖',
-            'COMMAND_CITADEL': '🏰',
-            'TEMPEST_SPIRE': '⛈️'
-        };
-        return icons[buildingType] || '🏢';
+        if (this.buildingTypes && this.buildingTypes[buildingType] && this.buildingTypes[buildingType].menuIcon) {
+            return this.buildingTypes[buildingType].menuIcon;
+        }
+        return '🏢';
     }
     
     /**
