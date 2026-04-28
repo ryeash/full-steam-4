@@ -19,7 +19,8 @@ import static org.junit.jupiter.api.Assertions.*;
 public class FactionPresetTest extends BaseTestClass {
 
     private static final int TARGET_POINTS = 100;
-    private static final int ACCEPTABLE_VARIANCE = 5; // Allow ±5 points variance
+    /** Presets must spend the full faction budget (≤ {@link CustomFactionConfig} max) without going under. */
+    private static final int ACCEPTABLE_VARIANCE = 0;
 
     /**
      * Provide all presets for parameterized tests
@@ -38,7 +39,7 @@ public class FactionPresetTest extends BaseTestClass {
 
     @ParameterizedTest(name = "{0} should be at or near 100 points")
     @MethodSource("provideAllPresets")
-    @DisplayName("Each preset should be balanced around 100 points")
+    @DisplayName("Each preset should spend exactly 100 points")
     void testPresetPointBalance(CustomFactionConfig preset) {
         int totalPoints = preset.calculateTotalPoints();
         int storedPoints = preset.getTotalPointsSpent();

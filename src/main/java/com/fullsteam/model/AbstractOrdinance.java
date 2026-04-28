@@ -37,10 +37,15 @@ public abstract class AbstractOrdinance extends GameEntity {
      */
     protected Elevation currentElevation;
 
-    public AbstractOrdinance(int id, Body body, int ownerId, int ownerTeam,
-                             Vector2 origin, double damage,
+    public AbstractOrdinance(int id,
+                             Body body,
+                             int ownerId,
+                             int ownerTeam,
+                             Vector2 origin,
+                             double damage,
                              Set<BulletEffect> bulletEffects,
-                             Ordinance ordinanceType, double size,
+                             Ordinance ordinanceType,
+                             double size,
                              ElevationTargeting elevationTargeting,
                              Elevation currentElevation) {
         super(id, body, 0);

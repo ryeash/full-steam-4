@@ -182,6 +182,7 @@ public class FactionPresetRegistry {
                         // T1 Ground basics
                         UnitType.WORKER,
                         UnitType.INFANTRY,           // Basic defense
+                        UnitType.MINIGUNNER,         // Barracks suppression for base defense
                         UnitType.ROCKET_SOLDIER,     // Anti-air
                         // T2 Ground support
                         UnitType.JEEP,               // Fast ground unit
@@ -210,6 +211,7 @@ public class FactionPresetRegistry {
                         FactionPerk.AIR_SUPERIORITY_2,     // 7 pt - even better
                         FactionPerk.UPKEEP_INCREASE_1,     // 3 pt - more units
                         FactionPerk.RAPID_DEPLOYMENT_1,    // 3 pt - faster buildings
+                        FactionPerk.VEHICLE_PRODUCTION_1,  // 3 pt - faster factory (Jeep / Flak)
                         FactionPerk.VETERAN_UNITS_1,       // 3 pt - tougher aircraft
                         FactionPerk.COST_REDUCTION_1       // 5 pt - economy boost
                 )))

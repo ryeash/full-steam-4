@@ -12,7 +12,6 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
@@ -32,17 +31,13 @@ public class GameEntities {
     private final Map<Integer, Beam> beams;
     private final Map<Integer, FieldEffect> fieldEffects;
     private final Map<Integer, TrackerBug> trackerBugs; // Spy tracking devices
-    private final Consumer<GameEvent> gameEventSender;
+    private final RTSGameManager rtsGameManager;
 
     @Setter
     private World<Body> world;
 
-    @Setter
-    private RTSGameManager rtsGameManager;
-
-    public GameEntities(GameConfig gameConfig, Consumer<GameEvent> gameEventSender) {
+    public GameEntities(GameConfig gameConfig, RTSGameManager rtsGameManager) {
         this.gameConfig = gameConfig;
-        this.gameEventSender = gameEventSender;
         this.playerFactions = new ConcurrentSkipListMap<>();
         this.units = new ConcurrentSkipListMap<>();
         this.buildings = new ConcurrentSkipListMap<>();
@@ -51,8 +46,8 @@ public class GameEntities {
         this.beams = new ConcurrentSkipListMap<>();
         this.fieldEffects = new ConcurrentSkipListMap<>();
         this.trackerBugs = new ConcurrentSkipListMap<>();
+        this.rtsGameManager = rtsGameManager;
         this.world = null;
-        this.rtsGameManager = null;
     }
 
     public void add(GameEntity e) {

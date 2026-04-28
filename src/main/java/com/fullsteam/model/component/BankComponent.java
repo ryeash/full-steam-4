@@ -56,8 +56,8 @@ public class BankComponent extends AbstractBuildingComponent {
                     faction.addResources(ResourceType.CREDITS, interest);
                     // Notify player of interest payment (only if significant - 50+ credits)
                     if (interest >= 50) {
-                        gameEntities.getGameEventSender()
-                                .accept(GameEvent.createPlayerEvent(
+                        gameEntities.getRtsGameManager()
+                                .sendGameEvent(GameEvent.createPlayerEvent(
                                         "💰 Bank paid +" + interest + " credits interest",
                                         faction.getPlayerId(),
                                         GameEvent.EventCategory.INFO

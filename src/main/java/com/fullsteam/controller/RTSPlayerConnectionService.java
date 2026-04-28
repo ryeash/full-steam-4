@@ -78,7 +78,7 @@ public class RTSPlayerConnectionService {
         FactionDefinition customDefinition = builder.buildFromConfig(config);
 
         // Apply to player faction
-        PlayerSession playerSession = new PlayerSession(playerId, session, "Player" + playerId);
+        PlayerSession playerSession = new PlayerSession(playerId, session);
         // Store game reference in session attributes
         session.put("rtsGame", game);
 

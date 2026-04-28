@@ -465,7 +465,6 @@ class RTSEngine {
             // Build myFactionData from static info
             this.myFactionData = {
                 factionType: 'CUSTOM',
-                displayName: factionStatic.playerName,
                 description: 'Player-designed faction',
                 availableBuildings: factionStatic.buildingInfo || [],
                 availableUnits: factionStatic.unitInfo || []

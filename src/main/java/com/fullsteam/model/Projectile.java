@@ -9,6 +9,7 @@ import org.dyn4j.geometry.Geometry;
 import org.dyn4j.geometry.MassType;
 import org.dyn4j.geometry.Vector2;
 
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -25,7 +26,6 @@ public class Projectile extends AbstractOrdinance {
     private Integer targetEntityId;  // ID of target being tracked (null if not seeking)
     private double turnRate;         // Radians per second (how fast missile can turn)
     private double accelerationRate; // Speed increase per second
-    private int seekingUpdateCounter = 0; // Update seeking every N frames for performance
 
     public Projectile(Vector2 origin,
                       Vector2 velocity,
@@ -53,6 +53,9 @@ public class Projectile extends AbstractOrdinance {
         body.translate(origin);
         body.setLinearDamping(linearDamping);
         body.setLinearVelocity(velocity); // Set physics body velocity
+
+        // drop dead time as a fallback for distance traveled limit failures
+        setExpires(System.currentTimeMillis() + 5000);
     }
 
     private static Body createProjectileBody(double size) {
@@ -72,13 +75,8 @@ public class Projectile extends AbstractOrdinance {
             return;
         }
 
-        // Handle seeking behavior (update every 3 frames for performance)
         if (bulletEffects.contains(BulletEffect.SEEKING) && targetEntityId != null) {
-            seekingUpdateCounter++;
-            if (seekingUpdateCounter >= 3) {
-                updateSeekingBehavior(gameEntities);
-                seekingUpdateCounter = 0;
-            }
+            updateSeekingBehavior(gameEntities);
         }
 
         // Deactivate if traveled too far
@@ -88,53 +86,51 @@ public class Projectile extends AbstractOrdinance {
     }
 
     /**
-     * Update seeking missile behavior - adjust velocity to track target
+     * Update seeking missile behavior using {@link Body#applyForce(Vector2)} so dyn4j integrates
+     * acceleration with the world's timestep (see {@code RTSGameManager} after entity updates).
+     * <p>
+     * Lateral acceleration magnitude {@code |sin θ| · speed · turnRate} matches a turn rate
+     * bounded by {@code turnRate} rad/s at constant speed for small heading error θ; forward
+     * thrust applies {@code accelerationRate} along the current velocity.
      */
     private void updateSeekingBehavior(GameEntities gameEntities) {
-        // 1. Find target entity
         GameEntity target = findTarget(gameEntities);
 
-        // 2. If target is dead/invalid, continue on current trajectory
         if (target == null || !target.isActive()) {
-            targetEntityId = null;  // Stop seeking
+            targetEntityId = null;
             return;
         }
 
-        // 3. Calculate direction to target
         Vector2 currentPos = getPosition();
         Vector2 targetPos = target.getPosition();
         Vector2 desiredDirection = targetPos.copy().subtract(currentPos).getNormalized();
 
-        // 4. Get current velocity direction
-        Vector2 currentVelocity = body.getLinearVelocity();
-        double currentSpeed = currentVelocity.getMagnitude();
+        Vector2 velocity = body.getLinearVelocity();
+        double speed = velocity.getMagnitude();
+        double mass = body.getMass().getMass();
 
-        // Don't seek if velocity is too low (avoid division by zero)
-        if (currentSpeed < 10.0) {
+        if (speed < 10.0) {
+            body.applyForce(desiredDirection.multiply(mass * accelerationRate));
             return;
         }
 
-        Vector2 currentDirection = currentVelocity.copy().getNormalized();
+        Vector2 forward = velocity.copy().getNormalized();
+        double sinAngle = forward.cross(desiredDirection);
+        double cosAngle = forward.dot(desiredDirection);
 
-        // 5. Calculate turn angle (limited by turnRate)
-        double desiredAngle = Math.atan2(desiredDirection.y, desiredDirection.x);
-        double currentAngle = Math.atan2(currentDirection.y, currentDirection.x);
-        double angleDiff = normalizeAngle(desiredAngle - currentAngle);
+        double lateralAccelMag = Math.abs(sinAngle) * speed * turnRate;
+        Vector2 lateralDir = new Vector2(-forward.y, forward.x);
+        if (Math.abs(sinAngle) < 1e-6 && cosAngle < -0.99) {
+            lateralAccelMag = speed * turnRate;
+        } else if (sinAngle < 0) {
+            lateralDir.negate();
+        }
+        if (lateralAccelMag > 1e-8) {
+            lateralDir.normalize();
+            body.applyForce(lateralDir.multiply(mass * lateralAccelMag));
+        }
 
-        // 6. Apply turn rate limit (missiles can't turn instantly)
-        // Assuming 60 FPS, each update is ~0.0167 seconds, but we update every 3 frames = 0.05 seconds
-        double deltaTime = 0.05; // 3 frames at 60 FPS
-        double maxTurn = turnRate * deltaTime;
-        double actualTurn = Math.max(-maxTurn, Math.min(maxTurn, angleDiff));
-        double newAngle = currentAngle + actualTurn;
-
-        // 7. Apply acceleration (missiles speed up as they track)
-        double newSpeed = currentSpeed + (accelerationRate * deltaTime);
-
-        // 8. Set new velocity
-        Vector2 newDirection = new Vector2(Math.cos(newAngle), Math.sin(newAngle));
-        Vector2 newVelocity = newDirection.multiply(newSpeed);
-        body.setLinearVelocity(newVelocity);
+        body.applyForce(forward.multiply(mass * accelerationRate));
     }
 
     /**
@@ -142,31 +138,8 @@ public class Projectile extends AbstractOrdinance {
      */
     private GameEntity findTarget(GameEntities gameEntities) {
         // Check units first
-        Unit unit = gameEntities.getUnits().get(targetEntityId);
-        if (unit != null) {
-            return unit;
-        }
-
-        // Check buildings
-        Building building = gameEntities.getBuildings().get(targetEntityId);
-        if (building != null) {
-            return building;
-        }
-
-        return null;
-    }
-
-    /**
-     * Normalize angle to [-PI, PI] range
-     */
-    private double normalizeAngle(double angle) {
-        while (angle > Math.PI) {
-            angle -= 2 * Math.PI;
-        }
-        while (angle < -Math.PI) {
-            angle += 2 * Math.PI;
-        }
-        return angle;
+        return Optional.<GameEntity>ofNullable(gameEntities.getUnits().get(targetEntityId))
+                .orElse(gameEntities.getBuildings().get(targetEntityId));
     }
 
     /**

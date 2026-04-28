@@ -143,8 +143,7 @@ public class RTSGameManager {
         this.objectMapper = objectMapper;
         this.gameStartTime = System.currentTimeMillis();
 
-        this.gameEntities = new GameEntities(gameConfig, this::sendGameEvent);
-        this.gameEntities.setRtsGameManager(this); // Set reference for perk hooks
+        this.gameEntities = new GameEntities(gameConfig, this);
         this.playerFactions = gameEntities.getPlayerFactions();
         this.units = gameEntities.getUnits();
         this.buildings = gameEntities.getBuildings();
@@ -170,16 +169,9 @@ public class RTSGameManager {
         settings.setMaximumTranslation(300.0);
         this.world.setSettings(settings);
         this.world.setGravity(new Vector2(0, 0));
-
-        // Set world reference in gameEntities for beam raycasting
         this.gameEntities.setWorld(this.world);
-
-        // Initialize collision processor
         this.collisionProcessor = new RTSCollisionProcessor(gameEntities);
-
-        // Register collision listener to prevent friendly fire physics collisions
         this.world.addCollisionListener(this.collisionProcessor);
-
         this.world.setBounds(new AxisAlignedBounds(gameConfig.getWorldWidth(), gameConfig.getWorldHeight()));
 
         // Initialize world entities
@@ -189,17 +181,6 @@ public class RTSGameManager {
 
         // Start update loop
         this.updateTask = GameConstants.EXECUTOR.scheduleAtFixedRate(this::update, 0, 20, TimeUnit.MILLISECONDS);
-    }
-
-    /**
-     * Stop the game and cleanup resources
-     */
-    public void stopGame() {
-        shutdown.set(true);
-        if (updateTask != null && !updateTask.isCancelled()) {
-            updateTask.cancel(true);
-        }
-        log.info("Game {} stopped", gameId);
     }
 
     /**
@@ -273,11 +254,13 @@ public class RTSGameManager {
                     // Capitalize first letter
                     buildingName = buildingName.substring(0, 1).toUpperCase() + buildingName.substring(1);
 
-                    sendGameEvent(GameEvent.createPlayerEvent(
-                            "🏗️ " + buildingName + " construction complete",
-                            faction.getPlayerId(),
-                            GameEvent.EventCategory.INFO
-                    ));
+                    if (faction != null) {
+                        sendGameEvent(GameEvent.createPlayerEvent(
+                                "🏗️ " + buildingName + " construction complete",
+                                faction.getPlayerId(),
+                                GameEvent.EventCategory.INFO
+                        ));
+                    }
                 }
             });
 
@@ -1199,13 +1182,11 @@ public class RTSGameManager {
 
                     PlayerFaction faction = playerFactions.get(playerId);
                     if (faction != null) {
-                        log.info("Player {} ({}) disconnected from game {}",
-                                playerId, faction.getPlayerName(), gameId);
+                        log.info("Player {} disconnected from game {}", playerId, gameId);
 
                         // Notify all players of disconnect
                         sendGameEvent(GameEvent.builder()
-                                .message(String.format("⚠️ %s has disconnected from the game",
-                                        faction.getPlayerName()))
+                                .message(String.format("⚠️ %s has disconnected from the game", faction.getPlayerId()))
                                 .category(GameEvent.EventCategory.SYSTEM)
                                 .color("#FFA500")
                                 .target(GameEvent.EventTarget.builder()
@@ -1323,36 +1304,9 @@ public class RTSGameManager {
      * airfield-berth aircraft; multiplied by faction perks and Command Citadel discounts.
      */
     private void recalculateFactionArmyEconomy() {
-        playerFactions.values().forEach(f -> f.setUnitCount(0));
-
-        for (Unit unit : units.values()) {
-            if (!unit.isActive()) {
-                continue;
-            }
-            PlayerFaction faction = playerFactions.get(unit.getOwnerId());
-            if (faction != null) {
-                faction.incrementUnitCount();
-            }
+        for (PlayerFaction f : playerFactions.values()) {
+            f.setCurrentUpkeep(computeArmyRentCharge(f));
         }
-
-        for (Building building : buildings.values()) {
-            if (!building.isActive() || building.isUnderConstruction()) {
-                continue;
-            }
-            PlayerFaction faction = playerFactions.get(building.getOwnerId());
-            if (faction == null) {
-                continue;
-            }
-            building.getComponent(AirfieldAircraftHousingComponent.class).ifPresent(housing -> {
-                for (AirfieldAircraftHousingComponent.Berth berth : housing.getBerthsView()) {
-                    if (berth.getHousedUnit() != null && !berth.isDeployed()) {
-                        faction.incrementUnitCount();
-                    }
-                }
-            });
-        }
-
-        playerFactions.values().forEach(f -> f.setCurrentUpkeep(computeArmyRentCharge(f)));
     }
 
     private int countCompletedCommandCitadels(int playerId) {
@@ -1782,8 +1736,7 @@ public class RTSGameManager {
 
         // Use faction-modified cost
         int cost = faction.getUnitCost(unitType);
-        return faction.hasResources(ResourceType.CREDITS, cost)
-                && faction.canBuildMoreUnits();
+        return faction.hasResources(ResourceType.CREDITS, cost);
     }
 
     /**
@@ -1911,7 +1864,6 @@ public class RTSGameManager {
                 // Limited info for other teams (just team number and name)
                 Map<String, Object> limitedInfo = new LinkedHashMap<>();
                 limitedInfo.put("playerId", faction.getPlayerId());
-                limitedInfo.put("playerName", faction.getPlayerName());
                 limitedInfo.put("team", faction.getTeamNumber());
                 factionsMap.put(playerId, limitedInfo);
             }
@@ -1948,11 +1900,8 @@ public class RTSGameManager {
     private Map<String, Object> serializeFactionDynamic(PlayerFaction faction) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("playerId", faction.getPlayerId());
-        data.put("playerName", faction.getPlayerName());
         data.put("team", faction.getTeamNumber());
         data.put("credits", faction.getResourceAmount(ResourceType.CREDITS));
-        data.put("unitCount", faction.getUnitCount());
-        data.put("maxUnits", faction.getMaxUnits());
         data.put("currentUpkeep", faction.getCurrentUpkeep());
         data.put("armyUpkeepIntervalMs", ArmyEconomy.UPKEEP_INTERVAL_MS);
         data.put("powerGenerated", faction.getPowerGenerated());
@@ -1980,7 +1929,7 @@ public class RTSGameManager {
         // World dimensions (never change)
         init.put("worldWidth", gameConfig.getWorldWidth());
         init.put("worldHeight", gameConfig.getWorldHeight());
-        init.put("armyRentIntervalMs", ArmyEconomy.UPKEEP_INTERVAL_MS);
+        init.put("armyUpkeepIntervalMs", ArmyEconomy.UPKEEP_INTERVAL_MS);
 
         // Obstacles - full static data (position, shape, type)
         // Only health and resources will be updated in game state
@@ -2049,7 +1998,6 @@ public class RTSGameManager {
         if (faction != null) {
             Map<String, Object> factionStatic = new LinkedHashMap<>();
             factionStatic.put("playerId", faction.getPlayerId());
-            factionStatic.put("playerName", faction.getPlayerName());
             factionStatic.put("team", faction.getTeamNumber());
 
             // Available units and buildings
@@ -2308,14 +2256,11 @@ public class RTSGameManager {
         data.put("maxHealth", building.getMaxHealth());
         data.put("ownerId", building.getOwnerId());
         data.put("team", building.getTeamNumber());
-        // NOTE: size, visionRange, canProduceUnits moved to buildingTypes in gameInitialization
         data.put("active", building.isActive());
         data.put("underConstruction", building.isUnderConstruction());
         data.put("constructionPercent", building.getConstructionPercent());
         data.put("productionPercent", building.getProductionPercent());
         data.put("productionQueueSize", building.getProductionQueueSize());
-
-        // Add physics body vertices for accurate client-side rendering
         data.put("vertices", extractBodyVertices(building.getBody()));
 
         // Rally point
@@ -2368,147 +2313,28 @@ public class RTSGameManager {
                     rows.add(row);
                 }
             });
-            building.getComponent(AirfieldAircraftHousingComponent.class).ifPresent(housing -> {
-                int berthIndex = 0;
-                for (AirfieldAircraftHousingComponent.Berth berth : housing.getBerthsView()) {
-                    if (berth.getHousedUnit() != null) {
-                        Unit u = berth.getHousedUnit();
-                        Map<String, Object> row = new LinkedHashMap<>();
-                        row.put("berthIndex", berthIndex);
-                        row.put("unitId", u.getId());
-                        row.put("unitType", u.getUnitType().name());
-                        row.put("health", u.getHealth());
-                        row.put("maxHealth", u.getMaxHealth());
-                        row.put("deployed", berth.isDeployed());
-                        row.put("actions", berth.isDeployed() ? List.of("RTB") : List.of("LAUNCH", "SCRAP"));
-                        rows.add(row);
-                    }
-                    berthIndex++;
-                }
-                data.put("aircraftBerthCapacity", AirfieldAircraftHousingComponent.MAX_BERTHS);
-            });
+            building.getComponent(AirfieldAircraftHousingComponent.class)
+                    .ifPresent(housing -> {
+                        int berthIndex = 0;
+                        for (AirfieldAircraftHousingComponent.Berth berth : housing.getBerthsView()) {
+                            if (berth.getHousedUnit() != null) {
+                                Unit u = berth.getHousedUnit();
+                                Map<String, Object> row = new LinkedHashMap<>();
+                                row.put("berthIndex", berthIndex);
+                                row.put("unitId", u.getId());
+                                row.put("unitType", u.getUnitType().name());
+                                row.put("health", u.getHealth());
+                                row.put("maxHealth", u.getMaxHealth());
+                                row.put("deployed", berth.isDeployed());
+                                row.put("actions", berth.isDeployed() ? List.of("RTB") : List.of("LAUNCH", "SCRAP"));
+                                rows.add(row);
+                            }
+                            berthIndex++;
+                        }
+                        data.put("aircraftBerthCapacity", AirfieldAircraftHousingComponent.MAX_BERTHS);
+                    });
             data.put("housedUnits", rows);
         }
-
-        return data;
-    }
-
-
-    /**
-     * Serialize a faction for network transmission
-     */
-    private Map<String, Object> serializeFaction(PlayerFaction faction) {
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("playerId", faction.getPlayerId());
-        data.put("playerName", faction.getPlayerName());
-        data.put("team", faction.getTeamNumber());
-        data.put("credits", faction.getResourceAmount(ResourceType.CREDITS));
-        data.put("unitCount", faction.getUnitCount());
-        data.put("maxUnits", faction.getMaxUnits());
-        data.put("currentUpkeep", faction.getCurrentUpkeep());
-        data.put("armyRentIntervalMs", ArmyEconomy.UPKEEP_INTERVAL_MS);
-        data.put("powerGenerated", faction.getPowerGenerated());
-        data.put("powerConsumed", faction.getPowerConsumed());
-        data.put("hasLowPower", faction.isHasLowPower());
-
-        // Available units and buildings for this faction
-        List<String> availableUnits = new ArrayList<>();
-        for (UnitType unitType : faction.getFactionDefinition().getUnitTypes()) {
-            availableUnits.add(unitType.name());
-        }
-        data.put("availableUnits", availableUnits);
-
-        List<String> availableBuildings = new ArrayList<>();
-        for (BuildingType buildingType : BuildingType.values()) {
-            if (faction.canBuildBuilding(buildingType)) {
-                availableBuildings.add(buildingType.name());
-            }
-        }
-        data.put("availableBuildings", availableBuildings);
-
-        List<Map<String, Object>> buildingInfo = new ArrayList<>();
-        for (BuildingType buildingType : BuildingType.values()) {
-            if (faction.canBuildBuilding(buildingType)) {
-                Map<String, Object> building = new LinkedHashMap<>();
-                building.put("buildingType", buildingType.name());
-                building.put("displayName", buildingType.getDisplayName());
-                building.put("cost", faction.getBuildingCost(buildingType));
-                building.put("requiredTechTier", buildingType.getRequiredTechTier());
-                building.put("maxHealth", (int) buildingType.getMaxHealth());
-                building.put("powerValue", buildingType.getPowerValue());
-                building.put("buildTimeSeconds", buildingType.getBuildTimeSeconds());
-                building.put("canProduceUnits", buildingType.isCanProduceUnits());
-                building.put("visionRange", buildingType.getVisionRange());
-
-                // Tech requirements (empty for now, could be enhanced)
-                building.put("techRequirements", new ArrayList<>());
-
-                buildingInfo.add(building);
-            }
-        }
-        data.put("buildingInfo", buildingInfo);
-
-        // Also include full unit info for custom factions
-        List<Map<String, Object>> unitInfo = new ArrayList<>();
-        for (String unitName : availableUnits) {
-            try {
-                UnitType unitType = UnitType.valueOf(unitName);
-                Map<String, Object> unit = new LinkedHashMap<>();
-                unit.put("unitType", unitType.name());
-                unit.put("displayName", unitType.getDisplayName());
-                unit.put("cost", faction.getUnitCost(unitType));
-                int upkeepSlice = ArmyEconomy.periodicRentForUnit(faction, unitType);
-                int upkeepWithMods = Math.max(0, (int) Math.round(upkeepSlice * armyRentGlobalMultiplier(faction)));
-                unit.put("periodicArmyRent", upkeepWithMods);
-                unit.put("upkeep", upkeepWithMods);
-                unit.put("maxHealth", (int) unitType.getMaxHealth());
-                unit.put("damage", (int) unitType.getDamage());
-                unit.put("speed", unitType.getMovementSpeed());
-                unit.put("range", (int) unitType.getAttackRange());
-                unit.put("buildTimeSeconds", unitType.getBuildTimeSeconds());
-                unit.put("producedBy", unitType.getProducedBy().name());
-                unit.put("category", unitType.getCategory().name());
-
-                // Add tech requirements (required buildings)
-                List<String> techReqs = unitType.getRequiredBuildings().stream()
-                        .map(BuildingType::name)
-                        .toList();
-                unit.put("techRequirements", techReqs);
-
-                unitInfo.add(unit);
-            } catch (IllegalArgumentException e) {
-                log.warn("Invalid unit type in availableUnits: {}", unitName);
-            }
-        }
-        data.put("unitInfo", unitInfo);
-
-        // Faction-modified costs for units (client needs this for UI)
-        // Only include costs for units that are actually available (via research)
-        Map<String, Integer> unitCosts = new LinkedHashMap<>();
-        Map<String, Integer> unitPeriodicArmyRent = new LinkedHashMap<>();
-        for (String unitName : availableUnits) {
-            try {
-                UnitType unitType = UnitType.valueOf(unitName);
-                unitCosts.put(unitName, faction.getUnitCost(unitType));
-                int upkeepSlice = ArmyEconomy.periodicRentForUnit(faction, unitType);
-                int upkeepWithMods = Math.max(0, (int) Math.round(upkeepSlice * armyRentGlobalMultiplier(faction)));
-                unitPeriodicArmyRent.put(unitName, upkeepWithMods);
-            } catch (IllegalArgumentException e) {
-                log.warn("Invalid unit type in availableUnits: {}", unitName);
-            }
-        }
-        data.put("unitCosts", unitCosts);
-        data.put("unitPeriodicArmyRent", unitPeriodicArmyRent);
-        data.put("unitUpkeep", unitPeriodicArmyRent);
-
-        // Faction-modified costs for buildings
-        Map<String, Integer> buildingCosts = new LinkedHashMap<>();
-        for (BuildingType buildingType : BuildingType.values()) {
-            if (faction.canBuildBuilding(buildingType)) {
-                buildingCosts.put(buildingType.name(), faction.getBuildingCost(buildingType));
-            }
-        }
-        data.put("buildingCosts", buildingCosts);
 
         return data;
     }
@@ -2576,7 +2402,6 @@ public class RTSGameManager {
         PlayerFaction aiFaction = new PlayerFaction(
                 aiPlayerId,
                 aiTeam,
-                "AI Player",
                 FactionDefinition.builder().build()
         );
         playerFactions.put(aiPlayerId, aiFaction);
@@ -2639,7 +2464,6 @@ public class RTSGameManager {
         PlayerFaction faction = new PlayerFaction(
                 playerSession.getPlayerId(),
                 teamNumber,
-                playerSession.getPlayerName(),
                 customDefinition
         );
 
@@ -2648,7 +2472,7 @@ public class RTSGameManager {
         // Create starting base
         Vector2 startPosition = getStartingPosition(teamNumber);
         createStartingBase(playerSession.getPlayerId(), teamNumber, startPosition);
-        log.info("Player {} joined RTS game {} on team {}", playerSession.getPlayerName(), gameId, teamNumber);
+        log.info("Player {} joined RTS game {} on team {}", playerSession.getPlayerId(), gameId, teamNumber);
         return true;
     }
 
@@ -2766,7 +2590,6 @@ public class RTSGameManager {
             }
             return false;
         });
-
         buildings.entrySet().removeIf(entry -> {
             if (entry.getValue().belongsTo(playerId)) {
                 world.removeBody(entry.getValue().getBody());

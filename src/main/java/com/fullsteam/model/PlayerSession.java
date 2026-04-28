@@ -12,6 +12,5 @@ import lombok.Data;
 public class PlayerSession {
     private int playerId;
     private WebSocketSession session;
-    private String playerName;
 }
 

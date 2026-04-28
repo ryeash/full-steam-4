@@ -16,24 +16,14 @@ public class PlayerFaction {
 
     private final int playerId;
     private final int teamNumber;
-    private final String playerName;
-
-    // Faction system
     private FactionDefinition factionDefinition;
-
-    // Resources
     private final Map<ResourceType, Integer> resources = new HashMap<>();
-
-    // Unit/building limits
-    private int unitCount = 0;
-    private int maxUnits = 100; // Population cap
 
     /**
      * Credits charged per army upkeep interval (after faction + citadel discounts). Sent to client for UI.
      */
     private int currentUpkeep = 0;
 
-    // Power system
     private int powerGenerated = 0;
     private int powerConsumed = 0;
     private boolean hasLowPower = false; // True when powerConsumed > powerGenerated
@@ -41,10 +31,9 @@ public class PlayerFaction {
     /**
      * Constructor with faction selection
      */
-    public PlayerFaction(int playerId, int teamNumber, String playerName, FactionDefinition customDefinition) {
+    public PlayerFaction(int playerId, int teamNumber, FactionDefinition customDefinition) {
         this.playerId = playerId;
         this.teamNumber = teamNumber;
-        this.playerName = playerName;
         this.factionDefinition = customDefinition;
         this.resources.put(ResourceType.CREDITS, 1000); // Starting credits
     }
@@ -82,20 +71,6 @@ public class PlayerFaction {
      */
     public int getResourceAmount(ResourceType type) {
         return resources.getOrDefault(type, 0);
-    }
-
-    /**
-     * Check if this faction can build more units
-     */
-    public boolean canBuildMoreUnits() {
-        return unitCount < maxUnits;
-    }
-
-    /**
-     * Increment unit count
-     */
-    public void incrementUnitCount() {
-        unitCount++;
     }
 
     /**
