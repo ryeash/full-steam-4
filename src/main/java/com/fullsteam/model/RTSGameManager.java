@@ -626,39 +626,26 @@ public class RTSGameManager {
         if (input.getUngarrisonBuildingId() != null) {
             // Check if it's a building (bunker) first
             Building bunker = buildings.get(input.getUngarrisonBuildingId());
-            if (bunker != null && bunker.getBuildingType() == BuildingType.BUNKER &&
-                    bunker.belongsTo(playerId)) {
+            if (bunker != null && bunker.getBuildingType() == BuildingType.BUNKER && bunker.belongsTo(playerId)) {
                 if (input.isUngarrisonAll()) {
                     // Ungarrison all units
-                    List<Unit> ungarrisoned = bunker.ungarrisonAllUnits();
                     // Re-add units to the physics world
-                    for (Unit unit : ungarrisoned) {
+                    for (Unit unit : bunker.ungarrisonAllUnits()) {
                         if (!world.containsBody(unit.getBody())) {
                             world.addBody(unit.getBody());
                         }
                     }
-                    log.info("Player {} ungarrisoned {} units from bunker {}",
-                            playerId, ungarrisoned.size(), bunker.getId());
                 } else if (input.getUngarrisonUnitId() != null) {
                     Unit target = units.get(input.getUngarrisonUnitId());
                     Unit ungarrisoned = bunker.ungarrisonUnit(target);
                     if (ungarrisoned != null && !world.containsBody(ungarrisoned.getBody())) {
                         world.addBody(ungarrisoned.getBody());
                     }
-                    if (ungarrisoned != null) {
-                        log.info("Player {} ungarrisoned unit {} from bunker {}",
-                                playerId, ungarrisoned.getId(), bunker.getId());
-                    }
                 } else {
                     // Ungarrison one unit (FIFO)
                     Unit ungarrisoned = bunker.ungarrisonUnit(null);
-                    if (ungarrisoned != null) {
-                        // Re-add unit to the physics world
-                        if (!world.containsBody(ungarrisoned.getBody())) {
-                            world.addBody(ungarrisoned.getBody());
-                        }
-                        log.info("Player {} ungarrisoned unit {} from bunker {}",
-                                playerId, ungarrisoned.getId(), bunker.getId());
+                    if (ungarrisoned != null && !world.containsBody(ungarrisoned.getBody())) {
+                        world.addBody(ungarrisoned.getBody());
                     }
                 }
             } else {
@@ -675,28 +662,17 @@ public class RTSGameManager {
                                 world.addBody(unit.getBody());
                             }
                         }
-                        log.info("Player {} ungarrisoned {} units from APC {}",
-                                playerId, ungarrisoned.size(), apc.getId());
                     } else if (input.getUngarrisonUnitId() != null) {
                         Unit target = units.get(input.getUngarrisonUnitId());
                         Unit ungarrisoned = apc.ungarrisonUnit(target);
                         if (ungarrisoned != null && !world.containsBody(ungarrisoned.getBody())) {
                             world.addBody(ungarrisoned.getBody());
                         }
-                        if (ungarrisoned != null) {
-                            log.info("Player {} ungarrisoned unit {} from APC {}",
-                                    playerId, ungarrisoned.getId(), apc.getId());
-                        }
                     } else {
                         // Ungarrison one unit
                         Unit ungarrisoned = apc.ungarrisonUnit(null);
-                        if (ungarrisoned != null) {
-                            // Re-add unit to the physics world
-                            if (!world.containsBody(ungarrisoned.getBody())) {
-                                world.addBody(ungarrisoned.getBody());
-                            }
-                            log.info("Player {} ungarrisoned unit {} from APC {}",
-                                    playerId, ungarrisoned.getId(), apc.getId());
+                        if (ungarrisoned != null && !world.containsBody(ungarrisoned.getBody())) {
+                            world.addBody(ungarrisoned.getBody());
                         }
                     }
                 }
@@ -711,8 +687,6 @@ public class RTSGameManager {
                 if (cancelled != null) {
                     int refund = faction.getUnitCost(cancelled);
                     faction.addResources(ResourceType.CREDITS, refund);
-                    log.info("Player {} cancelled production of {} at building {} (refunded {})",
-                            playerId, cancelled.getDisplayName(), b.getId(), refund);
                 }
             }
         }
@@ -723,8 +697,11 @@ public class RTSGameManager {
                     && af.belongsTo(playerId) && !af.isUnderConstruction()) {
                 af.getComponent(AirfieldAircraftHousingComponent.class).ifPresent(housing -> {
                     if (housing.scrapHousedAircraft(input.getScrapHousedUnitId())) {
-                        log.info("Player {} scrapped housed unit {} at airfield {} (no refund)",
-                                playerId, input.getScrapHousedUnitId(), af.getId());
+                        sendGameEvent(GameEvent.createPlayerEvent(
+                                "Scrapped unit from airfield",
+                                playerId,
+                                GameEvent.EventCategory.INFO
+                        ));
                     }
                 });
             }
@@ -743,13 +720,9 @@ public class RTSGameManager {
                     if (aircraft != null) {
                         UnitType aircraftType = aircraft.getUnitType();
                         int baseId = airfield.getId();
-
                         if (aircraftType == UnitType.BOMBER) {
                             aircraft.setActive(true);
                             aircraft.issueCommand(new SortieCommand(aircraft, input.getSortieTargetLocation(), baseId, true), gameEntities);
-                            log.info("Player {} launched bomber {} from airfield {} to target ({}, {})",
-                                    playerId, aircraft.getId(), baseId,
-                                    input.getSortieTargetLocation().x, input.getSortieTargetLocation().y);
                             sendGameEvent(GameEvent.createPlayerEvent(
                                     "✈️ Bomber launched on sortie",
                                     playerId,
@@ -758,11 +731,7 @@ public class RTSGameManager {
                         } else if (aircraftType == UnitType.INTERCEPTOR) {
                             aircraft.getComponent(InterceptorComponent.class)
                                     .ifPresent(interceptorComp -> interceptorComp.deploy(baseId));
-
                             aircraft.issueCommand(new OnStationCommand(aircraft, input.getSortieTargetLocation(), true), gameEntities);
-                            log.info("Player {} deployed interceptor {} from airfield {} to patrol station ({}, {})",
-                                    playerId, aircraft.getId(), baseId,
-                                    input.getSortieTargetLocation().x, input.getSortieTargetLocation().y);
                             sendGameEvent(GameEvent.createPlayerEvent(
                                     "🛩️ Interceptor deployed on station",
                                     playerId,
@@ -771,11 +740,7 @@ public class RTSGameManager {
                         } else if (aircraftType == UnitType.GUNSHIP) {
                             aircraft.getComponent(GunshipComponent.class)
                                     .ifPresent(gunshipComp -> gunshipComp.deploy(baseId));
-
                             aircraft.issueCommand(new OnStationCommand(aircraft, input.getSortieTargetLocation(), true), gameEntities);
-                            log.info("Player {} deployed gunship {} from airfield {} to patrol station ({}, {})",
-                                    playerId, aircraft.getId(), baseId,
-                                    input.getSortieTargetLocation().x, input.getSortieTargetLocation().y);
                             sendGameEvent(GameEvent.createPlayerEvent(
                                     "🚁 Gunship deployed on station",
                                     playerId,
@@ -783,9 +748,6 @@ public class RTSGameManager {
                             ));
                         } else {
                             aircraft.issueCommand(new SortieCommand(aircraft, input.getSortieTargetLocation(), baseId, true), gameEntities);
-                            log.info("Player {} launched {} {} from airfield {} to target ({}, {})",
-                                    playerId, aircraftType.name(), aircraft.getId(), baseId,
-                                    input.getSortieTargetLocation().x, input.getSortieTargetLocation().y);
                             sendGameEvent(GameEvent.createPlayerEvent(
                                     "✈️ Aircraft launched on sortie",
                                     playerId,
