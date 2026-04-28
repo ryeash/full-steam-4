@@ -6,9 +6,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Component for Spy units.
- * Handles permanent automatic cloaking and detection mechanics.
- * The Spy's tracker gun is now a regular weapon (fires 0-damage projectiles with TRACKING effect).
+ * Component for Spy units. Handles permanent automatic cloaking and detection mechanics.
  */
 @Slf4j
 @Getter
@@ -30,8 +28,7 @@ public class SpyComponent extends AbstractUnitComponent {
     private void enableCloak() {
         // Auto-cloak system: Check if we should re-cloak after detection
         if (!unit.isCloaked()) {
-            unit.getComponent(CloakComponent.class)
-                    .ifPresent(CloakComponent::toggleCloak);
+            unit.getComponent(CloakComponent.class).ifPresent(CloakComponent::toggleCloak);
         }
     }
 }

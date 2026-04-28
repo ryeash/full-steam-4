@@ -3,7 +3,7 @@ package com.fullsteam.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.RTSLobby;
 import com.fullsteam.games.IdGenerator;
-import com.fullsteam.model.PlayerSession;
+import com.fullsteam.model.Player;
 import com.fullsteam.model.RTSGameManager;
 import com.fullsteam.model.customization.CustomFactionBuilder;
 import com.fullsteam.model.customization.CustomFactionConfig;
@@ -77,13 +77,11 @@ public class RTSPlayerConnectionService {
         CustomFactionBuilder builder = new CustomFactionBuilder();
         FactionDefinition customDefinition = builder.buildFromConfig(config);
 
-        // Apply to player faction
-        PlayerSession playerSession = new PlayerSession(playerId, session);
         // Store game reference in session attributes
         session.put("rtsGame", game);
 
-        // Add player to game with faction
-        if (!game.addPlayer(playerSession, config, customDefinition)) {
+        // Add player to game with faction (session is stored on {@link PlayerFaction})
+        if (!game.addPlayer(playerId, session, config, customDefinition)) {
             log.warn("Failed to add player {} to RTS game {} (game may be full or started)", playerId, gameId);
 
             // Send error message to player
@@ -99,8 +97,8 @@ public class RTSPlayerConnectionService {
             return false;
         }
 
-        // Store session
-        session.put(SESSION_KEY, playerSession);
+        Player player = game.getPlayers().get(playerId);
+        session.put(SESSION_KEY, player);
 
         // Send player their ID
         game.send(session, Map.of(
@@ -121,19 +119,19 @@ public class RTSPlayerConnectionService {
      * Disconnect a player from their game
      */
     public void disconnectPlayer(WebSocketSession session) {
-        PlayerSession playerSession = session.get(SESSION_KEY, PlayerSession.class).orElse(null);
+        Player player = session.get(SESSION_KEY, Player.class).orElse(null);
 
-        if (playerSession == null) {
+        if (player == null) {
             return;
         }
 
         RTSGameManager game = session.get("rtsGame", RTSGameManager.class).orElse(null);
 
         if (game != null) {
-            game.removePlayer(playerSession.getPlayerId());
+            game.removePlayer(player.getPlayerId());
             rtsLobby.decrementPlayerCount();
 
-            log.info("Player {} disconnected from RTS game", playerSession.getPlayerId());
+            log.info("Player {} disconnected from RTS game", player.getPlayerId());
         }
     }
 }

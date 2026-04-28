@@ -47,7 +47,7 @@ public enum FieldEffectType {
     SANDSTORM(Double.MAX_VALUE, false, ElevationTargeting.GROUND_AND_LOW), // Persistent, damages ground + low altitude
 
     // Anti-aircraft effects
-    FLAK_EXPLOSION(0.4, true, ElevationTargeting.LOW_AND_HIGH); // Anti-air burst, damages all elevations
+    FLAK_EXPLOSION(0.4, true, ElevationTargeting.LOW_AND_HIGH); // Anti-air burst, damages low/high elevations
 
     private final double defaultDuration;
     private final boolean instantaneous;

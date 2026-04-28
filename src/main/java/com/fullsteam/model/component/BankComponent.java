@@ -1,7 +1,7 @@
 package com.fullsteam.model.component;
 
 import com.fullsteam.model.GameEvent;
-import com.fullsteam.model.PlayerFaction;
+import com.fullsteam.model.Player;
 import com.fullsteam.model.ResourceType;
 import lombok.Getter;
 
@@ -48,7 +48,7 @@ public class BankComponent extends AbstractBuildingComponent {
 
         if (System.currentTimeMillis() >= lastInterestPayout + (long) (interestInterval * 1000D)) {
             lastInterestPayout = System.currentTimeMillis();
-            PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
+            Player faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
             if (faction != null) {
                 int currentCredits = faction.getResourceAmount(ResourceType.CREDITS);
                 int interest = (int) Math.round(currentCredits * interestRate);

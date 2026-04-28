@@ -1,7 +1,7 @@
 package com.fullsteam.model.component;
 
 import com.fullsteam.model.GameEntities;
-import com.fullsteam.model.PlayerFaction;
+import com.fullsteam.model.Player;
 import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.command.IdleCommand;
@@ -53,7 +53,7 @@ public class APCComponent extends AbstractUnitComponent {
     public int getMaxGarrisonCapacity() {
         // Check if owner has GARRISON_MASTERY perk
         if (gameEntities != null) {
-            PlayerFaction faction = gameEntities.getPlayerFactions().get(unit.getOwnerId());
+            Player faction = gameEntities.getPlayerFactions().get(unit.getOwnerId());
             if (faction != null && faction.getFactionDefinition().getActivePerks().contains(FactionPerk.GARRISON_MASTERY)) {
                 return GARRISON_MASTERY_CAPACITY;
             }

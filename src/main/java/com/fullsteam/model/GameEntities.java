@@ -23,7 +23,7 @@ import java.util.stream.Stream;
 @Getter
 public class GameEntities {
     private final GameConfig gameConfig;
-    private final Map<Integer, PlayerFaction> playerFactions;
+    private final Map<Integer, Player> playerFactions;
     private final Map<Integer, Unit> units;
     private final Map<Integer, Building> buildings;
     private final Map<Integer, Obstacle> obstacles;

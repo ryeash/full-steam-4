@@ -4,7 +4,7 @@ import com.fullsteam.games.IdGenerator;
 import com.fullsteam.model.Building;
 import com.fullsteam.model.BuildingType;
 import com.fullsteam.model.GameEntities;
-import com.fullsteam.model.PlayerFaction;
+import com.fullsteam.model.Player;
 import com.fullsteam.model.RTSCollisionProcessor;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.UnitType;
@@ -55,7 +55,7 @@ public class AndroidFactoryComponent extends AbstractBuildingComponent {
         }
 
         if (producingAndroid) {
-            PlayerFaction faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
+            Player faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
             double effectiveSpeed = 1.0;
             if (faction != null) {
                 Map<BuildingType, FactionDefinition.BuildingStatModifier> buildingMods = faction.getFactionDefinition().getBuildingStatModifiers();

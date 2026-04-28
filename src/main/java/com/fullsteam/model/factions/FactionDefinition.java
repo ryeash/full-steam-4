@@ -2,7 +2,7 @@ package com.fullsteam.model.factions;
 
 import com.fullsteam.model.Building;
 import com.fullsteam.model.BuildingType;
-import com.fullsteam.model.PlayerFaction;
+import com.fullsteam.model.Player;
 import com.fullsteam.model.RTSGameManager;
 import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Unit;
@@ -168,7 +168,7 @@ public class FactionDefinition {
     /**
      * Called when a unit is created for this faction
      */
-    public void onUnitCreated(Unit unit, PlayerFaction faction, RTSGameManager game) {
+    public void onUnitCreated(Unit unit, Player faction, RTSGameManager game) {
         for (FactionPerk perk : activePerks) {
             try {
                 perk.onUnitCreated(unit, faction, game);
@@ -181,7 +181,7 @@ public class FactionDefinition {
     /**
      * Called when a unit belonging to this faction is destroyed
      */
-    public void onUnitDestroyed(Unit unit, PlayerFaction faction, RTSGameManager game) {
+    public void onUnitDestroyed(Unit unit, Player faction, RTSGameManager game) {
         for (FactionPerk perk : activePerks) {
             try {
                 perk.onUnitDestroyed(unit, faction, game);
@@ -194,7 +194,7 @@ public class FactionDefinition {
     /**
      * Called when a building is created for this faction
      */
-    public void onBuildingCreated(Building building, PlayerFaction faction, RTSGameManager game) {
+    public void onBuildingCreated(Building building, Player faction, RTSGameManager game) {
         for (FactionPerk perk : activePerks) {
             try {
                 perk.onBuildingCreated(building, faction, game);
@@ -207,7 +207,7 @@ public class FactionDefinition {
     /**
      * Called when a building belonging to this faction is destroyed
      */
-    public void onBuildingDestroyed(Building building, PlayerFaction faction, RTSGameManager game) {
+    public void onBuildingDestroyed(Building building, Player faction, RTSGameManager game) {
         for (FactionPerk perk : activePerks) {
             try {
                 perk.onBuildingDestroyed(building, faction, game);
@@ -220,7 +220,7 @@ public class FactionDefinition {
     /**
      * Called when a unit belonging to this faction deals damage
      */
-    public void onUnitDealsDamage(Unit attacker, Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
+    public void onUnitDealsDamage(Unit attacker, Targetable target, double damage, Player faction, RTSGameManager game) {
         for (FactionPerk perk : activePerks) {
             try {
                 perk.onUnitDealsDamage(attacker, target, damage, faction, game);

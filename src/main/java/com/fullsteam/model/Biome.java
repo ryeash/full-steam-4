@@ -54,8 +54,7 @@ public enum Biome {
     private final ObstacleType obstacleType;
     private final String description;
 
-    Biome(String displayName, int groundColor, int obstacleColor,
-          ObstacleType obstacleType, String description) {
+    Biome(String displayName, int groundColor, int obstacleColor, ObstacleType obstacleType, String description) {
         this.displayName = displayName;
         this.groundColor = groundColor;
         this.obstacleColor = obstacleColor;

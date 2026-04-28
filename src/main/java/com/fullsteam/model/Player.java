@@ -1,6 +1,7 @@
 package com.fullsteam.model;
 
 import com.fullsteam.model.factions.FactionDefinition;
+import io.micronaut.websocket.WebSocketSession;
 import lombok.Data;
 
 import java.util.HashMap;
@@ -9,14 +10,18 @@ import java.util.Set;
 
 /**
  * Represents a player's faction/base in the RTS game.
- * Tracks resources, buildings, units, and production queues.
+ * Tracks resources, buildings, units, production queues, and (for human players) the live WebSocket session.
  */
 @Data
-public class PlayerFaction {
+public class Player {
 
     private final int playerId;
     private final int teamNumber;
     private FactionDefinition factionDefinition;
+    /**
+     * Open connection for this human player; null for AI or after the socket has closed.
+     */
+    private WebSocketSession webSocketSession;
     private final Map<ResourceType, Integer> resources = new HashMap<>();
 
     /**
@@ -29,12 +34,21 @@ public class PlayerFaction {
     private boolean hasLowPower = false; // True when powerConsumed > powerGenerated
 
     /**
-     * Constructor with faction selection
+     * Constructor for AI or tests (no WebSocket).
      */
-    public PlayerFaction(int playerId, int teamNumber, FactionDefinition customDefinition) {
+    public Player(int playerId, int teamNumber, FactionDefinition customDefinition) {
+        this(playerId, teamNumber, customDefinition, null);
+    }
+
+    /**
+     * Constructor with faction selection and optional live session (human players).
+     */
+    public Player(int playerId, int teamNumber, FactionDefinition customDefinition,
+                  WebSocketSession webSocketSession) {
         this.playerId = playerId;
         this.teamNumber = teamNumber;
         this.factionDefinition = customDefinition;
+        this.webSocketSession = webSocketSession;
         this.resources.put(ResourceType.CREDITS, 1000); // Starting credits
     }
 

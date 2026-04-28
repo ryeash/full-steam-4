@@ -6,6 +6,7 @@ import com.fullsteam.dto.CustomFactionConfigDTO;
 import com.fullsteam.dto.FactionPerkDTO;
 import com.fullsteam.dto.UnitTemplateDTO;
 import com.fullsteam.model.BuildingType;
+import com.fullsteam.model.Player;
 import com.fullsteam.model.RTSGameManager;
 import com.fullsteam.model.UnitType;
 import com.fullsteam.model.customization.CustomFactionBuilder;
@@ -269,10 +270,10 @@ public class FactionCustomizationController {
             FactionDefinition customDefinition = factionBuilder.buildFromConfig(config);
 
             // Apply to player
-            com.fullsteam.model.PlayerFaction playerFaction = game.getPlayerFactions().get(playerId);
-            if (playerFaction == null) {
+            Player player = game.getPlayers().get(playerId);
+            if (player == null) {
                 log.warn("Player {} not found in game {}. Available players: {}",
-                        playerId, gameId, game.getPlayerFactions().keySet());
+                        playerId, gameId, game.getPlayers().keySet());
                 Map<String, Object> error = new HashMap<>();
                 error.put("success", false);
                 error.put("errors", List.of("Player not found in game"));

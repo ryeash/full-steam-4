@@ -35,7 +35,7 @@ public class Building extends GameEntity implements Targetable {
     private final BuildingType buildingType;
     private final int ownerId; // Player who owns this building
     private final int teamNumber;
-    private final PlayerFaction faction; // Reference to owner's faction for dynamic stat calculations
+    private final Player faction; // Reference to owner's faction for dynamic stat calculations
 
     // Component system for modular building behavior
     private final Map<Class<? extends IBuildingComponent>, IBuildingComponent> components = new HashMap<>();
@@ -50,7 +50,7 @@ public class Building extends GameEntity implements Targetable {
     /**
      * Constructor with custom max health (for faction modifiers)
      */
-    public Building(int id, GameEntities gameEntities, BuildingType buildingType, double x, double y, int ownerId, int teamNumber, PlayerFaction faction, double maxHealth) {
+    public Building(int id, GameEntities gameEntities, BuildingType buildingType, double x, double y, int ownerId, int teamNumber, Player faction, double maxHealth) {
         super(id, createBuildingBody(x, y, buildingType), maxHealth);
         this.buildingType = buildingType;
         this.ownerId = ownerId;

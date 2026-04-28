@@ -2,7 +2,7 @@ package com.fullsteam.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fullsteam.model.PlayerSession;
+import com.fullsteam.model.Player;
 import com.fullsteam.model.RTSGameManager;
 import com.fullsteam.model.RTSPlayerInput;
 import io.micronaut.websocket.WebSocketSession;
@@ -61,14 +61,14 @@ public class RTSWebSocketEndpoint {
 
     @OnMessage
     public void onMessage(byte[] message, WebSocketSession session) {
-        PlayerSession playerSession = session.get(SESSION_KEY, PlayerSession.class).orElse(null);
+        Player player = session.get(SESSION_KEY, Player.class).orElse(null);
 
-        if (playerSession == null) {
+        if (player == null) {
             return;
         }
 
         RTSGameManager game = session.get("rtsGame", RTSGameManager.class).orElse(null);
-        int playerId = playerSession.getPlayerId();
+        int playerId = player.getPlayerId();
 
         if (game == null) {
             log.warn("Received message from session without RTS game context. Closing.");

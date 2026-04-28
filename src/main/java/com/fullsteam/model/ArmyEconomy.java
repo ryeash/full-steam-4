@@ -10,7 +10,7 @@ public final class ArmyEconomy {
     public static final long UPKEEP_INTERVAL_MS = 30_000L;
 
     /**
-     * Each unit's upkeep per interval = round({@link PlayerFaction#getUnitCost(UnitType)} * this fraction).
+     * Each unit's upkeep per interval = round({@link Player#getUnitCost(UnitType)} * this fraction).
      * Example: 4% of build cost every 30s — a 400-credit tank pays ~16 credits per tick before discounts.
      */
     public static final double UPKEEP_FRACTION_OF_BUILD_COST = 0.04;
@@ -34,7 +34,7 @@ public final class ArmyEconomy {
         return (int) Math.round(buildCost * UPKEEP_FRACTION_OF_BUILD_COST);
     }
 
-    public static int periodicRentForUnit(PlayerFaction faction, UnitType unitType) {
+    public static int periodicRentForUnit(Player faction, UnitType unitType) {
         return periodicUpkeepFromBuildCost(unitType, faction.getUnitCost(unitType));
     }
 

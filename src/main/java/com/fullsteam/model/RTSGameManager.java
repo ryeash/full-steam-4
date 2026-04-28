@@ -89,8 +89,6 @@ public class RTSGameManager {
      */
     private long lastArmyRentWallClockMs = System.currentTimeMillis();
 
-    // Player management
-    private final Map<Integer, PlayerSession> playerSessions = new ConcurrentHashMap<>();
     /**
      * -- GETTER --
      * Get player factions map
@@ -108,7 +106,7 @@ public class RTSGameManager {
 
     // Convenience accessors for internal use
     @Getter
-    private final Map<Integer, PlayerFaction> playerFactions;
+    private final Map<Integer, Player> players;
     private final Map<Integer, Unit> units;
     private final Map<Integer, Building> buildings;
     private final Map<Integer, Obstacle> obstacles;
@@ -144,7 +142,7 @@ public class RTSGameManager {
         this.gameStartTime = System.currentTimeMillis();
 
         this.gameEntities = new GameEntities(gameConfig, this);
-        this.playerFactions = gameEntities.getPlayerFactions();
+        this.players = gameEntities.getPlayerFactions();
         this.units = gameEntities.getUnits();
         this.buildings = gameEntities.getBuildings();
         this.obstacles = gameEntities.getObstacles();
@@ -238,7 +236,7 @@ public class RTSGameManager {
             // Update all buildings and collect projectiles from turrets
             buildings.values().forEach(building -> {
                 // Check if owner has low power
-                PlayerFaction faction = playerFactions.get(building.getOwnerId());
+                Player faction = players.get(building.getOwnerId());
                 boolean hasLowPower = faction != null && faction.isHasLowPower();
 
                 // Check if construction just completed
@@ -324,7 +322,7 @@ public class RTSGameManager {
      * Process player input
      */
     private void processPlayerInput(Integer playerId, RTSPlayerInput input) {
-        PlayerFaction faction = playerFactions.get(playerId);
+        Player faction = players.get(playerId);
         if (faction == null) {
             return;
         }
@@ -1170,37 +1168,35 @@ public class RTSGameManager {
      * Check for disconnected players and mark them as eliminated
      */
     private void checkDisconnectedPlayers() {
-        // Check if any player sessions are closed/disconnected
-        playerSessions.entrySet().removeIf(entry -> {
-            int playerId = entry.getKey();
-            PlayerSession session = entry.getValue();
-
-            // Check if session is closed
-            if (!session.getSession().isOpen()) {
-                if (!disconnectedPlayers.contains(playerId)) {
-                    disconnectedPlayers.add(playerId);
-
-                    PlayerFaction faction = playerFactions.get(playerId);
-                    if (faction != null) {
-                        log.info("Player {} disconnected from game {}", playerId, gameId);
-
-                        // Notify all players of disconnect
-                        sendGameEvent(GameEvent.builder()
-                                .message(String.format("⚠️ %s has disconnected from the game", faction.getPlayerId()))
-                                .category(GameEvent.EventCategory.SYSTEM)
-                                .color("#FFA500")
-                                .target(GameEvent.EventTarget.builder()
-                                        .type(GameEvent.EventTarget.TargetType.ALL)
-                                        .build())
-                                .displayDuration(5000L)
-                                .build()
-                        );
-                    }
-                }
-                return true; // Remove from active sessions
+        for (Player faction : players.values()) {
+            if (faction.getPlayerId() < 0) {
+                continue;
             }
-            return false;
-        });
+            WebSocketSession ws = faction.getWebSocketSession();
+            if (ws == null) {
+                continue;
+            }
+            if (ws.isOpen()) {
+                continue;
+            }
+
+            int playerId = faction.getPlayerId();
+            if (!disconnectedPlayers.contains(playerId)) {
+                disconnectedPlayers.add(playerId);
+                log.info("Player {} disconnected from game {}", playerId, gameId);
+                sendGameEvent(GameEvent.builder()
+                        .message(String.format("⚠️ %s has disconnected from the game", faction.getPlayerId()))
+                        .category(GameEvent.EventCategory.SYSTEM)
+                        .color("#FFA500")
+                        .target(GameEvent.EventTarget.builder()
+                                .type(GameEvent.EventTarget.TargetType.ALL)
+                                .build())
+                        .displayDuration(5000L)
+                        .build()
+                );
+            }
+            faction.setWebSocketSession(null);
+        }
     }
 
     /**
@@ -1226,7 +1222,7 @@ public class RTSGameManager {
 
         // Count how many teams actually have ACTIVE (non-disconnected) players
         Set<Integer> teamsWithActivePlayers = new HashSet<>();
-        for (PlayerFaction faction : playerFactions.values()) {
+        for (Player faction : players.values()) {
             if (faction.getTeamNumber() > 0 && !disconnectedPlayers.contains(faction.getPlayerId())) {
                 teamsWithActivePlayers.add(faction.getTeamNumber());
             }
@@ -1304,7 +1300,7 @@ public class RTSGameManager {
      * airfield-berth aircraft; multiplied by faction perks and Command Citadel discounts.
      */
     private void recalculateFactionArmyEconomy() {
-        for (PlayerFaction f : playerFactions.values()) {
+        for (Player f : players.values()) {
             f.setCurrentUpkeep(computeArmyRentCharge(f));
         }
     }
@@ -1316,12 +1312,12 @@ public class RTSGameManager {
                 .count();
     }
 
-    private double armyRentGlobalMultiplier(PlayerFaction faction) {
+    private double armyRentGlobalMultiplier(Player faction) {
         return faction.getFactionDefinition().getArmyRentCostMultiplier()
                 * ArmyEconomy.commandCitadelRentMultiplier(countCompletedCommandCitadels(faction.getPlayerId()));
     }
 
-    private int computeArmyRentCharge(PlayerFaction faction) {
+    private int computeArmyRentCharge(Player faction) {
         int playerId = faction.getPlayerId();
         int raw = 0;
         for (Unit u : units.values()) {
@@ -1355,7 +1351,7 @@ public class RTSGameManager {
      */
     private void processArmyRentCharges() {
         recalculateFactionArmyEconomy();
-        for (PlayerFaction faction : playerFactions.values()) {
+        for (Player faction : players.values()) {
             int due = faction.getCurrentUpkeep();
             if (due <= 0) {
                 continue;
@@ -1396,7 +1392,7 @@ public class RTSGameManager {
      * Removes the single active unit with highest per-tick upkeep slice (ties: higher unit id).
      * Includes aircraft parked in airfield berths (not deployed).
      */
-    private void desertHighestRentUnit(PlayerFaction faction) {
+    private void desertHighestRentUnit(Player faction) {
         int playerId = faction.getPlayerId();
         Unit best = null;
         int bestRent = -1;
@@ -1461,7 +1457,7 @@ public class RTSGameManager {
      * Low power stops all unit production
      */
     private void recalculatePower() {
-        playerFactions.values().forEach(faction -> {
+        players.values().forEach(faction -> {
             int generated = 0;
             int consumed = 0;
 
@@ -1597,7 +1593,7 @@ public class RTSGameManager {
 
                 // Trigger perk hooks for unit destruction
                 int ownerId = unit.getOwnerId();
-                PlayerFaction faction = playerFactions.get(ownerId);
+                Player faction = players.get(ownerId);
                 faction.getFactionDefinition().onUnitDestroyed(unit, faction, this);
 
                 // Send unit death notification (throttled to avoid spam)
@@ -1649,7 +1645,7 @@ public class RTSGameManager {
                 }
 
                 // Send notification for important building destructions (to the owner)
-                PlayerFaction faction = playerFactions.get(building.getOwnerId());
+                Player faction = players.get(building.getOwnerId());
                 if (faction != null && !building.isUnderConstruction()) {
                     String buildingName = building.getBuildingType().name()
                             .replace("_", " ")
@@ -1683,7 +1679,7 @@ public class RTSGameManager {
                 }
 
                 // Trigger perk hooks for building destruction
-                PlayerFaction ownerFaction = playerFactions.get(building.getOwnerId());
+                Player ownerFaction = players.get(building.getOwnerId());
                 ownerFaction.getFactionDefinition().onBuildingDestroyed(building, ownerFaction, this);
 
                 // Call onDestroy for all components (handles sandstorm cleanup, etc.)
@@ -1714,7 +1710,7 @@ public class RTSGameManager {
     /**
      * Check if faction can afford a building (uses faction-modified cost)
      */
-    private boolean canAffordBuilding(PlayerFaction faction, BuildingType buildingType) {
+    private boolean canAffordBuilding(Player faction, BuildingType buildingType) {
         // Check if faction can build this building type
         if (!faction.canBuildBuilding(buildingType)) {
             return false;
@@ -1728,7 +1724,7 @@ public class RTSGameManager {
     /**
      * Check if faction can afford a unit (uses faction-modified cost)
      */
-    private boolean canAffordUnit(PlayerFaction faction, UnitType unitType) {
+    private boolean canAffordUnit(Player faction, UnitType unitType) {
         // Check if unit is unlocked via research (uses new tech tree system)
         if (!faction.canProduceUnit(unitType)) {
             return false;
@@ -1779,12 +1775,13 @@ public class RTSGameManager {
      */
     private void sendGameState() {
         // Send personalized game state to each player based on their vision
-        playerSessions.forEach((playerId, playerSession) -> {
-            PlayerFaction faction = playerFactions.get(playerId);
-            if (faction != null) {
-                Map<String, Object> gameState = createGameStateForTeam(faction.getTeamNumber());
-                send(playerSession.getSession(), gameState);
+        players.values().forEach(faction -> {
+            WebSocketSession ws = faction.getWebSocketSession();
+            if (ws == null || !ws.isOpen() || faction.getPlayerId() < 0) {
+                return;
             }
+            Map<String, Object> gameState = createGameStateForTeam(faction.getTeamNumber());
+            send(ws, gameState);
         });
     }
 
@@ -1856,7 +1853,7 @@ public class RTSGameManager {
 
         // Player factions - send only dynamic resource/state info
         Map<Integer, Map<String, Object>> factionsMap = new LinkedHashMap<>();
-        playerFactions.forEach((playerId, faction) -> {
+        players.forEach((playerId, faction) -> {
             if (faction.getTeamNumber() == teamNumber) {
                 // Dynamic info for own team (resources, unit counts, etc.)
                 factionsMap.put(playerId, serializeFactionDynamic(faction));
@@ -1897,7 +1894,7 @@ public class RTSGameManager {
      * Serialize only dynamic faction data (resources, counts, power, etc.)
      * Client already has static data from initialization
      */
-    private Map<String, Object> serializeFactionDynamic(PlayerFaction faction) {
+    private Map<String, Object> serializeFactionDynamic(Player faction) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("playerId", faction.getPlayerId());
         data.put("team", faction.getTeamNumber());
@@ -1994,7 +1991,7 @@ public class RTSGameManager {
         init.put("buildingTypes", buildingTypes);
 
         // Player's faction static info (if they have a faction yet)
-        PlayerFaction faction = playerFactions.get(playerId);
+        Player faction = players.get(playerId);
         if (faction != null) {
             Map<String, Object> factionStatic = new LinkedHashMap<>();
             factionStatic.put("playerId", faction.getPlayerId());
@@ -2399,12 +2396,12 @@ public class RTSGameManager {
         int aiTeam = 2;
 
         // Create AI faction
-        PlayerFaction aiFaction = new PlayerFaction(
+        Player aiFaction = new Player(
                 aiPlayerId,
                 aiTeam,
                 FactionDefinition.builder().build()
         );
-        playerFactions.put(aiPlayerId, aiFaction);
+        players.put(aiPlayerId, aiFaction);
 
         // Create AI starting base
         Vector2 aiStartPosition = getStartingPosition(aiTeam);
@@ -2423,27 +2420,39 @@ public class RTSGameManager {
     /**
      * Add a player to the game
      */
-    public synchronized boolean addPlayer(PlayerSession playerSession, CustomFactionConfig config, FactionDefinition customDefinition) {
+    public synchronized boolean addPlayer(int playerId, WebSocketSession webSocketSession,
+                                          CustomFactionConfig config, FactionDefinition customDefinition) {
         // Prevent late joins if game has started with full roster
         if (gameStartedWithFullRoster) {
             log.warn("Player {} attempted to join game {} after it started with full roster",
-                    playerSession.getPlayerId(), gameId);
+                    playerId, gameId);
             return false;
         }
 
-        if (playerSessions.size() >= gameConfig.getMaxPlayers()) {
+        if (countHumanPlayerFactions() >= gameConfig.getMaxPlayers()) {
             return false;
         }
 
-        playerSessions.put(playerSession.getPlayerId(), playerSession);
+        log.info("Adding player {} to game {}", playerId, gameId);
 
-        // Check if game is now at full capacity
-        if (playerSessions.size() == gameConfig.getMaxPlayers()) {
+        // Assign team
+        int teamNumber = assignPlayerToTeam();
+        // Create faction with selected faction type and WebSocket
+        Player faction = new Player(
+                playerId,
+                teamNumber,
+                customDefinition,
+                webSocketSession
+        );
+
+        log.info("Assigned player {} to team {}", playerId, teamNumber);
+        players.put(playerId, faction);
+
+        if (countHumanPlayerFactions() == gameConfig.getMaxPlayers()) {
             gameStartedWithFullRoster = true;
             log.info("Game {} has reached full capacity ({} players) - late joins now prevented",
                     gameId, gameConfig.getMaxPlayers());
 
-            // Notify all players that game is starting with full roster
             sendGameEvent(GameEvent.builder()
                     .message("🎮 Game starting with full roster! Late joins disabled.")
                     .category(GameEvent.EventCategory.SYSTEM)
@@ -2455,25 +2464,15 @@ public class RTSGameManager {
                     .build()
             );
         }
-
-        log.info("Adding player {} to game {}", playerSession.getPlayerId(), gameId);
-
-        // Assign team
-        int teamNumber = assignPlayerToTeam();
-        // Create faction with selected faction type
-        PlayerFaction faction = new PlayerFaction(
-                playerSession.getPlayerId(),
-                teamNumber,
-                customDefinition
-        );
-
-        log.info("Assigned player {} to team {}", playerSession.getPlayerId(), teamNumber);
-        playerFactions.put(playerSession.getPlayerId(), faction);
         // Create starting base
         Vector2 startPosition = getStartingPosition(teamNumber);
-        createStartingBase(playerSession.getPlayerId(), teamNumber, startPosition);
-        log.info("Player {} joined RTS game {} on team {}", playerSession.getPlayerId(), gameId, teamNumber);
+        createStartingBase(playerId, teamNumber, startPosition);
+        log.info("Player {} joined RTS game {} on team {}", playerId, gameId, teamNumber);
         return true;
+    }
+
+    private long countHumanPlayerFactions() {
+        return players.values().stream().filter(f -> f.getPlayerId() >= 0).count();
     }
 
     /**
@@ -2482,7 +2481,7 @@ public class RTSGameManager {
     private int assignPlayerToTeam() {
         // Count HUMAN players per team (exclude AI player -1)
         int[] teamCounts = new int[gameConfig.getMaxPlayers() + 1];
-        playerFactions.values().forEach(faction -> {
+        players.values().forEach(faction -> {
             // Only count human players (playerId >= 0)
             if (faction.getPlayerId() >= 0) {
                 int team = faction.getTeamNumber();
@@ -2521,7 +2520,7 @@ public class RTSGameManager {
      * Create starting base for a player
      */
     private void createStartingBase(int playerId, int teamNumber, Vector2 position) {
-        PlayerFaction faction = Objects.requireNonNull(playerFactions.get(playerId));
+        Player faction = Objects.requireNonNull(players.get(playerId));
 
         // Create headquarters (with faction-modified health)
         double hqMaxHealth = faction.getBuildingHealth(BuildingType.HEADQUARTERS);
@@ -2579,8 +2578,7 @@ public class RTSGameManager {
      * Remove a player from the game
      */
     public void removePlayer(int playerId) {
-        playerSessions.remove(playerId);
-        playerFactions.remove(playerId);
+        players.remove(playerId);
 
         // Remove player's units and buildings
         units.entrySet().removeIf(entry -> {
@@ -2628,9 +2626,10 @@ public class RTSGameManager {
      * Broadcast message to all players
      */
     public void broadcast(Object message) {
-        playerSessions.values().forEach(player -> {
-            if (player.getSession().isOpen()) {
-                send(player.getSession(), message);
+        players.values().forEach(faction -> {
+            WebSocketSession ws = faction.getWebSocketSession();
+            if (ws != null && ws.isOpen()) {
+                send(ws, message);
             }
         });
     }
@@ -2647,16 +2646,13 @@ public class RTSGameManager {
             return;
         }
 
-        playerSessions.values().forEach(player -> {
-            if (!player.getSession().isOpen()) {
+        players.values().forEach(faction -> {
+            WebSocketSession ws = faction.getWebSocketSession();
+            if (ws == null || !ws.isOpen()) {
                 return;
             }
 
-            int playerId = player.getPlayerId();
-            PlayerFaction faction = playerFactions.get(playerId);
-            if (faction == null) {
-                return;
-            }
+            int playerId = faction.getPlayerId();
 
             boolean shouldReceive = false;
 
@@ -2681,7 +2677,7 @@ public class RTSGameManager {
             }
 
             if (shouldReceive) {
-                send(player.getSession(), event);
+                send(ws, event);
             }
         });
     }

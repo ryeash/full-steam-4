@@ -4,15 +4,13 @@ import com.fullsteam.model.command.IdleCommand;
 import com.fullsteam.model.command.SortieCommand;
 import com.fullsteam.model.command.UnitCommand;
 import com.fullsteam.model.component.APCComponent;
+import com.fullsteam.model.component.AirfieldAircraftHousingComponent;
 import com.fullsteam.model.component.AndroidComponent;
 import com.fullsteam.model.component.CloakComponent;
 import com.fullsteam.model.component.GunshipComponent;
-import com.fullsteam.model.component.AirfieldAircraftHousingComponent;
 import com.fullsteam.model.component.HarvestComponent;
-import com.fullsteam.model.component.HealComponent;
 import com.fullsteam.model.component.IUnitComponent;
 import com.fullsteam.model.component.InterceptorComponent;
-import com.fullsteam.model.component.RepairComponent;
 import com.fullsteam.model.component.ShieldTankComponent;
 import com.fullsteam.model.component.SpiderMineComponent;
 import com.fullsteam.model.component.SpyComponent;
@@ -48,7 +46,7 @@ public class Unit extends GameEntity implements Targetable {
     private final UnitType unitType;
     private final int ownerId; // Player who owns this unit
     private final int teamNumber;
-    private final PlayerFaction faction; // Reference to owner's faction for dynamic stat calculations
+    private final Player faction; // Reference to owner's faction for dynamic stat calculations
     private UnitCommand currentCommand = null;
 
     // Component system for modular behaviors
@@ -81,7 +79,7 @@ public class Unit extends GameEntity implements Targetable {
     private boolean selected = false;
     private boolean garrisoned = false; // True if unit is inside a building
 
-    public Unit(int id, UnitType unitType, double x, double y, int ownerId, int teamNumber, PlayerFaction faction) {
+    public Unit(int id, UnitType unitType, double x, double y, int ownerId, int teamNumber, Player faction) {
         super(id, createUnitBody(x, y, unitType), calculateModifiedMaxHealth(unitType, faction));
         this.unitType = unitType;
         this.ownerId = ownerId;
@@ -103,7 +101,7 @@ public class Unit extends GameEntity implements Targetable {
      * Calculate the modified max health for this unit type with faction modifiers.
      * Static helper to avoid calling overridden methods from constructor.
      */
-    private static double calculateModifiedMaxHealth(UnitType unitType, PlayerFaction faction) {
+    private static double calculateModifiedMaxHealth(UnitType unitType, Player faction) {
         double baseHealth = unitType.getMaxHealth();
 
         if (faction == null || faction.getFactionDefinition() == null) {
@@ -169,14 +167,6 @@ public class Unit extends GameEntity implements Targetable {
 
         if (unitType == UnitType.ANDROID) {
             addComponent(new AndroidComponent(), gameEntities);
-        }
-
-        if (unitType.canHeal()) {
-            addComponent(new HealComponent(), gameEntities);
-        }
-
-        if (unitType.canRepair()) {
-            addComponent(new RepairComponent(), gameEntities);
         }
 
         // Special abilities
@@ -760,151 +750,7 @@ public class Unit extends GameEntity implements Targetable {
      */
     public boolean belongsTo(int playerId) {
         return this.ownerId == playerId;
-    }
-
-    /**
-     * AI behavior: Medics scan for damaged friendlies and auto-heal
-     */
-    public void scanForHealTargets(List<Unit> allUnits) {
-        // Only medics can heal
-        if (!unitType.canHeal()) {
-            return;
-        }
-
-        // Don't interrupt player orders  
-        if (currentCommand != null && currentCommand.isPlayerOrder()) {
-            return;
-        }
-        // Also check legacy isMoving flag (used by GarrisonComponent)
-        if (isMoving) {
-            return;
-        }
-
-        // Check if heal ability is ready
-        SpecialAbility ability = unitType.getSpecialAbility();
-        if (ability != SpecialAbility.HEAL) {
-            return;
-        }
-
-        long now = System.currentTimeMillis();
-        if (now - lastSpecialAbilityTime < ability.getCooldownMs()) {
-            return;
-        }
-
-        Vector2 currentPos = getPosition();
-        double healRange = 150.0; // Medics can heal within 150 units
-
-        // Find most damaged friendly unit in range
-        Unit mostDamagedUnit = null;
-        double lowestHealthPercent = 1.0;
-
-        for (Unit unit : allUnits) {
-            if (unit == this || unit.getTeamNumber() != this.teamNumber || !unit.isActive()) {
-                continue;
-            }
-
-            double distance = currentPos.distance(unit.getPosition());
-            if (distance > healRange) {
-                continue;
-            }
-
-            double healthPercent = unit.getHealth() / unit.getMaxHealth();
-            if (healthPercent < 1.0 && healthPercent < lowestHealthPercent) {
-                mostDamagedUnit = unit;
-                lowestHealthPercent = healthPercent;
-            }
-        }
-
-        // If found a damaged unit, heal it
-        if (mostDamagedUnit != null) {
-            useSpecialAbilityOnUnit(mostDamagedUnit);
-        }
-    }
-
-    /**
-     * AI behavior: Engineers scan for damaged friendly units and buildings, then auto-repair
-     */
-    public void scanForRepairTargets(List<Building> allBuildings, List<Unit> allUnits) {
-        // Only engineers can repair
-        if (!unitType.canRepair()) {
-            return;
-        }
-
-        // Don't interrupt player orders or construction
-        if (currentCommand != null && currentCommand.isPlayerOrder()) {
-            return;
-        }
-        // Also check legacy isMoving flag (used by GarrisonComponent)
-        if (isMoving) {
-            return;
-        }
-
-        // Check if repair ability is ready
-        SpecialAbility ability = unitType.getSpecialAbility();
-        if (ability != SpecialAbility.REPAIR) {
-            return;
-        }
-
-        long now = System.currentTimeMillis();
-        if (now - lastSpecialAbilityTime < ability.getCooldownMs()) {
-            return;
-        }
-
-        Vector2 currentPos = getPosition();
-        double repairRange = 150.0; // Engineers can repair within 150 units
-
-        // Find most damaged friendly unit in range (prioritize units over buildings)
-        Unit mostDamagedUnit = null;
-        double lowestUnitHealthPercent = 1.0;
-
-        for (Unit unit : allUnits) {
-            if (unit == this || unit.getTeamNumber() != this.teamNumber || !unit.isActive()) {
-                continue;
-            }
-
-            double distance = currentPos.distance(unit.getPosition());
-            if (distance > repairRange) {
-                continue;
-            }
-
-            double healthPercent = unit.getHealth() / unit.getMaxHealth();
-            if (healthPercent < 1.0 && healthPercent < lowestUnitHealthPercent) {
-                mostDamagedUnit = unit;
-                lowestUnitHealthPercent = healthPercent;
-            }
-        }
-
-        // If found a damaged unit, repair it
-        if (mostDamagedUnit != null && useSpecialAbilityOnUnit(mostDamagedUnit)) {
-            return;
-        }
-
-        // Otherwise, find most damaged friendly building in range
-        Building mostDamagedBuilding = null;
-        double lowestBuildingHealthPercent = 1.0;
-
-        for (Building building : allBuildings) {
-            if (building.getTeamNumber() != this.teamNumber || !building.isActive() || building.isUnderConstruction()) {
-                continue;
-            }
-
-            double distance = currentPos.distance(building.getPosition());
-            if (distance > repairRange) {
-                continue;
-            }
-
-            double healthPercent = building.getHealth() / building.getMaxHealth();
-            if (healthPercent < 1.0 && healthPercent < lowestBuildingHealthPercent) {
-                mostDamagedBuilding = building;
-                lowestBuildingHealthPercent = healthPercent;
-            }
-        }
-
-        // If found a damaged building, repair it
-        if (mostDamagedBuilding != null) {
-            useSpecialAbilityOnBuilding(mostDamagedBuilding);
-        }
-    }
+    } 
 
     /**
      * Check if unit should return to home position (for defensive stance)

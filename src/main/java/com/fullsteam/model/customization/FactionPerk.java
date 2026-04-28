@@ -3,7 +3,7 @@ package com.fullsteam.model.customization;
 import com.fullsteam.model.Building;
 import com.fullsteam.model.BuildingType;
 import com.fullsteam.model.GameEvent;
-import com.fullsteam.model.PlayerFaction;
+import com.fullsteam.model.Player;
 import com.fullsteam.model.RTSGameManager;
 import com.fullsteam.model.ResourceType;
 import com.fullsteam.model.Unit;
@@ -469,7 +469,7 @@ public enum FactionPerk implements PerkEffect {
         private static final double SALVAGE_RATE = 0.30;
 
         @Override
-        public void onUnitDestroyed(Unit unit, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitDestroyed(Unit unit, Player faction, RTSGameManager game) {
             int baseCost = unit.getUnitType().getResourceCost();
 
             // Apply faction cost modifiers to get the actual cost paid
@@ -507,7 +507,7 @@ public enum FactionPerk implements PerkEffect {
         }
 
         @Override
-        public void onBuildingDestroyed(Building building, PlayerFaction faction, RTSGameManager game) {
+        public void onBuildingDestroyed(Building building, Player faction, RTSGameManager game) {
             int baseCost = building.getBuildingType().getResourceCost();
 
             // Apply faction cost modifiers to get the actual cost paid
@@ -633,7 +633,7 @@ public enum FactionPerk implements PerkEffect {
         private final Map<Integer, Long> buffedUnits = new HashMap<>();
 
         @Override
-        public void onUnitCreated(Unit unit, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitCreated(Unit unit, Player faction, RTSGameManager game) {
             // Track this unit as buffed
             buffedUnits.put(unit.getId(), System.currentTimeMillis() + BUFF_DURATION_MS);
             log.debug("Player {} - Battle Hardened: Unit {} created with temporary damage buff", 
@@ -641,7 +641,7 @@ public enum FactionPerk implements PerkEffect {
         }
 
         @Override
-        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, Player faction, RTSGameManager game) {
             Long expiryTime = buffedUnits.get(attacker.getId());
             if (expiryTime != null) {
                 long currentTime = System.currentTimeMillis();
@@ -659,7 +659,7 @@ public enum FactionPerk implements PerkEffect {
         }
 
         @Override
-        public void onUnitDestroyed(Unit unit, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitDestroyed(Unit unit, Player faction, RTSGameManager game) {
             // Clean up tracking
             buffedUnits.remove(unit.getId());
         }
@@ -676,7 +676,7 @@ public enum FactionPerk implements PerkEffect {
         private int unitCounter = 0;
 
         @Override
-        public void onUnitCreated(Unit unit, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitCreated(Unit unit, Player faction, RTSGameManager game) {
             unitCounter++;
             if (unitCounter % PROMOTION_INTERVAL == 0) {
                 // Promote this unit
@@ -710,7 +710,7 @@ public enum FactionPerk implements PerkEffect {
         private static final double HEAL_RADIUS = 200.0;
 
         @Override
-        public void onUnitCreated(Unit unit, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitCreated(Unit unit, Player faction, RTSGameManager game) {
             if (game == null || game.getGameEntities() == null) return;
 
             // Find nearby damaged friendly units
@@ -758,7 +758,7 @@ public enum FactionPerk implements PerkEffect {
         }
 
         @Override
-        public void onUnitCreated(Unit unit, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitCreated(Unit unit, Player faction, RTSGameManager game) {
             // Calculate current discount for this unit type
             if (game != null && game.getGameEntities() != null) {
                 int sameTypeCount = (int) game.getGameEntities().getUnits().values().stream()
@@ -787,7 +787,7 @@ public enum FactionPerk implements PerkEffect {
         private static final double MAX_BONUS = 0.30;
 
         @Override
-        public void onBuildingCreated(Building building, PlayerFaction faction, RTSGameManager game) {
+        public void onBuildingCreated(Building building, Player faction, RTSGameManager game) {
             if (game == null || game.getGameEntities() == null) return;
 
             // Count total buildings for this faction
@@ -822,7 +822,7 @@ public enum FactionPerk implements PerkEffect {
         private static final double VISION_BONUS = 150.0;
 
         @Override
-        public void onBuildingCreated(Building building, PlayerFaction faction, RTSGameManager game) {
+        public void onBuildingCreated(Building building, Player faction, RTSGameManager game) {
             if (game == null || game.getGameEntities() == null) return;
 
             // Find HQ
@@ -862,7 +862,7 @@ public enum FactionPerk implements PerkEffect {
         private static final double MAX_REDUCTION = 0.30;
 
         @Override
-        public void onBuildingCreated(Building building, PlayerFaction faction, RTSGameManager game) {
+        public void onBuildingCreated(Building building, Player faction, RTSGameManager game) {
             if (game == null || game.getGameEntities() == null) return;
 
             long buildingCount = game.getGameEntities().getBuildings().values().stream()
@@ -895,7 +895,7 @@ public enum FactionPerk implements PerkEffect {
         private final Map<Integer, Long> lastAttackTime = new HashMap<>();
 
         @Override
-        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, Player faction, RTSGameManager game) {
             int unitId = attacker.getId();
             long currentTime = System.currentTimeMillis();
 
@@ -922,7 +922,7 @@ public enum FactionPerk implements PerkEffect {
         }
 
         @Override
-        public void onUnitDestroyed(Unit unit, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitDestroyed(Unit unit, Player faction, RTSGameManager game) {
             momentumStacks.remove(unit.getId());
             lastAttackTime.remove(unit.getId());
         }
@@ -939,7 +939,7 @@ public enum FactionPerk implements PerkEffect {
         private final Map<Integer, Long> slowedTargets = new HashMap<>();
 
         @Override
-        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, Player faction, RTSGameManager game) {
             if (!(target instanceof Unit)) return;
 
             Unit targetUnit = (Unit) target;
@@ -959,7 +959,7 @@ public enum FactionPerk implements PerkEffect {
         }
 
         @Override
-        public void onUnitCreated(Unit unit, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitCreated(Unit unit, Player faction, RTSGameManager game) {
             // Clean up expired slows
             long currentTime = System.currentTimeMillis();
             slowedTargets.entrySet().removeIf(entry -> {
@@ -979,7 +979,7 @@ public enum FactionPerk implements PerkEffect {
         }
 
         @Override
-        public void onUnitDestroyed(Unit unit, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitDestroyed(Unit unit, Player faction, RTSGameManager game) {
             // Clean up tracking for destroyed unit
             slowedTargets.remove(unit.getId());
         }
@@ -995,7 +995,7 @@ public enum FactionPerk implements PerkEffect {
         private static final double HEAL_RADIUS = 150.0;
 
         @Override
-        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, Player faction, RTSGameManager game) {
             if (attacker.getUnitType().getCategory() != UnitCategory.INFANTRY) return;
             if (game == null || game.getGameEntities() == null) return;
 
@@ -1041,7 +1041,7 @@ public enum FactionPerk implements PerkEffect {
         private int currentTier = 0;
 
         @Override
-        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, Player faction, RTSGameManager game) {
             totalDamageDealt += damage;
 
             int newTier = Math.min((int) (totalDamageDealt / DAMAGE_THRESHOLD), MAX_TIERS);
@@ -1076,7 +1076,7 @@ public enum FactionPerk implements PerkEffect {
         private static final double LIFESTEAL_PERCENT = 0.08;
 
         @Override
-        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, Player faction, RTSGameManager game) {
             double healAmount = damage * LIFESTEAL_PERCENT;
             double newHealth = Math.min(
                     attacker.getHealth() + healAmount,
@@ -1100,7 +1100,7 @@ public enum FactionPerk implements PerkEffect {
         private final java.util.Random random = new java.util.Random();
 
         @Override
-        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, Player faction, RTSGameManager game) {
             if (random.nextDouble() < CRIT_CHANCE) {
                 // Deal bonus damage (original damage already applied)
                 double bonusDamage = damage * (CRIT_MULTIPLIER - 1.0);
@@ -1124,7 +1124,7 @@ public enum FactionPerk implements PerkEffect {
         private final Map<Integer, Boolean> overchargeReady = new HashMap<>();
 
         @Override
-        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, Player faction, RTSGameManager game) {
             int unitId = attacker.getId();
 
             // Check if overcharge is ready
@@ -1161,7 +1161,7 @@ public enum FactionPerk implements PerkEffect {
         }
 
         @Override
-        public void onUnitDestroyed(Unit unit, PlayerFaction faction, RTSGameManager game) {
+        public void onUnitDestroyed(Unit unit, Player faction, RTSGameManager game) {
             damageAccumulated.remove(unit.getId());
             overchargeReady.remove(unit.getId());
         }
