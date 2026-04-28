@@ -49,6 +49,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -196,6 +197,12 @@ public class RTSGameManager {
             lastUpdateTime = currentTime;
             frameCount++;
 
+            for (Player player : gameEntities.getPlayerFactions().values()) {
+                if (player.getSatelliteReveal() != null && !player.getSatelliteReveal().isActive()) {
+                    player.setSatelliteReveal(null);
+                }
+            }
+
             // Recalculate army upkeep projection, population, and power every 60 frames (~1.2s)
             if (frameCount % 60 == 0) {
                 recalculateFactionArmyEconomy();
@@ -293,8 +300,6 @@ public class RTSGameManager {
                     unit.clampToBounds(gameConfig.getWorldWidth(), gameConfig.getWorldHeight());
                 }
             });
-
-            gameEntities.pruneExpiredSatelliteReveals();
 
             // Process field effects (explosions, etc.)
             processFieldEffects();
@@ -1741,9 +1746,20 @@ public class RTSGameManager {
         state.put("type", "gameState");
         state.put("timestamp", System.currentTimeMillis());
 
+        boolean activeSatellite = gameEntities.getPlayerFactions()
+                .values()
+                .stream()
+                .map(Player::getSatelliteReveal)
+                .filter(Objects::nonNull)
+                .anyMatch(s -> s.teamNumber() == teamNumber && s.isActive());
+
         // Apply fog of war - only send visible units and buildings
-        List<Unit> visibleUnits = FogOfWar.getVisibleUnits(gameEntities, teamNumber);
-        List<Building> visibleBuildings = FogOfWar.getVisibleBuildings(gameEntities, teamNumber);
+        Collection<Unit> visibleUnits = activeSatellite
+                ? gameEntities.getUnits().values()
+                : FogOfWar.getVisibleUnits(gameEntities, teamNumber);
+        Collection<Building> visibleBuildings = activeSatellite
+                ? gameEntities.getBuildings().values()
+                : FogOfWar.getVisibleBuildings(gameEntities, teamNumber);
 
         // Serialize visible units (exclude garrisoned units)
         List<Map<String, Object>> unitsList = visibleUnits.stream()

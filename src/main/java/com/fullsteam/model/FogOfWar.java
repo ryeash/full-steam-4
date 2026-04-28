@@ -61,12 +61,6 @@ public class FogOfWar {
             }
         }
 
-        for (SatelliteReveal reveal : gameEntities.getSatelliteReveals()) {
-            if (reveal.teamNumber() == teamNumber && reveal.isActive()) {
-                visionSources.add(new VisionSource(reveal.center(), reveal.radius()));
-            }
-        }
-
         // If no vision sources, return only own units
         if (visionSources.isEmpty()) {
             return allUnits.stream()
@@ -142,12 +136,6 @@ public class FogOfWar {
                 if (bugPosition != null) { // Target is still alive
                     visionSources.add(new VisionSource(bugPosition, bug.getVisionRange()));
                 }
-            }
-        }
-
-        for (SatelliteReveal reveal : gameEntities.getSatelliteReveals()) {
-            if (reveal.teamNumber() == teamNumber && reveal.isActive()) {
-                visionSources.add(new VisionSource(reveal.center(), reveal.radius()));
             }
         }
 

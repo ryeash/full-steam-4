@@ -34,7 +34,7 @@ public class Application {
                     .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                     .configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true)
                     .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
-                    .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+                    .setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL)
                     .setDefaultPropertyInclusion(JsonInclude.Include.ALWAYS)
                     .registerModule(new SimpleModule()
                             .addSerializer(Double.class, new SerializerDouble())

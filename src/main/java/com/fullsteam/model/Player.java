@@ -25,6 +25,7 @@ public class Player {
     private int powerGenerated = 0;
     private int powerConsumed = 0;
     private boolean hasLowPower = false;
+    private SatelliteReveal satelliteReveal;
 
     /**
      * Wall-clock time (ms since epoch) when each command ability cooldown ends; absent if ready.
