@@ -7,6 +7,7 @@ import com.fullsteam.model.component.GarrisonComponent;
 import com.fullsteam.model.component.AirfieldAircraftHousingComponent;
 import com.fullsteam.model.component.IBuildingComponent;
 import com.fullsteam.model.component.ProductionComponent;
+import com.fullsteam.model.component.NukeSiloComponent;
 import com.fullsteam.model.component.SandstormComponent;
 import com.fullsteam.model.component.ShieldComponent;
 import com.fullsteam.model.factions.FactionDefinition;
@@ -133,6 +134,11 @@ public class Building extends GameEntity implements Targetable {
 
         if (buildingType == BuildingType.SANDSTORM_GENERATOR) {
             addComponent(new SandstormComponent());
+        }
+
+        if (buildingType == BuildingType.NUKE_SILO) {
+            addComponent(new NukeSiloComponent());
+            log.debug("Building {} ({}) initialized with NukeSiloComponent", id, buildingType.getDisplayName());
         }
 
         // Anti-air defense tower

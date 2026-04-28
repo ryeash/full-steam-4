@@ -82,5 +82,12 @@ public class RTSPlayerInput {
     private double cameraX;
     private double cameraY;
     private double cameraZoom;
+
+    // Command abilities (strategic powers), e.g. {@link CommandAbilityType#STRIKE_PACKAGE}
+    private CommandAbilityType commandAbilityOrder;
+    /** Ground target (world coordinates); required for targeted abilities. */
+    private Vector2 commandAbilityTargetLocation;
+    /** Optional building that must own the unlock and belong to the player. */
+    private Integer commandAbilitySourceBuildingId;
 }
 

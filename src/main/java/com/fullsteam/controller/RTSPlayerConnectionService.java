@@ -80,7 +80,7 @@ public class RTSPlayerConnectionService {
         // Store game reference in session attributes
         session.put("rtsGame", game);
 
-        // Add player to game with faction (session is stored on {@link PlayerFaction})
+        // Add player to game (WebSocket session is stored on {@link Player})
         if (!game.addPlayer(playerId, session, config, customDefinition)) {
             log.warn("Failed to add player {} to RTS game {} (game may be full or started)", playerId, gameId);
 

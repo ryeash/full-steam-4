@@ -92,6 +92,13 @@ class RTSEngine {
         this.sortieBuildingId = null;
         this.sortieHousedUnitId = null;
         this.sortieAircraftType = null;
+
+        // Command abilities (strategic powers), e.g. Strike Package — catalog from gameInitialization
+        this.commandAbilityTypes = null;
+        this.commandAbilityTargetingMode = false;
+        this.pendingCommandAbilityType = null;
+        /** When {@link #updateCommandAbilitiesPanel} last rebuilt buttons (cooldown rounded to seconds). */
+        this._commandAbilityPanelKey = null;
         
         // Right mouse: deferred order vs camera pan (drag)
         this.rightButtonDown = false;
@@ -183,6 +190,10 @@ class RTSEngine {
         
         this.gameContainer.addChild(this.selectionBoxGraphics);
         this.selectionBoxGraphics.zIndex = 101; // Top layer - selection box
+
+        this.commandAbilityTargetGraphics = new PIXI.Graphics();
+        this.gameContainer.addChild(this.commandAbilityTargetGraphics);
+        this.commandAbilityTargetGraphics.zIndex = 102;
         
         // Handle resize
         window.addEventListener('resize', () => this.handleResize());
@@ -258,6 +269,7 @@ class RTSEngine {
     
     setupUI() {
         this.cacheHudDomRefs();
+        this.installHotkeyLegend();
         // Setup build menu buttons (static HTML may have none; generateBuildMenu wires new buttons)
         document.querySelectorAll('.build-button').forEach(button => {
             button.addEventListener('click', () => {
@@ -278,8 +290,52 @@ class RTSEngine {
             powerValue: document.getElementById('power-value'),
             lowPowerBanner: document.getElementById('low-power-banner'),
             resourcePanel: document.getElementById('resource-panel'),
+            hudEconomy: document.getElementById('hud-economy'),
+            hudHotkeys: document.getElementById('hud-hotkeys'),
+            buildingInfoPanel: document.getElementById('building-info-panel'),
+            commandAbilitiesPanel: document.getElementById('command-abilities-panel'),
+            commandAbilitiesButtons: document.getElementById('command-abilities-buttons'),
         };
         this.refreshUnitInfoDomRefs();
+    }
+
+    /**
+     * Clears client-only building selection and the building detail DOM.
+     * Unit selection is unchanged; call {@link #clearUnitSelectionImmediate} separately when needed.
+     */
+    clearBuildingSelectionClient() {
+        this.selectedBuilding = null;
+        const bip = this.dom?.buildingInfoPanel || document.getElementById('building-info-panel');
+        if (bip) {
+            bip.innerHTML = '';
+            bip.style.display = 'none';
+        }
+    }
+
+    /** True if any currently selected local unit is a worker (build roster). */
+    selectionIncludesWorker() {
+        for (const id of this.selectedUnits) {
+            const c = this.units.get(id);
+            if (c?.unitData?.type === 'WORKER' && c.unitData.ownerId === this.myPlayerId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    installHotkeyLegend() {
+        const el = this.dom?.hudHotkeys;
+        if (!el) {
+            return;
+        }
+        el.innerHTML = [
+            '<kbd>B</kbd> Build <span style="opacity:.78">(workers)</span>',
+            '<kbd>Q</kbd> Attack-move',
+            '<kbd>T</kbd> Special',
+            '<kbd>U</kbd> Ungarrison',
+            '<kbd>X</kbd> Scatter',
+            '<kbd>Esc</kbd> Cancel',
+        ].join(' \u00B7 ');
     }
 
     /** Re-query unit info panel nodes when present in the document (cleared by building production UI). */
@@ -299,6 +355,16 @@ class RTSEngine {
             abilityName: document.getElementById('unit-ability-name'),
             unitCountList: document.getElementById('unit-count-list'),
         };
+    }
+
+    /**
+     * Jackson often serializes {@code Map<Integer,?>} keys as strings; gameState.factions may use either.
+     */
+    getFactionStateForPlayer(factionsMap, playerId) {
+        if (!factionsMap || playerId == null) {
+            return null;
+        }
+        return factionsMap[playerId] ?? factionsMap[String(playerId)] ?? null;
     }
 
     invalidateBuildingInfoMap() {
@@ -428,6 +494,7 @@ class RTSEngine {
         // Store static type data
         this.unitTypes = data.unitTypes || {};
         this.buildingTypes = data.buildingTypes || {};
+        this.commandAbilityTypes = data.commandAbilityTypes || null;
         
         // Store biome info
         if (data.biome) {
@@ -798,8 +865,8 @@ class RTSEngine {
         }
         
         // Update faction info
-        if (state.factions && this.myPlayerId) {
-            this.myFaction = state.factions[this.myPlayerId];
+        if (state.factions && this.myPlayerId != null) {
+            this.myFaction = this.getFactionStateForPlayer(state.factions, this.myPlayerId);
             if (this.myFaction) {
                 this.myTeam = this.myFaction.team;
                 this.updateResourceDisplay();
@@ -2218,6 +2285,13 @@ class RTSEngine {
             'TEMPEST_SPIRE': { sides: 8, size: 45, color: 0x4682B4, rotation: 0 },
             // Air unit production
             'AIRFIELD': { sides: 8, size: 60, color: 0x708090, rotation: 0 },
+            // World radius for placement / preview comes from gameInitialization (buildingInfo + buildingTypes).size;
+            // Values here are ~visual scale for first paint / selection chrome when vertices are not used yet.
+            'STRIKE_RELAY': { sides: 6, size: 42, color: 0xCD853F, rotation: 0 },
+            'SATCOM_ARRAY': { sides: 8, size: 40, color: 0x6495ED, rotation: Math.PI / 8 },
+            'CARPET_PAD': { sides: 4, size: 43, color: 0x556B2F, rotation: 0 },
+            'NUKE_SILO': { sides: 8, size: 48, color: 0x8B0000, rotation: 0 },
+            'JUMP_PAD': { sides: 4, size: 44, color: 0x4A708B, rotation: 0 },
         };
         
         const typeInfo = buildingTypes[buildingData.type] || { sides: 4, size: 50, color: 0xFFFFFF, rotation: 0 };
@@ -3094,27 +3168,35 @@ class RTSEngine {
             if (d.lowPowerBanner) {
                 d.lowPowerBanner.style.display = this.myFaction.hasLowPower ? 'flex' : 'none';
             }
-            if (d.resourcePanel) {
+            const econ = d.hudEconomy || d.resourcePanel;
+            if (econ) {
                 if (this.myFaction.hasLowPower) {
-                    d.resourcePanel.classList.add('low-power-critical');
+                    econ.classList.add('low-power-critical');
                 } else {
-                    d.resourcePanel.classList.remove('low-power-critical');
+                    econ.classList.remove('low-power-critical');
                 }
             }
         } else {
             if (d.lowPowerBanner) {
                 d.lowPowerBanner.style.display = 'none';
             }
-            if (d.resourcePanel) {
-                d.resourcePanel.classList.remove('low-power-critical');
+            const econ = d.hudEconomy || d.resourcePanel;
+            if (econ) {
+                econ.classList.remove('low-power-critical');
             }
         }
+        this.updateCommandAbilitiesPanel();
     }
     
     updateUnitInfoPanel() {
-        // If a building is selected, don't touch the panel at all - let building UI handle it
+        // If a building is selected, building detail panel owns the stack — do not overwrite unit DOM.
         if (this.selectedBuilding) {
             return;
+        }
+
+        const bip = this.dom?.buildingInfoPanel || document.getElementById('building-info-panel');
+        if (bip) {
+            bip.style.display = 'none';
         }
 
         const u = this._unitInfoEls;
@@ -3145,7 +3227,7 @@ class RTSEngine {
             panel.style.display = 'none';
         } else if (selectedUnits.length === 1) {
             // Single unit selected
-            panel.style.display = 'block';
+            panel.style.display = 'flex';
             singleInfo.style.display = 'block';
             multiInfo.style.display = 'none';
             
@@ -3220,7 +3302,7 @@ class RTSEngine {
             }
         } else if (selectedUnits.length > 1) {
             // Multiple units selected
-            panel.style.display = 'block';
+            panel.style.display = 'flex';
             singleInfo.style.display = 'none';
             multiInfo.style.display = 'block';
             
@@ -3338,7 +3420,8 @@ class RTSEngine {
             this.selectionBoxGraphics.clear();
         }
         
-        // Update build preview (throttled validity + redraw only when geometry/colors change)
+        // Update build preview (throttled validity + redraw only when geometry/colors change).
+        // Placement ring radius = getBuildingInfo(type).size from server faction buildingInfo (same as RTSGameManager buildingInfo.size / BuildingType.getSize()).
         if (this.buildMode && this.buildPreview) {
             const mx = this.mouseWorldPos.x;
             const my = this.mouseWorldPos.y;
@@ -3384,6 +3467,25 @@ class RTSEngine {
                 dr.type = btype;
             }
         }
+
+        // Command ability strike radius preview (world coords; Y flipped via gameContainer)
+        if (this.commandAbilityTargetGraphics) {
+            if (this.commandAbilityTargetingMode && this.pendingCommandAbilityType) {
+                const cat = this.commandAbilityTypes && this.commandAbilityTypes[this.pendingCommandAbilityType];
+                const rawR = cat && typeof cat.effectRadius === 'number' ? cat.effectRadius : 220;
+                const r = rawR > 0 ? rawR : 220;
+                const mx = this.mouseWorldPos.x;
+                const my = this.mouseWorldPos.y;
+                const g = this.commandAbilityTargetGraphics;
+                g.clear();
+                g.circle(mx, my, r);
+                g.stroke({ width: 3, color: 0xff9933, alpha: 0.95 });
+                g.circle(mx, my, 6);
+                g.fill({ color: 0xffcc88, alpha: 0.9 });
+            } else {
+                this.commandAbilityTargetGraphics.clear();
+            }
+        }
     }
     
     onMouseDown(e) {
@@ -3404,6 +3506,8 @@ class RTSEngine {
             } else if (this.sortieTargetingMode) {
                 // Handle sortie targeting (bomber aircraft)
                 this.issueSortieOrder(this.mouseWorldPos.x, this.mouseWorldPos.y);
+            } else if (this.commandAbilityTargetingMode) {
+                this.issueCommandAbilityAt(this.mouseWorldPos.x, this.mouseWorldPos.y);
             } else if (this.specialAbilityTargetingMode) {
                 // Handle special ability targeting
                 if (this.specialAbilityTargetType === 'unit') {
@@ -3434,9 +3538,8 @@ class RTSEngine {
                     // Select building
                     this.selectBuilding(clickedBuilding);
                 } else {
-                    // Start unit selection box
-                    this.selectedBuilding = null;
-                    this.hideProductionUI();
+                    // Start unit selection box (marquee never selects buildings)
+                    this.clearBuildingSelectionClient();
                     this.isSelecting = true;
                     this.selectionStart = this.mouseWorldPos;
                 }
@@ -3449,6 +3552,11 @@ class RTSEngine {
             if (this.sortieTargetingMode) {
                 this.exitSortieTargetingMode();
                 this.showGameEvent('Sortie order cancelled', 'warning');
+                return;
+            }
+            if (this.commandAbilityTargetingMode) {
+                this.exitCommandAbilityTargetingMode();
+                this.showGameEvent('Command ability cancelled', 'warning');
                 return;
             }
             if (this.attackMoveMode) {
@@ -3497,6 +3605,8 @@ class RTSEngine {
             this.app.canvas.style.cursor = 'grabbing';
         } else if (forceAttackMode && this.selectedUnits.size > 0) {
             this.app.canvas.style.cursor = 'crosshair'; // Attack cursor
+        } else if (this.commandAbilityTargetingMode || this.sortieTargetingMode) {
+            this.app.canvas.style.cursor = 'crosshair';
         } else if (this.buildMode) {
             this.app.canvas.style.cursor = 'cell'; // Build cursor
         } else {
@@ -3561,6 +3671,9 @@ class RTSEngine {
             if (this.sortieTargetingMode) {
                 this.exitSortieTargetingMode();
                 this.showGameEvent('Sortie order cancelled', 'warning');
+            } else if (this.commandAbilityTargetingMode) {
+                this.exitCommandAbilityTargetingMode();
+                this.showGameEvent('Command ability cancelled', 'warning');
             } else if (this.specialAbilityTargetingMode) {
                 this.exitSpecialAbilityTargetingMode();
             } else if (this.attackMoveMode) {
@@ -3642,19 +3755,21 @@ class RTSEngine {
             });
             
             if (clickedUnit) {
+                this.clearBuildingSelectionClient();
                 // Clicked on a unit - select just that unit
                 this.sendInput({ selectUnits: [clickedUnit] });
-                
-                // Auto-show build menu if worker is selected
+
                 this.checkAndShowBuildMenu([clickedUnit]);
             } else {
+                this.clearBuildingSelectionClient();
                 // Clicked on empty space - deselect all units
                 this.sendInput({ selectUnits: [] });
                 this.clearUnitSelectionImmediate(); // Clear local state and hide visual indicators
                 this.hideBuildMenu();
             }
         } else {
-            // Drag selection - select all units in box
+            // Drag selection — units only (never buildings; marquee is exclusive to units).
+            this.clearBuildingSelectionClient();
             const selectedIds = [];
             this.units.forEach((container, id) => {
                 const unitData = container.unitData;
@@ -3665,16 +3780,14 @@ class RTSEngine {
                     }
                 }
             });
-            
+
             this.sendInput({ selectUnits: selectedIds });
-            
-            // Auto-show build menu if workers are selected
+
             this.checkAndShowBuildMenu(selectedIds);
         }
     }
-    
+
     checkAndShowBuildMenu(selectedIds) {
-        // Check if any selected units are workers
         let hasWorker = false;
         for (const id of selectedIds) {
             const container = this.units.get(id);
@@ -3683,8 +3796,6 @@ class RTSEngine {
                 break;
             }
         }
-        
-        // Show build menu if workers are selected
         if (hasWorker) {
             this.showBuildMenu();
         } else {
@@ -3973,6 +4084,7 @@ class RTSEngine {
     
     isValidBuildLocation(worldPos, buildingType) {
         const buildingInfo = this.getBuildingInfo(buildingType);
+        // World-space footprint radius from server (faction buildingInfo); must match RTSGameManager / BuildingType.
         const size = buildingInfo.size;
 
         // Check if too close to other buildings
@@ -4034,14 +4146,21 @@ class RTSEngine {
     }
     
     toggleBuildMenu() {
+        if (!this.selectionIncludesWorker()) {
+            return;
+        }
         const menu = document.getElementById('build-menu');
-        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        if (!menu) {
+            return;
+        }
+        const hidden = menu.style.display === 'none' || menu.style.display === '';
+        menu.style.display = hidden ? 'flex' : 'none';
     }
-    
+
     showBuildMenu() {
         const menu = document.getElementById('build-menu');
         if (menu) {
-            menu.style.display = 'block';
+            menu.style.display = 'flex';
         }
     }
     
@@ -4074,8 +4193,8 @@ class RTSEngine {
         }
         this._lastBuildMenuStateKey = menuStateKey;
 
-        // Update each button
-        document.querySelectorAll('.build-button').forEach(button => {
+        // Only building-placement buttons in the worker build menu (not train / housed UI).
+        document.querySelectorAll('#build-menu .build-button').forEach(button => {
             const buildingType = button.getAttribute('data-building');
             
             // Find building in faction data
@@ -4201,6 +4320,7 @@ class RTSEngine {
         document.getElementById('loading-screen').style.display = 'none';
         document.getElementById('rts-ui').style.display = 'block';
         this.cacheHudDomRefs();
+        this.installHotkeyLegend();
     }
     
     getBuildingAtPosition(worldPos) {
@@ -4248,39 +4368,47 @@ class RTSEngine {
     
     selectBuilding(buildingData) {
         this.selectedBuilding = buildingData;
-        
-        // Clear unit selection (both send to server and clear local state immediately)
+
         this.sendInput({ selectUnits: [] });
-        this.clearUnitSelectionImmediate(); // Clear local state and hide visual indicators
-        
-        // Hide build menu when selecting a building
+        this.clearUnitSelectionImmediate();
         this.hideBuildMenu();
-        
-        const btype = buildingData.type || buildingData.buildingType;
-        const shouldShowUI = !buildingData.underConstruction
-            && (buildingData.canProduceUnits || btype === 'BUNKER');
-        
-        if (shouldShowUI) {
-            this.showProductionUI(buildingData);
-        } else {
-            this.hideProductionUI();
+
+        const uip = document.getElementById('unit-info-panel');
+        if (uip) {
+            uip.style.display = 'none';
         }
+
+        this.showProductionUI(buildingData);
     }
-    
+
     showProductionUI(buildingData) {
-        const panel = document.getElementById('unit-info-panel');
-        panel.style.display = 'block';
-        
-        // Clear previous content
+        const panel = this.dom?.buildingInfoPanel || document.getElementById('building-info-panel');
+        if (!panel) {
+            return;
+        }
+        panel.style.display = 'flex';
+
         panel.innerHTML = '';
-        
-        // Building name
+
+        const hasProduction = Boolean(buildingData.canProduceUnits && !buildingData.underConstruction);
+        const hasHoused = Boolean(buildingData.housedUnits && buildingData.housedUnits.length > 0);
+        const useRightColumn = hasProduction || hasHoused;
+
+        const layout = document.createElement('div');
+        layout.className = useRightColumn
+                ? 'building-info-layout'
+                : 'building-info-layout building-info-layout--single';
+
+        const meta = document.createElement('div');
+        meta.className = 'building-info-meta';
+
         const title = document.createElement('div');
         title.className = 'unit-name';
-        title.textContent = buildingData.type;
-        panel.appendChild(title);
-        
-        // Health bar
+        const bIcon = this.getBuildingIcon(buildingData.type);
+        const displayName = this.buildingTypes?.[buildingData.type]?.displayName || buildingData.type;
+        title.textContent = `${bIcon} ${displayName}`;
+        meta.appendChild(title);
+
         const healthBarContainer = document.createElement('div');
         healthBarContainer.className = 'health-bar';
         const healthFill = document.createElement('div');
@@ -4288,74 +4416,80 @@ class RTSEngine {
         const healthPercent = (buildingData.health / buildingData.maxHealth) * 100;
         healthFill.style.width = healthPercent + '%';
         healthBarContainer.appendChild(healthFill);
-        panel.appendChild(healthBarContainer);
-        
-        // Health text
+        meta.appendChild(healthBarContainer);
+
         const healthText = document.createElement('div');
         healthText.className = 'unit-stat';
         healthText.innerHTML = `<span>Health:</span><span>${Math.floor(buildingData.health)}/${buildingData.maxHealth}</span>`;
-        panel.appendChild(healthText);
-        
+        meta.appendChild(healthText);
+
+        if (buildingData.underConstruction) {
+            const st = document.createElement('div');
+            st.className = 'unit-stat';
+            st.innerHTML = '<span>Status:</span><span>Under construction</span>';
+            meta.appendChild(st);
+        }
+
         if (buildingData.type === 'BUNKER') {
             const garrisonInfo = document.createElement('div');
             garrisonInfo.className = 'unit-stat';
             garrisonInfo.innerHTML = `<span>Garrison:</span><span>${buildingData.garrisonCount || 0}/${buildingData.maxGarrisonCapacity || 0}</span>`;
-            panel.appendChild(garrisonInfo);
+            meta.appendChild(garrisonInfo);
         }
 
-        if (buildingData.housedUnits && buildingData.housedUnits.length > 0) {
-            this.renderHousedUnitsPanel(panel, buildingData);
+        layout.appendChild(meta);
+
+        if (useRightColumn) {
+            const actionsCol = document.createElement('div');
+            actionsCol.className = 'building-info-actions';
+            const scroll = document.createElement('div');
+            scroll.className = 'building-info-scroll';
+
+            if (hasHoused) {
+                this.renderHousedUnitsPanel(scroll, buildingData);
+            }
+
+            if (hasProduction) {
+                const productionTitle = document.createElement('div');
+                productionTitle.className = 'building-info-product-title';
+                productionTitle.textContent = 'Train units';
+                scroll.appendChild(productionTitle);
+
+                const allUnits = this.getAllUnitsForBuilding(buildingData.type);
+                allUnits.forEach((unitInfo) => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'build-button';
+
+                    const isUnlocked = unitInfo.unlocked === true;
+                    const canAfford = this.myMoney >= unitInfo.cost;
+                    const tickRent = unitInfo.periodicArmyRent ?? unitInfo.upkeep ?? 0;
+                    let buttonHTML = `${unitInfo.name} <span class="build-cost">(💰${unitInfo.cost} ⏱${tickRent})</span>`;
+
+                    if (!isUnlocked) {
+                        buttonHTML = `🔒 ${buttonHTML}`;
+                        button.disabled = true;
+                        button.style.opacity = '0.5';
+                        button.style.filter = 'grayscale(100%)';
+                        button.title = unitInfo.lockReason || 'Tech requirements not met';
+                    } else if (!canAfford) {
+                        button.disabled = true;
+                        button.style.opacity = '0.6';
+                        button.title = 'Insufficient credits';
+                    } else {
+                        button.onclick = () => this.queueUnitProduction(buildingData.id, unitInfo.type);
+                    }
+
+                    button.innerHTML = buttonHTML;
+                    scroll.appendChild(button);
+                });
+            }
+
+            actionsCol.appendChild(scroll);
+            layout.appendChild(actionsCol);
         }
 
-        // Production buttons
-        if (buildingData.canProduceUnits && !buildingData.underConstruction) {
-            const productionTitle = document.createElement('div');
-            productionTitle.style.marginTop = '15px';
-            productionTitle.style.fontWeight = 'bold';
-            productionTitle.style.color = '#FFD700';
-            productionTitle.textContent = 'Train Units:';
-            panel.appendChild(productionTitle);
-            
-            // Get ALL units for this building type (including locked ones)
-            const allUnits = this.getAllUnitsForBuilding(buildingData.type);
-            
-            allUnits.forEach(unitInfo => {
-                const button = document.createElement('button');
-                button.className = 'build-button';
-                
-                // Check if unit is unlocked
-                const isUnlocked = unitInfo.unlocked === true;
-                const canAfford = this.myMoney >= unitInfo.cost;
-                
-                // Create button content
-                const tickRent = unitInfo.periodicArmyRent ?? unitInfo.upkeep ?? 0;
-                let buttonHTML = `${unitInfo.name} <span class="build-cost">(💰${unitInfo.cost} ⏱${tickRent})</span>`;
-                
-                if (!isUnlocked) {
-                    // Add locked icon for tech-locked units
-                    buttonHTML = `🔒 ${buttonHTML}`;
-                    button.disabled = true;
-                    button.style.opacity = '0.5';
-                    button.style.filter = 'grayscale(100%)';
-                    button.title = unitInfo.lockReason || 'Tech requirements not met';
-                } else if (!canAfford) {
-                    // Can't afford but tech is unlocked
-                    button.disabled = true;
-                    button.style.opacity = '0.6';
-                    button.title = 'Insufficient credits';
-                } else {
-                    // Can train this unit
-                    button.onclick = () => this.queueUnitProduction(buildingData.id, unitInfo.type);
-                }
-                
-                button.innerHTML = buttonHTML;
-                panel.appendChild(button);
-            });
-        }
-    }
-    
-    hideProductionUI() {
-        document.getElementById('unit-info-panel').style.display = 'none';
+        panel.appendChild(layout);
     }
     
     /**
@@ -4443,47 +4577,81 @@ class RTSEngine {
             }
         });
         
-        // Define tier categories
-        const tierCategories = {
-            1: 'Basic',
-            2: 'Advanced (T2)',
-            3: 'Elite (T3)'
-        };
-        
-        // Create buttons for each tier
-        [1, 2, 3].forEach(tier => {
-            if (buildingsByTier[tier].length === 0) return;
-            
-            // Add category header
-            const category = document.createElement('div');
-            category.className = 'build-category';
-            category.textContent = tierCategories[tier];
-            buildMenu.appendChild(category);
-            
-            // Add building buttons
-            buildingsByTier[tier].forEach(building => {
-                const button = document.createElement('button');
-                button.className = 'build-button';
-                button.setAttribute('data-building', building.buildingType);
-                
-                // Get building icon
-                const icon = this.getBuildingIcon(building.buildingType);
-                const name = this.buildingTypes[building.buildingType]?.displayName || building.buildingType;
-                const cost = building.cost;
-                
-                // Check if building is unlocked (will be updated by updateBuildMenuAvailability)
-                button.innerHTML = `${icon} ${name} <span class="build-cost">(${cost})</span>`;
-                
-                button.addEventListener('click', () => {
-                    if (!button.disabled) {
-                        this.enterBuildMode(building.buildingType);
-                    }
-                });
-                
-                buildMenu.appendChild(button);
+        const tiersWithContent = [1, 2, 3].filter((t) => buildingsByTier[t].length > 0);
+        if (tiersWithContent.length === 0) {
+            if (this.lastGameState && this.lastGameState.buildings) {
+                this.updateBuildMenuAvailability(this.lastGameState.buildings);
+            }
+            return;
+        }
+
+        const panelsWrap = document.createElement('div');
+        panelsWrap.className = 'build-menu-panels';
+
+        const appendBuildingButton = (building, panel) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'build-button';
+            button.setAttribute('data-building', building.buildingType);
+
+            const icon = this.getBuildingIcon(building.buildingType);
+            const name = this.buildingTypes[building.buildingType]?.displayName || building.buildingType;
+            const cost = building.cost;
+            button.innerHTML = `${icon} ${name} <span class="build-cost">(${cost})</span>`;
+
+            button.addEventListener('click', () => {
+                if (!button.disabled) {
+                    this.enterBuildMode(building.buildingType);
+                }
             });
+            panel.appendChild(button);
+        };
+
+        let tabsRow = null;
+        const defaultTier = tiersWithContent[0];
+
+        const activateTier = (tier) => {
+            panelsWrap.querySelectorAll('.build-menu-tier-panel').forEach((p) => {
+                p.classList.toggle('is-active', Number(p.dataset.tier) === tier);
+            });
+            if (tabsRow) {
+                tabsRow.querySelectorAll('.build-menu-tab').forEach((b) => {
+                    b.classList.toggle('is-active', Number(b.dataset.tier) === tier);
+                });
+            }
+        };
+
+        if (tiersWithContent.length > 1) {
+            tabsRow = document.createElement('div');
+            tabsRow.className = 'build-menu-tabs';
+            tiersWithContent.forEach((tier) => {
+                const tab = document.createElement('button');
+                tab.type = 'button';
+                tab.className = 'build-menu-tab';
+                tab.dataset.tier = String(tier);
+                tab.textContent = `Tier ${tier}`;
+                if (tier === defaultTier) {
+                    tab.classList.add('is-active');
+                }
+                tab.addEventListener('click', () => activateTier(tier));
+                tabsRow.appendChild(tab);
+            });
+            buildMenu.appendChild(tabsRow);
+        }
+
+        tiersWithContent.forEach((tier) => {
+            const panel = document.createElement('div');
+            panel.className = 'build-menu-tier-panel';
+            panel.dataset.tier = String(tier);
+            if (tier === defaultTier) {
+                panel.classList.add('is-active');
+            }
+            buildingsByTier[tier].forEach((building) => appendBuildingButton(building, panel));
+            panelsWrap.appendChild(panel);
         });
-        
+
+        buildMenu.appendChild(panelsWrap);
+
         // Initial update of availability
         if (this.lastGameState && this.lastGameState.buildings) {
             this.updateBuildMenuAvailability(this.lastGameState.buildings);
@@ -4505,7 +4673,9 @@ class RTSEngine {
      */
     getAvailableUnits(buildingType) {
         // Get player's available units from game state (includes tech tree unlocks)
-        const myFactionState = this.lastGameState?.factions?.[this.myPlayerId];
+        const myFactionState = this.lastGameState?.factions
+            ? this.getFactionStateForPlayer(this.lastGameState.factions, this.myPlayerId)
+            : null;
         const unlockedUnits = myFactionState?.availableUnits || [];
         
         if (!this.myFactionData) {
@@ -4552,7 +4722,9 @@ class RTSEngine {
         
         // Get available units from static faction data (sent in initialization)
         // availableUnits is no longer in dynamic game state after optimization
-        const myFactionState = this.lastGameState?.factions?.[this.myPlayerId];
+        const myFactionState = this.lastGameState?.factions
+            ? this.getFactionStateForPlayer(this.lastGameState.factions, this.myPlayerId)
+            : null;
 
         // Return ALL units produced by this building, with lock status
         return this.myFactionData.availableUnits
@@ -5000,5 +5172,123 @@ class RTSEngine {
         this.sendInput({
             cancelAirfieldProductionBuildingId: buildingId
         });
+    }
+
+    updateCommandAbilitiesPanel() {
+        const panel = this.dom.commandAbilitiesPanel;
+        const wrap = this.dom.commandAbilitiesButtons;
+        if (!panel || !wrap) {
+            return;
+        }
+        const raw = (this.myFaction && Array.isArray(this.myFaction.commandAbilities))
+            ? this.myFaction.commandAbilities
+            : [];
+        // Only show abilities once the server reports the unlock building is complete (no greyed-out teaser).
+        const rows = raw.filter((r) => r.unlocked === true);
+        if (rows.length === 0) {
+            panel.style.display = 'none';
+            this._commandAbilityPanelKey = null;
+            return;
+        }
+        panel.style.display = 'flex';
+        const key = rows.map((r) => {
+            const cdSec = r.onCooldown ? Math.ceil((r.cooldownRemainingMs || 0) / 1000) : 0;
+            const armSec = r.armingRemainingMs ? Math.ceil((r.armingRemainingMs || 0) / 1000) : 0;
+            const can = r.canActivate === true ? '1' : '0';
+            return `${r.id}:${r.onCooldown}:${cdSec}:${can}:${armSec}`;
+        }).join('|');
+        if (this._commandAbilityPanelKey === key) {
+            return;
+        }
+        this._commandAbilityPanelKey = key;
+        wrap.replaceChildren();
+        for (const row of rows) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'command-ability-btn';
+            const cat = this.commandAbilityTypes && this.commandAbilityTypes[row.id];
+            const label = row.displayName || (cat && cat.displayName) || row.id;
+            const desc = (cat && cat.description) || '';
+            const reqTarget = cat && cat.requiresGroundTarget !== false;
+            let title = desc || '';
+            if (row.onCooldown) {
+                title = `${desc ? `${desc} ` : ''}On cooldown.`.trim();
+            } else if (row.canActivate === false) {
+                title = (desc ? `${desc} ` : '') + (row.armingRemainingMs > 0
+                    ? `Arming: ${Math.ceil(row.armingRemainingMs / 1000)}s remaining.`
+                    : 'Not available right now.');
+            }
+            btn.title = title.trim();
+            const cdLine = row.onCooldown
+                ? `<span class="ca-cooldown">Cooldown: ${Math.ceil((row.cooldownRemainingMs || 0) / 1000)}s</span>`
+                : '';
+            const armLine = !row.onCooldown && row.armingRemainingMs > 0
+                ? `<span class="ca-cooldown">Arming: ${Math.ceil(row.armingRemainingMs / 1000)}s</span>`
+                : '';
+            btn.innerHTML = `<span>${label}</span>${cdLine}${armLine}`;
+            const enabled = row.canActivate === true;
+            btn.disabled = !enabled;
+            btn.addEventListener('click', () => {
+                if (this.commandAbilityTargetingMode || !enabled) {
+                    return;
+                }
+                if (!reqTarget) {
+                    this.issueCommandAbilityImmediate(row.id);
+                } else {
+                    this.enterCommandAbilityTargeting(row.id);
+                }
+            });
+            wrap.appendChild(btn);
+        }
+    }
+
+    issueCommandAbilityImmediate(abilityTypeId) {
+        this.sendInput({
+            commandAbilityOrder: abilityTypeId
+        });
+        this.showGameEvent('Command order sent', 'info');
+    }
+
+    enterCommandAbilityTargeting(abilityTypeId) {
+        if (this.buildMode) {
+            this.exitBuildMode();
+        }
+        if (this.attackMoveMode) {
+            this.exitAttackMoveMode();
+        }
+        if (this.specialAbilityTargetingMode) {
+            this.exitSpecialAbilityTargetingMode();
+        }
+        if (this.sortieTargetingMode) {
+            this.exitSortieTargetingMode();
+            this.showGameEvent('Sortie order cancelled', 'warning');
+        }
+        this.commandAbilityTargetingMode = true;
+        this.pendingCommandAbilityType = abilityTypeId;
+        const cat = this.commandAbilityTypes && this.commandAbilityTypes[abilityTypeId];
+        const name = (cat && cat.displayName) || abilityTypeId;
+        this.showGameEvent(`${name}: click the map to target (Esc = cancel)`, 'info');
+        document.body.style.cursor = 'crosshair';
+    }
+
+    exitCommandAbilityTargetingMode() {
+        this.commandAbilityTargetingMode = false;
+        this.pendingCommandAbilityType = null;
+        if (this.commandAbilityTargetGraphics) {
+            this.commandAbilityTargetGraphics.clear();
+        }
+        document.body.style.cursor = 'default';
+    }
+
+    issueCommandAbilityAt(targetX, targetY) {
+        if (!this.commandAbilityTargetingMode || !this.pendingCommandAbilityType) {
+            return;
+        }
+        this.sendInput({
+            commandAbilityOrder: this.pendingCommandAbilityType,
+            commandAbilityTargetLocation: { x: targetX, y: targetY }
+        });
+        this.exitCommandAbilityTargetingMode();
+        this.showGameEvent('Command order sent', 'info');
     }
 }

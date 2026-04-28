@@ -7,6 +7,7 @@ import lombok.Data;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Represents a player's faction/base in the RTS game.
@@ -18,20 +19,17 @@ public class Player {
     private final int playerId;
     private final int teamNumber;
     private FactionDefinition factionDefinition;
-    /**
-     * Open connection for this human player; null for AI or after the socket has closed.
-     */
     private WebSocketSession webSocketSession;
     private final Map<ResourceType, Integer> resources = new HashMap<>();
-
-    /**
-     * Credits charged per army upkeep interval (after faction + citadel discounts). Sent to client for UI.
-     */
     private int currentUpkeep = 0;
-
     private int powerGenerated = 0;
     private int powerConsumed = 0;
-    private boolean hasLowPower = false; // True when powerConsumed > powerGenerated
+    private boolean hasLowPower = false;
+
+    /**
+     * Wall-clock time (ms since epoch) when each command ability cooldown ends; absent if ready.
+     */
+    private final Map<CommandAbilityType, Long> commandAbilityCooldownEndsAtMs = new ConcurrentHashMap<>();
 
     /**
      * Constructor for AI or tests (no WebSocket).
@@ -147,6 +145,25 @@ public class Player {
             return true; // No tech requirements
         }
         return playerBuildings.containsAll(required);
+    }
+
+    public long getCommandAbilityCooldownEndsAt(CommandAbilityType type) {
+        return commandAbilityCooldownEndsAtMs.getOrDefault(type, 0L);
+    }
+
+    public void setCommandAbilityCooldownEndsAt(CommandAbilityType type, long endsAtEpochMs) {
+        commandAbilityCooldownEndsAtMs.put(type, endsAtEpochMs);
+    }
+
+    /**
+     * When a command-ability unlock building is destroyed, drop cooldown state so the UI shows the ability gone.
+     */
+    public void clearCommandAbilityCooldownsForUnlockBuilding(BuildingType destroyedBuildingType) {
+        for (CommandAbilityType t : CommandAbilityType.values()) {
+            if (t.getUnlockingBuilding() == destroyedBuildingType) {
+                commandAbilityCooldownEndsAtMs.remove(t);
+            }
+        }
     }
 }
 

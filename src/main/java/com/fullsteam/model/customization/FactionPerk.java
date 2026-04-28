@@ -636,7 +636,7 @@ public enum FactionPerk implements PerkEffect {
         public void onUnitCreated(Unit unit, Player faction, RTSGameManager game) {
             // Track this unit as buffed
             buffedUnits.put(unit.getId(), System.currentTimeMillis() + BUFF_DURATION_MS);
-            log.debug("Player {} - Battle Hardened: Unit {} created with temporary damage buff", 
+            log.debug("Player {} - Battle Hardened: Unit {} created with temporary damage buff",
                     faction.getPlayerId(), unit.getId());
         }
 
@@ -649,7 +649,7 @@ public enum FactionPerk implements PerkEffect {
                     // Apply bonus damage
                     double bonusDamage = damage * (DAMAGE_BONUS - 1.0);
                     target.takeDamage(bonusDamage);
-                    log.trace("Player {} - Battle Hardened: Unit {} dealt {} bonus damage", 
+                    log.trace("Player {} - Battle Hardened: Unit {} dealt {} bonus damage",
                             faction.getPlayerId(), attacker.getId(), bonusDamage);
                 } else {
                     // Buff expired, remove from tracking
@@ -685,7 +685,7 @@ public enum FactionPerk implements PerkEffect {
                 unit.setMaxHealth(newMaxHp);
                 unit.setHealth(newMaxHp); // Heal to full with new max
 
-                log.info("Player {} - Field Promotion: Unit {} promoted with +20% HP ({}th unit)", 
+                log.info("Player {} - Field Promotion: Unit {} promoted with +20% HP ({}th unit)",
                         faction.getPlayerId(), unit.getId(), unitCounter);
 
                 // Send notification
@@ -711,7 +711,9 @@ public enum FactionPerk implements PerkEffect {
 
         @Override
         public void onUnitCreated(Unit unit, Player faction, RTSGameManager game) {
-            if (game == null || game.getGameEntities() == null) return;
+            if (game == null || game.getGameEntities() == null) {
+                return;
+            }
 
             // Find nearby damaged friendly units
             int healedCount = 0;
@@ -735,7 +737,7 @@ public enum FactionPerk implements PerkEffect {
             }
 
             if (healedCount > 0) {
-                log.debug("Player {} - Reinforcement Protocol: Healed {} nearby units", 
+                log.debug("Player {} - Reinforcement Protocol: Healed {} nearby units",
                         faction.getPlayerId(), healedCount);
             }
         }
@@ -788,7 +790,9 @@ public enum FactionPerk implements PerkEffect {
 
         @Override
         public void onBuildingCreated(Building building, Player faction, RTSGameManager game) {
-            if (game == null || game.getGameEntities() == null) return;
+            if (game == null || game.getGameEntities() == null) {
+                return;
+            }
 
             // Count total buildings for this faction
             long buildingCount = game.getGameEntities().getBuildings().values().stream()
@@ -823,7 +827,9 @@ public enum FactionPerk implements PerkEffect {
 
         @Override
         public void onBuildingCreated(Building building, Player faction, RTSGameManager game) {
-            if (game == null || game.getGameEntities() == null) return;
+            if (game == null || game.getGameEntities() == null) {
+                return;
+            }
 
             // Find HQ
             Building hq = game.getGameEntities().getBuildings().values().stream()
@@ -863,7 +869,9 @@ public enum FactionPerk implements PerkEffect {
 
         @Override
         public void onBuildingCreated(Building building, Player faction, RTSGameManager game) {
-            if (game == null || game.getGameEntities() == null) return;
+            if (game == null || game.getGameEntities() == null) {
+                return;
+            }
 
             long buildingCount = game.getGameEntities().getBuildings().values().stream()
                     .filter(b -> b.getOwnerId() == faction.getPlayerId())
@@ -940,7 +948,9 @@ public enum FactionPerk implements PerkEffect {
 
         @Override
         public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, Player faction, RTSGameManager game) {
-            if (!(target instanceof Unit)) return;
+            if (!(target instanceof Unit)) {
+                return;
+            }
 
             Unit targetUnit = (Unit) target;
             int targetId = targetUnit.getId();
@@ -996,8 +1006,12 @@ public enum FactionPerk implements PerkEffect {
 
         @Override
         public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, Player faction, RTSGameManager game) {
-            if (attacker.getUnitType().getCategory() != UnitCategory.INFANTRY) return;
-            if (game == null || game.getGameEntities() == null) return;
+            if (attacker.getUnitType().getCategory() != UnitCategory.INFANTRY) {
+                return;
+            }
+            if (game == null || game.getGameEntities() == null) {
+                return;
+            }
 
             // Heal nearby friendly infantry
             int healedCount = 0;

@@ -10,8 +10,10 @@ import org.dyn4j.world.World;
 
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
 
 /**
@@ -31,6 +33,8 @@ public class GameEntities {
     private final Map<Integer, Beam> beams;
     private final Map<Integer, FieldEffect> fieldEffects;
     private final Map<Integer, TrackerBug> trackerBugs; // Spy tracking devices
+    /** Temporary orbital vision from {@link CommandAbilityType#SATELLITE_SWEEP}. */
+    private final List<SatelliteReveal> satelliteReveals = new CopyOnWriteArrayList<>();
     private final RTSGameManager rtsGameManager;
 
     @Setter
@@ -81,6 +85,18 @@ public class GameEntities {
     public void addTrackerBug(TrackerBug bug) {
         trackerBugs.put(bug.getId(), bug);
         log.info("Added tracker bug {} on {} {}", bug.getId(), bug.getAttachmentKind(), bug.getTargetId());
+    }
+
+    public void addSatelliteReveal(SatelliteReveal reveal) {
+        satelliteReveals.add(reveal);
+    }
+
+    public List<SatelliteReveal> getSatelliteReveals() {
+        return satelliteReveals;
+    }
+
+    public void pruneExpiredSatelliteReveals() {
+        satelliteReveals.removeIf(r -> !r.isActive());
     }
 
     public Targetable findNearestEnemyTargetable(Unit attacker) {

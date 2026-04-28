@@ -7,26 +7,42 @@
     <link rel="stylesheet" type="text/css" href="unified.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/8.13.2/pixi.min.js"></script>
     <style>
-        body, html {
+        /* RTS in-game page: match lobby / unified typography */
+        body.rts-game-page, body.rts-game-page html {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background: #1a1a1a;
-            font-family: 'Arial', sans-serif;
+            font-family: 'Exo 2', sans-serif;
+            color: var(--text-primary, #fff);
         }
-        
+
+        body.rts-game-page {
+            display: block;
+            min-height: 100vh;
+        }
+
+        :root {
+            /* Fixed HUD chrome height from viewport — stable when selection changes */
+            --rts-hud-panel-height: clamp(128px, 22vh, 210px);
+            --rts-hud-hotkey-row: 26px;
+            --rts-hud-gap: 8px;
+            --rts-hud-panel-bg: var(--card-bg, rgba(42, 42, 60, 0.92));
+            --rts-hud-panel-border: var(--card-border, rgba(100, 200, 255, 0.35));
+        }
+
         #game-container {
             position: relative;
             width: 100vw;
             height: 100vh;
         }
-        
+
         #pixi-container {
+            position: absolute;
+            inset: 0;
             width: 100%;
             height: 100%;
         }
-        
-        /* RTS UI Overlay */
+
         #rts-ui {
             position: absolute;
             top: 0;
@@ -36,19 +52,133 @@
             pointer-events: none;
             z-index: 100;
         }
-        
-        /* Resource Display */
-        #resource-panel {
+
+        /* ——— Bottom HUD (persistent overlay) ——— */
+        #hud-bottom {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 2px solid #FFD700;
-            border-radius: 8px;
-            padding: 15px;
-            color: white;
-            pointer-events: all;
-            min-width: 200px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            box-sizing: border-box;
+            z-index: 150;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            pointer-events: none;
+            height: calc(var(--rts-hud-panel-height) + var(--rts-hud-hotkey-row) + 16px);
+            min-height: calc(var(--rts-hud-panel-height) + var(--rts-hud-hotkey-row) + 16px);
+            max-height: calc(var(--rts-hud-panel-height) + var(--rts-hud-hotkey-row) + 16px);
+            padding: 0 10px 10px;
+        }
+
+        .hud-bottom-main {
+            display: grid;
+            grid-template-columns: minmax(150px, 0.9fr) minmax(200px, 2.4fr) minmax(160px, 1.2fr) minmax(130px, 1.1fr);
+            gap: var(--rts-hud-gap);
+            align-items: stretch;
+            height: var(--rts-hud-panel-height);
+            min-height: var(--rts-hud-panel-height);
+            max-height: var(--rts-hud-panel-height);
+            min-width: 0;
+        }
+
+        .hud-bottom-main > .hud-card {
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 1100px) {
+            /* 2×2 grid needs more vertical room — relax fixed height so panels don’t clip */
+            #hud-bottom {
+                height: auto;
+                min-height: calc(var(--rts-hud-panel-height) + var(--rts-hud-hotkey-row) + 16px);
+                max-height: min(48vh, 420px);
+            }
+
+            .hud-bottom-main {
+                height: auto;
+                min-height: var(--rts-hud-panel-height);
+                max-height: min(40vh, 360px);
+                grid-template-columns: 1fr 1fr;
+                grid-template-rows: auto auto;
+            }
+        }
+
+        .hud-card {
+            background: var(--rts-hud-panel-bg);
+            border: 1px solid var(--rts-hud-panel-border);
+            border-radius: 10px;
+            padding: 10px 12px;
+            pointer-events: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .hud-selection-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-height: 0;
+            flex: 1 1 auto;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #hud-build-wrap {
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            flex: 1 1 auto;
+            height: 100%;
+        }
+
+        #hud-command-wrap {
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            flex: 1 1 auto;
+            height: 100%;
+        }
+
+        #hud-economy {
+            justify-content: center;
+        }
+
+        #hud-hotkeys {
+            pointer-events: none;
+            font-size: 12px;
+            color: var(--text-muted, #94a3b8);
+            letter-spacing: 0.02em;
+            padding: 2px 4px 0;
+            line-height: 1.35;
+        }
+
+        #hud-hotkeys kbd {
+            display: inline-block;
+            padding: 1px 6px;
+            margin: 0 2px;
+            border-radius: 4px;
+            border: 1px solid rgba(100, 200, 255, 0.35);
+            background: rgba(0, 0, 0, 0.35);
+            font-size: 11px;
+            font-family: ui-monospace, monospace;
+            color: var(--accent-blue, #64c8ff);
+        }
+
+        /* Resource strip (inside bottom bar) */
+        #resource-panel {
+            background: transparent;
+            border: none;
+            padding: 0;
+            color: var(--text-primary, #fff);
+            pointer-events: auto;
+            min-width: 0;
         }
         
         /* Game Event Feed */
@@ -66,11 +196,11 @@
         }
         
         .game-event {
-            background: rgba(0, 0, 0, 0.85);
+            background: var(--card-bg, rgba(0, 0, 0, 0.85));
             border-left: 4px solid;
             padding: 12px 16px;
             border-radius: 4px;
-            font-family: Arial, sans-serif;
+            font-family: 'Exo 2', sans-serif;
             font-size: 14px;
             line-height: 1.4;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
@@ -114,33 +244,125 @@
         .resource-item {
             display: flex;
             justify-content: space-between;
-            margin: 5px 0;
-            font-size: 16px;
+            margin: 4px 0;
+            font-size: 14px;
         }
-        
+
         .resource-label {
-            color: #FFD700;
-            font-weight: bold;
+            color: var(--accent-green, #4ade80);
+            font-weight: 600;
         }
-        
+
         .resource-value {
-            color: #00FF00;
+            color: var(--text-secondary, #e2e8f0);
         }
-        
-        /* Unit Info Panel */
+
+        /* Selection: units (structure preserved for RTSEngine IDs) */
         #unit-info-panel {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 2px solid #00AAFF;
-            border-radius: 8px;
-            padding: 15px;
-            color: white;
-            pointer-events: all;
-            min-width: 250px;
-            max-width: 350px;
+            position: relative;
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+            color: var(--text-primary, #fff);
+            pointer-events: auto;
+            min-width: 0;
+            max-width: none;
+            flex: 1 1 auto;
+            min-height: 0;
+            height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
             display: none;
+            flex-direction: column;
+        }
+
+        /* Building detail + production (separate from unit DOM so innerHTML never wipes unit template) */
+        #building-info-panel {
+            display: none;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            height: 100%;
+            overflow: hidden;
+            color: var(--text-primary, #fff);
+            pointer-events: auto;
+        }
+
+        .building-info-layout {
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+            gap: 10px;
+            flex: 1 1 auto;
+            min-height: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .building-info-layout--single {
+            flex-direction: column;
+        }
+
+        .building-info-layout--single .building-info-meta {
+            width: 100%;
+            max-width: none;
+        }
+
+        .building-info-meta {
+            flex: 0 0 auto;
+            width: min(40%, 200px);
+            max-width: 220px;
+            min-width: 118px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .building-info-meta .health-bar {
+            height: 12px;
+            margin: 4px 0;
+        }
+
+        .building-info-meta .unit-name {
+            font-size: 14px;
+            margin-bottom: 2px;
+            line-height: 1.25;
+            word-break: break-word;
+        }
+
+        .building-info-actions {
+            flex: 1 1 auto;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid rgba(100, 200, 255, 0.2);
+            padding-left: 8px;
+        }
+
+        .building-info-scroll {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+
+        .building-info-product-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--accent-orange, #fb923c);
+            margin: 0 0 6px;
+            font-family: 'Orbitron', sans-serif;
+            flex-shrink: 0;
+        }
+
+        #building-info-panel .build-button {
+            margin: 4px 0;
+            min-height: 32px;
+            padding: 5px 8px;
+            font-size: 12px;
         }
         
         /* Custom scrollbar for unit info panel */
@@ -163,10 +385,11 @@
         }
         
         .unit-name {
-            font-size: 18px;
-            font-weight: bold;
-            color: #00AAFF;
-            margin-bottom: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--accent-blue, #64c8ff);
+            margin-bottom: 8px;
+            font-family: 'Orbitron', sans-serif;
         }
         
         .unit-stat {
@@ -191,328 +414,121 @@
             transition: width 0.2s;
         }
         
-        /* Build Menu */
         #build-menu {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.9);
-            border: 2px solid #FFD700;
-            border-radius: 8px;
-            padding: 15px;
-            color: white;
-            pointer-events: all;
+            position: relative;
+            flex: 1;
+            min-height: 0;
             display: none;
+            flex-direction: column;
+            overflow: hidden;
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0 2px 0 0;
+            color: var(--text-primary, #fff);
+            pointer-events: auto;
         }
-        
+
         .build-menu-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #FFD700;
-            margin-bottom: 10px;
-            text-align: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent-orange, #fb923c);
+            margin-bottom: 4px;
+            text-align: left;
+            font-family: 'Orbitron', sans-serif;
+            flex-shrink: 0;
         }
-        
-        .build-category {
-            font-size: 14px;
-            font-weight: bold;
-            color: #00CED1;
-            margin-top: 15px;
-            margin-bottom: 5px;
-            padding: 5px;
-            background: rgba(0, 206, 209, 0.2);
-            border-left: 3px solid #00CED1;
+
+        .build-menu-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 4px;
+            flex-shrink: 0;
         }
-        
-        .build-category:first-of-type {
-            margin-top: 5px;
+
+        .build-menu-tab {
+            flex: 1;
+            padding: 4px 6px;
+            font-size: 11px;
+            font-weight: 600;
+            font-family: 'Exo 2', sans-serif;
+            color: var(--text-secondary, #cbd5e1);
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(100, 200, 255, 0.25);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s, color 0.15s;
         }
-        
+
+        .build-menu-tab:hover {
+            border-color: rgba(100, 200, 255, 0.55);
+            color: var(--text-primary, #fff);
+        }
+
+        .build-menu-tab.is-active {
+            color: var(--text-primary, #fff);
+            border-color: var(--accent-orange, #fb923c);
+            background: rgba(251, 146, 60, 0.15);
+        }
+
+        .build-menu-panels {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .build-menu-tier-panel {
+            display: none;
+            overflow: hidden;
+            padding-right: 2px;
+        }
+
+        .build-menu-tier-panel.is-active {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
         .build-button {
             display: block !important;
             visibility: visible !important;
             width: 100%;
-            padding: 10px;
-            margin: 5px 0;
-            background: #333;
-            border: 2px solid #666;
+            padding: 6px 8px;
+            margin: 3px 0;
+            background: rgba(30, 30, 40, 0.9);
+            border: 1px solid rgba(120, 120, 140, 0.6);
             border-radius: 4px;
             color: white;
             cursor: pointer;
             transition: all 0.2s;
             text-align: left;
-            min-height: 40px;
+            min-height: 34px;
+            font-size: 13px;
         }
         
         .build-button:hover {
-            background: #555;
-            border-color: #FFD700;
-            transform: translateX(5px);
+            background: rgba(100, 200, 255, 0.12);
+            border-color: var(--accent-blue, #64c8ff);
         }
-        
+
         .build-cost {
             float: right;
-            color: #FFD700;
-            font-weight: bold;
+            color: var(--accent-green, #4ade80);
+            font-weight: 600;
+            font-size: 12px;
         }
-        
+
         .build-button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
-        
-        .build-cost {
-            color: #00FF00;
-            font-size: 12px;
-        }
-        
-        /* Research system removed - Research Tree Modal CSS deleted (lines 269-520) */
-        
-        /* Research system removed - all research CSS deleted */
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            z-index: 9000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            pointer-events: all;
-        }
-        
-        .research-modal-content {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            border: 3px solid #00CED1;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 1200px;
-            height: 85%;
-            max-height: 800px;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 0 40px rgba(0, 206, 209, 0.5);
-            pointer-events: all;
-        }
-        
-        .research-modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 30px;
-            border-bottom: 2px solid #00CED1;
-            background: rgba(0, 206, 209, 0.1);
-        }
-        
-        .research-modal-header h2 {
-            margin: 0;
-            color: #00CED1;
-            font-size: 28px;
-            text-shadow: 0 0 10px rgba(0, 206, 209, 0.8);
-        }
-        
-        .research-modal-close {
-            background: #FF4444;
-            border: 2px solid #FF6666;
-            color: white;
-            font-size: 24px;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-        }
-        
-        .research-modal-close:hover {
-            background: #FF6666;
-            transform: scale(1.1);
-            box-shadow: 0 0 15px rgba(255, 68, 68, 0.8);
-        }
-        
-        .research-category-tabs {
-            display: flex;
-            gap: 10px;
-            padding: 15px 30px;
-            background: rgba(0, 0, 0, 0.3);
-            border-bottom: 2px solid #333;
-        }
-        
-        .research-tab {
-            flex: 1;
-            padding: 12px 20px;
-            background: #2a2a3e;
-            border: 2px solid #444;
-            border-radius: 8px;
-            color: #AAA;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 16px;
-            font-weight: bold;
-        }
-        
-        .research-tab:hover {
-            background: #3a3a4e;
-            border-color: #666;
-            color: #FFF;
-            transform: translateY(-2px);
-        }
-        
-        .research-tab.active {
-            background: linear-gradient(135deg, #00CED1 0%, #1E90FF 100%);
-            border-color: #00CED1;
-            color: white;
-            box-shadow: 0 4px 15px rgba(0, 206, 209, 0.4);
-        }
-        
-        .research-tree-container {
-            flex: 1;
-            position: relative;
-            overflow: auto;
-            padding: 30px;
-            background: rgba(0, 0, 0, 0.2);
-        }
-        
-        #research-nodes-container {
-            position: relative;
-            min-height: 600px;
-        }
-        
-        .research-node {
-            position: absolute;
-            width: 200px;
-            padding: 15px;
-            background: #2a2a3e;
-            border: 3px solid #444;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-        }
-        
-        .research-node:hover {
-            transform: scale(1.05);
-            z-index: 100;
-        }
-        
-        .research-node.completed {
-            background: linear-gradient(135deg, #1a4d1a 0%, #2d7a2d 100%);
-            border-color: #4CAF50;
-            box-shadow: 0 0 20px rgba(76, 175, 80, 0.6);
-        }
-        
-        .research-node.available {
-            background: linear-gradient(135deg, #1a3a4d 0%, #2d5a7a 100%);
-            border-color: #00CED1;
-            box-shadow: 0 0 20px rgba(0, 206, 209, 0.4);
-        }
-        
-        .research-node.researching {
-            background: linear-gradient(135deg, #4d4d1a 0%, #7a7a2d 100%);
-            border-color: #FFD700;
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
-            animation: pulse 2s infinite;
-        }
-        
-        .research-node.locked {
-            background: #1a1a1a;
-            border-color: #333;
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.6); }
-            50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.9); }
-        }
-        
-        .research-node-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 8px;
-        }
-        
-        .research-node-icon {
-            font-size: 24px;
-        }
-        
-        .research-node-title {
-            font-weight: bold;
-            font-size: 14px;
-            color: white;
-            flex: 1;
-        }
-        
-        .research-node-effect {
-            font-size: 12px;
-            color: #AAA;
-            margin-bottom: 8px;
-        }
-        
-        .research-node-cost {
-            display: flex;
-            justify-content: space-between;
-            font-size: 11px;
-            color: #FFD700;
-        }
-        
-        .research-node-status {
-            margin-top: 8px;
-            padding: 5px;
-            border-radius: 4px;
-            text-align: center;
-            font-size: 11px;
-            font-weight: bold;
-        }
-        
-        .research-node-status.completed {
-            background: rgba(76, 175, 80, 0.3);
-            color: #4CAF50;
-        }
-        
-        .research-node-status.available {
-            background: rgba(0, 206, 209, 0.3);
-            color: #00CED1;
-        }
-        
-        .research-node-status.researching {
-            background: rgba(255, 215, 0, 0.3);
-            color: #FFD700;
-        }
-        
-        .research-node-status.locked {
-            background: rgba(255, 68, 68, 0.3);
-            color: #FF4444;
-        }
-        
-        .research-node-progress {
-            margin-top: 8px;
-            height: 6px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-        
-        .research-node-progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #FFD700, #FFA500);
-            transition: width 0.3s;
-        }
-        
-        .research-modal-footer {
-            padding: 15px 30px;
-            border-top: 2px solid #333;
-            background: rgba(0, 0, 0, 0.3);
-            min-height: 60px;
-        }
-        
-        /* Research system removed - all research CSS deleted */
-        
+
         /* Loading Screen */
         #loading-screen {
             position: absolute;
@@ -576,7 +592,7 @@
             50% { opacity: 0.88; filter: brightness(1.12); }
         }
         
-        #resource-panel.low-power-critical {
+        #hud-economy.low-power-critical {
             border-color: #ff4444 !important;
             box-shadow: 0 0 18px rgba(255, 80, 0, 0.7);
             animation: lowPowerPanelGlow 1.1s ease-in-out infinite;
@@ -586,8 +602,71 @@
             0%, 100% { box-shadow: 0 0 14px rgba(255, 80, 0, 0.55); }
             50% { box-shadow: 0 0 22px rgba(255, 200, 0, 0.85); }
         }
+
+        #command-abilities-panel {
+            position: relative;
+            background: transparent;
+            border: none;
+            padding: 0;
+            color: var(--text-primary, #fff);
+            pointer-events: auto;
+            display: none;
+            flex-direction: column;
+            max-width: 100%;
+            flex: 1 1 auto;
+            min-height: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .command-abilities-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--accent-purple, #a855f7);
+            margin-bottom: 6px;
+            text-align: left;
+            letter-spacing: 0.04em;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        #command-abilities-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: flex-start;
+            align-content: flex-start;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+        }
+        .command-ability-btn {
+            min-width: 120px;
+            padding: 8px 12px;
+            background: linear-gradient(180deg, #3a2a4a 0%, #251830 100%);
+            border: 2px solid #7a4a9e;
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            text-align: center;
+            transition: border-color 0.15s, transform 0.1s;
+        }
+        .command-ability-btn:hover:not(:disabled) {
+            border-color: #e0aaff;
+            transform: translateY(-1px);
+        }
+        .command-ability-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+        .command-ability-btn .ca-cooldown {
+            display: block;
+            font-size: 11px;
+            color: #ffcc88;
+            margin-top: 4px;
+        }
     </style>
-    <script src="js/rts/RTSEngine.js?v=69"></script>
+    <script src="js/rts/RTSEngine.js?v=80"></script>
     <script type="text/javascript">
         window.addEventListener('load', () => {
             try {
@@ -599,7 +678,7 @@
         });
     </script>
 </head>
-<body>
+<body class="rts-game-page game-page">
 <div id="game-container">
     <div id="loading-screen">
         <div class="loading-content">
@@ -616,61 +695,73 @@
             <span style="font-size: 22px;">⚡</span>
             <span>LOW POWER — Build more Power Plants. Production and defenses are impaired.</span>
         </div>
-        <!-- Resource Panel -->
-        <div id="resource-panel">
-            <div class="resource-item">
-                <span class="resource-value" id="player-info">-</span>
-            </div>
-            <div class="resource-item">
-                <span class="resource-label">Credits:</span>
-                <span class="resource-value" id="credits-value">1000</span>
-            </div>
-            <div class="resource-item">
-                <span class="resource-label">Army upkeep:</span>
-                <span class="resource-value" id="upkeep-value">0 / 30s</span>
-            </div>
-            <div class="resource-item">
-                <span class="resource-label">Power:</span>
-                <span class="resource-value" id="power-value">0/0</span>
-            </div>
-        </div>
 
-        <!-- Game Event Feed -->
         <div id="event-feed"></div>
 
-        <!-- Unit Info Panel -->
-        <div id="unit-info-panel" style="display: none;">
-            <!-- Single unit display -->
-            <div id="single-unit-info">
-                <div class="unit-name" id="unit-name">Worker</div>
-                <div class="health-bar">
-                    <div class="health-fill" id="unit-health-fill" style="width: 100%;"></div>
-                </div>
-                <div class="unit-stat">
-                    <span>Health:</span>
-                    <span id="unit-health">50/50</span>
-                </div>
-                <div class="unit-stat">
-                    <span>Type:</span>
-                    <span id="unit-type">Worker</span>
-                </div>
-                <div class="unit-stat" id="unit-special-ability" style="display: none;">
-                    <span>Ability:</span>
-                    <span id="unit-ability-name">-</span>
-                </div>
-            </div>
+        <div id="hud-bottom">
+            <div class="hud-bottom-main">
+                <section id="hud-economy" class="hud-card">
+                    <div id="resource-panel">
+                        <div class="resource-item">
+                            <span class="resource-value" id="player-info">-</span>
+                        </div>
+                        <div class="resource-item">
+                            <span class="resource-label">Credits:</span>
+                            <span class="resource-value" id="credits-value">1000</span>
+                        </div>
+                        <div class="resource-item">
+                            <span class="resource-label">Army upkeep:</span>
+                            <span class="resource-value" id="upkeep-value">0 / 30s</span>
+                        </div>
+                        <div class="resource-item">
+                            <span class="resource-label">Power:</span>
+                            <span class="resource-value" id="power-value">0/0</span>
+                        </div>
+                    </div>
+                </section>
 
-            <!-- Multiple units display -->
-            <div id="multi-unit-info" style="display: none;">
-                <div class="unit-name">Multiple Units Selected</div>
-                <div id="unit-count-list"></div>
-            </div>
-        </div>
+                <section class="hud-card hud-selection-stack" id="hud-selection-stack">
+                    <div id="unit-info-panel" style="display: none;">
+                        <div id="single-unit-info">
+                            <div class="unit-name" id="unit-name">Worker</div>
+                            <div class="health-bar">
+                                <div class="health-fill" id="unit-health-fill" style="width: 100%;"></div>
+                            </div>
+                            <div class="unit-stat">
+                                <span>Health:</span>
+                                <span id="unit-health">50/50</span>
+                            </div>
+                            <div class="unit-stat">
+                                <span>Type:</span>
+                                <span id="unit-type">Worker</span>
+                            </div>
+                            <div class="unit-stat" id="unit-special-ability" style="display: none;">
+                                <span>Ability:</span>
+                                <span id="unit-ability-name">-</span>
+                            </div>
+                        </div>
+                        <div id="multi-unit-info" style="display: none;">
+                            <div class="unit-name">Multiple Units Selected</div>
+                            <div id="unit-count-list"></div>
+                        </div>
+                    </div>
+                    <div id="building-info-panel" style="display: none;" aria-live="polite"></div>
+                </section>
 
-        <!-- Build Menu (dynamically generated based on faction) -->
-        <div id="build-menu">
-            <div class="build-menu-title">Build Menu</div>
-            <!-- Buildings will be populated dynamically when faction data loads -->
+                <section id="hud-build-wrap" class="hud-card">
+                    <div id="build-menu">
+                        <div class="build-menu-title">Build</div>
+                    </div>
+                </section>
+
+                <section id="hud-command-wrap" class="hud-card">
+                    <div id="command-abilities-panel">
+                        <div class="command-abilities-title">Command abilities</div>
+                        <div id="command-abilities-buttons"></div>
+                    </div>
+                </section>
+            </div>
+            <div id="hud-hotkeys" class="hud-bottom-row hud-hotkeys" aria-hidden="true"></div>
         </div>
 
         <!-- Research system removed - modal deleted -->

@@ -204,7 +204,7 @@ public class FactionPresetRegistry {
                         BuildingType.TECH_CENTER,
                         BuildingType.REFINERY,
                         BuildingType.ROCKET_TURRET,  // Ground anti-air
-                        BuildingType.FLAK_TURRET     // Additional anti-air
+                        BuildingType.JUMP_PAD        // Marine Drop command (replaces second AA turret)
                 )))
                 .selectedPerks(new HashSet<>(Arrays.asList(
                         FactionPerk.AIR_SUPERIORITY_1,     // 4 pt - cheaper air, faster air
@@ -366,7 +366,7 @@ public class FactionPresetRegistry {
                         BuildingType.REFINERY,
                         BuildingType.TURRET,
                         BuildingType.ROCKET_TURRET,      // Long-range defense
-                        BuildingType.PHOTON_SPIRE        // Ultimate range turret
+                        BuildingType.NUKE_SILO           // Strategic nuke (replaces photon turret in budget)
                 )))
                 .selectedPerks(new HashSet<>(Arrays.asList(
                         FactionPerk.DAMAGE_BOOST_1,        // 4 pt - more firepower

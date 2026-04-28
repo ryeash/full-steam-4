@@ -28,6 +28,7 @@ import com.fullsteam.model.component.GarrisonComponent;
 import com.fullsteam.model.component.GunshipComponent;
 import com.fullsteam.model.component.IBuildingComponent;
 import com.fullsteam.model.component.InterceptorComponent;
+import com.fullsteam.model.component.NukeSiloComponent;
 import com.fullsteam.model.component.ProductionComponent;
 import com.fullsteam.model.component.ShieldComponent;
 import com.fullsteam.model.customization.CustomFactionConfig;
@@ -293,8 +294,10 @@ public class RTSGameManager {
                 }
             });
 
+            gameEntities.pruneExpiredSatelliteReveals();
+
             // Process field effects (explosions, etc.)
-            processFieldEffects(deltaTime);
+            processFieldEffects();
 
             // Process tracker bugs (spy intelligence)
             processTrackerBugs();
@@ -858,6 +861,17 @@ public class RTSGameManager {
                     return;
                 }
 
+                if (buildingType.isUniquePerPlayer() && playerHasActiveBuildingOfType(playerId, buildingType)) {
+                    log.warn("Player {} already has a {} (only one allowed)", playerId, buildingType);
+                    sendGameEvent(GameEvent.createPlayerEvent(
+                            String.format("⚠️ You can only have one %s at a time.",
+                                    buildingType.getDisplayName()),
+                            playerId,
+                            GameEvent.EventCategory.WARNING
+                    ));
+                    return;
+                }
+
                 // All checks passed - proceed with building
                 // Deduct resources (use faction-modified cost)
                 int cost = faction.getBuildingCost(buildingType);
@@ -888,6 +902,10 @@ public class RTSGameManager {
 
                 log.debug("Player {} placed {} at ({}, {})", playerId, buildingType, location.x, location.y);
             }
+        }
+
+        if (input.getCommandAbilityOrder() != null) {
+            processCommandAbilityOrder(playerId, faction, input);
         }
 
         // Handle unit production orders
@@ -1041,47 +1059,10 @@ public class RTSGameManager {
     }
 
     /**
-     * Find the nearest refinery for a worker unit
-     *
-     * @deprecated This method is no longer used by RTSGameManager - HarvestCommand now handles refinery finding internally
-     */
-    @Deprecated
-    private Building findNearestRefinery(Unit worker) {
-        log.debug("Finding refinery for worker {} (owner {}), total buildings: {}",
-                worker.getId(), worker.getOwnerId(), buildings.size());
-
-        Building nearestDropoff = null;
-        double nearestDistance = Double.MAX_VALUE;
-
-        // Search for both refineries AND headquarters, pick the nearest one
-        for (Building building : buildings.values()) {
-            if (building.isActive() &&
-                    building.getOwnerId() == worker.getOwnerId() &&
-                    !building.isUnderConstruction() &&
-                    (building.getBuildingType() == BuildingType.REFINERY ||
-                            building.getBuildingType() == BuildingType.HEADQUARTERS)) {
-
-                double distance = worker.getPosition().distance(building.getPosition());
-                if (distance < nearestDistance) {
-                    nearestDistance = distance;
-                    nearestDropoff = building;
-                    log.debug("  Found {} {} at distance {}",
-                            building.getBuildingType(), building.getId(), distance);
-                }
-            }
-        }
-
-        log.debug("Returning nearest dropoff: {} (type: {})",
-                nearestDropoff != null ? nearestDropoff.getId() : "null",
-                nearestDropoff != null ? nearestDropoff.getBuildingType() : "none");
-        return nearestDropoff;
-    }
-
-    /**
      * Process field effect updates and cleanup
      * Damage is now handled by the collision processor using physics-based detection
      */
-    private void processFieldEffects(double deltaTime) {
+    private void processFieldEffects() {
         for (FieldEffect effect : fieldEffects.values()) {
             if (!effect.isActive()) {
                 continue;
@@ -1642,7 +1623,10 @@ public class RTSGameManager {
 
                 // Trigger perk hooks for building destruction
                 Player ownerFaction = players.get(building.getOwnerId());
-                ownerFaction.getFactionDefinition().onBuildingDestroyed(building, ownerFaction, this);
+                if (ownerFaction != null) {
+                    ownerFaction.clearCommandAbilityCooldownsForUnlockBuilding(building.getBuildingType());
+                    ownerFaction.getFactionDefinition().onBuildingDestroyed(building, ownerFaction, this);
+                }
 
                 // Call onDestroy for all components (handles sandstorm cleanup, etc.)
                 for (IBuildingComponent component : building.getComponents().values()) {
@@ -1866,7 +1850,125 @@ public class RTSGameManager {
         data.put("powerGenerated", faction.getPowerGenerated());
         data.put("powerConsumed", faction.getPowerConsumed());
         data.put("hasLowPower", faction.isHasLowPower());
+        data.put("commandAbilities", serializeCommandAbilityState(faction));
         return data;
+    }
+
+    private List<Map<String, Object>> serializeCommandAbilityState(Player faction) {
+        int playerId = faction.getPlayerId();
+        long now = System.currentTimeMillis();
+        Optional<NukeSiloComponent> nuke = findPlayerNukeSiloComponent(playerId);
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (CommandAbilityType t : CommandAbilityType.values()) {
+            if (!faction.getFactionDefinition().getBuildingTypes().contains(t.getUnlockingBuilding())) {
+                continue;
+            }
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", t.name());
+            row.put("displayName", t.getDisplayName());
+            boolean unlocked = playerHasCompletedUnlockBuilding(playerId, t);
+            row.put("unlocked", unlocked);
+            long ends = faction.getCommandAbilityCooldownEndsAt(t);
+            long remaining = ends > now ? ends - now : 0L;
+            row.put("cooldownRemainingMs", remaining);
+            row.put("onCooldown", remaining > 0);
+            boolean canActivate = unlocked && remaining <= 0;
+            if (t == CommandAbilityType.NUKE_ARM) {
+                canActivate = canActivate && nuke.map(NukeSiloComponent::canStartArming).orElse(false);
+                row.put("armingRemainingMs", nuke.map(n -> n.getArmingRemainingMs(now)).orElse(0L));
+            } else if (t == CommandAbilityType.NUKE_LAUNCH) {
+                canActivate = canActivate && nuke.map(NukeSiloComponent::isLaunchReady).orElse(false);
+                row.put("armingRemainingMs", 0L);
+            } else {
+                row.put("armingRemainingMs", 0L);
+            }
+            row.put("canActivate", canActivate);
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    Optional<NukeSiloComponent> findPlayerNukeSiloComponent(int playerId) {
+        return buildings.values().stream()
+                .filter(b -> b.belongsTo(playerId)
+                        && b.isActive()
+                        && !b.isUnderConstruction()
+                        && b.getBuildingType() == BuildingType.NUKE_SILO)
+                .findFirst()
+                .flatMap(b -> b.getComponent(NukeSiloComponent.class));
+    }
+
+    private boolean playerHasActiveBuildingOfType(int playerId, BuildingType buildingType) {
+        return buildings.values().stream()
+                .anyMatch(b -> b.belongsTo(playerId)
+                        && b.isActive()
+                        && b.getBuildingType() == buildingType);
+    }
+
+    /**
+     * Completed unlock building: active, not destroyed, and finished construction.
+     */
+    private boolean playerHasCompletedUnlockBuilding(int playerId, CommandAbilityType abilityType) {
+        BuildingType need = abilityType.getUnlockingBuilding();
+        return buildings.values().stream()
+                .anyMatch(b -> b.belongsTo(playerId)
+                        && b.isActive()
+                        && !b.isUnderConstruction()
+                        && b.getBuildingType() == need);
+    }
+
+    private void processCommandAbilityOrder(int playerId, Player faction, RTSPlayerInput input) {
+        CommandAbilityType type = input.getCommandAbilityOrder();
+        if (type == null) {
+            return;
+        }
+
+        if (!faction.getFactionDefinition().getBuildingTypes().contains(type.getUnlockingBuilding())) {
+            sendGameEvent(GameEvent.createPlayerEvent(
+                    "That command ability is not in your faction loadout.",
+                    playerId,
+                    GameEvent.EventCategory.WARNING
+            ));
+            return;
+        }
+
+        if (!playerHasCompletedUnlockBuilding(playerId, type)) {
+            sendGameEvent(GameEvent.createPlayerEvent(
+                    "Requires a completed " + type.getUnlockingBuilding().getDisplayName() + ".",
+                    playerId,
+                    GameEvent.EventCategory.WARNING
+            ));
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        if (faction.getCommandAbilityCooldownEndsAt(type) > now) {
+            sendGameEvent(GameEvent.createPlayerEvent(
+                    "That ability is still on cooldown.",
+                    playerId,
+                    GameEvent.EventCategory.WARNING
+            ));
+            return;
+        }
+
+        Vector2 target = input.getCommandAbilityTargetLocation();
+        Integer sourceId = input.getCommandAbilitySourceBuildingId();
+        CommandAbilityExecutionContext ctx = new CommandAbilityExecutionContext(gameEntities, playerId, faction, target, sourceId, now);
+        CommandAbilityOutcome outcome = type.execute(ctx);
+
+        if (outcome == CommandAbilityOutcome.FAILED || outcome == CommandAbilityOutcome.FULLY_HANDLED) {
+            return;
+        }
+        if (outcome == CommandAbilityOutcome.NEED_DEFAULT_WRAP_UP || outcome == CommandAbilityOutcome.NEED_COOLDOWN_ONLY) {
+            faction.setCommandAbilityCooldownEndsAt(type, now + type.getCooldownMs());
+        }
+        if (outcome == CommandAbilityOutcome.NEED_DEFAULT_WRAP_UP) {
+            sendGameEvent(GameEvent.createPlayerEvent(
+                    type.getDisplayName() + " deployed!",
+                    playerId,
+                    GameEvent.EventCategory.INFO
+            ));
+        }
     }
 
     /**
@@ -1889,6 +1991,7 @@ public class RTSGameManager {
         init.put("worldWidth", gameConfig.getWorldWidth());
         init.put("worldHeight", gameConfig.getWorldHeight());
         init.put("armyUpkeepIntervalMs", ArmyEconomy.UPKEEP_INTERVAL_MS);
+        init.put("commandAbilityTypes", CommandAbilityType.catalogForInitialization());
 
         // Obstacles - full static data (position, shape, type)
         // Only health and resources will be updated in game state

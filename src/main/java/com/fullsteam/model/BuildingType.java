@@ -30,7 +30,7 @@ public enum BuildingType {
             true,       // power generation
             50,    // vision range (excellent, main base)
             500.0,         // faction customization point cost
-            0,
+            0, false,
             "H",
             "\uD83C\uDFDB\uFE0F"),
 
@@ -48,7 +48,7 @@ public enum BuildingType {
             false,     // power consumption
             -10,    // vision range (moderate, economic building)
             350.0,         // faction customization point cost
-            2,
+            2, false,
             "R",
             "\uD83C\uDFED"),
 
@@ -66,7 +66,7 @@ public enum BuildingType {
             true,     // power consumption
             -25,    // vision range (good, production building)
             380.0,         // faction customization point cost
-            3,
+            3, false,
             "B",
             "\uD83C\uDFF0"),
 
@@ -84,7 +84,7 @@ public enum BuildingType {
             false,      // power generation
             100,    // vision range (moderate, utility building)
             360.0,         // faction customization point cost
-            0,
+            0, false,
             "P",
             "\u26A1"),
 
@@ -102,7 +102,7 @@ public enum BuildingType {
             true,     // power consumption
             -30,    // vision range (good, production building)
             390.0,         // faction customization point cost
-            5,
+            5, false,
             "F",
             "\uD83D\uDE97"),
 
@@ -120,7 +120,7 @@ public enum BuildingType {
             false,     // power consumption
             -35,    // vision range (good, tech building)
             400.0,         // faction customization point cost
-            4,
+            4, false,
             "RL",
             "\uD83D\uDD2C"),
 
@@ -138,7 +138,7 @@ public enum BuildingType {
             false,     // power consumption
             -50,    // vision range (excellent, advanced tech)
             420.0,         // faction customization point cost
-            6,
+            6, false,
             "TC",
             "\uD83E\uDDEA"),
 
@@ -157,7 +157,7 @@ public enum BuildingType {
             false,     // power consumption
             -35,    // vision range (excellent, needs to spot threats)
             450.0,         // faction customization point cost
-            2,
+            2, false,
             "T",
             "\uD83C\uDFAF"),
 
@@ -175,7 +175,7 @@ public enum BuildingType {
             false,     // power consumption (higher than basic)
             -50,    // vision range (excellent, long-range targeting)
             480.0,         // faction customization point cost
-            3,
+            3, false,
             "RT",
             "\uD83D\uDE80"),
 
@@ -193,7 +193,7 @@ public enum BuildingType {
             false,     // power consumption (moderate)
             -45,    // vision range (excellent, needs to spot aircraft)
             500.0,         // faction customization point cost
-            3,
+            3, false,
             "FT",
             "\uD83D\uDCA5"),
 
@@ -211,7 +211,7 @@ public enum BuildingType {
             false,     // power consumption (highest - energy weapon)
             -65,    // vision range (best, advanced sensors)
             500.0,         // faction customization point cost
-            4,
+            4, false,
             "LT",
             "\uD83D\uDD37"),
 
@@ -229,7 +229,7 @@ public enum BuildingType {
             false,     // power consumption
             -15,    // vision range (excellent, defensive structure)
             420.0,         // faction customization point cost
-            3,
+            3, false,
             "\u2694",
             "\uD83C\uDFF0"),
 
@@ -247,7 +247,7 @@ public enum BuildingType {
             false,     // power consumption
             -40,    // vision range (good, defensive utility)
             380.0,         // faction customization point cost
-            4,
+            4, false,
             "SG",
             "\uD83D\uDEE1\uFE0F"),
 
@@ -264,7 +264,7 @@ public enum BuildingType {
             false,     // power consumption
             -30,    // vision range (moderate, economic building)
             350.0,         // faction customization point cost
-            4,
+            4, false,
             "$",
             "\uD83D\uDCB0"),
 
@@ -282,7 +282,7 @@ public enum BuildingType {
             false,     // power consumption
             -40,    // vision range (good)
             430.0,        // faction customization point cost
-            8,
+            8, false,
             "\u2601",
             "\uD83C\uDF2A\uFE0F"),
 
@@ -300,7 +300,7 @@ public enum BuildingType {
             true,     // power consumption
             -60,    // vision range (excellent)
             420.0,        // faction customization point cost
-            12,
+            12, false,
             "A",
             "\uD83E\uDD16"),
 
@@ -318,7 +318,7 @@ public enum BuildingType {
             false,     // power consumption
             -75,    // vision range (excellent, defensive)
             480.0,        // faction customization point cost
-            10,
+            10, false,
             "\u26A1",
             "\uD83D\uDC8E"),
 
@@ -337,7 +337,7 @@ public enum BuildingType {
             false,     // power consumption
             -50,   // vision range (HUGE, command center bonus)
             1000.0,        // faction customization point cost
-            10,
+            10, false,
             "CC",
             "\uD83C\uDFF0"),
 
@@ -355,8 +355,105 @@ public enum BuildingType {
             true,     // power consumption
             -40,    // vision range (good, airfield tower)
             420.0,         // faction customization point cost
-            5,
+            5, false,
             "AF",
+            "\u2708\uFE0F"),
+
+    /**
+     * Unlocks {@link CommandAbilityType#MARINE_DROP} for orbital infantry inserts.
+     */
+    JUMP_PAD(
+            "Jump Pad",
+            "Drop-ship landing grid and uplink—unlocks the Marine Drop command.",
+            BuildingCategory.TECH,
+            620,
+            55,
+            75.0,
+            44.0,
+            0x4A708B,
+            false,
+            -35,
+            -42.0,
+            3,
+            true,
+            "JP",
+            "\uD83D\uDE81"),
+
+    /**
+     * Nuclear missile silo—required for {@link CommandAbilityType#NUKE_ARM} and {@link CommandAbilityType#NUKE_LAUNCH}.
+     */
+    NUKE_SILO(
+            "Nuclear Silo",
+            "Houses and arms a strategic warhead; arm on command, then launch at a ground target.",
+            BuildingCategory.TECH,
+            950,
+            80,
+            100.0,
+            48.0,
+            0x8B0000,
+            false,
+            -50,
+            -45.0,
+            10,
+            true,
+            "NS",
+            "\u2622\uFE0F"),
+
+    /** Unlocks command abilities (e.g. {@link CommandAbilityType#STRIKE_PACKAGE}, {@link CommandAbilityType#FLAK_BURST}). */
+    STRIKE_RELAY(
+            "Strike Relay",
+            "Tactical uplink—unlocks the Strike Package command ability.",
+            BuildingCategory.TECH,
+            550,
+            45,
+            85.0,   // max health
+            42.0,   // collision radius (was 390 by mistake — dominated the map)
+            0xCD853F,
+            false,
+            -35,
+            -40.0,
+            6, true,
+            "SR",
+            "\uD83C\uDFAF"),
+
+    /**
+     * Unlocks {@link CommandAbilityType#SATELLITE_SWEEP} for temporary wide-area recon.
+     */
+    SATCOM_ARRAY(
+            "Satcom Array",
+            "Orbital uplink—unlocks the Satellite Sweep command for brief wide-area vision.",
+            BuildingCategory.TECH,
+            580,
+            48,
+            70.0,
+            40.0,
+            0x6495ED,
+            false,
+            -40,
+            -38.0,
+            6,
+            true,
+            "SA",
+            "\uD83D\uDEF0"),
+
+    /**
+     * Unlocks {@link CommandAbilityType#CARPET_BOMB} for a multi-hit strike corridor.
+     */
+    CARPET_PAD(
+            "Carpet Bomb Pad",
+            "Bomber staging field—unlocks the Carpet Bomb command along an east–west corridor.",
+            BuildingCategory.TECH,
+            640,
+            50,
+            78.0,
+            43.0,
+            0x556B2F,
+            false,
+            -38,
+            -42.0,
+            7,
+            true,
+            "CB",
             "\u2708\uFE0F"),
 
     TEMPEST_SPIRE(
@@ -372,7 +469,7 @@ public enum BuildingType {
             false,     // power consumption
             -60,    // vision range (excellent, weather tower)
             600.0,        // faction customization point cost
-            12,
+            12, false,
             "\u26C8",
             "\u26C8\uFE0F");
 
@@ -388,6 +485,11 @@ public enum BuildingType {
     private final int powerValue; // Power generation (positive) or consumption (negative)
     private final double visionRange; // vision radius for fog of war
     private final int pointCost; // faction customization point cost
+    /**
+     * When true, a human player may have at most one active instance; enforced when placing
+     * (see {@link RTSGameManager}). Use for command / strategic structures (e.g. {@link #STRIKE_RELAY}).
+     */
+    private final boolean uniquePerPlayer;
     /** Short text on the field map (client HUD). */
     private final String label;
     /** Emoji for build menus / UI (client). */
@@ -405,6 +507,7 @@ public enum BuildingType {
                  int powerValue,
                  double visionRange,
                  int pointCost,
+                 boolean uniquePerPlayer,
                  String label,
                  String menuIcon) {
         this.displayName = displayName;
@@ -419,6 +522,7 @@ public enum BuildingType {
         this.powerValue = powerValue;
         this.visionRange = visionRange;
         this.pointCost = pointCost;
+        this.uniquePerPlayer = uniquePerPlayer;
         this.label = label;
         this.menuIcon = menuIcon;
     }
@@ -466,7 +570,8 @@ public enum BuildingType {
             case HEADQUARTERS, REFINERY, BARRACKS, POWER_PLANT, BUNKER -> 1;
             case FACTORY, RESEARCH_LAB, TURRET, SHIELD_GENERATOR, ROCKET_TURRET, FLAK_TURRET -> 2;
             case TECH_CENTER, BANK, SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE,
-                 COMMAND_CITADEL, LASER_TURRET, AIRFIELD, TEMPEST_SPIRE -> 3;
+                 COMMAND_CITADEL, LASER_TURRET, AIRFIELD, JUMP_PAD, NUKE_SILO, STRIKE_RELAY,
+                 SATCOM_ARRAY, CARPET_PAD, TEMPEST_SPIRE -> 3;
         };
     }
 
@@ -629,6 +734,16 @@ public enum BuildingType {
                 yield List.of(runway, tower);
             }
 
+            case JUMP_PAD -> List.of(Geometry.createRectangle(size * 1.9, size * 1.05));
+
+            case NUKE_SILO -> List.of(Geometry.createPolygonalCircle(8, size));
+
+            case STRIKE_RELAY -> List.of(Geometry.createPolygonalCircle(6, size));
+
+            case SATCOM_ARRAY -> List.of(Geometry.createPolygonalCircle(8, size));
+
+            case CARPET_PAD -> List.of(Geometry.createRectangle(size * 1.8, size * 0.95));
+
             // Tempest Spire - weather control tower with antenna arrays
             case TEMPEST_SPIRE -> {
                 // Central tower (tall octagon)
@@ -680,9 +795,11 @@ public enum BuildingType {
             case TECH_CENTER, BANK, LASER_TURRET, AIRFIELD -> List.of(POWER_PLANT, RESEARCH_LAB);
 
             // Requires Power Plant + Research Lab  + TECH_CENTER
-            case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL, TEMPEST_SPIRE ->
+            case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL, JUMP_PAD, NUKE_SILO, STRIKE_RELAY,
+                 SATCOM_ARRAY, CARPET_PAD, TEMPEST_SPIRE ->
                     List.of(POWER_PLANT, RESEARCH_LAB, TECH_CENTER);
         };
     }
+
 }
 
