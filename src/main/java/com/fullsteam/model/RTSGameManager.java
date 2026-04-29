@@ -2040,6 +2040,9 @@ public class RTSGameManager {
             typeData.put("specialAbility", unitType.getSpecialAbility().name());
             typeData.put("color", unitType.getColor());
             typeData.put("elevation", unitType.getElevation().name());
+            if (unitType.getHotkey() != null) {
+                typeData.put("hotkey", String.valueOf(unitType.getHotkey()));
+            }
             unitTypes.put(unitType.name(), typeData);
         }
         init.put("unitTypes", unitTypes);
@@ -2058,6 +2061,9 @@ public class RTSGameManager {
             typeData.put("canProduceUnits", buildingType.isCanProduceUnits());
             typeData.put("visionRange", buildingType.getVisionRange());
             typeData.put("requiredTechTier", buildingType.getRequiredTechTier());
+            if (buildingType.getHotkey() != null) {
+                typeData.put("hotkey", String.valueOf(buildingType.getHotkey()));
+            }
 
             // Add weapon range for defensive buildings (for UI range indicators)
             double weaponRange = buildingType.getWeaponRange();

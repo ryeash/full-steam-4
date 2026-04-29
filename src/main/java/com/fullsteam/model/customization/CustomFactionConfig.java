@@ -23,7 +23,10 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CustomFactionConfig {
-    private static final int MAX_POINTS = 100;
+    /** Maximum points allowed for a custom faction loadout (units + buildings + perks). */
+    public static final int MAX_FACTION_POINTS = 100;
+
+    private static final int MAX_POINTS = MAX_FACTION_POINTS;
 
     /**
      * Unique identifier for this faction configuration

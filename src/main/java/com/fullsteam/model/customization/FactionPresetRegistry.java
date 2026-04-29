@@ -221,7 +221,6 @@ public class FactionPresetRegistry {
                         FactionPerk.AIR_SUPERIORITY_2,
                         FactionPerk.UPKEEP_INCREASE_1,
                         FactionPerk.RAPID_DEPLOYMENT_1,
-                        FactionPerk.RAPID_DEPLOYMENT_2,
                         FactionPerk.VETERAN_UNITS_1,
                         FactionPerk.COST_REDUCTION_1
                 )))
@@ -363,6 +362,8 @@ public class FactionPresetRegistry {
                         UnitType.PULSE_ARTILLERY,
                         UnitType.SPIDER_MINE,        // Surprise ambush
                         UnitType.ARTILLERY,          // Core siege weapon
+                        UnitType.GRENADIER,          // Area damage (barracks)
+                        UnitType.MEDIC,              // +1 pt — completes 100-point budget
                         UnitType.SAM_LAUNCHER,       // Long-range anti-air
                         // T3 ultimate range
                         UnitType.SCOUT_DRONE,       // Air spotter

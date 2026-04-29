@@ -13,13 +13,15 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for faction preset configurations.
- * Ensures all presets are valid, balanced, and spend the full {@value #TARGET_POINTS}-point budget.
+ * Ensures all presets are valid, balanced, stay within {@link CustomFactionConfig#MAX_FACTION_POINTS},
+ * and spend the full budget where {@link #ACCEPTABLE_VARIANCE} allows.
  */
 @DisplayName("Faction Preset Tests")
 public class FactionPresetTest extends BaseTestClass {
 
-    private static final int TARGET_POINTS = 100;
-    /** Presets must spend the full faction budget (≤ {@link CustomFactionConfig} max). */
+    /** Target spend for curated presets (matches {@link CustomFactionConfig#MAX_FACTION_POINTS}). */
+    private static final int TARGET_POINTS = CustomFactionConfig.MAX_FACTION_POINTS;
+    /** Allowed deviation from {@link #TARGET_POINTS} (0 = presets must hit exactly 100). */
     private static final int ACCEPTABLE_VARIANCE = 0;
 
     /**
@@ -33,22 +35,44 @@ public class FactionPresetTest extends BaseTestClass {
     @MethodSource("provideAllPresets")
     @DisplayName("Each preset should pass validation")
     void testPresetValidation(CustomFactionConfig preset) {
-        assertDoesNotThrow(preset::validate,
-                String.format("Preset %s should be valid", preset.getDisplayName()));
+        ValidationResult vr = preset.validate();
+        assertTrue(vr.isValid(),
+                () -> String.format("Preset %s should be valid: %s",
+                        preset.getDisplayName(), vr.getAllErrors()));
     }
 
-    @ParameterizedTest(name = "{0} should be at or near 100 points")
+    @ParameterizedTest(name = "{0} must not exceed faction point budget")
     @MethodSource("provideAllPresets")
-    @DisplayName("Each preset should spend exactly 100 points")
+    @DisplayName("Each preset stays within max faction points")
+    void testPresetNotOverBudget(CustomFactionConfig preset) {
+        int calculated = preset.calculateTotalPoints();
+        int stored = preset.getTotalPointsSpent();
+
+        assertTrue(calculated <= CustomFactionConfig.MAX_FACTION_POINTS,
+                () -> String.format("Preset %s: calculated points %d exceed max %d",
+                        preset.getDisplayName(), calculated, CustomFactionConfig.MAX_FACTION_POINTS));
+        assertTrue(stored <= CustomFactionConfig.MAX_FACTION_POINTS,
+                () -> String.format("Preset %s: stored points %d exceed max %d",
+                        preset.getDisplayName(), stored, CustomFactionConfig.MAX_FACTION_POINTS));
+
+        ValidationResult vr = preset.validate();
+        assertFalse(vr.getErrors().stream().anyMatch(msg -> msg.contains("Over budget")),
+                () -> String.format("Preset %s should not report over budget: %s",
+                        preset.getDisplayName(), vr.getErrors()));
+    }
+
+    @ParameterizedTest(name = "{0} should be at or near target points")
+    @MethodSource("provideAllPresets")
+    @DisplayName("Each preset should spend the target point budget (within variance)")
     void testPresetPointBalance(CustomFactionConfig preset) {
         int totalPoints = preset.calculateTotalPoints();
         int storedPoints = preset.getTotalPointsSpent();
-        
+
         // Verify calculated points match stored points
         assertEquals(totalPoints, storedPoints,
                 String.format("Preset %s: calculated points (%d) should match stored points (%d)",
                         preset.getDisplayName(), totalPoints, storedPoints));
-        
+
         int variance = Math.abs(totalPoints - TARGET_POINTS);
         assertTrue(variance <= ACCEPTABLE_VARIANCE,
                 String.format("Preset %s has %d points (target: %d ±%d). Variance: %d points",
@@ -202,27 +226,5 @@ public class FactionPresetTest extends BaseTestClass {
         
         assertFalse(FactionPresetRegistry.hasPreset("NON_EXISTENT_PRESET"),
                 "hasPreset should return false for non-existent preset");
-    }
-
-    @Test
-    @DisplayName("Print point breakdown for all presets")
-    void printPresetPointBreakdown() {
-        System.out.println("\n=== FACTION PRESET POINT BREAKDOWN ===\n");
-        
-        for (CustomFactionConfig preset : FactionPresetRegistry.getAllPresets()) {
-            int totalPoints = preset.calculateTotalPoints();
-            int variance = totalPoints - TARGET_POINTS;
-            String status = Math.abs(variance) <= ACCEPTABLE_VARIANCE ? "✅" : "⚠️";
-            
-            System.out.printf("%s %s: %d points (target: %d, variance: %+d)\n",
-                    status, preset.getDisplayName(), totalPoints, TARGET_POINTS, variance);
-            System.out.printf("   Units: %d, Buildings: %d, Perks: %d\n",
-                    preset.getSelectedUnits().size(),
-                    preset.getSelectedBuildings().size(),
-                    preset.getSelectedPerks().size());
-            System.out.println();
-        }
-        
-        System.out.println("=== END BREAKDOWN ===\n");
     }
 }

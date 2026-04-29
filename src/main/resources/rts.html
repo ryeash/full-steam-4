@@ -171,6 +171,21 @@
             color: var(--accent-blue, #64c8ff);
         }
 
+        /* Server roster hotkeys (build / train buttons) */
+        #build-menu .build-button kbd.hotkey-hint,
+        .building-info-train-grid .build-button kbd.hotkey-hint {
+            display: inline-block;
+            padding: 0 5px;
+            margin-left: 4px;
+            border-radius: 3px;
+            border: 1px solid rgba(100, 200, 255, 0.28);
+            background: rgba(0, 0, 0, 0.28);
+            font-size: 10px;
+            font-family: ui-monospace, monospace;
+            color: rgba(180, 230, 255, 0.95);
+            vertical-align: middle;
+        }
+
         /* Resource strip (inside bottom bar) */
         #resource-panel {
             background: transparent;

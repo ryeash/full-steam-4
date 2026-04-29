@@ -333,13 +333,146 @@ class RTSEngine {
             return;
         }
         el.innerHTML = [
-            '<kbd>B</kbd> Build <span style="opacity:.78">(workers)</span>',
+            '<kbd>`</kbd> Build menu <span style="opacity:.78">(workers)</span>',
+            '<kbd>letter</kbd> Build / train <span style="opacity:.78">(not W/A/S/D)</span>',
+            '<kbd>WASD</kbd> Pan camera',
             '<kbd>Q</kbd> Attack-move',
             '<kbd>T</kbd> Special',
             '<kbd>U</kbd> Ungarrison',
             '<kbd>X</kbd> Scatter',
             '<kbd>Esc</kbd> Cancel',
         ].join(' \u00B7 ');
+    }
+
+    /**
+     * Small suffix for roster buttons (server `hotkey` from gameInitialization).
+     */
+    hotkeySuffixBuilding(buildingType) {
+        const hk = this.buildingTypes?.[buildingType]?.hotkey;
+        if (!hk) {
+            return '';
+        }
+        return ` <kbd class="hotkey-hint">${String(hk).toUpperCase()}</kbd>`;
+    }
+
+    hotkeySuffixUnit(unitType) {
+        const hk = this.unitTypes?.[unitType]?.hotkey;
+        if (!hk) {
+            return '';
+        }
+        return ` <kbd class="hotkey-hint">${String(hk).toUpperCase()}</kbd>`;
+    }
+
+    /** True while a modal placement / targeting mode should not receive roster letter keys. */
+    isBlockingOverlayMode() {
+        return Boolean(
+            this.buildMode
+            || this.attackMoveMode
+            || this.specialAbilityTargetingMode
+            || this.sortieTargetingMode
+            || this.commandAbilityTargetingMode
+        );
+    }
+
+    /**
+     * Whether the worker can place this structure now (tech + credits). Mirrors {@link #updateBuildMenuAvailability}.
+     */
+    canWorkerPlaceBuildingNow(buildingType) {
+        if (!this.myFactionData?.availableBuildings || !this.lastGameState?.buildings) {
+            return false;
+        }
+        const buildingInfo = this.myFactionData.availableBuildings.find((b) => b.buildingType === buildingType);
+        if (!buildingInfo || buildingType === 'HEADQUARTERS') {
+            return false;
+        }
+        let buildingsObj = this.lastGameState.buildings;
+        if (Array.isArray(buildingsObj)) {
+            const temp = {};
+            buildingsObj.forEach((b) => {
+                temp[b.id] = b;
+            });
+            buildingsObj = temp;
+        }
+        const myBuildings = Object.values(buildingsObj).filter(
+            (b) => b.ownerId === this.myPlayerId && b.active && !b.underConstruction
+        );
+        const myBuildingTypes = new Set(myBuildings.map((b) => b.type));
+        const requiredBuildings = buildingInfo.techRequirements || [];
+        for (const req of requiredBuildings) {
+            if (!myBuildingTypes.has(req)) {
+                return false;
+            }
+        }
+        const myCredits = this.myFaction?.credits ?? 0;
+        return myCredits >= buildingInfo.cost;
+    }
+
+    /**
+     * When a production building or worker is selected, server-defined hotkeys trigger the same action as clicking the roster button.
+     * @returns {boolean} true if the key was consumed
+     */
+    tryContextMenuHotkey(e) {
+        if (e.repeat || this.isBlockingOverlayMode()) {
+            return false;
+        }
+        if (e.ctrlKey || e.metaKey || e.altKey) {
+            return false;
+        }
+        const k = e.key;
+        if (k.length !== 1) {
+            return false;
+        }
+        const ch = k.toUpperCase();
+        if (ch < 'A' || ch > 'Z') {
+            return false;
+        }
+
+        // Reserved for camera pan (update loop uses keys w/a/s/d)
+        if (ch === 'W' || ch === 'A' || ch === 'S' || ch === 'D') {
+            return false;
+        }
+
+        // Production building selected (HQ, Barracks, Factory, Airfield, Android factory, …)
+        const sb = this.selectedBuilding;
+        if (sb && sb.ownerId === this.myPlayerId && sb.canProduceUnits && !sb.underConstruction) {
+            const roster = this.getAllUnitsForBuilding(sb.type);
+            for (const unitInfo of roster) {
+                const meta = this.unitTypes?.[unitInfo.type];
+                const hk = meta?.hotkey;
+                if (!hk || String(hk).toUpperCase() !== ch) {
+                    continue;
+                }
+                if (!unitInfo.unlocked || this.myMoney < unitInfo.cost) {
+                    return true;
+                }
+                this.queueUnitProduction(sb.id, unitInfo.type);
+                return true;
+            }
+        }
+
+        // Worker selected → building placement roster (same keys as build menu buttons)
+        if (this.selectionIncludesWorker()) {
+            if (!this.myFactionData?.availableBuildings) {
+                return false;
+            }
+            for (const row of this.myFactionData.availableBuildings) {
+                const bt = row.buildingType;
+                if (bt === 'HEADQUARTERS') {
+                    continue;
+                }
+                const hk = this.buildingTypes?.[bt]?.hotkey;
+                if (!hk || String(hk).toUpperCase() !== ch) {
+                    continue;
+                }
+                if (!this.canWorkerPlaceBuildingNow(bt)) {
+                    return true;
+                }
+                this.enterBuildMode(bt);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** Re-query unit info panel nodes when present in the document (cleared by building production UI). */
@@ -3667,10 +3800,16 @@ class RTSEngine {
     
     onKeyDown(e) {
         this.keys[e.key] = true;
-        
+
+        if (this.tryContextMenuHotkey(e)) {
+            e.preventDefault();
+            return;
+        }
+
         // Hotkeys
-        if (e.key === 'b' || e.key === 'B') {
+        if (!e.repeat && e.code === 'Backquote' && !e.ctrlKey && !e.metaKey && !e.altKey) {
             this.toggleBuildMenu();
+            e.preventDefault();
         } else if (e.key === 'Escape') {
             if (this.sortieTargetingMode) {
                 this.exitSortieTargetingMode();
@@ -4266,7 +4405,7 @@ class RTSEngine {
                 const icon = this.getBuildingIcon(buildingType);
                 const name = this.buildingTypes[buildingType]?.displayName || buildingType;
                 const cost = buildingInfo.cost;
-                button.innerHTML = `🔒 ${icon} ${name} <span class="build-cost">(${cost})</span>`;
+                button.innerHTML = `🔒 ${icon} ${name} <span class="build-cost">(${cost})</span>${this.hotkeySuffixBuilding(buildingType)}`;
             } else if (!hasCredits) {
                 // Has tech but not enough credits - greyed out but different style
                 button.disabled = true;
@@ -4277,7 +4416,7 @@ class RTSEngine {
                 // Reset to normal icon (no lock)
                 const icon = this.getBuildingIcon(buildingType);
                 const name = this.buildingTypes[buildingType]?.displayName || buildingType;
-                button.innerHTML = `${icon} ${name} <span class="build-cost">(${cost})</span>`;
+                button.innerHTML = `${icon} ${name} <span class="build-cost">(${cost})</span>${this.hotkeySuffixBuilding(buildingType)}`;
             } else {
                 // Can build
                 button.disabled = false;
@@ -4289,7 +4428,7 @@ class RTSEngine {
                 const icon = this.getBuildingIcon(buildingType);
                 const name = this.buildingTypes[buildingType]?.displayName || buildingType;
                 const cost = buildingInfo.cost;
-                button.innerHTML = `${icon} ${name} <span class="build-cost">(${cost})</span>`;
+                button.innerHTML = `${icon} ${name} <span class="build-cost">(${cost})</span>${this.hotkeySuffixBuilding(buildingType)}`;
             }
         });
     }
@@ -4493,11 +4632,13 @@ class RTSEngine {
                     const button = document.createElement('button');
                     button.type = 'button';
                     button.className = 'build-button';
+                    button.setAttribute('data-unit-type', unitInfo.type);
 
                     const isUnlocked = unitInfo.unlocked === true;
                     const canAfford = this.myMoney >= unitInfo.cost;
                     const tickRent = unitInfo.periodicArmyRent ?? unitInfo.upkeep ?? 0;
-                    let buttonHTML = `${unitInfo.name} <span class="build-cost">(💰${unitInfo.cost} ⏱${tickRent})</span>`;
+                    const hkHtml = this.hotkeySuffixUnit(unitInfo.type);
+                    let buttonHTML = `${unitInfo.name} <span class="build-cost">(💰${unitInfo.cost} ⏱${tickRent})</span>${hkHtml}`;
 
                     if (!isUnlocked) {
                         buttonHTML = `🔒 ${buttonHTML}`;
@@ -4631,7 +4772,7 @@ class RTSEngine {
             const icon = this.getBuildingIcon(building.buildingType);
             const name = this.buildingTypes[building.buildingType]?.displayName || building.buildingType;
             const cost = building.cost;
-            button.innerHTML = `${icon} ${name} <span class="build-cost">(${cost})</span>`;
+            button.innerHTML = `${icon} ${name} <span class="build-cost">(${cost})</span>${this.hotkeySuffixBuilding(building.buildingType)}`;
 
             button.addEventListener('click', () => {
                 if (!button.disabled) {

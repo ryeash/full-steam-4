@@ -32,7 +32,8 @@ public enum BuildingType {
             500.0,         // faction customization point cost
             0, false,
             "H",
-            "\uD83C\uDFDB\uFE0F"),
+            "\uD83C\uDFDB\uFE0F",
+            null),
 
     // Resource collection point
     REFINERY(
@@ -50,7 +51,8 @@ public enum BuildingType {
             350.0,         // faction customization point cost
             2, false,
             "R",
-            "\uD83C\uDFED"),
+            "\uD83C\uDFED",
+            'R'),
 
     // Infantry production
     BARRACKS(
@@ -68,7 +70,8 @@ public enum BuildingType {
             380.0,         // faction customization point cost
             3, false,
             "B",
-            "\uD83C\uDFF0"),
+            "\uD83C\uDFF0",
+            'B'),
 
     // Power generation - required for advanced buildings
     POWER_PLANT(
@@ -86,7 +89,8 @@ public enum BuildingType {
             360.0,         // faction customization point cost
             0, false,
             "P",
-            "\u26A1"),
+            "\u26A1",
+            'P'),
 
     // Vehicle production
     FACTORY(
@@ -104,7 +108,8 @@ public enum BuildingType {
             390.0,         // faction customization point cost
             5, false,
             "F",
-            "\uD83D\uDE97"),
+            "\uD83D\uDE97",
+            'F'),
 
     // Research and tech unlocking - unlocks T2
     RESEARCH_LAB(
@@ -122,7 +127,8 @@ public enum BuildingType {
             400.0,         // vision radius (world units)
             3, false,
             "RL",
-            "\uD83D\uDD2C"),
+            "\uD83D\uDD2C",
+            'E'),
 
     // Elite tech unlocking - unlocks T3
     TECH_CENTER(
@@ -140,7 +146,8 @@ public enum BuildingType {
             420.0,         // vision radius (world units)
             5, false,
             "TC",
-            "\uD83E\uDDEA"),
+            "\uD83E\uDDEA",
+            'C'),
 
 
     // Defensive structure - attacks enemies with cannon
@@ -159,7 +166,8 @@ public enum BuildingType {
             450.0,         // faction customization point cost
             2, false,
             "T",
-            "\uD83C\uDFAF"),
+            "\uD83C\uDFAF",
+            'T'),
 
     // Defensive structure - fires rockets with explosive damage
     ROCKET_TURRET(
@@ -177,7 +185,8 @@ public enum BuildingType {
             480.0,         // faction customization point cost
             3, false,
             "RT",
-            "\uD83D\uDE80"),
+            "\uD83D\uDE80",
+            'O'),
 
     // Defensive structure - dedicated anti-aircraft flak cannon
     FLAK_TURRET(
@@ -195,7 +204,8 @@ public enum BuildingType {
             500.0,         // faction customization point cost
             3, false,
             "FT",
-            "\uD83D\uDCA5"),
+            "\uD83D\uDCA5",
+            'X'),
 
     // Defensive structure - fires laser beams
     LASER_TURRET(
@@ -213,7 +223,8 @@ public enum BuildingType {
             500.0,         // faction customization point cost
             4, false,
             "LT",
-            "\uD83D\uDD37"),
+            "\uD83D\uDD37",
+            'L'),
 
     // Defensive structure - infantry can garrison inside and fire out
     BUNKER(
@@ -231,7 +242,8 @@ public enum BuildingType {
             420.0,         // faction customization point cost
             3, false,
             "\u2694",
-            "\uD83C\uDFF0"),
+            "\uD83C\uDFF0",
+            'U'),
 
     // Defensive structure - projects shield that destroys incoming projectiles
     SHIELD_GENERATOR(
@@ -249,7 +261,8 @@ public enum BuildingType {
             380.0,         // faction customization point cost
             4, false,
             "SG",
-            "\uD83D\uDEE1\uFE0F"),
+            "\uD83D\uDEE1\uFE0F",
+            'Y'),
 
     BANK(
             "Bank",
@@ -266,7 +279,8 @@ public enum BuildingType {
             350.0,         // faction customization point cost
             4, false,
             "$",
-            "\uD83D\uDCB0"),
+            "\uD83D\uDCB0",
+            'G'),
 
     // Creates sandstorms for area denial
     SANDSTORM_GENERATOR(
@@ -284,7 +298,8 @@ public enum BuildingType {
             430.0,        // faction customization point cost
             8, false,
             "\u2601",
-            "\uD83C\uDF2A\uFE0F"),
+            "\uD83C\uDF2A\uFE0F",
+            'Q'),
 
     // Autonomous android production facility
     ANDROID_FACTORY(
@@ -302,7 +317,8 @@ public enum BuildingType {
             420.0,        // faction customization point cost
             12, false,
             "A",
-            "\uD83E\uDD16"),
+            "\uD83E\uDD16",
+            null),
 
     // Defensive laser tower
     PHOTON_SPIRE(
@@ -320,7 +336,8 @@ public enum BuildingType {
             480.0,        // faction customization point cost
             10, false,
             "\u26A1",
-            "\uD83D\uDC8E"),
+            "\uD83D\uDC8E",
+            'H'),
 
     // Ultimate command center
     // TODO: may become obsolete with change to upkeep
@@ -339,7 +356,8 @@ public enum BuildingType {
             1000.0,        // faction customization point cost
             10, false,
             "CC",
-            "\uD83C\uDFF0"),
+            "\uD83C\uDFF0",
+            null),
 
     // Air unit production - requires Tech Center
     AIRFIELD(
@@ -357,7 +375,8 @@ public enum BuildingType {
             420.0,         // faction customization point cost
             5, false,
             "AF",
-            "\u2708\uFE0F"),
+            "\u2708\uFE0F",
+            'I'),
 
     /**
      * Unlocks {@link CommandAbilityType#MARINE_DROP} for orbital infantry inserts.
@@ -377,7 +396,8 @@ public enum BuildingType {
             2,
             true,
             "JP",
-            "\uD83D\uDE81"),
+            "\uD83D\uDE81",
+            'J'),
 
     /**
      * Nuclear missile silo—required for {@link CommandAbilityType#NUKE_ARM} and {@link CommandAbilityType#NUKE_LAUNCH}.
@@ -397,7 +417,8 @@ public enum BuildingType {
             8,
             true,
             "NS",
-            "\u2622\uFE0F"),
+            "\u2622\uFE0F",
+            'N'),
 
     /** Unlocks command abilities (e.g. {@link CommandAbilityType#STRIKE_PACKAGE}, {@link CommandAbilityType#FLAK_BURST}). */
     STRIKE_RELAY(
@@ -414,7 +435,8 @@ public enum BuildingType {
             -40.0,
             5, true,
             "SR",
-            "\uD83C\uDFAF"),
+            "\uD83C\uDFAF",
+            'V'),
 
     /**
      * Unlocks {@link CommandAbilityType#SATELLITE_SWEEP} for temporary wide-area recon.
@@ -434,7 +456,8 @@ public enum BuildingType {
             5,
             true,
             "SA",
-            "\uD83D\uDEF0"),
+            "\uD83D\uDEF0",
+            'M'),
 
     /**
      * Unlocks {@link CommandAbilityType#CARPET_BOMB} for a multi-hit strike corridor.
@@ -454,7 +477,8 @@ public enum BuildingType {
             6,
             true,
             "CB",
-            "\u2708\uFE0F"),
+            "\u2708\uFE0F",
+            'K'),
 
     TEMPEST_SPIRE(
             "Tempest Spire",
@@ -471,7 +495,8 @@ public enum BuildingType {
             600.0,        // faction customization point cost
             12, false,
             "\u26C8",
-            "\u26C8\uFE0F");
+            "\u26C8\uFE0F",
+            'Z');
 
     private final String displayName;
     private final String description;
@@ -494,6 +519,11 @@ public enum BuildingType {
     private final String label;
     /** Emoji for build menus / UI (client). */
     private final String menuIcon;
+    /**
+     * Worker build-menu hotkey (single display character). Null when unassigned; never duplicates
+     * another non-null hotkey among placeable buildings (see tests).
+     */
+    private final Character hotkey;
 
     BuildingType(String displayName,
                  String description,
@@ -509,7 +539,8 @@ public enum BuildingType {
                  int pointCost,
                  boolean uniquePerPlayer,
                  String label,
-                 String menuIcon) {
+                 String menuIcon,
+                 Character hotkey) {
         this.displayName = displayName;
         this.description = description;
         this.buildingCategory = buildingCategory;
@@ -525,6 +556,7 @@ public enum BuildingType {
         this.uniquePerPlayer = uniquePerPlayer;
         this.label = label;
         this.menuIcon = menuIcon;
+        this.hotkey = hotkey;
     }
 
     public static List<BuildingType> sorted() {

@@ -31,7 +31,8 @@ public enum UnitType {
             Elevation.GROUND, // elevation
             UnitCategory.WORKER, // category
             Set.of(), // no tech requirements (basic unit)
-            0        // faction customization point cost
+            0,
+            'K'        // faction customization point cost
     ),
 
     // Infantry - basic combat unit
@@ -53,7 +54,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
             Set.of(), // no tech requirements (basic unit)
-            2        // faction customization point cost
+            2,
+            'I'        // faction customization point cost
     ),
 
     // Shotgun Infantry - powerful close-range infantry
@@ -75,7 +77,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
             Set.of(BuildingType.RESEARCH_LAB), // Tier 2 specialist
-            2        // faction customization point cost
+            2,
+            'H'        // faction customization point cost
     ),
 
     // Laser Infantry - advanced infantry with beam weapons
@@ -97,7 +100,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
             Set.of(),
-            2        // faction customization point cost
+            2,
+            'L'        // faction customization point cost
     ),
 
     // Medic - support unit that heals nearby friendlies
@@ -119,7 +123,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
             Set.of(BuildingType.RESEARCH_LAB), // Tier 2 support unit
-            1        // faction customization point cost
+            1,
+            'M'        // faction customization point cost
     ),
 
     // Rocket Soldier - anti-vehicle infantry
@@ -141,7 +146,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
             Set.of(BuildingType.RESEARCH_LAB), // Tier 2 specialist
-            2        // faction customization point cost
+            2,
+            'R'        // faction customization point cost
     ),
 
     // Sniper - long-range precision unit
@@ -163,7 +169,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
             Set.of(BuildingType.RESEARCH_LAB), // Tier 2 specialist
-            3        // faction customization point cost
+            3,
+            'N'        // faction customization point cost
     ),
 
     // Engineer - repairs buildings and vehicles
@@ -185,7 +192,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
             Set.of(BuildingType.RESEARCH_LAB), // Tier 2 support unit
-            1        // faction customization point cost
+            1,
+            'E'        // faction customization point cost
     ),
 
     // Spy - permanently cloaked infiltrator with tracker gun for vision sharing
@@ -207,7 +215,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 specialist
-            7        // faction customization point cost
+            7,
+            'Y'        // faction customization point cost
     ),
 
     // Grenadier - AOE infantry, anti-structure specialist
@@ -229,7 +238,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
             Set.of(), // Tier 1 unit
-            4        // faction customization point cost
+            4,
+            'G'        // faction customization point cost
     ),
 
     // Minigunner - high fire rate, low damage, inaccurate suppression infantry
@@ -251,7 +261,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
             Set.of(), // Tier 1 unit (basic suppression weapon)
-            2        // faction customization point cost
+            2,
+            'U'        // faction customization point cost
     ),
 
     // Jeep - fast light vehicle
@@ -273,7 +284,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(), // no tech requirements (basic scout)
-            3        // faction customization point cost
+            3,
+            'J'        // faction customization point cost
     ),
 
     // Tank - heavy armored vehicle
@@ -295,7 +307,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB), // Tier 2 main battle tank
-            4        // faction customization point cost
+            4,
+            'T'        // faction customization point cost
     ),
 
     // Flak Tank - early-game anti-air vehicle
@@ -317,7 +330,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB), // Tier 2 anti-air
-            3        // faction customization point cost
+            3,
+            'F'        // faction customization point cost
     ),
 
     // SAM Launcher - dedicated long-range anti-aircraft platform
@@ -339,7 +353,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 specialized AA
-            5        // faction customization point cost
+            5,
+            'Y'        // faction customization point cost
     ),
 
     // Shield Tank - mobile shield generator, defensive support
@@ -361,7 +376,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 advanced support
-            6        // faction customization point cost
+            6,
+            'H'        // faction customization point cost
     ),
 
     // Spider Mine - autonomous proximity mine that self-destructs on enemy contact
@@ -383,7 +399,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category (mechanical mine)
             Set.of(BuildingType.RESEARCH_LAB), // Tier 2 specialist
-            3        // faction customization point cost
+            3,
+            'P'        // faction customization point cost
     ),
 
     // APC - Armored Personnel Carrier (mobile bunker for infantry transport)
@@ -405,7 +422,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB), // Tier 2 transport
-            5        // faction customization point cost
+            5,
+            'K'        // faction customization point cost
     ),
 
     // Artillery - long range siege unit
@@ -427,7 +445,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB), // Tier 2 siege weapon
-            6        // faction customization point cost
+            6,
+            'R'        // faction customization point cost
     ),
 
     // GIGANTONAUT - Super heavy artillery
@@ -449,7 +468,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
-            9       // faction customization point cost
+            9,
+            'G'       // faction customization point cost
     ),
 
     // Cloak Tank - invisible until attacking or detected
@@ -471,7 +491,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 stealth tech
-            3        // faction customization point cost
+            3,
+            'C'        // faction customization point cost
     ),
 
     RAIDER(
@@ -492,7 +513,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
-            8        // faction customization point cost
+            8,
+            'N'        // faction customization point cost
     ),
 
     // COLOSSUS - massive walker
@@ -514,7 +536,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
-            9       // faction customization point cost
+            9,
+            'O'       // faction customization point cost
     ),
 
     // Triple-beam infantry (Tech Alliance equivalent of Infantry)
@@ -536,7 +559,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category
             Set.of(BuildingType.RESEARCH_LAB),
-            2        // faction customization point cost
+            2,
+            'T'        // faction customization point cost
     ),
 
     // ION_RANGER - Long-range beam sniper
@@ -558,7 +582,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.INFANTRY, // category - FIXED: was VEHICLE, should be INFANTRY
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 beam weapons
-            3        // faction customization point cost
+            3,
+            'O'        // faction customization point cost
     ),
 
     // PHOTON_SCOUT - Fast beam vehicle
@@ -580,7 +605,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB),
-            3        // faction customization point cost
+            3,
+            'V'        // faction customization point cost
     ),
 
     // BEAM_TANK - Heavy beam vehicle
@@ -602,7 +628,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 beam weapons
-            4        // faction customization point cost
+            4,
+            'B'        // faction customization point cost
     ),
 
     // PULSE_ARTILLERY - Long-range beam artillery
@@ -624,7 +651,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 beam weapons
-            5        // faction customization point cost
+            5,
+            'U'        // faction customization point cost
     ),
 
     PHOTON_TITAN(
@@ -645,7 +673,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
-            8        // faction customization point cost
+            8,
+            'I'        // faction customization point cost
     ),
 
     // ANDROID - Autonomous combat unit produced by Android Factory
@@ -668,7 +697,8 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.POWER_PLANT, BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
-            0        // faction customization point cost
+            0,
+            'Z'        // faction customization point cost
     ),
 
     // ===== AIR UNITS =====
@@ -693,7 +723,8 @@ public enum UnitType {
             Elevation.LOW, // VTOL - can hover, vulnerable to rockets,
             UnitCategory.FLYER, // category
             Set.of(), // no tech requirements (basic scout)
-            2        // faction customization point cost
+            2,
+            'E'        // faction customization point cost
     ),
 
     // HELICOPTER - Attack helicopter with dual rockets
@@ -717,7 +748,8 @@ public enum UnitType {
             Elevation.LOW, // VTOL - can hover, vulnerable to rockets,
             UnitCategory.FLYER, // category
             Set.of(BuildingType.RESEARCH_LAB), // Tier 2 attack aircraft
-            3        // faction customization point cost
+            3,
+            'H'        // faction customization point cost
     ),
 
     // LASER_GUNSHIP - Advanced VTOL gunship with beam weapons
@@ -741,7 +773,8 @@ public enum UnitType {
             Elevation.LOW, // VTOL - can hover, vulnerable to rockets,
             UnitCategory.FLYER, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3
-            8        // faction customization point cost
+            8,
+            'L'        // faction customization point cost
     ),
 
     // BOMBER - Sortie-based heavy bomber aircraft
@@ -765,7 +798,8 @@ public enum UnitType {
             Elevation.HIGH, // Fixed-wing - requires AA weapons,
             UnitCategory.FLYER, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 strategic bomber
-            8        // faction customization point cost
+            8,
+            'B'        // faction customization point cost
     ),
 
     // INTERCEPTOR - Sortie-based fighter aircraft
@@ -789,7 +823,8 @@ public enum UnitType {
             Elevation.HIGH, // Fixed-wing - high-altitude fighter,
             UnitCategory.FLYER, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 advanced fighter
-            6        // faction customization point cost
+            6,
+            'I'        // faction customization point cost
     ),
 
     // GUNSHIP - Heavy sortie-based attack aircraft with dual weapons
@@ -811,7 +846,8 @@ public enum UnitType {
             Elevation.HIGH, // Fixed-wing sortie aircraft,
             UnitCategory.FLYER, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
-            8        // faction customization point cost
+            8,
+            'G'        // faction customization point cost
     );
 
     private final String displayName;
@@ -832,6 +868,11 @@ public enum UnitType {
     private final UnitCategory category;
     private final Set<BuildingType> requiredBuildings;
     private final int pointCost;
+    /**
+     * Production / build-menu hotkey (single character). Null when unassigned; uniqueness is enforced
+     * per UI context (see {@link BuildingType#getProducedBy()} groups in tests).
+     */
+    private final Character hotkey;
 
     /**
      * Create physics fixtures for this unit type
@@ -2467,7 +2508,8 @@ public enum UnitType {
              Elevation elevation,
              UnitCategory category,
              Set<BuildingType> requiredBuildings,
-             int pointCost) {
+             int pointCost,
+             Character hotkey) {
         this.displayName = displayName;
         this.description = description;
         this.resourceCost = resourceCost;
@@ -2486,6 +2528,7 @@ public enum UnitType {
         this.category = category;
         this.requiredBuildings = requiredBuildings != null ? requiredBuildings : Set.of();
         this.pointCost = pointCost;
+        this.hotkey = hotkey;
     }
 
     public static List<UnitType> sorted() {
