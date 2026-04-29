@@ -358,54 +358,58 @@ public class RTSGameManager {
         // Handle move orders with pathfinding
         if (input.getMoveOrder() != null) {
             Vector2 destination = input.getMoveOrder();
-            units.values().stream()
+            List<Unit> movers = units.values().stream()
                     .filter(u -> u.belongsTo(playerId) && u.isSelected())
                     .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
-                    .forEach(u -> {
-                        // Calculate path using A* pathfinding
-                        List<Vector2> path = Pathfinding.findPath(
-                                u.getPosition(),
-                                destination,
-                                obstacles.values(),
-                                buildings.values(),
-                                u.getUnitType().getSize(),
-                                gameConfig.getWorldWidth(),
-                                gameConfig.getWorldHeight(),
-                                u.getUnitType().getElevation().isAirborne()
-                        );
+                    .collect(Collectors.toList());
+            Map<Unit, Double> marchSpeedCaps = GroupMoveMarchSpeeds.computeMarchSpeedCaps(movers);
+            for (Unit u : movers) {
+                // Calculate path using A* pathfinding
+                List<Vector2> path = Pathfinding.findPath(
+                        u.getPosition(),
+                        destination,
+                        obstacles.values(),
+                        buildings.values(),
+                        u.getUnitType().getSize(),
+                        gameConfig.getWorldWidth(),
+                        gameConfig.getWorldHeight(),
+                        u.getUnitType().getElevation().isAirborne()
+                );
 
-                        // Use command pattern
-                        u.issueCommand(new MoveCommand(u, destination, true), gameEntities);
+                Double marchCap = marchSpeedCaps.get(u);
+                u.issueCommand(new MoveCommand(u, destination, true, marchCap), gameEntities);
 
-                        // Set the pathfinding path on the command
-                        if (u.getCurrentCommand() instanceof MoveCommand) {
-                            ((MoveCommand) u.getCurrentCommand()).setPath(path);
-                        }
-                    });
+                // Set the pathfinding path on the command
+                if (u.getCurrentCommand() instanceof MoveCommand) {
+                    ((MoveCommand) u.getCurrentCommand()).setPath(path);
+                }
+            }
         }
 
         // Handle attack-move orders
         if (input.getAttackMoveOrder() != null) {
             Vector2 destination = input.getAttackMoveOrder();
-            units.values().stream()
+            List<Unit> attackMovers = units.values().stream()
                     .filter(u -> u.belongsTo(playerId) && u.isSelected())
                     .filter(u -> !u.getUnitType().isSortieBased()) // Sortie-based units cannot be directly commanded
-                    .forEach(u -> {
-                        // Calculate path using A* pathfinding
-                        List<Vector2> path = Pathfinding.findPath(
-                                u.getPosition(),
-                                destination,
-                                obstacles.values(),
-                                buildings.values(),
-                                u.getUnitType().getSize(),
-                                gameConfig.getWorldWidth(),
-                                gameConfig.getWorldHeight(),
-                                u.getUnitType().getElevation().isAirborne()
-                        );
-                        AttackMoveCommand cmd = new AttackMoveCommand(u, destination, true);
-                        cmd.setPath(path);
-                        u.issueCommand(cmd, gameEntities);
-                    });
+                    .collect(Collectors.toList());
+            Map<Unit, Double> attackMarchCaps = GroupMoveMarchSpeeds.computeMarchSpeedCaps(attackMovers);
+            for (Unit u : attackMovers) {
+                List<Vector2> path = Pathfinding.findPath(
+                        u.getPosition(),
+                        destination,
+                        obstacles.values(),
+                        buildings.values(),
+                        u.getUnitType().getSize(),
+                        gameConfig.getWorldWidth(),
+                        gameConfig.getWorldHeight(),
+                        u.getUnitType().getElevation().isAirborne()
+                );
+                Double marchCap = attackMarchCaps.get(u);
+                AttackMoveCommand cmd = new AttackMoveCommand(u, destination, true, marchCap);
+                cmd.setPath(path);
+                u.issueCommand(cmd, gameEntities);
+            }
         }
 
         // Handle attack orders

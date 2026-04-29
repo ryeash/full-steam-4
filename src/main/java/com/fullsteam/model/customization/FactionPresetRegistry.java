@@ -82,7 +82,10 @@ public class FactionPresetRegistry {
                         UnitType.GRENADIER,
                         // T2 Vehicle support (limited but essential)
                         UnitType.JEEP,               // Fast transport/scout
-                        UnitType.APC          // Anti-air coverage
+                        UnitType.APC,                // Transport / fireports
+                        UnitType.INFANTRY,           // Core rifle line
+                        UnitType.TRIDENT_TROOPER,    // Beam-line infantry
+                        UnitType.LASER_INFANTRY      // Energy weapons (fills budget to 100)
                 )))
                 .selectedBuildings(new HashSet<>(Arrays.asList(
                         BuildingType.HEADQUARTERS,
@@ -97,17 +100,17 @@ public class FactionPresetRegistry {
                         BuildingType.ROCKET_TURRET   // Defense
                 )))
                 .selectedPerks(new HashSet<>(Arrays.asList(
-                        FactionPerk.INFANTRY_DOCTRINE_1,  // 4 pt - cheaper infantry, more damage
-                        FactionPerk.INFANTRY_DOCTRINE_2,  // 7 pt - even better
-                        FactionPerk.GARRISON_MASTERY,     // 4 pt - better bunkers
-                        FactionPerk.INFANTRY_TRAINING_1,  // 3 pt - faster barracks production
-                        FactionPerk.INFANTRY_TRAINING_2,  // 6 pt - even faster
-                        FactionPerk.UPKEEP_INCREASE_1,    // 3 pt - more units
-                        FactionPerk.UPKEEP_INCREASE_2,    // 6 pt - even more units
-                        FactionPerk.VETERAN_UNITS_1,      // 3 pt - tougher units
-                        FactionPerk.VETERAN_UNITS_2,      // 6 pt - tougher units
-                        FactionPerk.FORTIFIED_1,          // 3 pt - building durability
-                        FactionPerk.RAPID_DEPLOYMENT_1    // 3 pt - faster buildings (adds +6 to get to 100)
+                        FactionPerk.INFANTRY_DOCTRINE_1,
+                        FactionPerk.INFANTRY_DOCTRINE_2,
+                        FactionPerk.GARRISON_MASTERY,
+                        FactionPerk.INFANTRY_TRAINING_1,
+                        FactionPerk.INFANTRY_TRAINING_2,
+                        FactionPerk.UPKEEP_INCREASE_1,
+                        FactionPerk.UPKEEP_INCREASE_2,
+                        FactionPerk.VETERAN_UNITS_1,
+                        FactionPerk.VETERAN_UNITS_2,
+                        FactionPerk.FORTIFIED_1,
+                        FactionPerk.RAPID_DEPLOYMENT_1
                 )))
                 .basedOnPreset(null)
                 .build();
@@ -137,7 +140,12 @@ public class FactionPresetRegistry {
                         UnitType.SAM_LAUNCHER,       // anti-are
                         UnitType.ARTILLERY,          // Long-range support
                         // T3 Advanced
-                        UnitType.COLOSSUS            // Super-heavy unit
+                        UnitType.COLOSSUS,
+                        // Combined-arms support (+7 pts; INFANTRY already in set)
+                        UnitType.MINIGUNNER,
+                        UnitType.ROCKET_SOLDIER,
+                        UnitType.MEDIC,
+                        UnitType.SHOTGUN_INFANTRY
                 )))
                 .selectedBuildings(new HashSet<>(Arrays.asList(
                         BuildingType.HEADQUARTERS,
@@ -152,14 +160,14 @@ public class FactionPresetRegistry {
                         BuildingType.SHIELD_GENERATOR    // Protect vehicles
                 )))
                 .selectedPerks(new HashSet<>(Arrays.asList(
-                        FactionPerk.MECHANIZED_WARFARE_1,  // 4 pt - cheaper vehicles, more HP
-                        FactionPerk.MECHANIZED_WARFARE_2,  // 7 pt - even better
-                        FactionPerk.VEHICLE_PRODUCTION_1,  // 3 pt - faster factory
-                        FactionPerk.VEHICLE_PRODUCTION_2,  // 6 pt - faster factory
+                        FactionPerk.MECHANIZED_WARFARE_1,
+                        FactionPerk.MECHANIZED_WARFARE_2,
+                        FactionPerk.VEHICLE_PRODUCTION_1,
+                        FactionPerk.VEHICLE_PRODUCTION_2,
                         FactionPerk.COST_REDUCTION_1,
                         FactionPerk.VETERAN_UNITS_1,
-                        FactionPerk.UPKEEP_INCREASE_1,     // 3 pt - more units
-                        FactionPerk.UPKEEP_INCREASE_2     // 6 pt - more units (adds +6 to get to 99)
+                        FactionPerk.UPKEEP_INCREASE_1,
+                        FactionPerk.UPKEEP_INCREASE_2
                 )))
                 .basedOnPreset(null)
                 .build();
@@ -204,16 +212,18 @@ public class FactionPresetRegistry {
                         BuildingType.TECH_CENTER,
                         BuildingType.REFINERY,
                         BuildingType.ROCKET_TURRET,  // Ground anti-air
-                        BuildingType.JUMP_PAD        // Marine Drop command (replaces second AA turret)
+                        BuildingType.JUMP_PAD,       // Marine Drop command
+                        BuildingType.STRIKE_RELAY,   // Strike Package command
+                        BuildingType.SATCOM_ARRAY    // Satellite Sweep command (fills budget to 100)
                 )))
                 .selectedPerks(new HashSet<>(Arrays.asList(
-                        FactionPerk.AIR_SUPERIORITY_1,     // 4 pt - cheaper air, faster air
-                        FactionPerk.AIR_SUPERIORITY_2,     // 7 pt - even better
-                        FactionPerk.UPKEEP_INCREASE_1,     // 3 pt - more units
-                        FactionPerk.RAPID_DEPLOYMENT_1,    // 3 pt - faster buildings
-                        FactionPerk.VEHICLE_PRODUCTION_1,  // 3 pt - faster factory (Jeep / Flak)
-                        FactionPerk.VETERAN_UNITS_1,       // 3 pt - tougher aircraft
-                        FactionPerk.COST_REDUCTION_1       // 5 pt - economy boost
+                        FactionPerk.AIR_SUPERIORITY_1,
+                        FactionPerk.AIR_SUPERIORITY_2,
+                        FactionPerk.UPKEEP_INCREASE_1,
+                        FactionPerk.RAPID_DEPLOYMENT_1,
+                        FactionPerk.RAPID_DEPLOYMENT_2,
+                        FactionPerk.VETERAN_UNITS_1,
+                        FactionPerk.COST_REDUCTION_1
                 )))
                 .basedOnPreset(null)
                 .build();
@@ -265,10 +275,11 @@ public class FactionPresetRegistry {
                         BuildingType.SHIELD_GENERATOR    // Shield defense (remove laser turret and command citadel to save points)
                 )))
                 .selectedPerks(new HashSet<>(Arrays.asList(
-                        FactionPerk.FORTIFIED_1,           // 3 pt - stronger buildings
-                        FactionPerk.FORTIFIED_2,           // 6 pt - even stronger
-                        FactionPerk.TURRET_EFFICIENCY,     // 4 pt - better turrets
-                        FactionPerk.GARRISON_MASTERY      // 4 pt - better bunkers
+                        FactionPerk.FORTIFIED_1,
+                        FactionPerk.FORTIFIED_2,
+                        FactionPerk.TURRET_EFFICIENCY,
+                        FactionPerk.GARRISON_MASTERY,
+                        FactionPerk.POWER_EFFICIENCY_1   // High power draw from layered defenses (fills budget to 100)
                 )))
                 .basedOnPreset(null)
                 .build();
@@ -299,7 +310,8 @@ public class FactionPresetRegistry {
                         // T3 advanced tech
                         UnitType.ANDROID,            // Free autonomous units
                         UnitType.LASER_GUNSHIP,        // Air attacker
-                        UnitType.PHOTON_TITAN        // Beam super-unit (remove colossus to save points)
+                        UnitType.PHOTON_TITAN,
+                        UnitType.PULSE_ARTILLERY     // Long-range beam siege (fills budget to 100)
                 )))
                 .selectedBuildings(new HashSet<>(Arrays.asList(
                         BuildingType.HEADQUARTERS,
@@ -315,12 +327,12 @@ public class FactionPresetRegistry {
                         BuildingType.SHIELD_GENERATOR    // Energy shields
                 )))
                 .selectedPerks(new HashSet<>(Arrays.asList(
-                        FactionPerk.POWER_EFFICIENCY_1,    // 3 pt - critical for beams
-                        FactionPerk.POWER_EFFICIENCY_2,    // 6 pt - even better
-                        FactionPerk.DAMAGE_BOOST_1,        // 4 pt - beam damage
-                        FactionPerk.VETERAN_UNITS_1,       // 3 pt - unit durability
-                        FactionPerk.FORTIFIED_1,           // 3 pt - building durability
-                        FactionPerk.COST_REDUCTION_1       // 5 pt - expensive tech
+                        FactionPerk.POWER_EFFICIENCY_1,
+                        FactionPerk.POWER_EFFICIENCY_2,
+                        FactionPerk.DAMAGE_BOOST_1,
+                        FactionPerk.VETERAN_UNITS_1,
+                        FactionPerk.FORTIFIED_1,
+                        FactionPerk.COST_REDUCTION_1
                 )))
                 .basedOnPreset(null)
                 .build();
@@ -353,7 +365,8 @@ public class FactionPresetRegistry {
                         UnitType.ARTILLERY,          // Core siege weapon
                         UnitType.SAM_LAUNCHER,       // Long-range anti-air
                         // T3 ultimate range
-                        UnitType.SCOUT_DRONE        // Air spotter
+                        UnitType.SCOUT_DRONE,       // Air spotter
+                        UnitType.ENGINEER          // Field repairs for siege line (fills budget to 100)
                 )))
                 .selectedBuildings(new HashSet<>(Arrays.asList(
                         BuildingType.HEADQUARTERS,
@@ -369,12 +382,12 @@ public class FactionPresetRegistry {
                         BuildingType.NUKE_SILO           // Strategic nuke (replaces photon turret in budget)
                 )))
                 .selectedPerks(new HashSet<>(Arrays.asList(
-                        FactionPerk.DAMAGE_BOOST_1,        // 4 pt - more firepower
-                        FactionPerk.DAMAGE_BOOST_2,        // 8 pt - even more
-                        FactionPerk.VETERAN_UNITS_1,       // 3 pt - durability
-                        FactionPerk.UPKEEP_INCREASE_1,     // 3 pt - more artillery
-                        FactionPerk.COST_REDUCTION_1,      // 5 pt - expensive units
-                        FactionPerk.POWER_EFFICIENCY_1     // 3 pt - beam weapons
+                        FactionPerk.DAMAGE_BOOST_1,
+                        FactionPerk.DAMAGE_BOOST_2,
+                        FactionPerk.VETERAN_UNITS_1,
+                        FactionPerk.UPKEEP_INCREASE_1,
+                        FactionPerk.COST_REDUCTION_1,
+                        FactionPerk.POWER_EFFICIENCY_1
                 )))
                 .basedOnPreset(null)
                 .build();

@@ -13,13 +13,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for faction preset configurations.
- * Ensures all presets are valid, balanced, and at or near 100 points.
+ * Ensures all presets are valid, balanced, and spend the full {@value #TARGET_POINTS}-point budget.
  */
 @DisplayName("Faction Preset Tests")
 public class FactionPresetTest extends BaseTestClass {
 
     private static final int TARGET_POINTS = 100;
-    /** Presets must spend the full faction budget (≤ {@link CustomFactionConfig} max) without going under. */
+    /** Presets must spend the full faction budget (≤ {@link CustomFactionConfig} max). */
     private static final int ACCEPTABLE_VARIANCE = 0;
 
     /**
@@ -49,11 +49,10 @@ public class FactionPresetTest extends BaseTestClass {
                 String.format("Preset %s: calculated points (%d) should match stored points (%d)",
                         preset.getDisplayName(), totalPoints, storedPoints));
         
-        // Verify points are within acceptable range of target
         int variance = Math.abs(totalPoints - TARGET_POINTS);
         assertTrue(variance <= ACCEPTABLE_VARIANCE,
                 String.format("Preset %s has %d points (target: %d ±%d). Variance: %d points",
-                        preset.getDisplayName(), totalPoints, TARGET_POINTS, 
+                        preset.getDisplayName(), totalPoints, TARGET_POINTS,
                         ACCEPTABLE_VARIANCE, variance));
     }
 

@@ -15,13 +15,20 @@ import java.util.List;
 @Getter
 public class AttackMoveCommand extends UnitCommand {
     private final Vector2 destination;
+    /** When non-null, steering and velocity are capped at this speed (group march). */
+    private final Double marchSpeedCap;
 
     @Setter
     private Targetable autoTarget = null;
 
     public AttackMoveCommand(Unit unit, Vector2 destination, boolean isPlayerOrder) {
+        this(unit, destination, isPlayerOrder, null);
+    }
+
+    public AttackMoveCommand(Unit unit, Vector2 destination, boolean isPlayerOrder, Double marchSpeedCap) {
         super(unit, isPlayerOrder);
         this.destination = destination.copy();
+        this.marchSpeedCap = marchSpeedCap;
     }
 
     /**
@@ -66,7 +73,7 @@ public class AttackMoveCommand extends UnitCommand {
 
             // Move into range if too far
             if (distance > effectiveRange * 0.9) {
-                unit.applySteeringForces(targetPos, nearbyUnits(), deltaTime);
+                unit.applySteeringForces(targetPos, nearbyUnits(), deltaTime, marchSpeedCap);
                 return;
             } else {
                 // In range, stop to attack
@@ -86,7 +93,7 @@ public class AttackMoveCommand extends UnitCommand {
             }
 
             // Apply steering forces towards current waypoint
-            unit.applySteeringForces(nextWaypoint, nearbyUnits(), deltaTime);
+            unit.applySteeringForces(nextWaypoint, nearbyUnits(), deltaTime, marchSpeedCap);
         } else if (destination != null) {
             // No path, move directly to destination
             double distance = currentPos.distance(destination);
@@ -98,7 +105,7 @@ public class AttackMoveCommand extends UnitCommand {
             }
 
             // Apply steering forces towards destination
-            unit.applySteeringForces(destination, nearbyUnits(), deltaTime);
+            unit.applySteeringForces(destination, nearbyUnits(), deltaTime, marchSpeedCap);
         }
     }
 

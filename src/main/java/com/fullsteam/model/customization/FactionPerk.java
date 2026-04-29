@@ -46,7 +46,7 @@ public enum FactionPerk implements PerkEffect {
     POWER_EFFICIENCY_2(
             "Power Efficiency II",
             "-30% power consumption",
-            6,
+            5,
             Set.of("POWER_EFFICIENCY_1")
     ) {
         @Override
@@ -57,7 +57,7 @@ public enum FactionPerk implements PerkEffect {
     POWER_EFFICIENCY_3(
             "Power Efficiency III",
             "-45% power consumption",
-            10,
+            9,
             Set.of("POWER_EFFICIENCY_2")
     ) {
         @Override
@@ -85,7 +85,7 @@ public enum FactionPerk implements PerkEffect {
     RESOURCE_BOOST_2(
             "Resource Boost II",
             "+30% harvesting rate",
-            8,
+            7,
             Set.of("RESOURCE_BOOST_1")
     ) {
         @Override
@@ -102,7 +102,7 @@ public enum FactionPerk implements PerkEffect {
     COST_REDUCTION_1(
             "Cost Reduction I",
             "-10% all costs",
-            5,
+            4,
             Set.of()
     ) {
         @Override
@@ -114,7 +114,7 @@ public enum FactionPerk implements PerkEffect {
     COST_REDUCTION_2(
             "Cost Reduction II",
             "-20% all costs",
-            9,
+            8,
             Set.of("COST_REDUCTION_1")
     ) {
         @Override
@@ -139,7 +139,7 @@ public enum FactionPerk implements PerkEffect {
     UPKEEP_INCREASE_2(
             "Army Logistics II",
             "-30% periodic army upkeep",
-            6,
+            5,
             Set.of("UPKEEP_INCREASE_1")
     ) {
         @Override
@@ -150,7 +150,7 @@ public enum FactionPerk implements PerkEffect {
     UPKEEP_INCREASE_3(
             "Army Logistics III",
             "-45% periodic army upkeep",
-            10,
+            9,
             Set.of("UPKEEP_INCREASE_2")
     ) {
         @Override
@@ -180,7 +180,7 @@ public enum FactionPerk implements PerkEffect {
     VETERAN_UNITS_2(
             "Veteran Units II",
             "+20% HP for all units",
-            6,
+            5,
             Set.of("VETERAN_UNITS_1")
     ) {
         @Override
@@ -216,7 +216,7 @@ public enum FactionPerk implements PerkEffect {
     RAPID_DEPLOYMENT_2(
             "Rapid Deployment II",
             "-30% build time",
-            6,
+            5,
             Set.of("RAPID_DEPLOYMENT_1")
     ) {
         @Override
@@ -251,7 +251,7 @@ public enum FactionPerk implements PerkEffect {
     DAMAGE_BOOST_2(
             "Damage Boost II",
             "+20% damage for all units",
-            8,
+            7,
             Set.of("DAMAGE_BOOST_1")
     ) {
         @Override
@@ -281,7 +281,7 @@ public enum FactionPerk implements PerkEffect {
     FORTIFIED_2(
             "Fortified Structures II",
             "+30% building HP",
-            6,
+            5,
             Set.of("FORTIFIED_1")
     ) {
         @Override
@@ -350,7 +350,7 @@ public enum FactionPerk implements PerkEffect {
     AIR_SUPERIORITY_2(
             "Air Superiority II",
             "-25% air unit costs, +20% air unit speed",
-            7,
+            6,
             Set.of("AIR_SUPERIORITY_1")
     ) {
         @Override
@@ -395,7 +395,7 @@ public enum FactionPerk implements PerkEffect {
     MECHANIZED_WARFARE_2(
             "Mechanized Warfare II",
             "-25% vehicle costs, +20% vehicle HP",
-            7,
+            6,
             Set.of("MECHANIZED_WARFARE_1")
     ) {
         @Override
@@ -440,7 +440,7 @@ public enum FactionPerk implements PerkEffect {
     INFANTRY_DOCTRINE_2(
             "Infantry Doctrine II",
             "-25% infantry costs, +20% infantry damage",
-            7,
+            6,
             Set.of("INFANTRY_DOCTRINE_1")
     ) {
         @Override
@@ -463,7 +463,7 @@ public enum FactionPerk implements PerkEffect {
     SALVAGE_OPERATIONS(
             "Salvage Operations",
             "Recover 30% of unit/building cost when destroyed",
-            5,
+            4,
             Set.of()
     ) {
         private static final double SALVAGE_RATE = 0.30;
@@ -554,7 +554,7 @@ public enum FactionPerk implements PerkEffect {
     INFANTRY_TRAINING_2(
             "Infantry Training II",
             "Barracks train infantry 40% faster",
-            6,
+            5,
             Set.of("INFANTRY_TRAINING_1")
     ) {
         @Override
@@ -585,7 +585,7 @@ public enum FactionPerk implements PerkEffect {
     VEHICLE_PRODUCTION_2(
             "Vehicle Production II",
             "Factories produce vehicles 40% faster",
-            6,
+            5,
             Set.of("VEHICLE_PRODUCTION_1")
     ) {
         @Override
@@ -601,7 +601,7 @@ public enum FactionPerk implements PerkEffect {
     LOGISTICS_NETWORK(
             "Logistics Network",
             "Buildings cost 15% less, build 20% faster",
-            6,
+            5,
             Set.of()
     ) {
         @Override
@@ -625,7 +625,7 @@ public enum FactionPerk implements PerkEffect {
     BATTLE_HARDENED(
             "Battle Hardened",
             "Newly created units gain +30% damage for 30 seconds",
-            5,
+            4,
             Set.of()
     ) {
         private static final double DAMAGE_BONUS = 1.30;
@@ -746,7 +746,7 @@ public enum FactionPerk implements PerkEffect {
     MASS_PRODUCTION_BONUS(
             "Mass Production Bonus",
             "Units cost 3% less for each unit of same type alive (max 15% reduction)",
-            5,
+            4,
             Set.of()
     ) {
         private static final double COST_REDUCTION_PER_UNIT = 0.03;
@@ -782,7 +782,7 @@ public enum FactionPerk implements PerkEffect {
     EXPANSION_BONUS(
             "Expansion Bonus",
             "Each building increases resource generation by 2% (max 30%)",
-            5,
+            4,
             Set.of()
     ) {
         private static final double BONUS_PER_BUILDING = 0.02;
@@ -861,7 +861,7 @@ public enum FactionPerk implements PerkEffect {
     INFRASTRUCTURE_NETWORK(
             "Infrastructure Network",
             "Each building reduces next building's build time by 5% (max 30%)",
-            5,
+            4,
             Set.of()
     ) {
         private static final double REDUCTION_PER_BUILDING = 0.05;
@@ -893,7 +893,7 @@ public enum FactionPerk implements PerkEffect {
     MOMENTUM(
             "Momentum",
             "Units gain +1% damage per hit (max +25%), resets after 5 seconds of not attacking",
-            6,
+            5,
             Set.of()
     ) {
         private static final double DAMAGE_PER_STACK = 0.01;
@@ -939,7 +939,7 @@ public enum FactionPerk implements PerkEffect {
     SUPPRESSION_FIRE(
             "Suppression Fire",
             "Units that deal damage slow targets by 15% for 3 seconds",
-            5,
+            4,
             Set.of()
     ) {
         private static final double SLOW_AMOUNT = 0.15;
@@ -998,7 +998,7 @@ public enum FactionPerk implements PerkEffect {
     COMBAT_MEDIC_PROTOCOL(
             "Combat Medic Protocol",
             "When infantry deal damage, nearby friendly infantry heal 2 HP",
-            5,
+            4,
             Set.of()
     ) {
         private static final double HEAL_AMOUNT = 2.0;
@@ -1045,7 +1045,7 @@ public enum FactionPerk implements PerkEffect {
     ARMOR_PENETRATION_RESEARCH(
             "Armor Penetration Research",
             "Every 1000 damage dealt increases all damage by 1% (max 10%)",
-            6,
+            5,
             Set.of()
     ) {
         private static final double DAMAGE_THRESHOLD = 1000.0;
@@ -1084,7 +1084,7 @@ public enum FactionPerk implements PerkEffect {
     VAMPIRIC_WEAPONS(
             "Vampiric Weapons",
             "Units heal for 8% of damage dealt",
-            6,
+            5,
             Set.of()
     ) {
         private static final double LIFESTEAL_PERCENT = 0.08;
@@ -1106,7 +1106,7 @@ public enum FactionPerk implements PerkEffect {
     CRITICAL_STRIKE(
             "Critical Strike",
             "15% chance to deal double damage",
-            5,
+            4,
             Set.of()
     ) {
         private static final double CRIT_CHANCE = 0.15;
@@ -1129,7 +1129,7 @@ public enum FactionPerk implements PerkEffect {
     OVERCHARGE(
             "Overcharge",
             "After dealing 500 damage, next attack deals +50% damage",
-            5,
+            4,
             Set.of()
     ) {
         private static final double DAMAGE_THRESHOLD = 500.0;

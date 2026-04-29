@@ -13,12 +13,19 @@ import java.util.List;
 @Getter
 public class MoveCommand extends UnitCommand {
     private final Vector2 destination;
+    /** When non-null, steering and velocity are capped at this speed (group march). */
+    private final Double marchSpeedCap;
     private List<Vector2> path = new ArrayList<>();
     private int currentPathIndex = 0;
 
     public MoveCommand(Unit unit, Vector2 destination, boolean isPlayerOrder) {
+        this(unit, destination, isPlayerOrder, null);
+    }
+
+    public MoveCommand(Unit unit, Vector2 destination, boolean isPlayerOrder, Double marchSpeedCap) {
         super(unit, isPlayerOrder);
         this.destination = destination.copy();
+        this.marchSpeedCap = marchSpeedCap;
     }
 
     /**
@@ -56,7 +63,7 @@ public class MoveCommand extends UnitCommand {
             }
 
             // Apply steering forces towards current waypoint
-            unit.applySteeringForces(nextWaypoint, nearbyUnits(), deltaTime);
+            unit.applySteeringForces(nextWaypoint, nearbyUnits(), deltaTime, marchSpeedCap);
         } else if (destination != null) {
             // No path, move directly to destination
             double distance = currentPos.distance(destination);
@@ -68,7 +75,7 @@ public class MoveCommand extends UnitCommand {
             }
 
             // Apply steering forces towards destination
-            unit.applySteeringForces(destination, nearbyUnits(), deltaTime);
+            unit.applySteeringForces(destination, nearbyUnits(), deltaTime, marchSpeedCap);
         }
     }
 

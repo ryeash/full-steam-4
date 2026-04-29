@@ -365,7 +365,7 @@ public class Unit extends GameEntity implements Targetable {
     /**
      * Calculate seek steering force towards a target position
      */
-    private Vector2 calculateSeek(Vector2 target) {
+    private Vector2 calculateSeek(Vector2 target, double maxDesiredSpeed) {
         Vector2 currentPos = getPosition();
         Vector2 desired = target.copy().subtract(currentPos);
         double distance = desired.getMagnitude();
@@ -374,13 +374,13 @@ public class Unit extends GameEntity implements Targetable {
             return new Vector2(0, 0);
         }
 
-        return desired.getNormalized().multiply(getMovementSpeed());
+        return desired.getNormalized().multiply(maxDesiredSpeed);
     }
 
     /**
      * Calculate arrival steering force (slow down as approaching target)
      */
-    private Vector2 calculateArrival(Vector2 target, double slowingRadius) {
+    private Vector2 calculateArrival(Vector2 target, double slowingRadius, double maxDesiredSpeed) {
         Vector2 currentPos = getPosition();
         Vector2 desired = target.copy().subtract(currentPos);
         double distance = desired.getMagnitude();
@@ -396,10 +396,10 @@ public class Unit extends GameEntity implements Targetable {
         if (distance < slowingRadius) {
             // Quadratic falloff for smoother deceleration
             double ratio = distance / slowingRadius;
-            double speed = getMovementSpeed() * ratio * ratio; // Quadratic instead of linear
+            double speed = maxDesiredSpeed * ratio * ratio; // Quadratic instead of linear
             desired.multiply(speed);
         } else {
-            desired.multiply(getMovementSpeed());
+            desired.multiply(maxDesiredSpeed);
         }
 
         return desired;
@@ -442,8 +442,18 @@ public class Unit extends GameEntity implements Targetable {
      * Made public for Command Pattern access
      */
     public void applySteeringForces(Vector2 target, List<Unit> nearbyUnits, double deltaTime) {
+        applySteeringForces(target, nearbyUnits, deltaTime, null);
+    }
+
+    /**
+     * @param maxSpeedCap when non-null, desired speed and velocity clamp use min(unit speed, cap) for this step
+     */
+    public void applySteeringForces(Vector2 target, List<Unit> nearbyUnits, double deltaTime, Double maxSpeedCap) {
         Vector2 currentPos = getPosition();
         double distanceToTarget = currentPos.distance(target);
+        double maxDesiredSpeed = maxSpeedCap == null
+                ? getMovementSpeed()
+                : Math.min(getMovementSpeed(), maxSpeedCap);
 
         // Calculate steering forces
         Vector2 separationForce = new Vector2(0, 0);
@@ -457,9 +467,9 @@ public class Unit extends GameEntity implements Targetable {
                 case VEHICLE -> 33;
                 case FLYER -> 39;
             };
-            seekForce = calculateArrival(target, slowingRadius);
+            seekForce = calculateArrival(target, slowingRadius, maxDesiredSpeed);
         } else {
-            seekForce = calculateSeek(target);
+            seekForce = calculateSeek(target, maxDesiredSpeed);
         }
 
         // Separation from nearby units
@@ -489,9 +499,8 @@ public class Unit extends GameEntity implements Targetable {
         // Clamp velocity to max speed
         Vector2 velocity = body.getLinearVelocity();
         double speed = velocity.getMagnitude();
-        double maxSpeed = getMovementSpeed();
-        if (speed > maxSpeed) {
-            body.setLinearVelocity(velocity.getNormalized().multiply(maxSpeed));
+        if (speed > maxDesiredSpeed) {
+            body.setLinearVelocity(velocity.getNormalized().multiply(maxDesiredSpeed));
         }
 
         // Update rotation to face movement direction

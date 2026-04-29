@@ -449,7 +449,7 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
-            10       // faction customization point cost
+            9       // faction customization point cost
     ),
 
     // Cloak Tank - invisible until attacking or detected
@@ -514,7 +514,7 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
-            10       // faction customization point cost
+            9       // faction customization point cost
     ),
 
     // Triple-beam infantry (Tech Alliance equivalent of Infantry)
@@ -645,7 +645,7 @@ public enum UnitType {
             Elevation.GROUND,
             UnitCategory.VEHICLE, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
-            9        // faction customization point cost
+            8        // faction customization point cost
     ),
 
     // ANDROID - Autonomous combat unit produced by Android Factory
@@ -765,7 +765,7 @@ public enum UnitType {
             Elevation.HIGH, // Fixed-wing - requires AA weapons,
             UnitCategory.FLYER, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 strategic bomber
-            9        // faction customization point cost
+            8        // faction customization point cost
     ),
 
     // INTERCEPTOR - Sortie-based fighter aircraft
@@ -811,7 +811,7 @@ public enum UnitType {
             Elevation.HIGH, // Fixed-wing sortie aircraft,
             UnitCategory.FLYER, // category
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
-            9        // faction customization point cost
+            8        // faction customization point cost
     );
 
     private final String displayName;

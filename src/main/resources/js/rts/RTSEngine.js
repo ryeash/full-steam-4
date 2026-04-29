@@ -63,7 +63,11 @@ class RTSEngine {
         this.selectionBox = null;
         this.isSelecting = false;
         this.selectionStart = null;
-        
+        /** Double-click unit select: same unit id within this window selects all that type (map-wide). */
+        this._lastUnitSelectClickTime = 0;
+        this._lastUnitSelectClickId = null;
+        this._doubleClickSelectSameTypeMs = 400;
+
         // Camera
         this.camera = { x: 0, y: 0, zoom: 1.0 };
         this.worldBounds = { width: 4000, height: 4000 };
@@ -3712,7 +3716,9 @@ class RTSEngine {
     clearUnitSelectionImmediate() {
         // Clear the local set
         this.selectedUnits.clear();
-        
+        this._lastUnitSelectClickTime = 0;
+        this._lastUnitSelectClickId = null;
+
         // Hide all selection circles immediately
         this.units.forEach((container) => {
             if (container.selectionCircle) {
@@ -3756,10 +3762,32 @@ class RTSEngine {
             
             if (clickedUnit) {
                 this.clearBuildingSelectionClient();
-                // Clicked on a unit - select just that unit
-                this.sendInput({ selectUnits: [clickedUnit] });
+                const now = (typeof performance !== 'undefined' && performance.now)
+                    ? performance.now()
+                    : Date.now();
+                const clickedContainer = this.units.get(clickedUnit);
+                const clickedType = clickedContainer?.unitData?.type;
+                let idsToSelect = [clickedUnit];
 
-                this.checkAndShowBuildMenu([clickedUnit]);
+                if (clickedType &&
+                    this._lastUnitSelectClickId === clickedUnit &&
+                    (now - this._lastUnitSelectClickTime) <= this._doubleClickSelectSameTypeMs) {
+                    idsToSelect = [];
+                    this.units.forEach((container, id) => {
+                        const ud = container.unitData;
+                        if (ud && ud.ownerId === this.myPlayerId && ud.type === clickedType) {
+                            idsToSelect.push(id);
+                        }
+                    });
+                    this._lastUnitSelectClickTime = 0;
+                    this._lastUnitSelectClickId = null;
+                } else {
+                    this._lastUnitSelectClickTime = now;
+                    this._lastUnitSelectClickId = clickedUnit;
+                }
+
+                this.sendInput({ selectUnits: idsToSelect });
+                this.checkAndShowBuildMenu(idsToSelect);
             } else {
                 this.clearBuildingSelectionClient();
                 // Clicked on empty space - deselect all units
@@ -3769,6 +3797,8 @@ class RTSEngine {
             }
         } else {
             // Drag selection — units only (never buildings; marquee is exclusive to units).
+            this._lastUnitSelectClickTime = 0;
+            this._lastUnitSelectClickId = null;
             this.clearBuildingSelectionClient();
             const selectedIds = [];
             this.units.forEach((container, id) => {
@@ -4455,6 +4485,9 @@ class RTSEngine {
                 productionTitle.textContent = 'Train units';
                 scroll.appendChild(productionTitle);
 
+                const trainGrid = document.createElement('div');
+                trainGrid.className = 'building-info-train-grid';
+
                 const allUnits = this.getAllUnitsForBuilding(buildingData.type);
                 allUnits.forEach((unitInfo) => {
                     const button = document.createElement('button');
@@ -4481,8 +4514,9 @@ class RTSEngine {
                     }
 
                     button.innerHTML = buttonHTML;
-                    scroll.appendChild(button);
+                    trainGrid.appendChild(button);
                 });
+                scroll.appendChild(trainGrid);
             }
 
             actionsCol.appendChild(scroll);

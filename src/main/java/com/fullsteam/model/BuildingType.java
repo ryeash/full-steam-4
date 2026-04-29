@@ -119,8 +119,8 @@ public enum BuildingType {
             0x00CED1,    // cannot produce units
             false,     // power consumption
             -35,    // vision range (good, tech building)
-            400.0,         // faction customization point cost
-            4, false,
+            400.0,         // vision radius (world units)
+            3, false,
             "RL",
             "\uD83D\uDD2C"),
 
@@ -137,8 +137,8 @@ public enum BuildingType {
             0x4169E1,    // cannot produce units
             false,     // power consumption
             -50,    // vision range (excellent, advanced tech)
-            420.0,         // faction customization point cost
-            6, false,
+            420.0,         // vision radius (world units)
+            5, false,
             "TC",
             "\uD83E\uDDEA"),
 
@@ -374,7 +374,7 @@ public enum BuildingType {
             false,
             -35,
             -42.0,
-            3,
+            2,
             true,
             "JP",
             "\uD83D\uDE81"),
@@ -394,7 +394,7 @@ public enum BuildingType {
             false,
             -50,
             -45.0,
-            10,
+            8,
             true,
             "NS",
             "\u2622\uFE0F"),
@@ -412,7 +412,7 @@ public enum BuildingType {
             false,
             -35,
             -40.0,
-            6, true,
+            5, true,
             "SR",
             "\uD83C\uDFAF"),
 
@@ -431,7 +431,7 @@ public enum BuildingType {
             false,
             -40,
             -38.0,
-            6,
+            5,
             true,
             "SA",
             "\uD83D\uDEF0"),
@@ -451,7 +451,7 @@ public enum BuildingType {
             false,
             -38,
             -42.0,
-            7,
+            6,
             true,
             "CB",
             "\u2708\uFE0F"),
