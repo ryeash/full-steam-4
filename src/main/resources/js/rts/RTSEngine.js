@@ -529,23 +529,8 @@ class RTSEngine {
         }
         
         if (!gameId) {
-            // Create new game
-            const response = await fetch('/api/rts/games', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({}) // Send empty config for defaults
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to create game: ${response.status} ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            gameId = data.gameId;
-            
-            // Update URL with game ID
-            const newUrl = `${window.location.pathname}?gameId=${gameId}`;
-            window.history.pushState({}, '', newUrl);
+            window.location.replace('/rts-lobby.html');
+            return;
         }
         
         if (!gameId) {

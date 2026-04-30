@@ -10,8 +10,12 @@ import org.dyn4j.world.World;
 
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -35,6 +39,19 @@ public class GameEntities {
 
     @Setter
     private World<Body> world;
+
+    /**
+     * Set by {@link RTSGameManager} after {@link RTSCollisionProcessor} is constructed.
+     * Used for placement queries ({@link #suggestBuildLocationNear}) shared by AI and bootstrap logic.
+     */
+    @Setter
+    private RTSCollisionProcessor collisionProcessor;
+
+    private static final double[][] BUILD_SITE_PROBE_OFFSETS = {
+            {220, 80}, {-220, 80}, {260, -120}, {-260, -120},
+            {320, 40}, {-320, 40}, {180, 200}, {-180, 200},
+            {0, 220}, {0, -220}, {400, 0}, {-400, 0}
+    };
 
     public GameEntities(GameConfig gameConfig, RTSGameManager rtsGameManager) {
         this.gameConfig = gameConfig;
@@ -102,6 +119,56 @@ public class GameEntities {
                 .filter(u -> u.isValidTargetFor(weapon, teamNumber, position))
                 .min(Comparator.comparingDouble(u -> u.getPosition().distance(position)))
                 .orElse(null);
+    }
+
+    /**
+     * Completed structures only — used for tech and production eligibility (matches prior {@code getPlayerBuildingTypes} semantics).
+     */
+    public Set<BuildingType> getConstructedBuildingTypes(int playerId) {
+        return buildings.values().stream()
+                .filter(b -> b.belongsTo(playerId) && b.isActive() && !b.isUnderConstruction())
+                .map(Building::getBuildingType)
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * Tech buildings still required before construction of {@code buildingType} can succeed.
+     */
+    public Set<BuildingType> getMissingTechForConstruction(int playerId, BuildingType buildingType) {
+        Set<BuildingType> completed = getConstructedBuildingTypes(playerId);
+        HashSet<BuildingType> techRequired = new HashSet<>(buildingType.getTechRequirements());
+        techRequired.removeAll(completed);
+        return techRequired;
+    }
+
+    /**
+     * Whether the player has any active building of this type (includes foundations still building if marked active).
+     */
+    public boolean playerHasActiveBuilding(int playerId, BuildingType buildingType) {
+        return buildings.values().stream()
+                .anyMatch(b -> b.belongsTo(playerId)
+                        && b.isActive()
+                        && b.getBuildingType() == buildingType);
+    }
+
+    /**
+     * Spatial + support-capacity probe around {@code anchor}. Does not validate affordability or worker selection;
+     * {@link RTSGameManager#processPlayerInput} applies those when processing {@link RTSPlayerInput} build orders.
+     */
+    public Optional<Vector2> suggestBuildLocationNear(int playerId, BuildingType type, Vector2 anchor) {
+        if (anchor == null || collisionProcessor == null || gameConfig == null) {
+            return Optional.empty();
+        }
+        double w = gameConfig.getWorldWidth();
+        double h = gameConfig.getWorldHeight();
+        for (double[] d : BUILD_SITE_PROBE_OFFSETS) {
+            Vector2 loc = new Vector2(anchor.x + d[0], anchor.y + d[1]);
+            if (collisionProcessor.isValidBuildLocation(loc, type, w, h)
+                    && collisionProcessor.hasSupportCapacity(loc, type, playerId)) {
+                return Optional.of(loc);
+            }
+        }
+        return Optional.empty();
     }
 
     private void createBeamFieldEffects(Beam beam) {

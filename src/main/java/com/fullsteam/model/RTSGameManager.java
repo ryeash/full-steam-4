@@ -2,6 +2,8 @@ package com.fullsteam.model;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fullsteam.ai.AiSkirmishFaction;
+import com.fullsteam.ai.SkirmishAiDirector;
 import com.fullsteam.games.GameConstants;
 import com.fullsteam.games.IdGenerator;
 import com.fullsteam.model.command.AttackGroundCommand;
@@ -48,7 +50,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -121,6 +122,7 @@ public class RTSGameManager {
 
     // Player inputs
     private final Map<Integer, RTSPlayerInput> playerInputs = new ConcurrentHashMap<>();
+    private final SkirmishAiDirector skirmishAiDirector = new SkirmishAiDirector();
 
     // Game state
     @Getter
@@ -157,7 +159,7 @@ public class RTSGameManager {
         this.rtsWorld = new RTSWorld(
                 gameConfig.getWorldWidth(),
                 gameConfig.getWorldHeight(),
-                gameConfig.getMaxPlayers(),
+                gameConfig.getEffectiveMapTeamCount(),
                 gameConfig.getBiome(),
                 gameConfig.getObstacleDensity().getMultiplier(),
                 worldSeed
@@ -171,6 +173,7 @@ public class RTSGameManager {
         this.world.setGravity(new Vector2(0, 0));
         this.gameEntities.setWorld(this.world);
         this.collisionProcessor = new RTSCollisionProcessor(gameEntities);
+        this.gameEntities.setCollisionProcessor(this.collisionProcessor);
         this.world.addCollisionListener(this.collisionProcessor);
         this.world.setBounds(new AxisAlignedBounds(gameConfig.getWorldWidth(), gameConfig.getWorldHeight()));
 
@@ -217,6 +220,9 @@ public class RTSGameManager {
 
             // Research system removed - units are now selected during faction customization
             // Unit availability is managed by FactionModifierManager
+
+            // AI submits inputs through the same queue as humans (validated in processPlayerInput)
+            skirmishAiDirector.contributeInputs(this, (int) frameCount);
 
             // Process player inputs
             playerInputs.forEach(this::processPlayerInput);
@@ -1694,18 +1700,21 @@ public class RTSGameManager {
      * Check if player has the required tech buildings to construct this building
      */
     private Set<BuildingType> missingTechRequirements(int playerId, BuildingType buildingType) {
-        Set<BuildingType> playerBuildings = buildings.values().stream()
-                .filter(b -> b.getOwnerId() == playerId && b.isActive() && !b.isUnderConstruction())
-                .map(Building::getBuildingType)
-                .collect(Collectors.toSet());
-        HashSet<BuildingType> techRequired = new HashSet<>(buildingType.getTechRequirements());
-        techRequired.removeAll(playerBuildings);
-        return techRequired;
+        return gameEntities.getMissingTechForConstruction(playerId, buildingType);
     }
 
     /**
      * Validate building placement location
      */
+    private boolean isSpatialBuildLocationValid(Vector2 location, BuildingType buildingType) {
+        return collisionProcessor.isValidBuildLocation(
+                location,
+                buildingType,
+                gameConfig.getWorldWidth(),
+                gameConfig.getWorldHeight()
+        );
+    }
+
     private boolean isValidBuildLocation(Vector2 location, BuildingType buildingType, int playerId) {
         // Check if player has a worker selected that can build
         boolean hasWorkerSelected = units.values().stream()
@@ -1716,13 +1725,7 @@ public class RTSGameManager {
             return false;
         }
 
-        // Use collision processor for all spatial validation
-        return collisionProcessor.isValidBuildLocation(
-                location,
-                buildingType,
-                gameConfig.getWorldWidth(),
-                gameConfig.getWorldHeight()
-        );
+        return isSpatialBuildLocationValid(location, buildingType);
     }
 
     /**
@@ -1919,10 +1922,7 @@ public class RTSGameManager {
     }
 
     private boolean playerHasActiveBuildingOfType(int playerId, BuildingType buildingType) {
-        return buildings.values().stream()
-                .anyMatch(b -> b.belongsTo(playerId)
-                        && b.isActive()
-                        && b.getBuildingType() == buildingType);
+        return gameEntities.playerHasActiveBuilding(playerId, buildingType);
     }
 
     /**
@@ -2477,35 +2477,75 @@ public class RTSGameManager {
     }
 
     /**
-     * Add an AI player for testing/debug games
+     * Spawns every skirmish AI slot that does not yet have a faction in this game.
      */
-    public void addAIPlayer() {
-        // Create a dummy player session for AI
-        int aiPlayerId = -1; // Negative ID for AI
+    public synchronized void bootstrapSkirmishAiSlots() {
+        List<SkirmishSlotConfig> slots = gameConfig.getSkirmishSlots();
+        if (slots == null) {
+            return;
+        }
+        for (int i = 0; i < slots.size(); i++) {
+            if (slots.get(i).getKind() != SkirmishSlotKind.AI) {
+                continue;
+            }
+            if (skirmishSlotOccupied(i)) {
+                continue;
+            }
+            addSkirmishAiAtSlot(i);
+        }
+    }
 
-        // Assign AI to team 2
-        int aiTeam = 2;
+    private boolean skirmishSlotOccupied(int slotIndex) {
+        return players.values().stream()
+                .anyMatch(p -> p.getSkirmishSlotIndex() != null && p.getSkirmishSlotIndex() == slotIndex);
+    }
 
-        // Create AI faction
+    private void addSkirmishAiAtSlot(int slotIndex) {
+        int playerId = IdGenerator.nextPlayerId();
+        int teamNumber = gameConfig.getSkirmishSlots().get(slotIndex).getTeamId();
+        TeamPlacement placement = teamPlacementForSkirmishSlot(slotIndex);
+        Vector2 start = getStartingPositionForTeamSlot(teamNumber, placement.indexWithinTeam(), placement.totalOnTeam());
         Player aiFaction = new Player(
-                aiPlayerId,
-                aiTeam,
-                FactionDefinition.builder().build()
+                playerId,
+                teamNumber,
+                AiSkirmishFaction.baselineOpponent(),
+                null,
+                slotIndex
         );
-        players.put(aiPlayerId, aiFaction);
+        SkirmishSlotConfig slotCfg = gameConfig.getSkirmishSlots().get(slotIndex);
+        AiDifficulty difficulty = slotCfg.getAiDifficulty() != null
+                ? slotCfg.getAiDifficulty()
+                : AiDifficulty.NORMAL;
+        aiFaction.setSkirmishAiDifficulty(difficulty);
+        players.put(playerId, aiFaction);
+        createStartingBase(playerId, teamNumber, start);
+        log.info("Skirmish AI player {} added at slot {} team {} difficulty {} position ({}, {})",
+                playerId, slotIndex, teamNumber, difficulty, start.x, start.y);
+    }
 
-        // Create AI starting base
-        Vector2 aiStartPosition = getStartingPosition(aiTeam);
-        createStartingBase(aiPlayerId, aiTeam, aiStartPosition);
+    private record TeamPlacement(int indexWithinTeam, int totalOnTeam) {}
 
-        log.info("AI Player added to team {} at position ({}, {}). Total buildings: {}",
-                aiTeam, aiStartPosition.x, aiStartPosition.y, buildings.size());
+    private TeamPlacement teamPlacementForSkirmishSlot(int globalSlotIndex) {
+        List<SkirmishSlotConfig> slots = gameConfig.getSkirmishSlots();
+        int teamId = slots.get(globalSlotIndex).getTeamId();
+        List<Integer> sameTeamIndices = new ArrayList<>();
+        for (int i = 0; i < slots.size(); i++) {
+            if (slots.get(i).getTeamId() == teamId) {
+                sameTeamIndices.add(i);
+            }
+        }
+        int within = sameTeamIndices.indexOf(globalSlotIndex);
+        return new TeamPlacement(within, sameTeamIndices.size());
+    }
 
-        // Log all HQs
-        buildings.values().stream()
-                .filter(b -> b.getBuildingType() == BuildingType.HEADQUARTERS)
-                .forEach(hq -> log.info("HQ exists for team {} at ({}, {})",
-                        hq.getTeamNumber(), hq.getPosition().x, hq.getPosition().y));
+    private Vector2 getStartingPositionForTeamSlot(int teamNumber, int indexWithinTeam, int totalOnTeam) {
+        Vector2 base = rtsWorld.getTeamStartPoint(teamNumber - 1);
+        if (totalOnTeam <= 1) {
+            return base.copy();
+        }
+        double radius = 220.0;
+        double angle = (2.0 * Math.PI * indexWithinTeam) / totalOnTeam;
+        return new Vector2(base.x + Math.cos(angle) * radius, base.y + Math.sin(angle) * radius);
     }
 
     /**
@@ -2513,6 +2553,15 @@ public class RTSGameManager {
      */
     public synchronized boolean addPlayer(int playerId, WebSocketSession webSocketSession,
                                           CustomFactionConfig config, FactionDefinition customDefinition) {
+        return addPlayer(playerId, webSocketSession, config, customDefinition, -1);
+    }
+
+    /**
+     * @param skirmishSlotIndex index into {@link GameConfig#getSkirmishSlots()} for this human, or -1 to take the first open human slot
+     */
+    public synchronized boolean addPlayer(int playerId, WebSocketSession webSocketSession,
+                                          CustomFactionConfig config, FactionDefinition customDefinition,
+                                          int skirmishSlotIndex) {
         // Prevent late joins if game has started with full roster
         if (gameStartedWithFullRoster) {
             log.warn("Player {} attempted to join game {} after it started with full roster",
@@ -2524,24 +2573,45 @@ public class RTSGameManager {
             return false;
         }
 
-        log.info("Adding player {} to game {}", playerId, gameId);
+        int slotIndex = skirmishSlotIndex;
+        if (slotIndex < 0) {
+            slotIndex = findFirstOpenHumanSkirmishSlotIndex();
+        }
+        if (slotIndex < 0) {
+            log.warn("No open human skirmish slot for player {} in game {}", playerId, gameId);
+            return false;
+        }
+        List<SkirmishSlotConfig> slots = gameConfig.getSkirmishSlots();
+        if (slots == null || slotIndex >= slots.size() || slots.get(slotIndex).getKind() != SkirmishSlotKind.HUMAN) {
+            log.warn("Invalid skirmish slot {} for player {} in game {}", slotIndex, playerId, gameId);
+            return false;
+        }
+        if (skirmishSlotOccupied(slotIndex)) {
+            log.warn("Skirmish slot {} already occupied in game {}", slotIndex, gameId);
+            return false;
+        }
 
-        // Assign team
-        int teamNumber = assignPlayerToTeam();
-        // Create faction with selected faction type and WebSocket
+        log.info("Adding player {} to game {} at skirmish slot {}", playerId, gameId, slotIndex);
+
+        int teamNumber = slots.get(slotIndex).getTeamId();
+        TeamPlacement placement = teamPlacementForSkirmishSlot(slotIndex);
+        Vector2 startPosition = getStartingPositionForTeamSlot(teamNumber, placement.indexWithinTeam(), placement.totalOnTeam());
+
         Player faction = new Player(
                 playerId,
                 teamNumber,
                 customDefinition,
-                webSocketSession
+                webSocketSession,
+                slotIndex
         );
 
-        log.info("Assigned player {} to team {}", playerId, teamNumber);
+        log.info("Assigned player {} to team {} slot {}", playerId, teamNumber, slotIndex);
         players.put(playerId, faction);
 
         if (countHumanPlayerFactions() == gameConfig.getMaxPlayers()) {
+            bootstrapSkirmishAiSlots();
             gameStartedWithFullRoster = true;
-            log.info("Game {} has reached full capacity ({} players) - late joins now prevented",
+            log.info("Game {} has reached full human roster ({} humans) — late joins disabled",
                     gameId, gameConfig.getMaxPlayers());
 
             sendGameEvent(GameEvent.builder()
@@ -2555,56 +2625,29 @@ public class RTSGameManager {
                     .build()
             );
         }
-        // Create starting base
-        Vector2 startPosition = getStartingPosition(teamNumber);
         createStartingBase(playerId, teamNumber, startPosition);
         log.info("Player {} joined RTS game {} on team {}", playerId, gameId, teamNumber);
         return true;
     }
 
-    private long countHumanPlayerFactions() {
-        return players.values().stream().filter(f -> f.getPlayerId() >= 0).count();
-    }
-
-    /**
-     * Assign player to team with fewest members
-     */
-    private int assignPlayerToTeam() {
-        // Count HUMAN players per team (exclude AI player -1)
-        int[] teamCounts = new int[gameConfig.getMaxPlayers() + 1];
-        players.values().forEach(faction -> {
-            // Only count human players (playerId >= 0)
-            if (faction.getPlayerId() >= 0) {
-                int team = faction.getTeamNumber();
-                if (team > 0 && team <= gameConfig.getMaxPlayers()) {
-                    teamCounts[team]++;
-                }
+    private int findFirstOpenHumanSkirmishSlotIndex() {
+        List<SkirmishSlotConfig> slots = gameConfig.getSkirmishSlots();
+        if (slots == null) {
+            return -1;
+        }
+        for (int i = 0; i < slots.size(); i++) {
+            if (slots.get(i).getKind() != SkirmishSlotKind.HUMAN) {
+                continue;
             }
-        });
-
-        log.info("Team counts (human players only): {}", Arrays.toString(teamCounts));
-
-        // Find team with fewest players
-        int bestTeam = 1;
-        int minCount = Integer.MAX_VALUE;
-        for (int team = 1; team <= gameConfig.getMaxPlayers(); team++) {
-            if (teamCounts[team] < minCount) {
-                minCount = teamCounts[team];
-                bestTeam = team;
+            if (!skirmishSlotOccupied(i)) {
+                return i;
             }
         }
-
-        log.info("Assigning to team {} (minCount: {})", bestTeam, minCount);
-
-        return bestTeam;
+        return -1;
     }
 
-    /**
-     * Get starting position for a team from RTSWorld
-     */
-    private Vector2 getStartingPosition(int teamNumber) {
-        // Team numbers are 1-indexed, but world uses 0-indexed
-        return rtsWorld.getTeamStartPoint(teamNumber - 1);
+    private long countHumanPlayerFactions() {
+        return players.values().stream().filter(f -> f.getWebSocketSession() != null).count();
     }
 
     /**
@@ -2707,10 +2750,7 @@ public class RTSGameManager {
      * Used for tech building requirements validation
      */
     private Set<BuildingType> getPlayerBuildingTypes(int playerId) {
-        return buildings.values().stream()
-                .filter(b -> b.belongsTo(playerId) && b.isActive() && !b.isUnderConstruction())
-                .map(Building::getBuildingType)
-                .collect(Collectors.toSet());
+        return gameEntities.getConstructedBuildingTypes(playerId);
     }
 
     /**

@@ -55,6 +55,10 @@ public class RTSPlayerConnectionService {
         if (matchmakingGame != null && sessionToken != null) {
             matchmakingGame.markSessionConnected(sessionToken);
         }
+        int skirmishSlotIndex = -1;
+        if (matchmakingGame != null && sessionToken != null) {
+            skirmishSlotIndex = matchmakingGame.getSlotIndexForToken(sessionToken).orElse(-1);
+        }
         // Create player session
         int playerId = IdGenerator.nextPlayerId();
         CustomFactionConfig config;
@@ -81,7 +85,7 @@ public class RTSPlayerConnectionService {
         session.put("rtsGame", game);
 
         // Add player to game (WebSocket session is stored on {@link Player})
-        if (!game.addPlayer(playerId, session, config, customDefinition)) {
+        if (!game.addPlayer(playerId, session, config, customDefinition, skirmishSlotIndex)) {
             log.warn("Failed to add player {} to RTS game {} (game may be full or started)", playerId, gameId);
 
             // Send error message to player

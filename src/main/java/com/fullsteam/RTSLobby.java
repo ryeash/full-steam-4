@@ -5,8 +5,12 @@ import com.fullsteam.games.GameConstants;
 import com.fullsteam.games.IdGenerator;
 import com.fullsteam.model.Biome;
 import com.fullsteam.model.GameConfig;
+import com.fullsteam.model.MatchmakingJoinRequest;
 import com.fullsteam.model.ObstacleDensity;
 import com.fullsteam.model.RTSGameManager;
+import com.fullsteam.model.SkirmishMatchConfig;
+import com.fullsteam.model.SkirmishSlotConfig;
+import com.fullsteam.model.SkirmishSlotKind;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import lombok.Getter;
@@ -17,6 +21,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -48,26 +55,28 @@ public class RTSLobby {
      */
     public RTSGameManager createGame() {
         return createGameWithConfig(GameConfig.builder()
-                .maxPlayers(4)
                 .worldHeight(4000)
                 .worldWidth(4000)
+                .skirmishSlots(SkirmishMatchConfig.defaultFfaHumanSlots(4))
                 .build());
     }
 
     /**
-     * Create a new RTS game with custom configuration
+     * Create a new RTS game with custom configuration (skirmish roster resolved and validated).
      */
     public RTSGameManager createGameWithConfig(GameConfig gameConfig) {
         if (activeGames.size() >= GameConstants.MAX_GLOBAL_GAMES) {
             throw new IllegalStateException("Maximum number of RTS games reached");
         }
 
+        GameConfig resolved = SkirmishMatchConfig.resolve(gameConfig);
         String gameId = IdGenerator.nextGameId();
-        RTSGameManager game = new RTSGameManager(gameId, gameConfig, objectMapper);
+        RTSGameManager game = new RTSGameManager(gameId, resolved, objectMapper);
         activeGames.put(gameId, game);
 
-        log.info("Created new RTS game: {} with config: maxPlayers={}, world={}x{}",
-                gameId, gameConfig.getMaxPlayers(), gameConfig.getWorldWidth(), gameConfig.getWorldHeight());
+        log.info("Created new RTS game: {} with config: humanSlots={}, totalSlots={}, mapTeams={}, world={}x{}",
+                gameId, resolved.getMaxPlayers(), resolved.getTotalSlotCount(),
+                resolved.getEffectiveMapTeamCount(), resolved.getWorldWidth(), resolved.getWorldHeight());
 
         return game;
     }
@@ -99,22 +108,28 @@ public class RTSLobby {
     }
 
     /**
-     * Join or create a matchmaking game
-     *
-     * @param gameId          Optional - if provided, join this specific game
-     * @param biome           The map biome
-     * @param obstacleDensity The obstacle density
-     * @param faction         The player's selected faction
-     * @param maxPlayers      Optional - if creating a new game, the max players (default 2)
-     * @return Map containing gameId and sessionToken
+     * Join or create a matchmaking game from a client {@link MatchmakingJoinRequest}.
      */
-    public synchronized Map<String, String> joinMatchmaking(String gameId, String biome, String obstacleDensity,
-                                                            String faction, Integer maxPlayers,
-                                                            Double configuredWorldWidth, Double configuredWorldHeight) {
+    public synchronized Map<String, String> joinMatchmaking(MatchmakingJoinRequest request) {
+        MatchmakingJoinRequest in = request != null ? request : new MatchmakingJoinRequest();
+        String gameId = emptyToNull(in.getGameId());
+        String biome = in.getBiome();
+        String obstacleDensity = in.getObstacleDensity();
+        String faction = in.getFaction();
+        Double configuredWorldWidth = in.getWorldWidth();
+        Double configuredWorldHeight = in.getWorldHeight();
+        List<SkirmishSlotConfig> skirmishSlots = in.getSkirmishSlots();
+        Integer mapTeamCount = in.getMapTeamCount();
+
+        if (skirmishSlots == null || skirmishSlots.isEmpty()) {
+            skirmishSlots = SkirmishMatchConfig.defaultFfaHumanSlots(2);
+        }
+
+        int rosterSizeForWorldSizing = skirmishSlots.size();
+
         Map<String, String> map = new HashMap<>();
 
-        // If gameId is specified, join that specific game
-        if (gameId != null && !gameId.isEmpty()) {
+        if (gameId != null) {
             MatchmakingGame specificGame = matchmakingGames.get(gameId);
             if (specificGame != null && specificGame.getCurrentPlayers() < specificGame.getMaxPlayers()) {
                 String sessionToken = specificGame.reserveSlot(faction);
@@ -133,11 +148,6 @@ public class RTSLobby {
             }
         }
 
-        // Otherwise, try to find an existing game waiting for players with matching settings
-        // (For now, we skip auto-matching and just create a new game)
-        // In future, we could match based on biome/density/playerCount
-
-        // Parse biome (default to GRASSLAND if not provided or invalid)
         Biome selectedBiome = Biome.GRASSLAND;
         if (biome != null) {
             try {
@@ -147,7 +157,6 @@ public class RTSLobby {
             }
         }
 
-        // Parse obstacle density (default to MEDIUM if not provided or invalid)
         ObstacleDensity selectedDensity = ObstacleDensity.MEDIUM;
         if (obstacleDensity != null) {
             try {
@@ -157,10 +166,7 @@ public class RTSLobby {
             }
         }
 
-        // Determine max players (default to 2 if not specified, max 4)
-        int players = (maxPlayers != null && maxPlayers >= 2 && maxPlayers <= 4) ? maxPlayers : 2;
-
-        double worldWidth = calculateWorldSize(players);
+        double worldWidth = calculateWorldSize(rosterSizeForWorldSizing);
         double worldHeight = worldWidth;
         if (configuredWorldWidth != null && configuredWorldHeight != null
                 && configuredWorldWidth >= 3000.0 && configuredWorldWidth <= 10000.0
@@ -169,25 +175,30 @@ public class RTSLobby {
             worldHeight = configuredWorldHeight;
         }
 
-        // Create a new matchmaking game with selected configuration
-        GameConfig config = GameConfig.builder()
-                .maxPlayers(players)
+        GameConfig partial = GameConfig.builder()
                 .worldWidth(worldWidth)
                 .worldHeight(worldHeight)
                 .biome(selectedBiome)
                 .obstacleDensity(selectedDensity)
+                .mapTeamCount(mapTeamCount)
+                .skirmishSlots(skirmishSlots)
                 .build();
-
-        RTSGameManager game = createGameWithConfig(config);
-        MatchmakingGame matchmakingGame = new MatchmakingGame(game.getGameId(), players);
+        RTSGameManager game = createGameWithConfig(partial);
+        MatchmakingGame matchmakingGame = new MatchmakingGame(game.getGameId(), game.getGameConfig());
         String sessionToken = matchmakingGame.reserveSlot(faction);
         matchmakingGames.put(game.getGameId(), matchmakingGame);
 
-        log.info("Created new matchmaking game: {} with biome {}, density {}, maxPlayers {}, faction {}, session: {}",
-                game.getGameId(), selectedBiome, selectedDensity, players, faction, sessionToken);
+        log.info("Created new matchmaking game: {} biome {} density {} roster {} humans {}/{}, session: {}",
+                game.getGameId(), selectedBiome, selectedDensity,
+                SkirmishMatchConfig.describeSlots(game.getGameConfig().getSkirmishSlots()),
+                matchmakingGame.getCurrentPlayers(), matchmakingGame.getMaxPlayers(), sessionToken);
         map.put("gameId", game.getGameId());
         map.put("sessionToken", sessionToken);
         return map;
+    }
+
+    private static String emptyToNull(String s) {
+        return (s == null || s.isEmpty()) ? null : s;
     }
 
     /**
@@ -205,10 +216,12 @@ public class RTSLobby {
     public synchronized void leaveMatchmaking(String gameId, String sessionToken) {
         MatchmakingGame game = matchmakingGames.get(gameId);
         if (game != null) {
+            if (sessionToken != null) {
+                game.releaseReservation(sessionToken);
+            }
             log.info("Player left matchmaking game: {}, session: {}, players: {}/{}",
                     gameId, sessionToken, game.getCurrentPlayers(), game.getMaxPlayers());
 
-            // If no players left, remove the game
             if (game.getCurrentPlayers() <= 0) {
                 matchmakingGames.remove(gameId);
                 removeGame(gameId);
@@ -232,83 +245,112 @@ public class RTSLobby {
     }
 
     /**
-     * Create a matchmaking entry for a debug game (to track faction selection)
-     *
-     * @return The session token for the player
-     */
-    public String createDebugMatchmakingEntry(String gameId, String faction) {
-        MatchmakingGame matchmakingGame = new MatchmakingGame(gameId, 1); // Single player debug game
-        String sessionToken = matchmakingGame.reserveSlot(faction);
-        matchmakingGames.put(gameId, matchmakingGame);
-        log.info("Created debug matchmaking entry for game {} with faction {} and session token {}",
-                gameId, faction, sessionToken);
-        return sessionToken;
-    }
-
-    /**
      * Inner class to track matchmaking game state
      */
     public static class MatchmakingGame {
+        private static final Logger SLOT_LOG = LoggerFactory.getLogger(MatchmakingGame.class);
+
         @Getter
         private final String gameId;
         @Getter
-        private final int maxPlayers;
-        @Getter
-        private int currentPlayers;
+        private final GameConfig resolvedGameConfig;
         @Getter
         private final long createdTime;
+        private final List<SkirmishSlotConfig> skirmishSlots;
+        private final int humanSlotsTotal;
+        private final Map<String, Integer> sessionTokenToSlotIndex = new ConcurrentHashMap<>();
+        private final Set<Integer> reservedHumanSlotIndices = ConcurrentHashMap.newKeySet();
 
-        public MatchmakingGame(String gameId, int maxPlayers) {
+        public MatchmakingGame(String gameId, GameConfig resolvedGameConfig) {
             this.gameId = gameId;
-            this.maxPlayers = maxPlayers;
-            this.currentPlayers = 0;
+            this.resolvedGameConfig = resolvedGameConfig;
+            this.skirmishSlots = List.copyOf(resolvedGameConfig.getSkirmishSlots());
+            this.humanSlotsTotal = (int) skirmishSlots.stream()
+                    .filter(s -> s.getKind() == SkirmishSlotKind.HUMAN)
+                    .count();
             this.createdTime = System.currentTimeMillis();
         }
 
         /**
-         * Reserve a slot for a player and return a unique session token
-         *
-         * @param faction The faction the player selected
-         * @return A unique session token for this player
+         * Human reservation count (lobby seats taken).
          */
-        public synchronized String reserveSlot(String faction) {
-            if (currentPlayers >= maxPlayers) {
-                return null; // Game is full
-            }
-
-            // Generate unique session token
-            String sessionToken = IdGenerator.nextGameId(); // Reuse game ID generator for uniqueness
-            int slot = currentPlayers;
-
-            currentPlayers++;
-
-            log.info("Reserved slot {} for session {} with faction {}", slot, sessionToken, faction);
-            return sessionToken;
+        public int getCurrentPlayers() {
+            return reservedHumanSlotIndices.size();
         }
 
         /**
-         * Mark a session as connected (consumed)
+         * Human slots that must fill before the match starts.
          */
-        public synchronized void markSessionConnected(String sessionToken) {
-            // Keep the mapping for now, but we could add a "connected" flag if needed
-            log.info("Session {} connected to game", sessionToken);
+        public int getMaxPlayers() {
+            return humanSlotsTotal;
         }
 
+        public int getTotalSkirmishSlots() {
+            return skirmishSlots.size();
+        }
+
+        public int getMapTeamCount() {
+            return resolvedGameConfig.getEffectiveMapTeamCount();
+        }
+
+        public synchronized Optional<Integer> getSlotIndexForToken(String sessionToken) {
+            if (sessionToken == null) {
+                return Optional.empty();
+            }
+            return Optional.ofNullable(sessionTokenToSlotIndex.get(sessionToken));
+        }
+
+        public synchronized void releaseReservation(String sessionToken) {
+            Integer idx = sessionTokenToSlotIndex.remove(sessionToken);
+            if (idx != null) {
+                reservedHumanSlotIndices.remove(idx);
+            }
+        }
+
+        /**
+         * Reserve the next open human skirmish slot and return a unique session token
+         */
+        public synchronized String reserveSlot(String faction) {
+            for (int i = 0; i < skirmishSlots.size(); i++) {
+                if (skirmishSlots.get(i).getKind() != SkirmishSlotKind.HUMAN) {
+                    continue;
+                }
+                if (reservedHumanSlotIndices.contains(i)) {
+                    continue;
+                }
+                String sessionToken = IdGenerator.nextGameId();
+                reservedHumanSlotIndices.add(i);
+                sessionTokenToSlotIndex.put(sessionToken, i);
+                SLOT_LOG.info("Reserved human skirmish slot {} for session {} with faction {}", i, sessionToken, faction);
+                return sessionToken;
+            }
+            return null;
+        }
+
+        public synchronized void markSessionConnected(String sessionToken) {
+            SLOT_LOG.info("Session {} connected to game", sessionToken);
+        }
+
+        /**
+         * True when every human skirmish slot has a lobby reservation (AI slots never wait on joiners).
+         */
         public boolean isReady() {
-            return currentPlayers >= maxPlayers;
+            return reservedHumanSlotIndices.size() >= humanSlotsTotal;
         }
     }
 
     /**
-     * Remove games that are finished (gameOver = true) or have no players
+     * Drop stale matchmaking rows when the RTS game is gone or has ended.
+     * (Previously this removed any row whose game existed in {@link #activeGames}, which broke
+     * status polling as soon as a match was created.)
      */
     private void cleanupFinishedGames() {
         try {
-            for (MatchmakingGame value : matchmakingGames.values()) {
-                if (activeGames.containsKey(value.getGameId())) {
-                    matchmakingGames.remove(value.getGameId());
-                }
-            }
+            matchmakingGames.entrySet().removeIf(e -> {
+                String gameId = e.getKey();
+                RTSGameManager game = activeGames.get(gameId);
+                return game == null || game.isGameOver();
+            });
         } catch (Throwable t) {
             log.error("error cleaning up inactive games", t);
         }

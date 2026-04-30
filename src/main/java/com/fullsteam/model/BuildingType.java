@@ -12,315 +12,284 @@ import java.util.List;
 
 /**
  * Defines the different types of buildings available in the RTS game.
- * Shape rendering is handled by the number of sides (3=triangle, 4=rectangle, etc.)
  */
 @Getter
 public enum BuildingType {
-    // Main base - produces workers, required to win
     HEADQUARTERS(
             "Headquarters",
             "Your main base—trains workers, generates power, and must survive to stay in the fight.",
             BuildingCategory.ECONOMY,
-            // free (starting building)
-            0,        // no build time
-            0,     // max health
-            5000,     // size (radius)
-            80.0,  // gold
-            0xFFD700,    // can produce units
-            true,       // power generation
-            50,    // vision range (excellent, main base)
-            500.0,         // faction customization point cost
+            0,
+            0,
+            5000,
+            80.0,
+            0xFFD700,
+            true,
+            50,
+            500.0,
             0, false,
             "H",
-            "\uD83C\uDFDB\uFE0F",
+            "\uD83C\uDFDB️",
             null),
 
-    // Resource collection point
     REFINERY(
             "Refinery",
             "Resource drop-off for workers; extends your economy beyond the starting stockpile.",
             BuildingCategory.ECONOMY,
-            // resource cost
-            300,       // build time (seconds)
-            20,      // max health
-            600,     // size (radius)
-            50.0,  // gray
-            0x808080,    // cannot produce units
-            false,     // power consumption
-            -10,    // vision range (moderate, economic building)
-            350.0,         // faction customization point cost
+            300,
+            20,
+            600,
+            50.0,
+            0x808080,
+            false,
+            -10,
+            350.0,
             2, false,
             "R",
             "\uD83C\uDFED",
             'R'),
 
-    // Infantry production
     BARRACKS(
             "Barracks",
             "Produces infantry—from basic riflemen to medics, engineers, and elite specialists.",
             BuildingCategory.PRODUCTION,
-            // resource cost
-            200,       // build time (seconds)
-            15,      // max health
-            550,     // size (radius)
-            45.0,  // brown
-            0x8B4513,    // can produce units
-            true,     // power consumption
-            -25,    // vision range (good, production building)
-            380.0,         // faction customization point cost
+            200,
+            15,
+            550,
+            45.0,
+            0x8B4513,
+            true,
+            -25,
+            380.0,
             3, false,
             "B",
             "\uD83C\uDFF0",
             'B'),
 
-    // Power generation - required for advanced buildings
     POWER_PLANT(
             "Power Plant",
             "Generates electricity; build more before advanced structures brown out your grid.",
             BuildingCategory.ECONOMY,
-            // resource cost
-            250,       // build time (seconds)
-            20,      // max health
-            400,     // size (radius)
-            40.0,  // yellow
-            0xFFFF00,    // cannot produce units
-            false,      // power generation
-            100,    // vision range (moderate, utility building)
-            360.0,         // faction customization point cost
+            250,
+            20,
+            400,
+            40.0,
+            0xFFFF00,
+            false,
+            100,
+            360.0,
             0, false,
             "P",
-            "\u26A1",
+            "⚡",
             'P'),
 
-    // Vehicle production
     FACTORY(
             "Factory",
             "Vehicle production—from scouts and transports to tanks, artillery, and super-heavies.",
             BuildingCategory.PRODUCTION,
-            // resource cost
-            400,       // build time (seconds)
-            25,      // max health
-            800,     // size (radius)
-            55.0,  // dark gray
-            0x696969,    // can produce units
-            true,     // power consumption
-            -30,    // vision range (good, production building)
-            390.0,         // faction customization point cost
+            400,
+            25,
+            800,
+            55.0,
+            0x696969,
+            true,
+            -30,
+            390.0,
             5, false,
             "F",
             "\uD83D\uDE97",
             'F'),
 
-    // Research and tech unlocking - unlocks T2
     RESEARCH_LAB(
             "Research Lab",
             "Standard tech structure unlocks tier-2 tech.",
             BuildingCategory.TECH,
-            // resource cost
-            500,       // build time (seconds)
-            30,      // max health
-            700,     // size (radius)
-            50.0,  // dark turquoise
-            0x00CED1,    // cannot produce units
-            false,     // power consumption
-            -35,    // vision range (good, tech building)
-            400.0,         // vision radius (world units)
+            500,
+            30,
+            700,
+            50.0,
+            0x00CED1,
+            false,
+            -35,
+            400.0,
             3, false,
             "RL",
             "\uD83D\uDD2C",
             'E'),
 
-    // Elite tech unlocking - unlocks T3
     TECH_CENTER(
             "Tech Center",
             "High end research hub unlocks tier-3 tech.",
             BuildingCategory.TECH,
-            // resource cost
-            800,       // build time (seconds)
-            40,      // max health
-            900,     // size (radius)
-            60.0,  // royal blue
-            0x4169E1,    // cannot produce units
-            false,     // power consumption
-            -50,    // vision range (excellent, advanced tech)
-            420.0,         // vision radius (world units)
+            800,
+            40,
+            900,
+            60.0,
+            0x4169E1,
+            false,
+            -50,
+            420.0,
             5, false,
             "TC",
             "\uD83E\uDDEA",
             'C'),
 
-
-    // Defensive structure - attacks enemies with cannon
     TURRET(
             "Turret",
             "Automated cannon emplacement—reliable general-purpose base and chokepoint defense.",
             BuildingCategory.DEFENSE,
-            // resource cost
-            250,       // build time (seconds)
-            15,      // max health
-            500,     // size (radius)
-            25.0,  // orange red
-            0xFF4500,    // cannot produce units
-            false,     // power consumption
-            -35,    // vision range (excellent, needs to spot threats)
-            450.0,         // faction customization point cost
+            250,
+            15,
+            500,
+            25.0,
+            0xFF4500,
+            false,
+            -35,
+            450.0,
             2, false,
             "T",
             "\uD83C\uDFAF",
             'T'),
 
-    // Defensive structure - fires rockets with explosive damage
     ROCKET_TURRET(
             "Rocket Turret",
             "Long-range rocket battery—explosive volleys excel versus armor and grouped targets.",
             BuildingCategory.DEFENSE,
-            // resource cost (more expensive than basic turret)
-            350,       // build time (seconds)
-            20,      // max health (lower than basic turret)
-            400,     // size (radius)
-            25.0,  // tomato red
-            0xFF6347,    // cannot produce units
-            false,     // power consumption (higher than basic)
-            -50,    // vision range (excellent, long-range targeting)
-            480.0,         // faction customization point cost
+            350,
+            20,
+            400,
+            25.0,
+            0xFF6347,
+            false,
+            -50,
+            480.0,
             3, false,
             "RT",
             "\uD83D\uDE80",
             'O'),
 
-    // Defensive structure - dedicated anti-aircraft flak cannon
     FLAK_TURRET(
             "Flak Turret",
             "Dedicated anti-air turret shredding low-altitude aircraft with flak bursts.",
             BuildingCategory.DEFENSE,
-            // resource cost (cheaper than rocket turret, accessible T2)
-            300,       // build time (seconds)
-            18,      // max health (moderate durability)
-            450,     // size (radius)
-            25.0,  // gray (flak color)
-            0xA0A0A0,    // cannot produce units
-            false,     // power consumption (moderate)
-            -45,    // vision range (excellent, needs to spot aircraft)
-            500.0,         // faction customization point cost
+            300,
+            18,
+            450,
+            25.0,
+            0xA0A0A0,
+            false,
+            -45,
+            500.0,
             3, false,
             "FT",
             "\uD83D\uDCA5",
             'X'),
 
-    // Defensive structure - fires laser beams
     LASER_TURRET(
             "Laser Turret",
             "High-tech beam turret—long reach, sustained damage, and hungry power draw.",
             BuildingCategory.DEFENSE,
-            // resource cost (expensive advanced turret)
-            400,       // build time (seconds)
-            25,      // max health (lowest of turrets - glass cannon)
-            350,     // size (radius)
-            25.0,  // cyan (laser blue)
-            0x00FFFF,    // cannot produce units
-            false,     // power consumption (highest - energy weapon)
-            -65,    // vision range (best, advanced sensors)
-            500.0,         // faction customization point cost
+            400,
+            25,
+            350,
+            25.0,
+            0x00FFFF,
+            false,
+            -65,
+            500.0,
             4, false,
             "LT",
             "\uD83D\uDD37",
             'L'),
 
-    // Defensive structure - infantry can garrison inside and fire out
     BUNKER(
             "Bunker",
-            "Hardened garrison structure—infantry inside gain protection and extra defensive fireports.",
+            "Hardened garrison structure—infantry inside gain protection and use defensive fireports.",
             BuildingCategory.DEFENSE,
-            // resource cost - reduced to make it accessible as T1
-            250,       // build time (seconds)
-            18,      // max health
-            1200,     // size (radius)
-            35.0,  // dark olive green
-            0x556B2F,    // cannot produce units
-            false,     // power consumption
-            -15,    // vision range (excellent, defensive structure)
-            420.0,         // faction customization point cost
+            250,
+            18,
+            1200,
+            35.0,
+            0x556B2F,
+            false,
+            -15,
+            420.0,
             3, false,
-            "\u2694",
+            "⚔",
             "\uD83C\uDFF0",
             'U'),
 
-    // Defensive structure - projects shield that destroys incoming projectiles
     SHIELD_GENERATOR(
             "Shield Generator",
             "Projects a bubble shield that blocks hostile projectiles for units and structures inside.",
             BuildingCategory.DEFENSE,
-            // resource cost
-            400,       // build time (seconds)
-            25,      // max health
-            500,     // size (radius)
-            30.0,  // deep sky blue
-            0x00BFFF,    // cannot produce units
-            false,     // power consumption
-            -40,    // vision range (good, defensive utility)
-            380.0,         // faction customization point cost
+            400,
+            25,
+            500,
+            30.0,
+            0x00BFFF,
+            false,
+            -40,
+            380.0,
             4, false,
             "SG",
-            "\uD83D\uDEE1\uFE0F",
+            "\uD83D\uDEE1️",
             'Y'),
 
     BANK(
             "Bank",
             "Generates interest income based on current credit count.",
             BuildingCategory.ECONOMY,
-            // resource cost (expensive T3 building)
-            600,       // build time (seconds)
-            30,      // max health
-            420,     // size (radius)
-            35.0,  // gold
-            0xFFD700,    // cannot produce units
-            false,     // power consumption
-            -30,    // vision range (moderate, economic building)
-            350.0,         // faction customization point cost
-            4, false,
+            600,
+            30,
+            420,
+            35.0,
+            0xFFD700,
+            false,
+            -30,
+            350.0,
+            4,
+            false,
             "$",
             "\uD83D\uDCB0",
             'G'),
 
-    // Creates sandstorms for area denial
     SANDSTORM_GENERATOR(
             "Sandstorm Generator",
             "Summons a sandstorm aura that damages and disrupts enemies caught in the storm.",
             BuildingCategory.DEFENSE,
-            // resource cost
-            600,       // build time (seconds)
-            60,      // max health
-            800,     // size (radius) - reduced from 45
-            35.0,  // burlywood (sandy color)
-            0xDEB887,    // cannot produce units
-            false,     // power consumption
-            -40,    // vision range (good)
-            430.0,        // faction customization point cost
-            8, false,
-            "\u2601",
-            "\uD83C\uDF2A\uFE0F",
+            600,
+            60,
+            800,
+            35.0,
+            0xDEB887,
+            false,
+            -40,
+            430.0,
+            8,
+            false,
+            "☁",
+            "\uD83C\uDF2A️",
             'Q'),
 
-    // Autonomous android production facility
     ANDROID_FACTORY(
             "Android Factory",
             "Autonomous factory that continuously builds free Android combat units without a queue.",
             BuildingCategory.PRODUCTION,
-            // resource cost
-            700,       // build time (seconds)
-            90,      // max health
-            900,     // size (radius)
-            42.0,  // dark turquoise (Synthesis faction color)
-            0x00CED1,    // can produce units (Androids!)
-            true,     // power consumption
-            -60,    // vision range (excellent)
-            420.0,        // faction customization point cost
-            12, false,
+            700,
+            90,
+            900,
+            42.0,
+            0x00CED1,
+            true,
+            -60,
+            420.0,
+            12,
+            false,
             "A",
             "\uD83E\uDD16",
             null),
 
-    // Defensive laser tower
     PHOTON_SPIRE(
             "Photon Spire",
             "Defensive photon lance tower.",
@@ -334,59 +303,55 @@ public enum BuildingType {
             false,     // power consumption
             -75,    // vision range (excellent, defensive)
             480.0,        // faction customization point cost
-            10, false,
-            "\u26A1",
+            10,
+            false,
+            "⚡",
             "\uD83D\uDC8E",
             'H'),
 
-    // Ultimate command center
     // TODO: may become obsolete with change to upkeep
     COMMAND_CITADEL(
             "Command Citadel",
             "Massive fortified command hub with huge vision—an anchor for super-late economies.",
             BuildingCategory.DEFENSE,
-            // resource cost (expensive)
-            700,       // build time (seconds)
-            80,     // max health
-            1000,     // size (radius) - large and imposing
-            55.0,  // royal blue (command authority)
-            0x4169E1,    // cannot produce units
-            false,     // power consumption
-            -50,   // vision range (HUGE, command center bonus)
-            1000.0,        // faction customization point cost
-            10, false,
+            700,
+            80,
+            1000,
+            55.0,
+            0x4169E1,
+            false,
+            -50,
+            1000.0,
+            10,
+            false,
             "CC",
             "\uD83C\uDFF0",
             null),
 
-    // Air unit production - requires Tech Center
     AIRFIELD(
             "Airfield",
             "Produces and houses aircraft—VTOL gunships plus sortie-based bombers and fighters.",
             BuildingCategory.PRODUCTION,
-            // resource cost
-            600,       // build time (seconds)
-            35,      // max health
-            700,     // size (radius) - large landing pad
-            60.0,  // slate gray (runway color)
-            0x708090,    // can produce units (air units!)
-            true,     // power consumption
-            -40,    // vision range (good, airfield tower)
-            420.0,         // faction customization point cost
-            5, false,
+            600,
+            35,
+            700,
+            60.0,
+            0x708090,
+            true,
+            -40,
+            420.0,
+            5,
+            false,
             "AF",
-            "\u2708\uFE0F",
+            "✈️",
             'I'),
 
-    /**
-     * Unlocks {@link CommandAbilityType#MARINE_DROP} for orbital infantry inserts.
-     */
     JUMP_PAD(
             "Jump Pad",
             "Drop-ship landing grid and uplink—unlocks the Marine Drop command.",
             BuildingCategory.TECH,
-            620,
-            55,
+            2620,
+            280,
             75.0,
             44.0,
             0x4A708B,
@@ -399,15 +364,12 @@ public enum BuildingType {
             "\uD83D\uDE81",
             'J'),
 
-    /**
-     * Nuclear missile silo—required for {@link CommandAbilityType#NUKE_ARM} and {@link CommandAbilityType#NUKE_LAUNCH}.
-     */
     NUKE_SILO(
             "Nuclear Silo",
             "Houses and arms a strategic warhead; arm on command, then launch at a ground target.",
             BuildingCategory.TECH,
-            950,
-            80,
+            2950,
+            360,
             100.0,
             48.0,
             0x8B0000,
@@ -417,36 +379,33 @@ public enum BuildingType {
             8,
             true,
             "NS",
-            "\u2622\uFE0F",
+            "☢️",
             'N'),
 
-    /** Unlocks command abilities (e.g. {@link CommandAbilityType#STRIKE_PACKAGE}, {@link CommandAbilityType#FLAK_BURST}). */
     STRIKE_RELAY(
             "Strike Relay",
             "Tactical uplink—unlocks the Strike Package command ability.",
             BuildingCategory.TECH,
-            550,
-            45,
-            85.0,   // max health
-            42.0,   // collision radius (was 390 by mistake — dominated the map)
+            2550,
+            280,
+            85.0,
+            42.0,
             0xCD853F,
             false,
             -35,
             -40.0,
-            5, true,
+            5,
+            true,
             "SR",
             "\uD83C\uDFAF",
             'V'),
 
-    /**
-     * Unlocks {@link CommandAbilityType#SATELLITE_SWEEP} for temporary wide-area recon.
-     */
     SATCOM_ARRAY(
             "Satcom Array",
             "Orbital uplink—unlocks the Satellite Sweep command for brief wide-area vision.",
             BuildingCategory.TECH,
-            580,
-            48,
+            2580,
+            220,
             70.0,
             40.0,
             0x6495ED,
@@ -459,43 +418,40 @@ public enum BuildingType {
             "\uD83D\uDEF0",
             'M'),
 
-    /**
-     * Unlocks {@link CommandAbilityType#CARPET_BOMB} for a multi-hit strike corridor.
-     */
     CARPET_PAD(
             "Carpet Bomb Pad",
-            "Bomber staging field—unlocks the Carpet Bomb command along an east–west corridor.",
+            "Bomber staging field—unlocks the Carpet Bomb command.",
             BuildingCategory.TECH,
-            640,
-            50,
+            2640,
+            330,
             78.0,
             43.0,
             0x556B2F,
             false,
             -38,
-            -42.0,
+            0,
             6,
             true,
             "CB",
-            "\u2708\uFE0F",
+            "✈️",
             'K'),
 
     TEMPEST_SPIRE(
             "Tempest Spire",
             "Anti-air guided missile launch platform.",
             BuildingCategory.DEFENSE,
-            // resource cost (expensive)
-            700,       // build time (seconds)
-            70,      // max health
-            850,     // size (radius)
-            45.0,  // steel blue (storm theme)
-            0x4682B4,    // cannot produce units
-            false,     // power consumption
-            -60,    // vision range (excellent, weather tower)
-            600.0,        // faction customization point cost
-            12, false,
-            "\u26C8",
-            "\u26C8\uFE0F",
+            700,
+            70,
+            850,
+            45.0,
+            0x4682B4,
+            false,
+            -60,
+            600.0,
+            12,
+            false,
+            "⛈",
+            "⛈️",
             'Z');
 
     private final String displayName;
@@ -515,9 +471,13 @@ public enum BuildingType {
      * (see {@link RTSGameManager}). Use for command / strategic structures (e.g. {@link #STRIKE_RELAY}).
      */
     private final boolean uniquePerPlayer;
-    /** Short text on the field map (client HUD). */
+    /**
+     * Short text on the field map (client HUD).
+     */
     private final String label;
-    /** Emoji for build menus / UI (client). */
+    /**
+     * Emoji for build menus / UI (client).
+     */
     private final String menuIcon;
     /**
      * Worker build-menu hotkey (single display character). Null when unassigned; never duplicates
@@ -828,8 +788,7 @@ public enum BuildingType {
 
             // Requires Power Plant + Research Lab  + TECH_CENTER
             case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL, JUMP_PAD, NUKE_SILO, STRIKE_RELAY,
-                 SATCOM_ARRAY, CARPET_PAD, TEMPEST_SPIRE ->
-                    List.of(POWER_PLANT, RESEARCH_LAB, TECH_CENTER);
+                 SATCOM_ARRAY, CARPET_PAD, TEMPEST_SPIRE -> List.of(POWER_PLANT, RESEARCH_LAB, TECH_CENTER);
         };
     }
 

@@ -18,6 +18,10 @@ public class Player {
 
     private final int playerId;
     private final int teamNumber;
+    /**
+     * Index into {@link GameConfig#getSkirmishSlots()} when this faction was created from a skirmish roster; otherwise null.
+     */
+    private final Integer skirmishSlotIndex;
     private FactionDefinition factionDefinition;
     private WebSocketSession webSocketSession;
     private final Map<ResourceType, Integer> resources = new HashMap<>();
@@ -36,7 +40,7 @@ public class Player {
      * Constructor for AI or tests (no WebSocket).
      */
     public Player(int playerId, int teamNumber, FactionDefinition customDefinition) {
-        this(playerId, teamNumber, customDefinition, null);
+        this(playerId, teamNumber, customDefinition, null, null);
     }
 
     /**
@@ -44,12 +48,26 @@ public class Player {
      */
     public Player(int playerId, int teamNumber, FactionDefinition customDefinition,
                   WebSocketSession webSocketSession) {
+        this(playerId, teamNumber, customDefinition, webSocketSession, null);
+    }
+
+    /**
+     * Full constructor including optional skirmish slot index (humans and AI).
+     */
+    public Player(int playerId, int teamNumber, FactionDefinition customDefinition,
+                  WebSocketSession webSocketSession, Integer skirmishSlotIndex) {
         this.playerId = playerId;
         this.teamNumber = teamNumber;
         this.factionDefinition = customDefinition;
         this.webSocketSession = webSocketSession;
+        this.skirmishSlotIndex = skirmishSlotIndex;
         this.resources.put(ResourceType.CREDITS, 1000); // Starting credits
     }
+
+    /**
+     * Skirmish AI only: selects {@link com.fullsteam.ai.SkirmishAiProfile} tuning; null for humans.
+     */
+    private AiDifficulty skirmishAiDifficulty;
 
     /**
      * Add resources to this faction

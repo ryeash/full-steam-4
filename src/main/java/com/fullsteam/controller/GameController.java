@@ -1,8 +1,7 @@
 package com.fullsteam.controller;
 
 import com.fullsteam.RTSLobby;
-import com.fullsteam.model.GameConfig;
-import com.fullsteam.model.RTSGameManager;
+import com.fullsteam.model.MatchmakingJoinRequest;
 import io.micronaut.context.annotation.Context;
 import io.micronaut.core.io.ResourceResolver;
 import io.micronaut.http.HttpRequest;
@@ -20,7 +19,6 @@ import io.micronaut.http.exceptions.HttpStatusException;
 import io.micronaut.http.server.types.files.StreamedFile;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import jakarta.validation.Valid;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,37 +47,6 @@ public class GameController {
         this.resourceResolver = resourceResolver;
     }
 
-    @Post("/api/rts/games")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)
-    public Map<String, String> createRTSGame(@Valid @Body GameConfig gameConfig) {
-        try {
-            RTSGameManager game;
-            if (gameConfig != null) {
-                game = rtsLobby.createGameWithConfig(gameConfig);
-            } else {
-                game = rtsLobby.createGame();
-            }
-
-            // Create a matchmaking game entry for faction tracking (even for debug games)
-            String factionName = (gameConfig != null && gameConfig.getFaction() != null)
-                    ? gameConfig.getFaction() : "TERRAN";
-            String sessionToken = rtsLobby.createDebugMatchmakingEntry(game.getGameId(), factionName);
-
-            // Add AI player for debug games (when called directly, not through matchmaking)
-            game.addAIPlayer();
-
-            return Map.of(
-                    "gameId", game.getGameId(),
-                    "sessionToken", sessionToken,
-                    "status", "created"
-            );
-        } catch (IllegalStateException e) {
-            throw new HttpStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Failed to create RTS game: " + e.getMessage());
-        }
-    }
-
     @Get("/api/rts/lobby")
     @Produces(MediaType.APPLICATION_JSON)
     public Map<String, Object> getRTSLobby() {
@@ -94,6 +61,8 @@ public class GameController {
                     gameInfo.put("gameId", game.getGameId());
                     gameInfo.put("currentPlayers", game.getCurrentPlayers());
                     gameInfo.put("maxPlayers", game.getMaxPlayers());
+                    gameInfo.put("totalSlots", game.getTotalSkirmishSlots());
+                    gameInfo.put("mapTeamCount", game.getMapTeamCount());
                     gameInfo.put("ready", game.isReady());
                     gameInfo.put("createdTime", game.getCreatedTime());
                     return gameInfo;
@@ -106,66 +75,18 @@ public class GameController {
 
     @Post("/api/rts/matchmaking/join")
     @Produces(MediaType.APPLICATION_JSON)
-    public Map<String, String> joinMatchmaking(@Body Map<String, Object> config) {
+    public Map<String, String> joinMatchmaking(@Body MatchmakingJoinRequest request) {
         try {
-            // Extract configuration from request body
-            String gameId = config != null ? stringVal(config.get("gameId")) : null;
-            String biome = config != null ? stringVal(config.get("biome")) : null;
-            String obstacleDensity = config != null ? stringVal(config.get("obstacleDensity")) : null;
-            String faction = config != null ? stringVal(config.get("faction")) : null;
-
-            // Parse maxPlayers if provided
-            Integer maxPlayers = null;
-            if (config != null && config.containsKey("maxPlayers")) {
-                maxPlayers = parseInteger(config.get("maxPlayers"));
-                if (maxPlayers == null) {
-                    log.warn("Invalid maxPlayers value: {}", config.get("maxPlayers"));
-                }
-            }
-
-            Double worldWidth = parseDouble(config != null ? config.get("worldWidth") : null);
-            Double worldHeight = parseDouble(config != null ? config.get("worldHeight") : null);
-
-            Map<String, String> result = rtsLobby.joinMatchmaking(gameId, biome, obstacleDensity, faction, maxPlayers,
-                    worldWidth, worldHeight);
+            MatchmakingJoinRequest body = request != null ? request : new MatchmakingJoinRequest();
+            Map<String, String> result = rtsLobby.joinMatchmaking(body);
             result.put("status", "joined");
             return result;
+        } catch (IllegalArgumentException e) {
+            throw new HttpStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         } catch (Exception e) {
             log.error("Error joining matchmaking", e);
             throw new HttpStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Failed to join matchmaking: " + e.getMessage());
-        }
-    }
-
-    private static String stringVal(Object o) {
-        return o == null ? null : String.valueOf(o);
-    }
-
-    private static Integer parseInteger(Object o) {
-        if (o == null) {
-            return null;
-        }
-        if (o instanceof Number n) {
-            return n.intValue();
-        }
-        try {
-            return Integer.parseInt(String.valueOf(o));
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    private static Double parseDouble(Object o) {
-        if (o == null) {
-            return null;
-        }
-        if (o instanceof Number n) {
-            return n.doubleValue();
-        }
-        try {
-            return Double.parseDouble(String.valueOf(o));
-        } catch (NumberFormatException e) {
-            return null;
         }
     }
 
@@ -196,6 +117,8 @@ public class GameController {
         status.put("gameId", game.getGameId());
         status.put("currentPlayers", game.getCurrentPlayers());
         status.put("maxPlayers", game.getMaxPlayers());
+        status.put("totalSlots", game.getTotalSkirmishSlots());
+        status.put("mapTeamCount", game.getMapTeamCount());
         status.put("ready", game.isReady());
         status.put("createdTime", game.getCreatedTime());
         return status;

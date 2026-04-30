@@ -242,6 +242,22 @@ public class ProductionComponent extends AbstractBuildingComponent {
     }
 
     /**
+     * Current production plus queued orders of the given type (for AI caps and diagnostics).
+     */
+    public int countPipelineUnits(UnitType unitType) {
+        int n = 0;
+        if (currentProduction != null && currentProduction.getUnitType() == unitType) {
+            n++;
+        }
+        for (ProductionOrder order : productionQueue) {
+            if (order.getUnitType() == unitType) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /**
      * Set the rally point for produced units.
      *
      * @param point The new rally point
