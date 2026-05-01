@@ -60,7 +60,7 @@ public abstract class AbstractPlaceBuildingBehavior implements SkirmishAiBehavio
         if (worker.isEmpty()) {
             return Optional.empty();
         }
-        Optional<Vector2> loc = entities.suggestBuildLocationNear(ctx.playerId(), buildingType(), ctx.baseAnchor());
+        Optional<Vector2> loc = entities.suggestBuildLocationNear(buildingType(), ctx.baseAnchor());
         if (loc.isEmpty()) {
             return Optional.empty();
         }

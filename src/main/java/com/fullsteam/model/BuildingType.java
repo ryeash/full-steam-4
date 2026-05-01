@@ -309,25 +309,6 @@ public enum BuildingType {
             "\uD83D\uDC8E",
             'H'),
 
-    // TODO: may become obsolete with change to upkeep
-    COMMAND_CITADEL(
-            "Command Citadel",
-            "Massive fortified command hub with huge vision—an anchor for super-late economies.",
-            BuildingCategory.DEFENSE,
-            700,
-            80,
-            1000,
-            55.0,
-            0x4169E1,
-            false,
-            -50,
-            1000.0,
-            10,
-            false,
-            "CC",
-            "\uD83C\uDFF0",
-            null),
-
     AIRFIELD(
             "Airfield",
             "Produces and houses aircraft—VTOL gunships plus sortie-based bombers and fighters.",
@@ -417,24 +398,6 @@ public enum BuildingType {
             "SA",
             "\uD83D\uDEF0",
             'M'),
-
-    CARPET_PAD(
-            "Carpet Bomb Pad",
-            "Bomber staging field—unlocks the Carpet Bomb command.",
-            BuildingCategory.TECH,
-            2640,
-            330,
-            78.0,
-            43.0,
-            0x556B2F,
-            false,
-            -38,
-            0,
-            6,
-            true,
-            "CB",
-            "✈️",
-            'K'),
 
     TEMPEST_SPIRE(
             "Tempest Spire",
@@ -527,34 +490,6 @@ public enum BuildingType {
     }
 
     /**
-     * Check if this building requires proximity to another building type
-     *
-     * @return the required building type, or null if no proximity requirement
-     */
-    public BuildingType getProximityRequirement() {
-        return null;
-    }
-
-    /**
-     * Get the required proximity range for buildings that need to be near another building
-     *
-     * @return the maximum distance in pixels, or 0 if no proximity requirement
-     */
-    public double getProximityRange() {
-        return 0;
-    }
-
-    /**
-     * Get the number of support slots this building provides for dependent buildings
-     * For example, an Airfield can support N Hangars
-     *
-     * @return number of dependent buildings this can support, or 0 if none
-     */
-    public int getSupportCapacity() {
-        return 0;
-    }
-
-    /**
      * Get the tech tier required to build this building
      */
     public int getRequiredTechTier() {
@@ -562,8 +497,8 @@ public enum BuildingType {
             case HEADQUARTERS, REFINERY, BARRACKS, POWER_PLANT, BUNKER -> 1;
             case FACTORY, RESEARCH_LAB, TURRET, SHIELD_GENERATOR, ROCKET_TURRET, FLAK_TURRET -> 2;
             case TECH_CENTER, BANK, SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE,
-                 COMMAND_CITADEL, LASER_TURRET, AIRFIELD, JUMP_PAD, NUKE_SILO, STRIKE_RELAY,
-                 SATCOM_ARRAY, CARPET_PAD, TEMPEST_SPIRE -> 3;
+                 LASER_TURRET, AIRFIELD, JUMP_PAD, NUKE_SILO, STRIKE_RELAY,
+                 SATCOM_ARRAY, TEMPEST_SPIRE -> 3;
         };
     }
 
@@ -711,9 +646,6 @@ public enum BuildingType {
                 yield List.of(leftWing, centralSquare, rightWing);
             }
 
-            // Command Citadel - octagonal fortress tower
-            case COMMAND_CITADEL -> List.of(Geometry.createPolygonalCircle(8, size));
-
             // Airfield - rectangular runway with control tower
             case AIRFIELD -> {
                 // Main runway (large rectangle)
@@ -733,8 +665,6 @@ public enum BuildingType {
             case STRIKE_RELAY -> List.of(Geometry.createPolygonalCircle(6, size));
 
             case SATCOM_ARRAY -> List.of(Geometry.createPolygonalCircle(8, size));
-
-            case CARPET_PAD -> List.of(Geometry.createRectangle(size * 1.8, size * 0.95));
 
             // Tempest Spire - weather control tower with antenna arrays
             case TEMPEST_SPIRE -> {
@@ -787,8 +717,8 @@ public enum BuildingType {
             case TECH_CENTER, BANK, LASER_TURRET, AIRFIELD -> List.of(POWER_PLANT, RESEARCH_LAB);
 
             // Requires Power Plant + Research Lab  + TECH_CENTER
-            case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, COMMAND_CITADEL, JUMP_PAD, NUKE_SILO, STRIKE_RELAY,
-                 SATCOM_ARRAY, CARPET_PAD, TEMPEST_SPIRE -> List.of(POWER_PLANT, RESEARCH_LAB, TECH_CENTER);
+            case SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE, JUMP_PAD, NUKE_SILO, STRIKE_RELAY,
+                 SATCOM_ARRAY, TEMPEST_SPIRE -> List.of(POWER_PLANT, RESEARCH_LAB, TECH_CENTER);
         };
     }
 

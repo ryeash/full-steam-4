@@ -155,7 +155,7 @@ public class GameEntities {
      * Spatial + support-capacity probe around {@code anchor}. Does not validate affordability or worker selection;
      * {@link RTSGameManager#processPlayerInput} applies those when processing {@link RTSPlayerInput} build orders.
      */
-    public Optional<Vector2> suggestBuildLocationNear(int playerId, BuildingType type, Vector2 anchor) {
+    public Optional<Vector2> suggestBuildLocationNear(BuildingType type, Vector2 anchor) {
         if (anchor == null || collisionProcessor == null || gameConfig == null) {
             return Optional.empty();
         }
@@ -163,8 +163,7 @@ public class GameEntities {
         double h = gameConfig.getWorldHeight();
         for (double[] d : BUILD_SITE_PROBE_OFFSETS) {
             Vector2 loc = new Vector2(anchor.x + d[0], anchor.y + d[1]);
-            if (collisionProcessor.isValidBuildLocation(loc, type, w, h)
-                    && collisionProcessor.hasSupportCapacity(loc, type, playerId)) {
+            if (collisionProcessor.isValidBuildLocation(loc, type, w, h)) {
                 return Optional.of(loc);
             }
         }

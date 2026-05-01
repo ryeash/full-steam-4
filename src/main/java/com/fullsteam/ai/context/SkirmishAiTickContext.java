@@ -34,6 +34,7 @@ public record SkirmishAiTickContext(
         int powerPlantsUnderConstruction,
         int researchLabsUnderConstruction,
         int factoriesUnderConstruction,
+        int barracksUnderConstruction,
         SkirmishAiProfile aiProfile
 ) {
     public static SkirmishAiTickContext build(GameEntities entities, int playerId, int frameCount) {
@@ -71,6 +72,7 @@ public record SkirmishAiTickContext(
         int plantsUc = 0;
         int researchLabsUc = 0;
         int factoriesUc = 0;
+        int barracksUc = 0;
 
         for (Building b : entities.getBuildings().values()) {
             if (!b.belongsTo(playerId)) {
@@ -87,6 +89,9 @@ public record SkirmishAiTickContext(
             }
             if (b.getBuildingType() == BuildingType.FACTORY && b.isUnderConstruction()) {
                 factoriesUc++;
+            }
+            if (b.getBuildingType() == BuildingType.BARRACKS && b.isUnderConstruction()) {
+                barracksUc++;
             }
         }
 
@@ -128,6 +133,7 @@ public record SkirmishAiTickContext(
                 plantsUc,
                 researchLabsUc,
                 factoriesUc,
+                barracksUc,
                 profile
         );
     }
@@ -160,6 +166,10 @@ public record SkirmishAiTickContext(
 
     public boolean hasCompletedResearchLab() {
         return completedBuildingTypes.contains(BuildingType.RESEARCH_LAB);
+    }
+
+    public boolean hasCompletedBarracks() {
+        return completedBuildingTypes.contains(BuildingType.BARRACKS);
     }
 
     public boolean hasCompletedFactory() {

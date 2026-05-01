@@ -23,7 +23,8 @@ public final class PlaceRefineryBehavior extends AbstractPlaceBuildingBehavior {
 
     @Override
     protected boolean concernsAllow(SkirmishAiTickContext ctx, AiConcernSnapshot concerns) {
-        return concerns.economy() >= ctx.aiProfile().placeRefineryMinEconomyConcern();
+        return !ctx.hasCompletedRefinery()
+                || concerns.economy() >= ctx.aiProfile().placeRefineryMinEconomyConcern();
     }
 
     @Override

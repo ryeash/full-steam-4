@@ -15,12 +15,6 @@ public final class ArmyEconomy {
      */
     public static final double UPKEEP_FRACTION_OF_BUILD_COST = 0.04;
 
-    /**
-     * Per completed Command Citadel: multiply total upkeep by this factor (stacked multiplicatively).
-     * Three citadels → 0.98^3 off the bill before faction perks.
-     */
-    public static final double COMMAND_CITADEL_UPKEEP_FACTOR_PER_BUILDING = 0.98;
-
     private ArmyEconomy() {
     }
 
@@ -36,12 +30,5 @@ public final class ArmyEconomy {
 
     public static int periodicRentForUnit(Player faction, UnitType unitType) {
         return periodicUpkeepFromBuildCost(unitType, faction.getUnitCost(unitType));
-    }
-
-    public static double commandCitadelRentMultiplier(int citadelCount) {
-        if (citadelCount <= 0) {
-            return 1.0;
-        }
-        return Math.pow(COMMAND_CITADEL_UPKEEP_FACTOR_PER_BUILDING, citadelCount);
     }
 }

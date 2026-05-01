@@ -12,842 +12,798 @@ import java.util.Set;
 
 @Getter
 public enum UnitType {
-    // Worker unit - can harvest resources and construct buildings
     WORKER(
             "Worker",
             "Harvests resources from the map and constructs new buildings for your faction.",
-            50,      // resource cost
-            10,      // build time (seconds)
-            75,      // max health
-            100.0,   // movement speed
-            5,       // damage
-            1.0,     // attack rate
-            100,     // attack range
-            15.0,    // size (radius)
-            0xFFFF00, // yellow
+            50,
+            10,
+            75,
+            100.0,
+            5,
+            1.0,
+            100,
+            15.0,
+            0xFFFF00,
             BuildingType.HEADQUARTERS,
-            5,       // upkeep cost
-            300.0,   // vision range (moderate)
-            Elevation.GROUND, // elevation
-            UnitCategory.WORKER, // category
-            Set.of(), // no tech requirements (basic unit)
+            5,
+            300.0,
+            Elevation.GROUND,
+            UnitCategory.WORKER,
+            Set.of(),
             0,
-            'K'        // faction customization point cost
+            'K'
     ),
 
-    // Infantry - basic combat unit
     INFANTRY(
             "Infantry",
             "Core rifle infantry—fast, affordable, and effective against light targets.",
-            75,      // resource cost
-            5,       // build time (seconds)
-            128,     // max health
-            120.0,   // movement speed
-            18,      // damage
-            2.0,     // attack rate
-            170,     // attack range
-            12.0,    // size (radius)
-            0x00FF00, // green
+            75,
+            5,
+            128,
+            120.0,
+            18,
+            2.0,
+            170,
+            12.0,
+            0x00FF00,
             BuildingType.BARRACKS,
-            10,      // upkeep cost
-            350.0,   // vision range (standard infantry),
+            10,
+            350.0,
             Elevation.GROUND,
-            UnitCategory.INFANTRY, // category
-            Set.of(), // no tech requirements (basic unit)
+            UnitCategory.INFANTRY,
+            Set.of(),
             2,
-            'I'        // faction customization point cost
+            'I'
     ),
 
-    // Shotgun Infantry - powerful close-range infantry
     SHOTGUN_INFANTRY(
             "Shotgun Infantry",
             "Close-quarters specialist; devastating burst damage that falls off at range.",
-            120,     // resource cost (60% more than infantry)
-            7,       // build time (seconds)
-            140,     // max health (slightly more durable)
-            115.0,   // movement speed (slightly slower)
-            35,      // damage (high damage, split across multiple pellets)
-            1.5,     // attack rate (slower than rifle)
-            130,     // attack range (shorter than rifle - close range weapon)
-            12.0,    // size (radius)
-            0x228B22, // forest green (darker than regular infantry)
+            120,
+            7,
+            140,
+            115.0,
+            35,
+            1.5,
+            130,
+            12.0,
+            0x228B22,
             BuildingType.BARRACKS,
-            13,      // upkeep cost (higher than infantry)
-            340.0,   // vision range (standard infantry),
+            13,
+            340.0,
             Elevation.GROUND,
-            UnitCategory.INFANTRY, // category
-            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 specialist
+            UnitCategory.INFANTRY,
+            Set.of(BuildingType.RESEARCH_LAB),
             2,
-            'H'        // faction customization point cost
+            'H'
     ),
 
-    // Laser Infantry - advanced infantry with beam weapons
     LASER_INFANTRY(
             "Laser Infantry",
             "Armored trooper with a sustained-fire laser rifle for longer reach and punch.",
-            120,     // resource cost (more expensive than regular infantry)
-            7,       // build time (seconds)
-            128,     // max health
-            120.0,   // movement speed (same as infantry)
-            20,      // damage (higher than infantry)
-            1.5,     // attack rate (faster than infantry)
-            180,     // attack range (longer than infantry)
-            12.0,    // size (radius)
-            0x00FFFF, // cyan (to distinguish from regular infantry)
+            120,
+            7,
+            128,
+            120.0,
+            20,
+            1.5,
+            180,
+            12.0,
+            0x00FFFF,
             BuildingType.BARRACKS,
-            8,      // upkeep cost (higher than infantry)
-            360.0,   // vision range (slightly better than infantry),
+            8,
+            360.0,
             Elevation.GROUND,
-            UnitCategory.INFANTRY, // category
+            UnitCategory.INFANTRY,
             Set.of(),
             2,
-            'L'        // faction customization point cost
+            'L'
     ),
 
-    // Medic - support unit that heals nearby friendlies
     MEDIC(
             "Medic",
             "Support infantry that heals nearby friendlies on cooldown; cannot attack.",
-            100,     // resource cost
-            8,       // build time (seconds)
-            90,      // max health
-            110.0,   // movement speed
-            0,       // damage (cannot attack)
-            0.0,     // attack rate
-            0,       // attack range
-            12.0,    // size (radius)
-            0xFFFFFF, // white
+            100,
+            8,
+            90,
+            110.0,
+            0,
+            0.0,
+            0,
+            12.0,
+            0xFFFFFF,
             BuildingType.BARRACKS,
-            8,       // upkeep cost
-            340.0,  // vision range (support unit, moderate),
+            8,
+            340.0,
             Elevation.GROUND,
-            UnitCategory.INFANTRY, // category
-            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 support unit
+            UnitCategory.INFANTRY,
+            Set.of(BuildingType.RESEARCH_LAB),
             1,
-            'M'        // faction customization point cost
+            'M'
     ),
 
-    // Rocket Soldier - anti-vehicle infantry
     ROCKET_SOLDIER(
             "Rocket Soldier",
             "Anti-armor infantry; rockets excel versus vehicles and hardened targets.",
-            150,     // resource cost
-            8,       // build time (seconds)
-            112,     // max health
-            110.0,   // movement speed
-            40,      // damage
-            0.8,     // attack rate (slower)
-            200,     // attack range
-            12.0,    // size (radius)
-            0xFF8800, // orange
+            150,
+            8,
+            112,
+            110.0,
+            40,
+            0.8,
+            200,
+            12.0,
+            0xFF8800,
             BuildingType.BARRACKS,
-            15,      // upkeep cost
-            370.0,    // vision range (good, needs to spot vehicles),
+            15,
+            370.0,
             Elevation.GROUND,
-            UnitCategory.INFANTRY, // category
-            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 specialist
+            UnitCategory.INFANTRY,
+            Set.of(BuildingType.RESEARCH_LAB),
             2,
-            'R'        // faction customization point cost
+            'R'
     ),
 
-    // Sniper - long-range precision unit
     SNIPER(
             "Sniper",
             "Long-range marksman with slow, heavy shots—fragile but lethal from distance.",
-            200,     // resource cost
-            10,      // build time (seconds)
-            80,      // max health
-            100.0,   // movement speed
-            65,      // damage (+30% vs beam sniper)
-            0.5,     // attack rate (slow, precise shots)
-            345,     // attack range (+15% vs beam sniper)
-            12.0,    // size (radius)
-            0x8B4513, // brown
+            200,
+            10,
+            80,
+            100.0,
+            65,
+            0.5,
+            345,
+            12.0,
+            0x8B4513,
             BuildingType.BARRACKS,
-            12,      // upkeep cost
-            500.0,    // vision range (excellent, sniper needs vision),
+            12,
+            500.0,
             Elevation.GROUND,
-            UnitCategory.INFANTRY, // category
-            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 specialist
+            UnitCategory.INFANTRY,
+            Set.of(BuildingType.RESEARCH_LAB),
             3,
-            'N'        // faction customization point cost
+            'N'
     ),
 
-    // Engineer - repairs buildings and vehicles
     ENGINEER(
             "Engineer",
             "Repairs damaged friendly vehicles and buildings on cooldown; cannot attack.",
-            150,     // resource cost
-            12,      // build time (seconds)
-            105,     // max health
-            105.0,   // movement speed
-            0,       // damage (cannot attack)
-            0.0,     // attack rate
-            0,       // attack range
-            13.0,    // size (radius)
-            0x00CED1, // dark turquoise (distinct from yellow worker)
+            150,
+            12,
+            105,
+            105.0,
+            0,
+            0.0,
+            0,
+            13.0,
+            0x00CED1,
             BuildingType.BARRACKS,
-            10,      // upkeep cost
-            330.0,    // vision range (support unit),
+            10,
+            330.0,
             Elevation.GROUND,
-            UnitCategory.INFANTRY, // category
-            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 support unit
+            UnitCategory.INFANTRY,
+            Set.of(BuildingType.RESEARCH_LAB),
             1,
-            'E'        // faction customization point cost
+            'E'
     ),
 
-    // Spy - permanently cloaked infiltrator with tracker gun for vision sharing
     SPY(
             "Spy",
             "Permanently cloaked infiltrator; tracker darts tag enemies to grant your team vision on them.",
-            300,     // resource cost (expensive specialist)
-            20,      // build time (seconds)
-            60,      // max health (very fragile)
-            115.0,   // movement speed (fast, needs to infiltrate)
-            0,       // damage (tracker gun does 0 damage, just applies bug)
-            0.1,     // attack rate (very, very slow - 10 second cooldown)
-            500,     // attack range (same as vision range)
-            12.0,    // size (radius) - small profile
-            0x2F4F4F, // dark slate gray (stealth color)
+            300,
+            20,
+            60,
+            115.0,
+            0,
+            0.1,
+            500,
+            12.0,
+            0x2F4F4F,
             BuildingType.BARRACKS,
-            15,      // upkeep cost (high - intelligence gathering)
-            500.0,   // vision range (excellent - intelligence unit),
+            15,
+            500.0,
             Elevation.GROUND,
-            UnitCategory.INFANTRY, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 specialist
+            UnitCategory.INFANTRY,
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             7,
-            'Y'        // faction customization point cost
+            'Y'
     ),
 
-    // Grenadier - AOE infantry, anti-structure specialist
     GRENADIER(
             "Grenadier",
             "Lobs explosive grenades with area damage—strong versus clumped units and structures.",
-            175,     // resource cost (between rocket soldier and sniper)
-            9,       // build time (seconds)
-            85,      // max health (moderate, less than infantry)
-            95.0,    // movement speed (moderate)
-            25,      // damage (AOE damage)
-            1.2,     // attack rate (slow fire rate - grenades take time)
-            150,       // attack range (medium range, arcing projectile)
-            12.0,    // size (radius)
-            0x8B4513, // saddle brown (explosives/military)
+            175,
+            9,
+            85,
+            95.0,
+            25,
+            1.2,
+            150,
+            12.0,
+            0x8B4513,
             BuildingType.BARRACKS,
-            8,       // upkeep cost
-            300.0,   // vision range (standard infantry),
+            8,
+            300.0,
             Elevation.GROUND,
-            UnitCategory.INFANTRY, // category
-            Set.of(), // Tier 1 unit
+            UnitCategory.INFANTRY,
+            Set.of(),
             4,
-            'G'        // faction customization point cost
+            'G'
     ),
 
-    // Minigunner - high fire rate, low damage, inaccurate suppression infantry
     MINIGUNNER(
             "Minigunner",
             "Suppression specialist with an extreme fire rate and modest damage per bullet.",
-            140,     // resource cost (between infantry and grenadier)
-            8,       // build time (seconds)
-            120,     // max health (moderate durability)
-            105.0,   // movement speed (moderate, carrying heavy weapon)
-            8,       // damage (low per shot, but extremely high fire rate)
-            5.0,     // attack rate (VERY FAST - 5 shots per second!)
-            160,     // attack range (standard)
-            12.0,    // size (radius)
-            0x556B2F, // dark olive green (heavy weapons specialist)
+            140,
+            8,
+            120,
+            105.0,
+            8,
+            5.0,
+            160,
+            12.0,
+            0x556B2F,
             BuildingType.BARRACKS,
-            12,      // upkeep cost (high due to ammo consumption)
-            340.0,   // vision range (standard infantry),
+            12,
+            340.0,
             Elevation.GROUND,
-            UnitCategory.INFANTRY, // category
-            Set.of(), // Tier 1 unit (basic suppression weapon)
+            UnitCategory.INFANTRY,
+            Set.of(),
             2,
-            'U'        // faction customization point cost
+            'U'
     ),
 
-    // Jeep - fast light vehicle
     JEEP(
             "Jeep",
             "Fast light scout car with strong vision for mapping and early harassment.",
-            200,     // resource cost
-            10,      // build time (seconds)
-            168,     // max health
-            180.0,   // movement speed (fast!)
-            26,      // damage (+30% vs beam scout)
-            3.0,     // attack rate
-            207,     // attack range (+15% vs beam scout)
-            20.0,    // size (radius)
-            0x00FFFF, // cyan
+            200,
+            10,
+            168,
+            180.0,
+            26,
+            3.0,
+            207,
+            20.0,
+            0x00FFFF,
             BuildingType.FACTORY,
-            20,      // upkeep cost
-            450.0,    // vision range (scout vehicle, excellent vision),
+            20,
+            450.0,
             Elevation.GROUND,
-            UnitCategory.VEHICLE, // category
-            Set.of(), // no tech requirements (basic scout)
+            UnitCategory.VEHICLE,
+            Set.of(),
             3,
-            'J'        // faction customization point cost
+            'J'
     ),
 
-    // Tank - heavy armored vehicle
     TANK(
             "Tank",
             "Main battle tank—slow, heavily armored, and built to brawl with enemy armor.",
-            400,     // resource cost
-            15,      // build time (seconds)
-            390,     // max health
-            80.0,    // movement speed (slow)
-            68,      // damage (+30% vs beam tank)
-            1.2,     // attack rate
-            240,     // attack range (+15% vs beam tank)
-            27.0,    // size (radius)
-            0x8888FF, // light blue
+            400,
+            15,
+            390,
+            80.0,
+            68,
+            1.2,
+            240,
+            27.0,
+            0x8888FF,
             BuildingType.FACTORY,
-            30,      // upkeep cost
-            400.0,    // vision range (good, main battle tank),
+            30,
+            400.0,
             Elevation.GROUND,
-            UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 main battle tank
+            UnitCategory.VEHICLE,
+            Set.of(BuildingType.RESEARCH_LAB),
             4,
-            'T'        // faction customization point cost
+            'T'
     ),
 
-    // Flak Tank - early-game anti-air vehicle
     FLAK_TANK(
             "Flak Tank",
             "Mobile anti-air platform that shreds aircraft; lighter than a main battle tank.",
-            350,     // resource cost (cheaper than tank, more than jeep)
-            12,      // build time (seconds)
-            280,     // max health (lighter than main tank)
-            90.0,    // movement speed (faster than tank, slower than jeep)
-            30,      // damage (moderate direct hit damage)
-            1.5,     // attack rate (decent fire rate)
-            300,     // attack range (longer than tank for AA role)
-            24.0,    // size (radius)
-            0xA0A0A0, // gray (flak color)
+            350,
+            12,
+            280,
+            90.0,
+            30,
+            1.5,
+            300,
+            24.0,
+            0xA0A0A0,
             BuildingType.FACTORY,
-            25,      // upkeep cost
-            420.0,    // vision range (good, needs to spot aircraft),
+            25,
+            420.0,
             Elevation.GROUND,
-            UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 anti-air
+            UnitCategory.VEHICLE,
+            Set.of(BuildingType.RESEARCH_LAB),
             3,
-            'F'        // faction customization point cost
+            'F'
     ),
 
-    // SAM Launcher - dedicated long-range anti-aircraft platform
     SAM_LAUNCHER(
             "SAM Launcher",
             "Long-range anti-air missile battery on treads—fragile but devastating to flyers.",
-            450,     // resource cost (specialized AA vehicle)
-            18,      // build time (seconds)
-            240,     // max health (fragile, needs protection)
-            75.0,    // movement speed (slow, defensive positioning)
-            80,      // damage (high single-target AA damage)
-            0.7,     // attack rate (slow reload between missiles)
-            380,     // attack range (very long range AA)
-            24.0,    // size (radius)
-            0x708090, // slate gray (military AA color)
+            450,
+            18,
+            170,
+            75.0,
+            80,
+            0.7,
+            380,
+            24.0,
+            0x708090,
             BuildingType.FACTORY,
-            28,      // upkeep cost
-            480.0,   // vision range (excellent, needs to spot aircraft),
+            28,
+            480.0,
             Elevation.GROUND,
-            UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 specialized AA
+            UnitCategory.VEHICLE,
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             5,
-            'Y'        // faction customization point cost
+            'Y'
     ),
 
-    // Shield Tank - mobile shield generator, defensive support
     SHIELD_TANK(
             "Shield Tank",
             "Support armor that projects a protective shield bubble for nearby allies; unarmed.",
-            550,     // resource cost (expensive support vehicle)
-            22,      // build time (seconds)
-            320,     // max health (durable, needs to survive to project shield)
-            70.0,    // movement speed (slow, defensive unit)
-            0,       // damage (no weapon, pure support)
-            0.0,     // attack rate
-            0,       // attack range
-            26.0,    // size (radius) - larger than normal tank
-            0x9370DB, // medium purple (shield/energy color)
+            550,
+            22,
+            320,
+            70.0,
+            0,
+            0.0,
+            0,
+            26.0,
+            0x9370DB,
             BuildingType.FACTORY,
-            30,      // upkeep cost (high, powerful support)
-            350.0,   // vision range (standard),
+            30,
+            350.0,
             Elevation.GROUND,
-            UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 advanced support
+            UnitCategory.VEHICLE,
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             6,
-            'H'        // faction customization point cost
+            'H'
     ),
 
-    // Spider Mine - autonomous proximity mine that self-destructs on enemy contact
     SPIDER_MINE(
             "Spider Mine",
             "Cheap mobile mine that detonates for massive damage when enemies enter proximity.",
-            75,      // resource cost (cheap expendable unit)
-            6,       // build time (seconds)
-            40,      // max health (fragile, dies easily)
-            150.0,   // movement speed (fast! needs to close distance)
-            150,     // damage (MASSIVE explosion when triggered)
-            0.0,     // attack rate (N/A - self-destructs)
-            0,       // attack range (N/A - proximity-based)
-            8.0,     // size (radius) - small unit
-            0x8B4513, // saddle brown (mine color)
+            75,
+            6,
+            40,
+            150.0,
+            150,
+            0.0,
+            0,
+            8.0,
+            0x8B4513,
             BuildingType.FACTORY,
-            3,       // upkeep cost (low for expendable unit)
-            250.0,   // vision range (modest),
-            Elevation.GROUND,
-            UnitCategory.VEHICLE, // category (mechanical mine)
-            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 specialist
             3,
-            'P'        // faction customization point cost
+            250.0,
+            Elevation.GROUND,
+            UnitCategory.VEHICLE,
+            Set.of(BuildingType.RESEARCH_LAB),
+            3,
+            'P'
     ),
 
-    // APC - Armored Personnel Carrier (mobile bunker for infantry transport)
     APC(
             "APC",
             "Armored transport; garrisoned infantry can fire out while the APC moves.",
-            250,     // resource cost (transport vehicle)
-            14,      // build time (seconds)
-            280,     // max health (armored)
-            95.0,    // movement speed (moderate - carrying troops)
-            0,       // damage (no weapon - garrison fires from inside)
-            0.0,     // attack rate
-            0,       // attack range
-            22.0,    // size (radius) - large transport
-            0x696969, // dim gray (military transport color)
+            250,
+            14,
+            280,
+            95.0,
+            0,
+            0.0,
+            0,
+            22.0,
+            0x696969,
             BuildingType.FACTORY,
-            18,      // upkeep cost
-            350.0,   // vision range (standard),
+            18,
+            350.0,
             Elevation.GROUND,
-            UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 transport
+            UnitCategory.VEHICLE,
+            Set.of(BuildingType.RESEARCH_LAB),
             5,
-            'K'        // faction customization point cost
+            'K'
     ),
 
-    // Artillery - long range siege unit
     ARTILLERY(
             "Artillery",
             "Slow siege cannon with extreme range—needs escorts and spotters to shine.",
-            500,     // resource cost
-            20,      // build time (seconds)
-            180,     // max health
-            60.0,    // movement speed (very slow)
-            117,     // damage (+30% vs beam artillery)
-            0.5,     // attack rate (very slow)
-            437,     // attack range (+15% vs beam artillery)
-            25.0,    // size (radius)
-            0xFF00FF, // magenta
+            500,
+            20,
+            180,
+            60.0,
+            117,
+            0.5,
+            437,
+            25.0,
+            0xFF00FF,
             BuildingType.FACTORY,
-            40,      // upkeep cost
-            420.0,    // vision range (good, needs to spot targets),
+            40,
+            420.0,
             Elevation.GROUND,
-            UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 siege weapon
+            UnitCategory.VEHICLE,
+            Set.of(BuildingType.RESEARCH_LAB),
             6,
-            'R'        // faction customization point cost
+            'R'
     ),
 
-    // GIGANTONAUT - Super heavy artillery
     GIGANTONAUT(
             "Gigantonaut",
             "Colossal self-propelled siege piece; high range and damage, low speed.",
-            1200,    // resource cost (VERY EXPENSIVE!)
-            35,      // build time (seconds) (LONG!)
-            360,     // max health
-            30.0,    // movement speed (SLOWEST!)
-            250,     // damage (MASSIVE!)
-            0.3,     // attack rate (EXTREMELY SLOW!)
-            450,     // attack range (LONGEST!)
-            35.0,    // size (radius) (HUGE!)
-            0x8B0000, // dark red
+            1200,
+            35,
+            360,
+            30.0,
+            250,
+            0.3,
+            450,
+            35.0,
+            0x8B0000,
             BuildingType.FACTORY,
-            60,      // upkeep cost (VERY HIGH!)
-            200.0,    // poor vision, needs a spotter to hit distant targets
+            60,
+            200.0,
             Elevation.GROUND,
-            UnitCategory.VEHICLE, // category
+            UnitCategory.VEHICLE,
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             9,
-            'G'       // faction customization point cost
+            'G'
     ),
 
-    // Cloak Tank - invisible until attacking or detected
     CLOAK_TANK(
             "Cloak Tank",
             "Stealthed medium tank—stays hidden until it fires or is detected at close range.",
-            800,     // resource cost
-            25,      // build time (seconds)
-            260,     // max health
-            100.0,   // movement speed
-            28,      // damage
-            1.5,     // attack rate
-            200,     // attack range
-            28.0,    // size (radius)
-            0x2F4F4F, // dark slate gray
+            800,
+            25,
+            260,
+            100.0,
+            28,
+            1.5,
+            200,
+            28.0,
+            0x2F4F4F,
             BuildingType.FACTORY,
-            45,      // upkeep cost
-            380.0,    // vision range (moderate, cloak unit),
+            45,
+            380.0,
             Elevation.GROUND,
-            UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 stealth tech
+            UnitCategory.VEHICLE,
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             3,
-            'C'        // faction customization point cost
+            'C'
     ),
 
     RAIDER(
             "Raider",
             "Blazing-fast raider craft for deep strikes, flanks, and hunting soft targets.",
-            900,     // resource cost
-            28,      // build time (seconds)
-            364,     // max health
-            220.0,   // movement speed (VERY FAST - fastest unit!)
-            55,      // damage (high)
-            2.2,     // attack rate (fast)
-            180,     // attack range
-            22.0,    // size (radius)
-            0xDC143C, // crimson (raider red)
+            900,
+            28,
+            364,
+            220.0,
+            55,
+            2.2,
+            180,
+            22.0,
+            0xDC143C,
             BuildingType.FACTORY,
-            45,      // upkeep cost
-            520.0,    // vision range (scout, exceptional vision),
+            45,
+            520.0,
             Elevation.GROUND,
-            UnitCategory.VEHICLE, // category
+            UnitCategory.VEHICLE,
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             8,
-            'N'        // faction customization point cost
+            'N'
     ),
 
-    // COLOSSUS - massive walker
     COLOSSUS(
             "Colossus",
             "Massive bipedal war walker with huge health and multi-projectile cannons.",
-            1600,    // resource cost (VERY EXPENSIVE!)
-            45,      // build time (seconds) (VERY LONG!)
-            2640,    // max health
-            40.0,    // movement speed (VERY SLOW)
-            95,      // damage (very high)
-            0.9,     // attack rate (moderate)
-            250,     // attack range
-            43.0,    // size (radius) (MASSIVE!)
-            0x4B0082, // indigo (synthesis purple)
+            1600,
+            45,
+            2640,
+            40.0,
+            95,
+            0.9,
+            250,
+            43.0,
+            0x4B0082,
             BuildingType.FACTORY,
-            75,      // upkeep cost (VERY HIGH!)
-            490.0,    // vision range (excellent vision),
+            75,
+            490.0,
             Elevation.GROUND,
-            UnitCategory.VEHICLE, // category
+            UnitCategory.VEHICLE,
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             9,
-            'O'       // faction customization point cost
+            'O'
     ),
 
-    // Triple-beam infantry (Tech Alliance equivalent of Infantry)
     TRIDENT_TROOPER(
             "Trident Trooper",
             "Tech-alliance rifleman firing instant-hit energy beams instead of ballistic rounds.",
-            170,     // resource cost
-            12,       // build time (seconds)
-            136,     // max health
-            115.0,   // movement speed
-            14,      // damage (instant hit beam weapon)
-            2.0,     // attack rate (fast)
-            148,     // attack range (instant hit beam weapon)
-            12.0,    // size (radius)
-            0x00FF7F, // spring green (plasma color)
+            170,
+            12,
+            136,
+            115.0,
+            14,
+            2.0,
+            148,
+            12.0,
+            0x00FF7F,
             BuildingType.BARRACKS,
-            12,      // upkeep cost
-            355.0,    // vision range (standard beam infantry),
+            12,
+            355.0,
             Elevation.GROUND,
-            UnitCategory.INFANTRY, // category
+            UnitCategory.INFANTRY,
             Set.of(BuildingType.RESEARCH_LAB),
             2,
-            'T'        // faction customization point cost
+            'T'
     ),
 
-    // ION_RANGER - Long-range beam sniper
     ION_RANGER(
             "Ion Ranger",
             "Long-range beam sniper—slow shots with very high single-target burst at distance.",
-            250,     // resource cost
-            12,      // build time (seconds)
-            96,      // max health
-            105.0,   // movement speed
-            50,      // damage (instant hit beam weapon)
-            0.6,     // attack rate (slow, precise)
-            300,     // attack range (instant hit beam weapon)
-            12.0,    // size (radius)
-            0x9370DB, // medium purple (ion beam)
+            250,
+            12,
+            96,
+            105.0,
+            50,
+            0.6,
+            300,
+            12.0,
+            0x9370DB,
             BuildingType.BARRACKS,
-            14,      // upkeep cost
-            500.0,    // vision range (excellent, beam sniper),
+            14,
+            500.0,
             Elevation.GROUND,
-            UnitCategory.INFANTRY, // category - FIXED: was VEHICLE, should be INFANTRY
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 beam weapons
+            UnitCategory.INFANTRY,
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             3,
-            'O'        // faction customization point cost
+            'O'
     ),
 
-    // PHOTON_SCOUT - Fast beam vehicle
     PHOTON_SCOUT(
             "Photon Scout",
             "Fast beam-armed scout vehicle with excellent vision for tech-army reconnaissance.",
-            220,     // resource cost
-            11,      // build time (seconds)
-            154,     // max health
-            190.0,   // movement speed (very fast!)
-            20,      // damage (instant hit beam weapon)
-            2.5,     // attack rate (rapid fire)
-            180,     // attack range (instant hit beam weapon)
-            18.0,    // size (radius)
-            0x7FFF00, // chartreuse (bright energy)
+            220,
+            11,
+            154,
+            190.0,
+            20,
+            2.5,
+            180,
+            18.0,
+            0x7FFF00,
             BuildingType.FACTORY,
-            22,      // upkeep cost
-            460.0,    // vision range (excellent, scout vehicle),
+            22,
+            460.0,
             Elevation.GROUND,
-            UnitCategory.VEHICLE, // category
+            UnitCategory.VEHICLE,
             Set.of(BuildingType.RESEARCH_LAB),
             3,
-            'V'        // faction customization point cost
+            'V'
     ),
 
-    // BEAM_TANK - Heavy beam vehicle
     BEAM_TANK(
             "Beam Tank",
             "Heavy armored tank mounting sustained laser fire—durable mid-line breaker.",
-            450,     // resource cost
-            16,      // build time (seconds)
-            400,     // max health
-            75.0,    // movement speed (slow)
-            52,      // damage (instant hit beam weapon)
-            1.3,     // attack rate
-            209,     // attack range (instant hit beam weapon)
-            30.0,    // size (radius)
-            0x00FA9A, // medium spring green
+            450,
+            16,
+            400,
+            75.0,
+            52,
+            1.3,
+            209,
+            30.0,
+            0x00FA9A,
             BuildingType.FACTORY,
-            32,      // upkeep cost
-            410.0,    // vision range (good),
+            32,
+            410.0,
             Elevation.GROUND,
-            UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 beam weapons
+            UnitCategory.VEHICLE,
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             4,
-            'B'        // faction customization point cost
+            'B'
     ),
 
-    // PULSE_ARTILLERY - Long-range beam artillery
     PULSE_ARTILLERY(
             "Pulse Artillery",
             "Slow beam artillery platform—melts static defenses and blobs from extreme range.",
-            550,     // resource cost
-            22,      // build time (seconds)
-            168,     // max health
-            55.0,    // movement speed (very slow)
-            90,      // damage (instant hit beam weapon)
-            0.6,     // attack rate (slow)
-            380,     // attack range (instant hit beam weapon)
-            26.0,    // size (radius)
-            0xFFD700, // gold (energy pulse)
+            550,
+            22,
+            168,
+            55.0,
+            90,
+            0.6,
+            380,
+            26.0,
+            0xFFD700,
             BuildingType.FACTORY,
-            42,      // upkeep cost
-            430.0,    // vision range (good, beam artillery),
+            42,
+            430.0,
             Elevation.GROUND,
-            UnitCategory.VEHICLE, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 beam weapons
+            UnitCategory.VEHICLE,
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             5,
-            'U'        // faction customization point cost
+            'U'
     ),
 
     PHOTON_TITAN(
             "Photon Titan",
             "Super-heavy walker with a high damage beam weapon.",
-            1400,    // resource cost (VERY EXPENSIVE!)
-            40,      // build time (seconds) (LONG!)
-            420,     // max health
-            35.0,    // movement speed (VERY SLOW!)
-            280,     // damage (MASSIVE!)
-            0.4,     // attack rate (slow but devastating)
-            460,     // attack range (LONGEST!)
-            32.0,    // size (radius) (HUGE!)
-            0x00FF00, // bright green (pure energy)
+            1400,
+            40,
+            420,
+            35.0,
+            280,
+            0.4,
+            460,
+            32.0,
+            0x00FF00,
             BuildingType.FACTORY,
-            65,      // upkeep cost (VERY HIGH!)
-            480.0,    // vision range (excellent vision),
+            65,
+            480.0,
             Elevation.GROUND,
-            UnitCategory.VEHICLE, // category
+            UnitCategory.VEHICLE,
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             8,
-            'I'        // faction customization point cost
+            'I'
     ),
 
-    // ANDROID - Autonomous combat unit produced by Android Factory
-    // Free to produce, zero upkeep, controlled by Android Factory
     ANDROID(
             "Android",
             "Autonomous soldier produced free by the Android Factory—no credits cost, no upkeep.",
-            0,       // resource cost (FREE!)
-            15,      // build time (seconds)
-            100,     // max health (moderate)
-            110.0,   // movement speed (moderate)
-            22,      // damage (decent)
-            1.5,     // attack rate (good)
-            180,     // attack range (good)
-            13.0,    // size (radius)
-            0x00CED1, // dark turquoise
+            0,
+            15,
+            100,
+            110.0,
+            22,
+            1.5,
+            180,
+            13.0,
+            0x00CED1,
             BuildingType.ANDROID_FACTORY,
-            0,       // upkeep cost (ZERO!)
-            340.0,    // vision range (moderate, autonomous unit),
+            0,
+            340.0,
             Elevation.GROUND,
-            UnitCategory.VEHICLE, // category
+            UnitCategory.VEHICLE,
             Set.of(BuildingType.POWER_PLANT, BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             0,
-            'Z'        // faction customization point cost
+            'Z'
     ),
 
     // ===== AIR UNITS =====
 
-    // SCOUT_DRONE - Fast reconnaissance VTOL drone
-    // First air unit, cheap and fast, excellent vision
     SCOUT_DRONE(
             "Scout Drone",
             "Fast cheap VTOL with best-in-class vision—ideal for air scouting and light harassment.",
-            150,     // resource cost (cheap for air unit)
-            12,      // build time (seconds)
-            80,      // max health (fragile)
-            200.0,   // movement speed (VERY FAST)
-            8,       // damage (light weapons)
-            2.5,     // attack rate (rapid fire)
-            150,     // attack range (moderate)
-            12.0,    // size (radius) - small
-            0x87CEEB, // light sky blue (air unit color)
+            150,
+            12,
+            80,
+            200.0,
+            8,
+            2.5,
+            150,
+            12.0,
+            0x87CEEB,
             BuildingType.AIRFIELD,
-            15,      // upkeep cost
-            600.0,   // vision range (EXCELLENT - scout unit!)
-            Elevation.LOW, // VTOL - can hover, vulnerable to rockets,
-            UnitCategory.FLYER, // category
-            Set.of(), // no tech requirements (basic scout)
+            15,
+            600.0,
+            Elevation.LOW,
+            UnitCategory.FLYER,
+            Set.of(),
             2,
-            'E'        // faction customization point cost
+            'E'
     ),
 
-    // HELICOPTER - Attack helicopter with dual rockets
-    // Low-altitude VTOL gunship, controllable like standard units
-    // Fires dual rockets, slower than scout drone but more powerful
     HELICOPTER(
             "Attack Helicopter",
             "Versatile low-altitude gunship firing rockets at ground targets; controllable like a tank.",
-            350,     // resource cost (moderate)
-            18,      // build time (seconds)
-            150,     // max health (fragile but more durable than scout)
-            150.0,   // movement speed (slower than scout, faster than tanks)
-            35,      // damage per rocket (dual rockets = 70 total per volley)
-            1.8,     // attack rate (decent fire rate)
-            220,     // attack range (good range for air-to-ground)
-            16.0,    // size (radius) - medium aircraft
-            0x8B4513, // saddle brown (military helicopter color)
+            350,
+            18,
+            150,
+            150.0,
+            35,
+            1.8,
+            220,
+            16.0,
+            0x8B4513,
             BuildingType.AIRFIELD,
-            25,      // upkeep cost (moderate)
-            450.0,   // vision range (good, attack aircraft)
-            Elevation.LOW, // VTOL - can hover, vulnerable to rockets,
-            UnitCategory.FLYER, // category
-            Set.of(BuildingType.RESEARCH_LAB), // Tier 2 attack aircraft
+            25,
+            450.0,
+            Elevation.LOW,
+            UnitCategory.FLYER,
+            Set.of(BuildingType.RESEARCH_LAB),
             3,
-            'H'        // faction customization point cost
+            'H'
     ),
 
-    // LASER_GUNSHIP - Advanced VTOL gunship with beam weapons
-    // Low-altitude flying beam platform, controllable like standard units
-    // Instant-hit laser weapons for precision air-to-ground strikes
     LASER_GUNSHIP(
             "Laser Gunship",
             "Advanced VTOL with instant-hit lasers—precision air-to-ground without ballistic delay.",
-            750,     // resource cost (expensive - flying beam platform)
-            40,      // build time (seconds)
-            280,     // max health (moderate durability)
-            140.0,   // movement speed (slower than scout, faster than heavy gunship)
-            35,      // damage (instant-hit beam, good DPS)
-            1.8,     // attack rate (fast for sustained beam fire)
-            260,     // attack range (good engagement range)
-            22.0,    // size (radius) - medium aircraft
-            0x00BFFF, // deep sky blue (laser color)
+            750,
+            40,
+            280,
+            140.0,
+            35,
+            1.8,
+            260,
+            22.0,
+            0x00BFFF,
             BuildingType.AIRFIELD,
-            45,      // upkeep cost (high)
-            450.0,   // vision range (excellent aerial vision)
-            Elevation.LOW, // VTOL - can hover, vulnerable to rockets,
-            UnitCategory.FLYER, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3
+            45,
+            450.0,
+            Elevation.LOW,
+            UnitCategory.FLYER,
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             8,
-            'L'        // faction customization point cost
+            'L'
     ),
 
-    // BOMBER - Sortie-based heavy bomber aircraft
-    // Housed in Hangar, executes bombing runs on command, then returns to base
-    // NOT controllable like regular units - sortie-based only
     BOMBER(
             "Bomber",
             "Strategic bomber housed at the airfield; flies a player-ordered sortie then returns to berth.",
-            800,     // resource cost (EXPENSIVE - strategic asset)
-            60,      // build time (seconds)
-            250,     // max health (more durable than scout)
-            220.0,   // movement speed (slower than scout drone)
-            200,     // damage (MASSIVE - area effect bombs)
-            0.5,     // attack rate (slow - payload limitation)
-            0,       // attack range (N/A - bombs are dropped, not fired)
-            21.0,    // size (radius) - larger aircraft
-            0x2F4F4F, // dark slate gray (bomber color)
+            800,
+            60,
+            250,
+            220.0,
+            200,
+            0.5,
+            0,
+            21.0,
+            0x2F4F4F,
             BuildingType.AIRFIELD,
-            50,      // upkeep cost (HIGH - strategic bomber)
-            400.0,   // vision range (good but not scout-level)
-            Elevation.HIGH, // Fixed-wing - requires AA weapons,
-            UnitCategory.FLYER, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 strategic bomber
+            50,
+            400.0,
+            Elevation.HIGH,
+            UnitCategory.FLYER,
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             8,
-            'B'        // faction customization point cost
+            'B'
     ),
 
-    // INTERCEPTOR - Sortie-based fighter aircraft
-    // Housed in Hangar, auto-deploys to intercept enemy aircraft (SCRAMBLE)
-    // Can be sent to patrol areas (ON_STATION), limited fuel and ammo
     INTERCEPTOR(
             "Interceptor",
             "High-speed fighter for air superiority; scrambles from the airfield and uses sortie fuel.",
-            600,     // resource cost (expensive)
-            45,      // build time (seconds)
-            200,     // max health (moderate durability)
-            290.0,   // movement speed (FASTEST air unit)
-            100,      // damage per seeking rocket
-            2.0,     // attack rate (fast for air-to-air)
-            300,     // attack range (long-range seeking missiles)
-            14.0,    // size (radius) - sleek fighter
-            0xFF4500, // orange-red (fighter jet color)
+            600,
+            45,
+            200,
+            290.0,
+            100,
+            2.0,
+            300,
+            14.0,
+            0xFF4500,
             BuildingType.AIRFIELD,
-            40,      // upkeep cost (high)
-            500.0,   // vision range (excellent, interceptor)
-            Elevation.HIGH, // Fixed-wing - high-altitude fighter,
-            UnitCategory.FLYER, // category
-            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER), // Tier 3 advanced fighter
+            40,
+            500.0,
+            Elevation.HIGH,
+            UnitCategory.FLYER,
+            Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             6,
-            'I'        // faction customization point cost
+            'I'
     ),
 
-    // GUNSHIP - Heavy sortie-based attack aircraft with dual weapons
     GUNSHIP(
             "Gunship",
             "Heavy sortie attack craft with dual weapons—durable airfield-housed fire support platform.",
-            1100,    // resource cost (expensive heavy aircraft)
-            50,      // build time (seconds)
-            380,     // max health (durable for sustained combat)
-            160.0,   // slowest sortie air unit
-            40,      // damage (primary weapon - heavy MG)
-            2.0,     // attack rate (decent fire rate)
-            280,     // attack range (good engagement range)
-            31.0,    // size (radius) - heavy aircraft
-            0x8B0000, // dark red (intimidating gunship color)
+            1100,
+            50,
+            380,
+            160.0,
+            40,
+            2.0,
+            280,
+            31.0,
+            0x8B0000,
             BuildingType.AIRFIELD,
-            55,      // upkeep cost (high)
-            480.0,   // vision range (excellent, attack helicopter)
-            Elevation.HIGH, // Fixed-wing sortie aircraft,
-            UnitCategory.FLYER, // category
+            55,
+            480.0,
+            Elevation.HIGH,
+            UnitCategory.FLYER,
             Set.of(BuildingType.RESEARCH_LAB, BuildingType.TECH_CENTER),
             8,
-            'G'        // faction customization point cost
+            'G'
     );
 
     private final String displayName;
@@ -857,21 +813,17 @@ public enum UnitType {
     private final double maxHealth;
     private final double movementSpeed;
     private final double damage;
-    private final double attackRate; // attacks per second
+    private final double attackRate;
     private final double attackRange;
-    private final double size; // radius for collision
-    private final int color; // hex color for rendering
-    private final BuildingType producedBy; // which building produces this unit
-    private final int upkeepCost; // supply/upkeep cost
-    private final double visionRange; // vision radius for fog of war
+    private final double size;
+    private final int color;
+    private final BuildingType producedBy;
+    private final int upkeepCost;
+    private final double visionRange;
     private final Elevation elevation;
     private final UnitCategory category;
     private final Set<BuildingType> requiredBuildings;
     private final int pointCost;
-    /**
-     * Production / build-menu hotkey (single character). Null when unassigned; uniqueness is enforced
-     * per UI context (see {@link BuildingType#getProducedBy()} groups in tests).
-     */
     private final Character hotkey;
 
     /**

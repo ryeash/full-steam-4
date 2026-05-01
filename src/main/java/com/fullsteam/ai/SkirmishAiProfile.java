@@ -8,6 +8,9 @@ import com.fullsteam.model.AiDifficulty;
  * <p>
  * {@code maxWorkers} caps total workers (on field plus HQ production pipeline) so production does not
  * flood workers when barracks infantry is available.
+ * <p>
+ * {@code reservedBuildWorkers} is how many idle harvest-capable units nearest the base stay off bulk harvest
+ * orders so placement behaviors can retask them without everyone rushing to the ore patch.
  */
 public record SkirmishAiProfile(
         double defenseRadius,
@@ -39,7 +42,8 @@ public record SkirmishAiProfile(
         double squadMaxDefenseForAttack,
         double squadMinArmyConcern,
         int squadMinCombatUnits,
-        int maxWorkers
+        int maxWorkers,
+        int reservedBuildWorkers
 ) {
 
     public static SkirmishAiProfile forDifficulty(AiDifficulty difficulty) {
@@ -85,7 +89,8 @@ public record SkirmishAiProfile(
                 0.28,
                 0.30,
                 5,
-                8
+                8,
+                1
         );
     }
 
@@ -121,7 +126,8 @@ public record SkirmishAiProfile(
                 0.38,
                 0.20,
                 3,
-                10
+                10,
+                2
         );
     }
 
@@ -157,7 +163,8 @@ public record SkirmishAiProfile(
                 0.48,
                 0.14,
                 2,
-                12
+                12,
+                2
         );
     }
 }

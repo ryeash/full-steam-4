@@ -2,6 +2,7 @@ package com.fullsteam.ai;
 
 import com.fullsteam.ai.behavior.DefendBaseBehavior;
 import com.fullsteam.ai.behavior.HarvestEconomyBehavior;
+import com.fullsteam.ai.behavior.PlaceBarracksBehavior;
 import com.fullsteam.ai.behavior.PlacePowerPlantBehavior;
 import com.fullsteam.ai.behavior.PlaceRefineryBehavior;
 import com.fullsteam.ai.behavior.PlaceResearchLabBehavior;
@@ -29,6 +30,7 @@ public final class SkirmishAiDirector {
             new DefendBaseBehavior(),
             new ResumeConstructionBehavior(),
             new PlacePowerPlantBehavior(),
+            new PlaceBarracksBehavior(),
             new PlaceRefineryBehavior(),
             new PlaceResearchLabBehavior(),
             new PlaceFactoryBehavior(),

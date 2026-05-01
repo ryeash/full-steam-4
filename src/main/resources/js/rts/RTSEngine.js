@@ -2403,7 +2403,6 @@ class RTSEngine {
             'QUANTUM_NEXUS': { sides: 8, size: 50, color: 0x9370DB, rotation: Math.PI / 8 },
             'PHOTON_SPIRE': { sides: 6, size: 48, color: 0x00FF00, rotation: Math.PI / 6 },
             'ANDROID_FACTORY': { sides: 8, size: 55, color: 0x4B0082, rotation: Math.PI / 8 },
-            'COMMAND_CITADEL': { sides: 8, size: 55, color: 0x4169E1, rotation: 0 },
             'TEMPEST_SPIRE': { sides: 8, size: 45, color: 0x4682B4, rotation: 0 },
             // Air unit production
             'AIRFIELD': { sides: 8, size: 60, color: 0x708090, rotation: 0 },
@@ -2411,7 +2410,6 @@ class RTSEngine {
             // Values here are ~visual scale for first paint / selection chrome when vertices are not used yet.
             'STRIKE_RELAY': { sides: 6, size: 42, color: 0xCD853F, rotation: 0 },
             'SATCOM_ARRAY': { sides: 8, size: 40, color: 0x6495ED, rotation: Math.PI / 8 },
-            'CARPET_PAD': { sides: 4, size: 43, color: 0x556B2F, rotation: 0 },
             'NUKE_SILO': { sides: 8, size: 48, color: 0x8B0000, rotation: 0 },
             'JUMP_PAD': { sides: 4, size: 44, color: 0x4A708B, rotation: 0 },
         };

@@ -114,27 +114,6 @@ public class FactionDefinition {
     }
 
     /**
-     * Get the effective power consumption/generation
-     */
-    public int getPowerValue(int basePower) {
-        if (basePower < 0) {
-            // Consumption - apply efficiency
-            return (int) Math.round(basePower * powerEfficiencyMultiplier);
-        }
-        return basePower; // Generation unchanged
-    }
-
-    /**
-     * Check if a unit is available to this faction (checks if any building produces it)
-     *
-     * @deprecated Use ResearchManager.canProduceUnit() for research-based unit availability
-     */
-    @Deprecated
-    public boolean canBuildUnit(UnitType unitType) {
-        return unitTypes.contains(unitType);
-    }
-
-    /**
      * Check if a building is available to this faction
      * Note: HEADQUARTERS is always available (you start with one), but for
      * custom factions we check the buildingsAndUnits map to see if they selected it

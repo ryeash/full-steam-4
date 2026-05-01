@@ -966,6 +966,81 @@ h1 {
     margin-top: 3px;
 }
 
+/* Lobby tab strip — same interaction model as in-game .build-menu-tabs / .build-menu-tab (rts.html) */
+#lobby-tab-interface {
+    margin-bottom: 20px;
+}
+
+.lobby-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+    justify-content: center;
+}
+
+.lobby-tab {
+    flex: 1 1 auto;
+    min-width: 140px;
+    max-width: 320px;
+    padding: 12px 18px;
+    font-size: 1em;
+    font-weight: 600;
+    color: #ccc;
+    background: rgba(0, 0, 0, 0.45);
+    border: 2px solid rgba(0, 255, 136, 0.35);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.lobby-tab:hover {
+    border-color: rgba(0, 255, 136, 0.65);
+    color: #fff;
+}
+
+.lobby-tab.is-active {
+    color: #fff;
+    border-color: #00ff88;
+    background: rgba(0, 255, 136, 0.12);
+    box-shadow: 0 0 12px rgba(0, 255, 136, 0.2);
+}
+
+.lobby-tab:focus-visible {
+    outline: 2px solid #00ff88;
+    outline-offset: 2px;
+}
+
+.lobby-tab-panels {
+    position: relative;
+}
+
+.lobby-tab-panel {
+    display: none;
+    animation: lobby-tab-fade 0.2s ease;
+}
+
+.lobby-tab-panel.is-active {
+    display: block;
+}
+
+#tab-panel-join {
+    text-align: left;
+}
+
+#tab-panel-join h2 {
+    text-align: center;
+}
+
+@keyframes lobby-tab-fade {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
 .matchmaking-section {
     background: rgba(0, 0, 0, 0.4);
     border: 2px solid #00ff88;

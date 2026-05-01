@@ -11,6 +11,7 @@ import com.fullsteam.model.command.IdleCommand;
 import org.dyn4j.geometry.Vector2;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,6 +40,16 @@ public final class HarvestEconomyBehavior implements SkirmishAiBehavior {
                 continue;
             }
             idleHarvesters.add(u);
+        }
+        if (idleHarvesters.isEmpty()) {
+            return Optional.empty();
+        }
+        Vector2 anchor = ctx.baseAnchor();
+        int configured = ctx.aiProfile().reservedBuildWorkers();
+        if (anchor != null && configured > 0 && idleHarvesters.size() >= 2) {
+            int holdNearBase = Math.min(configured, idleHarvesters.size() - 1);
+            idleHarvesters.sort(Comparator.comparingDouble(u -> u.getPosition().distanceSquared(anchor)));
+            idleHarvesters = new ArrayList<>(idleHarvesters.subList(holdNearBase, idleHarvesters.size()));
         }
         if (idleHarvesters.isEmpty()) {
             return Optional.empty();

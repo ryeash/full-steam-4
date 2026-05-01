@@ -199,43 +199,11 @@ public enum CommandAbilityType implements CommandAbilityEffect {
             executeSatelliteSweep(ctx, t);
             return CommandAbilityOutcome.NEED_DEFAULT_WRAP_UP;
         }
-    },
-
-    /**
-     * Multiple explosions along an east–west line through the target. Unlocked by {@link BuildingType#CARPET_PAD}.
-     */
-    CARPET_BOMB(
-            "Carpet Bomb",
-            "Sequential air strikes along an east–west corridor through the target point.",
-            BuildingType.CARPET_PAD,
-            92_000L,
-            300.0,
-            0.0
-    ) {
-        @Override
-        public CommandAbilityOutcome execute(CommandAbilityExecutionContext ctx) {
-            Vector2 t = ctx.requireGroundTargetOrWarn();
-            if (t == null) {
-                return CommandAbilityOutcome.FAILED;
-            }
-            if (!ctx.isWithinWorldBounds(t)) {
-                ctx.warnTargetOutsideBattlefield();
-                return CommandAbilityOutcome.FAILED;
-            }
-            if (!ctx.validateSourceRelayIfPresent(CARPET_BOMB)) {
-                return CommandAbilityOutcome.FAILED;
-            }
-            executeCarpetBomb(ctx, t);
-            return CommandAbilityOutcome.NEED_DEFAULT_WRAP_UP;
-        }
     };
 
     private static final Logger log = LoggerFactory.getLogger(CommandAbilityType.class);
 
     private static final long SATELLITE_REVEAL_DURATION_MS = 28_000L;
-    private static final int CARPET_BOMB_STRIKE_COUNT = 9;
-    private static final double CARPET_BOMB_STRIKE_RADIUS = 58.0;
-    private static final double CARPET_BOMB_STRIKE_DAMAGE = 240.0;
 
     private static final List<UnitType> MARINE_DROP_UNIT_PRIORITY = List.of(
             UnitType.INFANTRY,
@@ -282,31 +250,6 @@ public enum CommandAbilityType implements CommandAbilityEffect {
                 until));
         log.info("Team {} satellite sweep at ({}, {}) r={}",
                 ctx.getFaction().getTeamNumber(), target.x, target.y, SATELLITE_SWEEP.getEffectRadius());
-    }
-
-    private static void executeCarpetBomb(CommandAbilityExecutionContext ctx, Vector2 target) {
-        double halfLen = CARPET_BOMB.getEffectRadius();
-        int n = CARPET_BOMB_STRIKE_COUNT;
-        double halfW = ctx.game().getGameConfig().getWorldWidth() / 2.0;
-        double halfH = ctx.game().getGameConfig().getWorldHeight() / 2.0;
-        double duration = FieldEffectType.EXPLOSION.getDefaultDuration();
-        for (int i = 0; i < n; i++) {
-            double frac = n <= 1 ? 0.5 : i / (double) (n - 1);
-            double x = target.x + (frac - 0.5) * 2.0 * halfLen;
-            double y = target.y;
-            x = Math.max(-halfW, Math.min(halfW, x));
-            y = Math.max(-halfH, Math.min(halfH, y));
-            FieldEffect fe = new FieldEffect(
-                    ctx.getPlayerId(),
-                    FieldEffectType.EXPLOSION,
-                    new Vector2(x, y),
-                    CARPET_BOMB_STRIKE_RADIUS,
-                    CARPET_BOMB_STRIKE_DAMAGE,
-                    duration,
-                    ctx.getFaction().getTeamNumber());
-            ctx.game().getGameEntities().add(fe);
-        }
-        log.info("Player {} carpet bomb through ({}, {}) halfLen={}", ctx.getPlayerId(), target.x, target.y, halfLen);
     }
 
     /**

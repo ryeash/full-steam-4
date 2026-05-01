@@ -22,7 +22,7 @@ public class GroupMoveMarchSpeedsTest extends BaseTestClass {
                 .buildingStatModifiers(new HashMap<>())
                 .unitStatModifiers(new HashMap<>())
                 .build();
-        return new Player(1, 1, factionDef);
+        return new Player(1, 1, factionDef, null, 0);
     }
 
     @Test

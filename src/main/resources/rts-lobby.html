@@ -26,8 +26,27 @@
         </div>
     </div>
 
+    <div id="lobby-tab-interface">
+        <div class="lobby-tabs" role="tablist" aria-label="Lobby">
+            <button type="button" class="lobby-tab is-active" role="tab" id="tab-btn-customize"
+                    aria-selected="true" aria-controls="tab-panel-customize" data-tab="customize">
+                🎨 Faction
+            </button>
+            <button type="button" class="lobby-tab" role="tab" id="tab-btn-create"
+                    aria-selected="false" aria-controls="tab-panel-create" data-tab="create">
+                🎮 Create match
+            </button>
+            <button type="button" class="lobby-tab" role="tab" id="tab-btn-join"
+                    aria-selected="false" aria-controls="tab-panel-join" data-tab="join">
+                🎯 Join game
+            </button>
+        </div>
+
+        <div class="lobby-tab-panels">
     <!-- Faction Customization Section -->
-    <div class="matchmaking-section" id="faction-section">
+    <div class="lobby-tab-panel is-active matchmaking-section" id="tab-panel-customize" role="tabpanel"
+         aria-labelledby="tab-btn-customize">
+        <div id="faction-section">
         <h2>🎨 Customize Your Faction</h2>
         <p>Select units, buildings, and perks to create your custom faction (<span id="points-display">0/100</span>
             points)</p>
@@ -70,10 +89,12 @@
                 <!-- Perks will be populated here -->
             </div>
         </div>
+        </div>
     </div>
 
-    <!-- Create Game Section -->
-    <div class="matchmaking-section" id="create-game-section">
+    <div class="lobby-tab-panel matchmaking-section" id="tab-panel-create" role="tabpanel"
+         aria-labelledby="tab-btn-create">
+    <div id="create-game-section">
         <h2>🎮 Create a Match</h2>
         <p>Configure your game settings and create a match for others to join</p>
 
@@ -139,8 +160,20 @@
             </button>
         </div>
     </div>
+    </div>
 
-    <!-- Matchmaking Status (hidden by default) -->
+    <div class="lobby-tab-panel matchmaking-section active-games-section" id="tab-panel-join" role="tabpanel"
+         aria-labelledby="tab-btn-join">
+        <h2>🎯 Join Existing Games</h2>
+        <ul id="games-list">
+            <li class="empty-state">Loading games...</li>
+        </ul>
+    </div>
+
+        </div>
+    </div>
+
+    <!-- Matchmaking Status (hidden by default; outside tab strip while waiting) -->
     <div id="matchmaking-status">
         <div class="spinner"></div>
         <div class="waiting-message" id="waiting-message">Waiting for players to join...</div>
@@ -158,13 +191,6 @@
         <button class="cancel-button" onclick="cancelMatchmaking()">Leave Lobby</button>
     </div>
 
-    <!-- Active Games -->
-    <div class="active-games-section">
-        <h2>🎯 Join Existing Games</h2>
-        <ul id="games-list">
-            <li class="empty-state">Loading games...</li>
-        </ul>
-    </div>
 </div>
 
 <script type="text/javascript">
@@ -173,9 +199,38 @@
     const gamesCountValue = document.getElementById('games-count-value');
     const serverStatus = document.getElementById('server-status');
     const createGameSection = document.getElementById('create-game-section');
+    const lobbyTabInterface = document.getElementById('lobby-tab-interface');
     const matchmakingStatus = document.getElementById('matchmaking-status');
     const createGameButton = document.getElementById('create-game-button');
     
+    const LOBBY_TAB_STORAGE_KEY = 'rtsLobbyActiveTab';
+
+    function setLobbyTab(tabId) {
+        const valid = ['customize', 'create', 'join'];
+        if (!valid.includes(tabId)) {
+            tabId = 'customize';
+        }
+        document.querySelectorAll('.lobby-tab').forEach(btn => {
+            const active = btn.getAttribute('data-tab') === tabId;
+            btn.classList.toggle('is-active', active);
+            btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        document.querySelectorAll('.lobby-tab-panel').forEach(panel => {
+            const id = panel.id;
+            const panelTab = id === 'tab-panel-customize' ? 'customize'
+                    : id === 'tab-panel-create' ? 'create'
+                    : id === 'tab-panel-join' ? 'join' : '';
+            panel.classList.toggle('is-active', panelTab === tabId);
+        });
+        try {
+            localStorage.setItem(LOBBY_TAB_STORAGE_KEY, tabId);
+        } catch (e) { /* ignore */ }
+    }
+
+    document.querySelectorAll('.lobby-tab').forEach(btn => {
+        btn.addEventListener('click', () => setLobbyTab(btn.getAttribute('data-tab')));
+    });
+
     let matchmakingActive = false;
     let currentGameId = null;
     let queueStartTime = null;
@@ -949,6 +1004,9 @@
             }
             
             createGameSection.style.display = 'none';
+            if (lobbyTabInterface) {
+                lobbyTabInterface.style.display = 'none';
+            }
             matchmakingStatus.classList.add('active');
             matchmakingActive = true;
 
@@ -1057,6 +1115,9 @@
     function resetMatchmaking() {
         matchmakingActive = false;
         currentGameId = null;
+        if (lobbyTabInterface) {
+            lobbyTabInterface.style.display = '';
+        }
         createGameSection.style.display = 'block';
         matchmakingStatus.classList.remove('active');
         createGameButton.disabled = false;
@@ -1107,6 +1168,9 @@
             
             // Show matchmaking status
             createGameSection.style.display = 'none';
+            if (lobbyTabInterface) {
+                lobbyTabInterface.style.display = 'none';
+            }
             matchmakingStatus.classList.add('active');
             matchmakingActive = true;
             
@@ -1147,6 +1211,13 @@
     document.getElementById('density-select').addEventListener('change', saveMatchSettingsToStorage);
     
     // Initialize
+    try {
+        const savedTab = localStorage.getItem(LOBBY_TAB_STORAGE_KEY);
+        if (savedTab && ['customize', 'create', 'join'].includes(savedTab)) {
+            setLobbyTab(savedTab);
+        }
+    } catch (e) { /* ignore */ }
+
     // Initialize FactionCustomizer (loads data from API)
     if (typeof factionCustomizer !== 'undefined') {
         factionCustomizer.initialize().catch(err => {

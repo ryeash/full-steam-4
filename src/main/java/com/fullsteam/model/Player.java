@@ -21,7 +21,7 @@ public class Player {
     /**
      * Index into {@link GameConfig#getSkirmishSlots()} when this faction was created from a skirmish roster; otherwise null.
      */
-    private final Integer skirmishSlotIndex;
+    private final int skirmishSlotIndex;
     private FactionDefinition factionDefinition;
     private WebSocketSession webSocketSession;
     private final Map<ResourceType, Integer> resources = new HashMap<>();
@@ -37,25 +37,10 @@ public class Player {
     private final Map<CommandAbilityType, Long> commandAbilityCooldownEndsAtMs = new ConcurrentHashMap<>();
 
     /**
-     * Constructor for AI or tests (no WebSocket).
-     */
-    public Player(int playerId, int teamNumber, FactionDefinition customDefinition) {
-        this(playerId, teamNumber, customDefinition, null, null);
-    }
-
-    /**
-     * Constructor with faction selection and optional live session (human players).
-     */
-    public Player(int playerId, int teamNumber, FactionDefinition customDefinition,
-                  WebSocketSession webSocketSession) {
-        this(playerId, teamNumber, customDefinition, webSocketSession, null);
-    }
-
-    /**
      * Full constructor including optional skirmish slot index (humans and AI).
      */
     public Player(int playerId, int teamNumber, FactionDefinition customDefinition,
-                  WebSocketSession webSocketSession, Integer skirmishSlotIndex) {
+                  WebSocketSession webSocketSession, int skirmishSlotIndex) {
         this.playerId = playerId;
         this.teamNumber = teamNumber;
         this.factionDefinition = customDefinition;
@@ -102,16 +87,6 @@ public class Player {
      */
     public int getResourceAmount(ResourceType type) {
         return resources.getOrDefault(type, 0);
-    }
-
-    /**
-     * Check if this faction can build a specific unit type
-     *
-     * @deprecated Use canProduceUnit() which respects research unlocks instead
-     */
-    @Deprecated
-    public boolean canBuildUnit(UnitType unitType) {
-        return factionDefinition.canBuildUnit(unitType);
     }
 
     /**

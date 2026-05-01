@@ -3,6 +3,7 @@ package com.fullsteam.ai.support;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.command.ConstructCommand;
+import com.fullsteam.model.command.HarvestCommand;
 import com.fullsteam.model.command.IdleCommand;
 import org.dyn4j.geometry.Vector2;
 
@@ -25,7 +26,10 @@ public final class AiUnitSupport {
                 .filter(u -> u.belongsTo(playerId) && u.isActive() && !u.isGarrisoned()
                         && u.getUnitType().canBuild())
                 .filter(u -> !(u.getCurrentCommand() instanceof ConstructCommand))
-                .filter(u -> u.getCurrentCommand() == null || u.getCurrentCommand() instanceof IdleCommand)
+                .filter(u -> {
+                    var c = u.getCurrentCommand();
+                    return c == null || c instanceof IdleCommand || c instanceof HarvestCommand;
+                })
                 .min(Comparator.comparingDouble(u -> u.getPosition().distanceSquared(near)));
     }
 
@@ -39,7 +43,10 @@ public final class AiUnitSupport {
         return entities.getUnits().values().stream()
                 .filter(u -> u.belongsTo(playerId) && u.isActive() && !u.isGarrisoned()
                         && u.getUnitType().canBuild())
-                .filter(u -> u.getCurrentCommand() == null || u.getCurrentCommand() instanceof IdleCommand)
+                .filter(u -> {
+                    var c = u.getCurrentCommand();
+                    return c == null || c instanceof IdleCommand || c instanceof HarvestCommand;
+                })
                 .min(Comparator.comparingDouble(u -> u.getPosition().distanceSquared(near)));
     }
 }

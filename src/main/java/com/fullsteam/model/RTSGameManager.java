@@ -858,24 +858,6 @@ public class RTSGameManager {
                     return;
                 }
 
-                // Check support capacity (e.g., Hangars require nearby Airfield with capacity)
-                if (!collisionProcessor.hasSupportCapacity(location, buildingType, playerId)) {
-                    BuildingType requirement = buildingType.getProximityRequirement();
-                    int capacity = requirement != null ? requirement.getSupportCapacity() : 0;
-                    log.warn("Player {} tried to build {} but no {} with available capacity nearby",
-                            playerId, buildingType, requirement);
-                    sendGameEvent(GameEvent.createPlayerEvent(
-                            String.format("⚠️ Cannot build %s here - need nearby %s with available capacity (max %d per %s)",
-                                    buildingType.getDisplayName(),
-                                    requirement != null ? requirement.getDisplayName() : "support building",
-                                    capacity,
-                                    requirement != null ? requirement.getDisplayName() : "building"),
-                            playerId,
-                            GameEvent.EventCategory.WARNING
-                    ));
-                    return;
-                }
-
                 if (buildingType.isUniquePerPlayer() && playerHasActiveBuildingOfType(playerId, buildingType)) {
                     log.warn("Player {} already has a {} (only one allowed)", playerId, buildingType);
                     sendGameEvent(GameEvent.createPlayerEvent(
@@ -1263,16 +1245,8 @@ public class RTSGameManager {
         }
     }
 
-    private int countCompletedCommandCitadels(int playerId) {
-        return (int) buildings.values().stream()
-                .filter(b -> b.getOwnerId() == playerId && b.isActive() && !b.isUnderConstruction())
-                .filter(b -> b.getBuildingType() == BuildingType.COMMAND_CITADEL)
-                .count();
-    }
-
     private double armyRentGlobalMultiplier(Player faction) {
-        return faction.getFactionDefinition().getArmyRentCostMultiplier()
-                * ArmyEconomy.commandCitadelRentMultiplier(countCompletedCommandCitadels(faction.getPlayerId()));
+        return faction.getFactionDefinition().getArmyRentCostMultiplier();
     }
 
     private int computeArmyRentCharge(Player faction) {
@@ -2496,8 +2470,7 @@ public class RTSGameManager {
     }
 
     private boolean skirmishSlotOccupied(int slotIndex) {
-        return players.values().stream()
-                .anyMatch(p -> p.getSkirmishSlotIndex() != null && p.getSkirmishSlotIndex() == slotIndex);
+        return players.values().stream().anyMatch(p -> p.getSkirmishSlotIndex() == slotIndex);
     }
 
     private void addSkirmishAiAtSlot(int slotIndex) {
@@ -2523,7 +2496,8 @@ public class RTSGameManager {
                 playerId, slotIndex, teamNumber, difficulty, start.x, start.y);
     }
 
-    private record TeamPlacement(int indexWithinTeam, int totalOnTeam) {}
+    private record TeamPlacement(int indexWithinTeam, int totalOnTeam) {
+    }
 
     private TeamPlacement teamPlacementForSkirmishSlot(int globalSlotIndex) {
         List<SkirmishSlotConfig> slots = gameConfig.getSkirmishSlots();

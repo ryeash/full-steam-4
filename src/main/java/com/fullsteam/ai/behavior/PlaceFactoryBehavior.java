@@ -26,7 +26,8 @@ public final class PlaceFactoryBehavior extends AbstractPlaceBuildingBehavior {
 
     @Override
     protected boolean concernsAllow(SkirmishAiTickContext ctx, AiConcernSnapshot concerns) {
-        return concerns.economy() >= ctx.aiProfile().placeRefineryMinEconomyConcern();
+        return !ctx.hasCompletedFactory()
+                || concerns.economy() >= ctx.aiProfile().placeRefineryMinEconomyConcern();
     }
 
     @Override

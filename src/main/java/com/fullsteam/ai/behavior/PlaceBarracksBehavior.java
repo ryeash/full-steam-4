@@ -5,13 +5,13 @@ import com.fullsteam.ai.context.SkirmishAiTickContext;
 import com.fullsteam.model.BuildingType;
 
 /**
- * Builds a {@link BuildingType#RESEARCH_LAB} after core economy (refinery) is up — first step of the T2 tech path.
+ * Builds the first {@link BuildingType#BARRACKS} — starting bases only include HQ + workers.
  */
-public final class PlaceResearchLabBehavior extends AbstractPlaceBuildingBehavior {
+public final class PlaceBarracksBehavior extends AbstractPlaceBuildingBehavior {
 
     @Override
     protected BuildingType buildingType() {
-        return BuildingType.RESEARCH_LAB;
+        return BuildingType.BARRACKS;
     }
 
     @Override
@@ -21,19 +21,17 @@ public final class PlaceResearchLabBehavior extends AbstractPlaceBuildingBehavio
 
     @Override
     protected int phaseSalt(SkirmishAiTickContext ctx) {
-        return ctx.aiProfile().placeRefinerySalt() + 2;
+        return ctx.aiProfile().placeRefinerySalt() + 11;
     }
 
     @Override
     protected boolean concernsAllow(SkirmishAiTickContext ctx, AiConcernSnapshot concerns) {
-        return !ctx.hasCompletedResearchLab()
+        return !ctx.hasCompletedBarracks()
                 || concerns.economy() >= ctx.aiProfile().placeRefineryMinEconomyConcern();
     }
 
     @Override
     protected boolean extraPlacementGuards(SkirmishAiTickContext ctx) {
-        return ctx.hasCompletedRefinery()
-                && !ctx.hasCompletedResearchLab()
-                && ctx.researchLabsUnderConstruction() == 0;
+        return !ctx.hasCompletedBarracks() && ctx.barracksUnderConstruction() == 0;
     }
 }
