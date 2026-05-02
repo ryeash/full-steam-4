@@ -78,6 +78,7 @@ public class GameEntityTest {
             UnitType.SCOUT_DRONE,
             UnitType.BOMBER,
             UnitType.HELICOPTER,
+            UnitType.CHINOOK,
             UnitType.INTERCEPTOR
         };
         

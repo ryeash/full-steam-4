@@ -364,7 +364,7 @@ public class WeaponFactory {
 
             // ===== NON-COMBAT UNITS =====
 
-            case MEDIC, ENGINEER, GUNSHIP -> null; // These units don't have weapons (or manage their own)
+            case MEDIC, ENGINEER, GUNSHIP, CHINOOK -> null; // These units don't have weapons (or manage their own)
 
             default -> new ProjectileWeapon(
                     damage, range, attackRate,

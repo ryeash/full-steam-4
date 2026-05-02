@@ -90,6 +90,7 @@ public class GarrisonComponent extends AbstractBuildingComponent {
         toUngarrison.setGarrisoned(false);
         // Unit is already active, just re-enable physics
         toUngarrison.getBody().setEnabled(true);
+        toUngarrison.clearHomePosition();
         return toUngarrison;
     }
 

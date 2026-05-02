@@ -135,7 +135,7 @@
                 <div class="config-description">Map obstacle count</div>
             </div>
 
-            <div class="config-group" id="skirmish-config-group">
+            <div class="config-group" id="skirmish-config-group" style="grid-column: 1 / -1;">
                 <label class="config-label">Skirmish roster (max 4 slots total)</label>
                 <div class="config-description" style="margin-bottom: 10px;">
                     Add or remove slots, assign teams, and set Human vs AI. At least two teams and one human slot are required.
@@ -359,20 +359,29 @@
         c.innerHTML = '';
         skirmishState.slots.forEach((slot, idx) => {
             const row = document.createElement('div');
-            row.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:8px;padding:8px;background:rgba(0,0,0,0.35);border-radius:6px;border:1px solid #333;';
+            row.className = 'skirmish-slot-row';
             row.innerHTML = `
-                <span style="color:#888;width:28px;">#${idx + 1}</span>
-                <label>Team <select class="config-select sk-team" data-i="${idx}" style="min-width:60px;">
-                    ${[1,2,3,4].map(t => `<option value="${t}" ${slot.teamId === t ? 'selected' : ''}>${t}</option>`).join('')}
-                </select></label>
-                <label>Type <select class="config-select sk-kind" data-i="${idx}" style="min-width:100px;">
-                    <option value="HUMAN" ${slot.kind === 'HUMAN' ? 'selected' : ''}>Human</option>
-                    <option value="AI" ${slot.kind === 'AI' ? 'selected' : ''}>AI</option>
-                </select></label>
-                ${slot.kind === 'AI' ? `<label style="color:#aaa;">AI difficulty <select class="config-select sk-aidiff" data-i="${idx}" style="min-width:100px;">
-                    ${['EASY', 'NORMAL', 'HARD'].map(d => `<option value="${d}" ${(slot.aiDifficulty || 'NORMAL') === d ? 'selected' : ''}>${d}</option>`).join('')}
-                </select></label>` : ''}
-                <button type="button" class="debug-button sk-remove" data-i="${idx}" ${skirmishState.slots.length <= 2 ? 'disabled' : ''}>Remove</button>
+                <span class="skirmish-slot-num">#${idx + 1}</span>
+                <div class="skirmish-slot-field">
+                    <label class="skirmish-slot-label" for="sk-team-${idx}">Team</label>
+                    <select id="sk-team-${idx}" class="config-select skirmish-slot-select sk-team" data-i="${idx}">
+                        ${[1,2,3,4].map(t => `<option value="${t}" ${slot.teamId === t ? 'selected' : ''}>${t}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="skirmish-slot-field">
+                    <label class="skirmish-slot-label" for="sk-kind-${idx}">Type</label>
+                    <select id="sk-kind-${idx}" class="config-select skirmish-slot-select sk-kind" data-i="${idx}">
+                        <option value="HUMAN" ${slot.kind === 'HUMAN' ? 'selected' : ''}>Human</option>
+                        <option value="AI" ${slot.kind === 'AI' ? 'selected' : ''}>AI</option>
+                    </select>
+                </div>
+                ${slot.kind === 'AI' ? `<div class="skirmish-slot-field">
+                    <label class="skirmish-slot-label" for="sk-aidiff-${idx}">AI difficulty</label>
+                    <select id="sk-aidiff-${idx}" class="config-select skirmish-slot-select sk-aidiff" data-i="${idx}">
+                        ${['EASY', 'NORMAL', 'HARD'].map(d => `<option value="${d}" ${(slot.aiDifficulty || 'NORMAL') === d ? 'selected' : ''}>${d}</option>`).join('')}
+                    </select>
+                </div>` : ''}
+                <button type="button" class="debug-button sk-remove skirmish-slot-remove" data-i="${idx}" ${skirmishState.slots.length <= 2 ? 'disabled' : ''}>Remove</button>
             `;
             c.appendChild(row);
         });

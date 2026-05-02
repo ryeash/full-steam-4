@@ -1086,8 +1086,8 @@ class RTSEngine {
             this.selectedUnits.delete(unitData.id);
         }
         
-        // Update garrison label (for APCs)
-        if (unitData.type === 'APC') {
+        // Update garrison label (APC, Chinook — server sends maxGarrisonCapacity)
+        if (unitData.maxGarrisonCapacity != null) {
             if (!unitContainer.garrisonLabel) {
                 const label = new PIXI.Text('', {
                     fontFamily: 'Arial',
@@ -1102,13 +1102,15 @@ class RTSEngine {
                 unitContainer.addChild(label);
                 unitContainer.garrisonLabel = label;
             }
-            
+
             if (unitData.garrisonCount > 0) {
                 unitContainer.garrisonLabel.text = `[${unitData.garrisonCount}/${unitData.maxGarrisonCapacity || 3}]`;
                 unitContainer.garrisonLabel.visible = true;
             } else {
                 unitContainer.garrisonLabel.visible = false;
             }
+        } else if (unitContainer.garrisonLabel) {
+            unitContainer.garrisonLabel.visible = false;
         }
         
         // Update cloak visual effect (for Cloak Tank and Spy)
@@ -1233,6 +1235,25 @@ class RTSEngine {
             // 3. SHADOW STAYS CONSTANT (bomber flies at constant altitude)
             // No animation needed for bomber shadow
             
+        } else if (container.isChinook) {
+            // CHINOOK: tandem rotors (counter-rotating), heavier bob, no tail rotor
+            const bob = Math.sin(time * 0.85) * 5;
+            if (container.rotatingContainer) {
+                container.rotatingContainer.y = bob;
+            }
+            if (container.shadowGraphics) {
+                const shadowAlpha = 0.36 - (bob * 0.018);
+                container.shadowGraphics.alpha = Math.max(0.14, shadowAlpha);
+            }
+            if (container.chinookRotorFwd) {
+                container.chinookRotorFwd.rotation += 0.36;
+            }
+            if (container.chinookRotorAft) {
+                container.chinookRotorAft.rotation -= 0.36;
+            }
+            if (container.chinookBeacon) {
+                container.chinookBeacon.alpha = 0.4 + Math.sin(time * 6) * 0.55;
+            }
         } else if (container.isHelicopter) {
             // HELICOPTER: Bobbing motion (like scout drone), spinning main rotor, spinning tail rotor
             
@@ -1417,7 +1438,7 @@ class RTSEngine {
     }
     
     /**
-     * Create special graphics for air units (Scout Drone, Bomber, Helicopter, Interceptor)
+     * Create special graphics for air units (Scout Drone, Bomber, Helicopter, Chinook, Interceptor, Gunship)
      * Features: shadow, rotor/engine animation, glow effects, bobbing motion
      */
     createAirUnitGraphics(unitData, typeInfo) {
@@ -1427,6 +1448,8 @@ class RTSEngine {
                 return this.createBomberGraphics(unitData, typeInfo);
             case 'HELICOPTER':
                 return this.createHelicopterGraphics(unitData, typeInfo);
+            case 'CHINOOK':
+                return this.createChinookGraphics(unitData, typeInfo);
             case 'INTERCEPTOR':
                 return this.createInterceptorGraphics(unitData, typeInfo);
             case 'GUNSHIP':
@@ -1796,6 +1819,104 @@ class RTSEngine {
         
         return container;
     }
+
+    /**
+     * Create graphics for Chinook (tandem-rotor heavy lift transport).
+     * Distinct from the attack helicopter: long cargo hull, fore/aft rotor discs,
+     * no tail rotor, wider shadow, ramp and cabin windows.
+     */
+    createChinookGraphics(unitData, typeInfo) {
+        const s = typeInfo.size;
+        const teamStroke = this.getTeamColor(unitData.team);
+        const hullColor = typeInfo.color != null ? typeInfo.color : 0x556b2f;
+
+        const container = new PIXI.Container();
+        container.isAirUnit = true;
+        container.isChinook = true;
+
+        const shadow = new PIXI.Graphics();
+        const shadowOffset = -38;
+        shadow.ellipse(0, shadowOffset, s * 1.0, s * 0.3);
+        shadow.fill({ color: 0x000000, alpha: 0.38 });
+        container.addChild(shadow);
+        container.shadowGraphics = shadow;
+
+        const rotatingContainer = new PIXI.Container();
+        container.addChild(rotatingContainer);
+        container.rotatingContainer = rotatingContainer;
+
+        const hx = s * 0.85;
+        const hy = s * 0.32;
+
+        // Main hull drawn from server physics vertices so the render matches the collision body exactly.
+        // Falls back to the hand-coded polygon when vertices aren't available.
+        const hull = new PIXI.Graphics();
+        if (unitData.vertices && unitData.vertices.length > 0) {
+            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
+            if (isMultiFixture) {
+                for (const fixtureVertices of unitData.vertices) {
+                    if (fixtureVertices.length > 0) {
+                        this.drawPhysicsPolygon(hull, fixtureVertices, hullColor, unitData.team);
+                        hull.stroke({ width: 1.5, color: teamStroke });
+                    }
+                }
+            } else {
+                this.drawPhysicsPolygon(hull, unitData.vertices, hullColor, unitData.team);
+                hull.stroke({ width: 1.5, color: teamStroke });
+            }
+        } else {
+            hull.moveTo(-hx * 0.88, -hy);
+            hull.lineTo(hx * 0.96, -hy * 0.72);
+            hull.lineTo(hx, -hy * 0.32);
+            hull.lineTo(hx * 0.96, hy * 0.38);
+            hull.lineTo(hx * 0.88, hy * 0.88);
+            hull.lineTo(-hx * 0.72, hy);
+            hull.lineTo(-hx * 0.98, hy * 0.42);
+            hull.lineTo(-hx * 0.94, -hy * 0.28);
+            hull.closePath();
+            hull.fill({ color: hullColor, alpha: 0.95 });
+            hull.stroke({ width: 1.5, color: teamStroke });
+        }
+        rotatingContainer.addChild(hull);
+
+        const addTandemRotor = (px) => {
+            const rotor = new PIXI.Container();
+            rotor.position.set(px, 0);
+            const b1 = new PIXI.Graphics();
+            b1.rect(-s * 0.72, -2.8, s * 1.44, 5.6);
+            b1.fill({ color: 0x888888, alpha: 0.4 });
+            const b2 = new PIXI.Graphics();
+            b2.rect(-2.8, -s * 0.72, 5.6, s * 1.44);
+            b2.fill({ color: 0x707070, alpha: 0.35 });
+            rotor.addChild(b1);
+            rotor.addChild(b2);
+            rotatingContainer.addChild(rotor);
+            return rotor;
+        };
+
+        container.chinookRotorFwd = addTandemRotor(s * 0.38);
+        container.chinookRotorAft = addTandemRotor(-s * 0.42);
+
+        const healthBar = new PIXI.Graphics();
+        healthBar.rect(-s * 0.85, -s - 10, s * 1.7, 4);
+        healthBar.fill({ color: 0x00ff00 });
+        container.healthBarOffset = s + 10;
+        container.addChild(healthBar);
+        container.healthBar = healthBar;
+
+        const selectionCircle = new PIXI.Graphics();
+        selectionCircle.visible = false;
+        selectionCircle.circle(0, 0, s * 1.0);
+        selectionCircle.stroke({ width: 2, color: 0x00ff00 });
+        container.addChild(selectionCircle);
+        container.selectionCircle = selectionCircle;
+
+        container.animationTime = Math.random() * Math.PI * 2;
+        container.unitData = unitData;
+        container.typeInfo = typeInfo;
+
+        return container;
+    }
     
     /**
      * Create graphics for Gunship (LOW altitude heavy attack aircraft)
@@ -2028,15 +2149,79 @@ class RTSEngine {
         return container;
     }
     
-    updateBuilding(buildingData) {
-        // Merge with static building type data if available
+    /**
+     * Merge {@code gameInitialization.buildingTypes} under live building state; snapshot fields
+     * (e.g. vertices from {@link BuildingType#createPhysicsFixtures}) must win over static keys.
+     */
+    mergeBuildingTypeDefaults(buildingData) {
         if (this.buildingTypes && this.buildingTypes[buildingData.type]) {
-            buildingData = {
-                ...this.buildingTypes[buildingData.type],
-                ...buildingData
-            };
+            return { ...this.buildingTypes[buildingData.type], ...buildingData };
         }
-        
+        return { ...buildingData };
+    }
+
+    /** Size and fill color for HUD / decorations — from server buildingTypes (enum-backed). */
+    resolveBuildingVisualTypeInfo(buildingData) {
+        const s = this.buildingTypes && this.buildingTypes[buildingData.type];
+        const size = (s && typeof s.size === 'number') ? s.size : 50;
+        let color = 0xffffff;
+        if (s && s.color != null) {
+            color = typeof s.color === 'number' ? s.color : parseInt(String(s.color), 10);
+        }
+        return { size, color };
+    }
+
+    buildingVerticesPresent(buildingData) {
+        return !!(buildingData.vertices && buildingData.vertices.length > 0);
+    }
+
+    isBuildingVerticesMultiFixture(vertices) {
+        return Array.isArray(vertices[0]) && Array.isArray(vertices[0][0]);
+    }
+
+    /**
+     * Footprint fill/outline: prefers server {@code vertices} (dyn4j fixtures from {@code BuildingType}),
+     * else a neutral circle from {@code size} (matches server radius until verts arrive).
+     */
+    paintBuildingShapeFromState(shape, buildingData, typeInfo) {
+        const FALLBACK_SIDES = 24;
+        shape.clear();
+        const hasVertices = this.buildingVerticesPresent(buildingData);
+        const teamStroke = () => this.getTeamColor(buildingData.team);
+        if (buildingData.underConstruction) {
+            if (hasVertices) {
+                if (this.isBuildingVerticesMultiFixture(buildingData.vertices)) {
+                    for (const fixtureVertices of buildingData.vertices) {
+                        if (fixtureVertices.length > 0) {
+                            this.drawPhysicsPolygonOutline(shape, fixtureVertices, typeInfo.color, buildingData.team);
+                        }
+                    }
+                } else {
+                    this.drawPhysicsPolygonOutline(shape, buildingData.vertices, typeInfo.color, buildingData.team);
+                }
+            } else {
+                this.drawPolygonOutline(shape, FALLBACK_SIDES, typeInfo.size, typeInfo.color, buildingData.team);
+            }
+        } else if (hasVertices) {
+            if (this.isBuildingVerticesMultiFixture(buildingData.vertices)) {
+                for (const fixtureVertices of buildingData.vertices) {
+                    if (fixtureVertices.length > 0) {
+                        this.drawPhysicsPolygon(shape, fixtureVertices, typeInfo.color, buildingData.team);
+                        shape.stroke({ width: 1, color: teamStroke() });
+                    }
+                }
+            } else {
+                this.drawPhysicsPolygon(shape, buildingData.vertices, typeInfo.color, buildingData.team);
+                shape.stroke({ width: 1, color: teamStroke() });
+            }
+        } else {
+            this.drawPolygon(shape, FALLBACK_SIDES, typeInfo.size, typeInfo.color, buildingData.team);
+        }
+    }
+
+    updateBuilding(buildingData) {
+        buildingData = this.mergeBuildingTypeDefaults(buildingData);
+
         let buildingContainer = this.buildings.get(buildingData.id);
         
         if (!buildingContainer) {
@@ -2055,68 +2240,7 @@ class RTSEngine {
         // Update building appearance based on construction status
         if (buildingContainer.shapeGraphics && buildingContainer.typeInfo) {
             const shape = buildingContainer.shapeGraphics;
-            shape.clear();
-            
-            // Use physics body vertices if available for accurate shape rendering
-            const hasVertices = buildingData.vertices && buildingData.vertices.length > 0;
-            
-            if (buildingData.underConstruction) {
-                // Dotted outline for buildings under construction
-                if (hasVertices) {
-                    // Check if this is multi-fixture format
-                    const isMultiFixture = Array.isArray(buildingData.vertices[0]) && Array.isArray(buildingData.vertices[0][0]);
-                    
-                    if (isMultiFixture) {
-                        // Multi-fixture: draw each fixture separately
-                        for (const fixtureVertices of buildingData.vertices) {
-                            if (fixtureVertices.length > 0) {
-                                this.drawPhysicsPolygonOutline(shape, fixtureVertices, 
-                                                               buildingContainer.typeInfo.color, 
-                                                               buildingData.team);
-                            }
-                        }
-                    } else {
-                        // Single-fixture (backward compatibility)
-                        this.drawPhysicsPolygonOutline(shape, buildingData.vertices, 
-                                                       buildingContainer.typeInfo.color, 
-                                                       buildingData.team);
-                    }
-                } else {
-                    this.drawPolygonOutline(shape, buildingContainer.typeInfo.sides, 
-                                           buildingContainer.typeInfo.size, 
-                                           buildingContainer.typeInfo.color, 
-                                           buildingData.team);
-                }
-            } else {
-                // Solid fill for completed buildings
-                if (hasVertices) {
-                    // Check if this is multi-fixture format
-                    const isMultiFixture = Array.isArray(buildingData.vertices[0]) && Array.isArray(buildingData.vertices[0][0]);
-                    
-                    if (isMultiFixture) {
-                        // Multi-fixture: draw each fixture separately
-                        for (const fixtureVertices of buildingData.vertices) {
-                            if (fixtureVertices.length > 0) {
-                                this.drawPhysicsPolygon(shape, fixtureVertices, 
-                                                       buildingContainer.typeInfo.color, 
-                                                       buildingData.team);
-                                shape.stroke({ width: 1, color: this.getTeamColor(buildingData.team) });
-                            }
-                        }
-                    } else {
-                        // Single-fixture (backward compatibility)
-                        this.drawPhysicsPolygon(shape, buildingData.vertices, 
-                                               buildingContainer.typeInfo.color, 
-                                               buildingData.team);
-                        shape.stroke({ width: 1, color: this.getTeamColor(buildingData.team) });
-                    }
-                } else {
-                    this.drawPolygon(shape, buildingContainer.typeInfo.sides, 
-                                   buildingContainer.typeInfo.size, 
-                                   buildingContainer.typeInfo.color, 
-                                   buildingData.team);
-                }
-            }
+            this.paintBuildingShapeFromState(shape, buildingData, buildingContainer.typeInfo);
         }
         
         // Update turret rotation for TURRET buildings (hide barrel during construction)
@@ -2382,91 +2506,59 @@ class RTSEngine {
     
     createBuildingGraphics(buildingData) {
         const container = new PIXI.Container();
-        
-        // Get building type info with unique shapes, sizes, and orientations
-        const buildingTypes = {
-            'HEADQUARTERS': { sides: 8, size: 80, color: 0xFFD700, rotation: 0 },
-            'REFINERY': { sides: 6, size: 50, color: 0x808080, rotation: Math.PI / 6 },
-            'BARRACKS': { sides: 4, size: 45, color: 0x8B4513, rotation: Math.PI / 4 },
-            'POWER_PLANT': { sides: 6, size: 40, color: 0xFFFF00, rotation: 0 },
-            'FACTORY': { sides: 4, size: 55, color: 0x696969, rotation: 0 },
-            'RESEARCH_LAB': { sides: 6, size: 50, color: 0x00CED1, rotation: Math.PI / 6 },
-            'TECH_CENTER': { sides: 8, size: 60, color: 0x4169E1, rotation: Math.PI / 8 },
-            'TURRET': { sides: 5, size: 25, color: 0xFF4500, rotation: 0 },
-            'ROCKET_TURRET': { sides: 6, size: 25, color: 0xFF6347, rotation: 0 },
-            'FLAK_TURRET': { sides: 6, size: 25, color: 0xA0A0A0, rotation: 0 },
-            'LASER_TURRET': { sides: 8, size: 25, color: 0x00FFFF, rotation: Math.PI / 8 },
-            'SHIELD_GENERATOR': { sides: 6, size: 30, color: 0x00BFFF, rotation: 0 },
-            'BANK': { sides: 8, size: 35, color: 0xFFD700, rotation: Math.PI / 8 },
-            'BUNKER': { sides: 4, size: 40, color: 0x556B2F, rotation: Math.PI / 4 },
-            'SANDSTORM_GENERATOR': { sides: 6, size: 45, color: 0xDEB887, rotation: 0 },
-            'QUANTUM_NEXUS': { sides: 8, size: 50, color: 0x9370DB, rotation: Math.PI / 8 },
-            'PHOTON_SPIRE': { sides: 6, size: 48, color: 0x00FF00, rotation: Math.PI / 6 },
-            'ANDROID_FACTORY': { sides: 8, size: 55, color: 0x4B0082, rotation: Math.PI / 8 },
-            'TEMPEST_SPIRE': { sides: 8, size: 45, color: 0x4682B4, rotation: 0 },
-            // Air unit production
-            'AIRFIELD': { sides: 8, size: 60, color: 0x708090, rotation: 0 },
-            // World radius for placement / preview comes from gameInitialization (buildingInfo + buildingTypes).size;
-            // Values here are ~visual scale for first paint / selection chrome when vertices are not used yet.
-            'STRIKE_RELAY': { sides: 6, size: 42, color: 0xCD853F, rotation: 0 },
-            'SATCOM_ARRAY': { sides: 8, size: 40, color: 0x6495ED, rotation: Math.PI / 8 },
-            'NUKE_SILO': { sides: 8, size: 48, color: 0x8B0000, rotation: 0 },
-            'JUMP_PAD': { sides: 4, size: 44, color: 0x4A708B, rotation: 0 },
-        };
-        
-        const typeInfo = buildingTypes[buildingData.type] || { sides: 4, size: 50, color: 0xFFFFFF, rotation: 0 };
-        
+        const bd = this.mergeBuildingTypeDefaults(buildingData);
+        const typeInfo = this.resolveBuildingVisualTypeInfo(bd);
+
         // Create a rotating container for turret buildings
-        const hasTurret = buildingData.type === 'TURRET' || buildingData.type === 'ROCKET_TURRET'
-            || buildingData.type === 'FLAK_TURRET' || buildingData.type === 'LASER_TURRET';
+        const hasTurret = bd.type === 'TURRET' || bd.type === 'ROCKET_TURRET'
+            || bd.type === 'FLAK_TURRET' || bd.type === 'LASER_TURRET';
         let rotatingContainer;
-        
+
         if (hasTurret) {
             rotatingContainer = new PIXI.Container();
             container.addChild(rotatingContainer);
             container.rotatingContainer = rotatingContainer;
         }
-        
-        // Create polygon shape with rotation
+
         const shape = new PIXI.Graphics();
-        this.drawPolygon(shape, typeInfo.sides, typeInfo.size, typeInfo.color, buildingData.team);
-        shape.rotation = typeInfo.rotation; // Apply unique rotation per building type
+        shape.rotation = 0;
+        this.paintBuildingShapeFromState(shape, bd, typeInfo);
         if (hasTurret) {
             rotatingContainer.addChild(shape);
         } else {
             container.addChild(shape);
         }
-        
+
         // Store references for dynamic updates
         container.shapeGraphics = shape;
         container.typeInfo = typeInfo;
-        
+
         // Add decorative elements for certain buildings
-        this.addBuildingDecorations(container, buildingData.type, typeInfo);
-        
+        this.addBuildingDecorations(container, bd.type, typeInfo);
+
         // Add turret barrel for TURRET buildings
         if (hasTurret) {
             const barrel = new PIXI.Graphics();
             const barrelLength = typeInfo.size * 1.2;
             const barrelWidth = typeInfo.size * 0.2;
-            
+
             // Draw barrel as a rectangle pointing right
             barrel.rect(0, -barrelWidth / 2, barrelLength, barrelWidth);
             barrel.fill({ color: 0x606060 });
             barrel.stroke({ width: 2, color: 0x000000 });
-            
+
             // Add muzzle tip
             barrel.circle(barrelLength, 0, barrelWidth * 0.7);
             barrel.fill({ color: 0x303030 });
             barrel.stroke({ width: 2, color: 0x000000 });
-            
+
             rotatingContainer.addChild(barrel);
             container.turretBarrel = barrel;
         }
-        
+
         // Building type letter / short label (server-authoritative via gameInitialization.buildingTypes)
-        const labelText = (this.buildingTypes && this.buildingTypes[buildingData.type] && this.buildingTypes[buildingData.type].label)
-            ? this.buildingTypes[buildingData.type].label
+        const labelText = (this.buildingTypes && this.buildingTypes[bd.type] && this.buildingTypes[bd.type].label)
+            ? this.buildingTypes[bd.type].label
             : '?';
         const label = new PIXI.Text(labelText, {
             fontFamily: 'Arial',
@@ -2512,7 +2604,7 @@ class RTSEngine {
         container.selectionCircle = selectionCircle;
         
         // Create garrison indicator (for bunkers)
-        if (buildingData.type === 'BUNKER') {
+        if (bd.type === 'BUNKER') {
             const garrisonLabel = new PIXI.Text('', {
                 fontFamily: 'Arial',
                 fontSize: 14,
@@ -2527,7 +2619,7 @@ class RTSEngine {
             container.garrisonLabel = garrisonLabel;
         }
         
-        if (buildingData.type === 'AIRFIELD') {
+        if (bd.type === 'AIRFIELD') {
             const berthLabel = new PIXI.Text('', {
                 fontFamily: 'Arial',
                 fontSize: 14,
@@ -3389,7 +3481,7 @@ class RTSEngine {
                 singleInfo.appendChild(garrisonDiv);
             }
             
-            if (unit.type === 'APC' && unit.garrisonCount !== undefined) {
+            if (unit.maxGarrisonCapacity != null && unit.garrisonCount !== undefined) {
                 garrisonDiv.style.display = 'block';
                 garrisonDiv.innerHTML = `
                     <div class="unit-stat">
@@ -4031,8 +4123,8 @@ class RTSEngine {
             if (targetUnit.team !== this.myTeam) {
                 // Attack enemy unit
                 this.sendInput({ attackUnitOrder: targetUnit.id });
-            } else if (targetUnit.type === 'APC' && this.hasInfantrySelected()) {
-                // Garrison infantry into friendly APC
+            } else if (targetUnit.maxGarrisonCapacity != null && this.hasInfantrySelected()) {
+                // Garrison infantry into friendly APC / Chinook
                 this.sendInput({ garrisonOrder: targetUnit.id });
             } else {
                 // Can't command other player's units, just move
@@ -4204,9 +4296,9 @@ class RTSEngine {
             const unitContainer = this.units.get(unitId);
             if (unitContainer && unitContainer.unitData) {
                 const unitData = unitContainer.unitData;
-                if (unitData.type === 'APC' && unitData.garrisonCount > 0) {
+                if (unitData.maxGarrisonCapacity != null && unitData.garrisonCount > 0) {
                     this.ungarrisonUnit(unitData.id, true);
-                    this.showGameEvent('Ungarrisoning all units from APC', 'info');
+                    this.showGameEvent('Ungarrisoning all passengers', 'info');
                     return; // Only ungarrison from first APC
                 }
             }
@@ -4582,6 +4674,19 @@ class RTSEngine {
             meta.appendChild(st);
         }
 
+        if (buildingData.underConstruction && buildingData.ownerId === this.myPlayerId) {
+            const cancelWrap = document.createElement('div');
+            cancelWrap.style.marginTop = '10px';
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'build-button';
+            cancelBtn.textContent = 'Cancel construction';
+            cancelBtn.title = 'Remove this foundation and refund the full building cost';
+            cancelBtn.onclick = () => this.issueCancelConstruction(buildingData.id);
+            cancelWrap.appendChild(cancelBtn);
+            meta.appendChild(cancelWrap);
+        }
+
         if (buildingData.type === 'BUNKER') {
             const garrisonInfo = document.createElement('div');
             garrisonInfo.className = 'unit-stat';
@@ -4641,6 +4746,21 @@ class RTSEngine {
                     trainGrid.appendChild(button);
                 });
                 scroll.appendChild(trainGrid);
+
+                const q = buildingData.productionQueueSize || 0;
+                const hasCurrent = Boolean(buildingData.producingUnitType);
+                if (buildingData.ownerId === this.myPlayerId && (q > 0 || hasCurrent)) {
+                    const cancelLastWrap = document.createElement('div');
+                    cancelLastWrap.style.marginTop = '10px';
+                    const cancelLastBtn = document.createElement('button');
+                    cancelLastBtn.type = 'button';
+                    cancelLastBtn.className = 'build-button';
+                    cancelLastBtn.textContent = 'Cancel last (queue)';
+                    cancelLastBtn.title = 'Remove the most recently queued unit, or cancel in-progress production if the queue is empty (refunds that unit’s cost)';
+                    cancelLastBtn.onclick = () => this.issueCancelLastProduction(buildingData.id);
+                    cancelLastWrap.appendChild(cancelLastBtn);
+                    scroll.appendChild(cancelLastWrap);
+                }
             }
 
             actionsCol.appendChild(scroll);
@@ -5263,8 +5383,8 @@ class RTSEngine {
                         btn.onclick = () => this.ungarrisonUnit(buildingData.id, false, row.unitId);
                     } else if (act === 'CANCEL_PRODUCTION') {
                         btn.textContent = '⏹';
-                        btn.title = 'Cancel current production (refunds cost)';
-                        btn.onclick = () => this.issueCancelAirfieldProduction(buildingData.id);
+                        btn.title = 'Cancel last queued production, or current item if queue is empty (refunds cost)';
+                        btn.onclick = () => this.issueCancelLastProduction(buildingData.id);
                     } else {
                         continue;
                     }
@@ -5326,9 +5446,15 @@ class RTSEngine {
         });
     }
 
-    issueCancelAirfieldProduction(buildingId) {
+    issueCancelLastProduction(buildingId) {
         this.sendInput({
             cancelAirfieldProductionBuildingId: buildingId
+        });
+    }
+
+    issueCancelConstruction(buildingId) {
+        this.sendInput({
+            cancelConstructionBuildingId: buildingId
         });
     }
 

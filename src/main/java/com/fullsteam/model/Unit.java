@@ -185,9 +185,11 @@ public class Unit extends GameEntity implements Targetable {
             addComponent(new SpyComponent(), gameEntities);
         }
 
-        // APC garrison component
+        // APC / Chinook transport garrison
         if (unitType == UnitType.APC) {
             addComponent(new APCComponent(), gameEntities);
+        } else if (unitType == UnitType.CHINOOK) {
+            addComponent(new APCComponent(false), gameEntities);
         }
 
         // Air unit specific components
@@ -760,6 +762,15 @@ public class Unit extends GameEntity implements Targetable {
     public boolean belongsTo(int playerId) {
         return this.ownerId == playerId;
     } 
+
+    /**
+     * Clear the defensive-stance home (tether) position so the unit does not try to
+     * return to a location it occupied before being garrisoned in a transport.
+     * Called whenever a unit is ungarrisoned from any carrier or bunker.
+     */
+    public void clearHomePosition() {
+        homePosition = null;
+    }
 
     /**
      * Check if unit should return to home position (for defensive stance)

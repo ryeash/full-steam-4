@@ -5,7 +5,7 @@ import lombok.Getter;
 import org.dyn4j.geometry.Vector2;
 
 /**
- * Command for a unit to enter an APC (Armored Personnel Carrier) for garrison transport.
+ * Command for a unit to enter a friendly transport (APC or Chinook) for garrison transport.
  */
 @Getter
 public class GarrisonAPCCommand extends UnitCommand {
@@ -18,7 +18,7 @@ public class GarrisonAPCCommand extends UnitCommand {
 
     @Override
     public boolean update(double deltaTime) {
-        // Command fails if APC is destroyed or not active
+        // Command fails if carrier is destroyed or not active
         if (apc == null || !apc.isActive()) {
             return false;
         }
@@ -46,7 +46,7 @@ public class GarrisonAPCCommand extends UnitCommand {
         double distance = currentPos.distance(apcPos);
         double garrisonRange = apc.getUnitType().getSize() + 10.0;
 
-        // Move to APC if too far
+        // Move to carrier if too far
         if (distance > garrisonRange) {
             if (path.isEmpty() || lastPathTarget == null || lastPathTarget.distance(apcPos) > 20.0) {
                 computePathTo(apcPos);
@@ -77,6 +77,6 @@ public class GarrisonAPCCommand extends UnitCommand {
 
     @Override
     public String getDescription() {
-        return "Garrison in APC " + (apc != null ? apc.getId() : "null");
+        return "Garrison in transport " + (apc != null ? apc.getId() : "null");
     }
 }

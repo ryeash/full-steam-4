@@ -629,13 +629,12 @@ public class RTSGameManager {
                         .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().isInfantry())
                         .forEach(u -> u.issueCommand(new GarrisonBunkerCommand(u, bunker, true), gameEntities));
             } else {
-                // Check if it's an APC
-                Unit apc = units.get(input.getGarrisonOrder());
-                if (apc != null && apc.getUnitType() == UnitType.APC &&
-                        apc.belongsTo(playerId) && apc.isActive()) {
+                Unit carrier = units.get(input.getGarrisonOrder());
+                if (carrier != null && carrier.hasComponent(APCComponent.class)
+                        && carrier.belongsTo(playerId) && carrier.isActive()) {
                     units.values().stream()
                             .filter(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().isInfantry())
-                            .forEach(u -> u.issueCommand(new GarrisonAPCCommand(u, apc, true), gameEntities));
+                            .forEach(u -> u.issueCommand(new GarrisonAPCCommand(u, carrier, true), gameEntities));
                 }
             }
         }
@@ -667,13 +666,13 @@ public class RTSGameManager {
                     }
                 }
             } else {
-                // Check if it's an APC (reusing the same field for unit garrison)
-                Unit apc = units.get(input.getUngarrisonBuildingId());
-                if (apc != null && apc.getUnitType() == UnitType.APC &&
-                        apc.belongsTo(playerId) && apc.isActive()) {
+                // Ungarrison from transport unit (APC / Chinook — reuses building id field)
+                Unit carrier = units.get(input.getUngarrisonBuildingId());
+                if (carrier != null && carrier.hasComponent(APCComponent.class)
+                        && carrier.belongsTo(playerId) && carrier.isActive()) {
                     if (input.isUngarrisonAll()) {
                         // Ungarrison all units
-                        List<Unit> ungarrisoned = apc.ungarrisonAllUnits();
+                        List<Unit> ungarrisoned = carrier.ungarrisonAllUnits();
                         // Re-add units to the physics world
                         for (Unit unit : ungarrisoned) {
                             if (!world.containsBody(unit.getBody())) {
@@ -682,13 +681,13 @@ public class RTSGameManager {
                         }
                     } else if (input.getUngarrisonUnitId() != null) {
                         Unit target = units.get(input.getUngarrisonUnitId());
-                        Unit ungarrisoned = apc.ungarrisonUnit(target);
+                        Unit ungarrisoned = carrier.ungarrisonUnit(target);
                         if (ungarrisoned != null && !world.containsBody(ungarrisoned.getBody())) {
                             world.addBody(ungarrisoned.getBody());
                         }
                     } else {
                         // Ungarrison one unit
-                        Unit ungarrisoned = apc.ungarrisonUnit(null);
+                        Unit ungarrisoned = carrier.ungarrisonUnit(null);
                         if (ungarrisoned != null && !world.containsBody(ungarrisoned.getBody())) {
                             world.addBody(ungarrisoned.getBody());
                         }
@@ -701,11 +700,25 @@ public class RTSGameManager {
             Building b = buildings.get(input.getCancelAirfieldProductionBuildingId());
             if (b != null && b.belongsTo(playerId) && !b.isUnderConstruction()
                     && b.getBuildingType().isCanProduceUnits()) {
-                UnitType cancelled = b.cancelCurrentProduction();
+                UnitType cancelled = b.cancelLastProductionLifo();
                 if (cancelled != null) {
                     int refund = faction.getUnitCost(cancelled);
                     faction.addResources(ResourceType.CREDITS, refund);
                 }
+            }
+        }
+
+        if (input.getCancelConstructionBuildingId() != null) {
+            Building b = buildings.get(input.getCancelConstructionBuildingId());
+            if (b != null && b.belongsTo(playerId) && b.isActive() && b.isUnderConstruction()) {
+                int refund = faction.getBuildingCost(b.getBuildingType());
+                faction.addResources(ResourceType.CREDITS, refund);
+                b.setActive(false);
+                sendGameEvent(GameEvent.createPlayerEvent(
+                        "Construction cancelled — " + refund + " credits refunded",
+                        playerId,
+                        GameEvent.EventCategory.INFO
+                ));
             }
         }
 
@@ -1516,10 +1529,10 @@ public class RTSGameManager {
                     }
                 }
 
-                // Destroy garrisoned units in APC (if it's an APC)
+                // Destroy garrisoned units in transports (APC, Chinook, …)
                 unit.getComponent(APCComponent.class).ifPresent(apcComp -> {
-                    log.info("APC {} destroyed - destroying {} garrisoned units",
-                            unit.getId(), apcComp.getGarrisonCount());
+                    log.info("{} {} destroyed - destroying {} garrisoned units",
+                            unit.getUnitType(), unit.getId(), apcComp.getGarrisonCount());
                     apcComp.onDestroy(); // This will destroy all garrisoned units
                 });
 
@@ -1557,9 +1570,10 @@ public class RTSGameManager {
         buildings.entrySet().removeIf(entry -> {
             Building building = entry.getValue();
             if (!building.isActive()) {
-                // Send event for HQ destruction
-                if (building.getBuildingType() == BuildingType.HEADQUARTERS &&
-                        !eliminatedTeams.contains(building.getTeamNumber())) {
+                // Send event for HQ destruction (completed HQ only — not scaffolds / cancelled sites)
+                if (building.getBuildingType() == BuildingType.HEADQUARTERS
+                        && !building.isUnderConstruction()
+                        && !eliminatedTeams.contains(building.getTeamNumber())) {
 
                     eliminatedTeams.add(building.getTeamNumber());
 
@@ -2028,6 +2042,7 @@ public class RTSGameManager {
             typeData.put("displayName", buildingType.getDisplayName());
             typeData.put("label", buildingType.getLabel());
             typeData.put("menuIcon", buildingType.getMenuIcon());
+            typeData.put("color", buildingType.getColor());
             typeData.put("size", buildingType.getSize());
             typeData.put("maxHealth", buildingType.getMaxHealth());
             typeData.put("powerValue", buildingType.getPowerValue());
@@ -2286,8 +2301,8 @@ public class RTSGameManager {
                     data.put("shieldRadius", shieldComp.getRadius());
                 });
 
-        // Garrison status (for APC)
-        if (unit.getUnitType() == UnitType.APC) {
+        // Garrison status (APC, Chinook, …)
+        if (unit.hasComponent(APCComponent.class)) {
             data.put("garrisonCount", unit.getGarrisonCount());
             data.put("maxGarrisonCapacity", unit.getComponent(APCComponent.class)
                     .map(APCComponent::getMaxGarrisonCapacity)
@@ -2323,6 +2338,12 @@ public class RTSGameManager {
         data.put("constructionPercent", building.getConstructionPercent());
         data.put("productionPercent", building.getProductionPercent());
         data.put("productionQueueSize", building.getProductionQueueSize());
+        building.getComponent(ProductionComponent.class).ifPresent(pc -> {
+            UnitType cur = pc.getCurrentProductionUnitType();
+            if (cur != null) {
+                data.put("producingUnitType", cur.name());
+            }
+        });
         data.put("vertices", extractBodyVertices(building.getBody()));
 
         // Rally point
@@ -2678,6 +2699,19 @@ public class RTSGameManager {
             // Trigger perk hooks for unit creation
             faction.getFactionDefinition().onUnitCreated(worker, faction, this);
         }
+
+        // DEBUG: spawn a Chinook for every player so the graphics/physics can be verified immediately
+        Unit debugChinook = new Unit(
+                IdGenerator.nextEntityId(),
+                UnitType.CHINOOK,
+                position.x + 160, position.y,
+                playerId,
+                teamNumber,
+                faction
+        );
+        debugChinook.initializeComponents(gameEntities);
+        units.put(debugChinook.getId(), debugChinook);
+        world.addBody(debugChinook.getBody());
 
         log.info("Created starting base for player {} at ({}, {})", playerId, position.x, position.y);
     }

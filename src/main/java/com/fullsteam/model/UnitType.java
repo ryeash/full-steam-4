@@ -740,6 +740,28 @@ public enum UnitType {
             'L'
     ),
 
+    CHINOOK(
+            "Chinook",
+            "Heavy transport helicopter (low altitude). Carries infantry; passengers cannot fire while embarked.",
+            450,
+            38,
+            130,
+            118.0,
+            0,
+            0.0,
+            0,
+            60.0,
+            0x556B2F,
+            BuildingType.AIRFIELD,
+            34,
+            520.0,
+            Elevation.LOW,
+            UnitCategory.FLYER,
+            Set.of(BuildingType.RESEARCH_LAB),
+            6,
+            'Q'
+    ),
+
     BOMBER(
             "Bomber",
             "Strategic bomber housed at the airfield; flies a player-ordered sortie then returns to berth.",
@@ -1350,7 +1372,7 @@ public enum UnitType {
                 yield List.of(body, wingLeft, wingRight);
             }
 
-            // Helicopter - Attack helicopter with main fuselage, tail boom, and rotor
+            // Helicopter - fuselage, tail boom, landing skids
             case HELICOPTER -> {
                 // Main fuselage (bulbous cockpit/body)
                 Vector2[] fuselage = new Vector2[]{
@@ -1393,6 +1415,8 @@ public enum UnitType {
 
                 yield List.of(body, tail, skidLeft, skidRight);
             }
+
+            case CHINOOK -> List.of(Geometry.createPolygonalCapsule(2, size, size * 0.38));
 
             // Laser Gunship - Futuristic VTOL with laser weapon pods
             case LASER_GUNSHIP -> {
@@ -2514,7 +2538,8 @@ public enum UnitType {
      * Check if this unit can attack
      */
     public boolean canAttack() {
-        return this != WORKER && this != MEDIC && this != ENGINEER && this != SPIDER_MINE && this != APC;
+        return this != WORKER && this != MEDIC && this != ENGINEER && this != SPIDER_MINE && this != APC
+                && this != CHINOOK;
     }
 
     /**

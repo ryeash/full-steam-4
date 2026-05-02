@@ -322,6 +322,15 @@ public class Building extends GameEntity implements Targetable {
     }
 
     /**
+     * Cancel the last queued production order, or if the queue is empty, cancel in-progress production.
+     */
+    public UnitType cancelLastProductionLifo() {
+        return getComponent(ProductionComponent.class)
+                .map(ProductionComponent::cancelLastProductionLifo)
+                .orElse(null);
+    }
+
+    /**
      * Get production progress as a percentage
      */
     public double getProductionPercent() {

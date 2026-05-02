@@ -15,10 +15,10 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.dyn4j.geometry.Vector2;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.Deque;
 import java.util.Map;
-import java.util.Queue;
 
 /**
  * Component that handles unit production for buildings.
@@ -30,7 +30,7 @@ import java.util.Queue;
 @Slf4j
 @Getter
 public class ProductionComponent extends AbstractBuildingComponent {
-    private final Queue<ProductionOrder> productionQueue = new LinkedList<>();
+    private final Deque<ProductionOrder> productionQueue = new ArrayDeque<>();
     private ProductionOrder currentProduction = null;
     private double productionProgress = 0; // seconds
     private Vector2 rallyPoint;
@@ -192,6 +192,29 @@ public class ProductionComponent extends AbstractBuildingComponent {
     }
 
     /**
+     * Remove the most recently queued order (LIFO). Does not cancel in-progress production.
+     *
+     * @return unit type removed from the queue, or null if the queue was empty
+     */
+    public UnitType cancelLastQueuedProduction() {
+        if (productionQueue.isEmpty()) {
+            return null;
+        }
+        return productionQueue.removeLast().getUnitType();
+    }
+
+    /**
+     * Cancel the last queued unit, or if the queue is empty, cancel the unit currently in production.
+     */
+    public UnitType cancelLastProductionLifo() {
+        UnitType fromQueue = cancelLastQueuedProduction();
+        if (fromQueue != null) {
+            return fromQueue;
+        }
+        return cancelCurrentProduction();
+    }
+
+    /**
      * Get production progress as a percentage (0.0 to 1.0).
      *
      * @return Production progress, or 0 if no production active
@@ -219,7 +242,7 @@ public class ProductionComponent extends AbstractBuildingComponent {
             return null;
         }
         if (building.getBuildingType() != BuildingType.AIRFIELD) {
-            return productionQueue.poll();
+            return productionQueue.pollFirst();
         }
         var housing = building.getComponent(AirfieldAircraftHousingComponent.class);
         for (ProductionOrder order : new ArrayList<>(productionQueue)) {

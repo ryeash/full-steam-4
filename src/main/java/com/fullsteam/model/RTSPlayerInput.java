@@ -77,6 +77,8 @@ public class RTSPlayerInput {
     private Integer scrapHousedUnitId;
     /** Cancel current unit production at this building (refunds credits for that unit). */
     private Integer cancelAirfieldProductionBuildingId;
+    /** Cancel an unfinished foundation owned by the player (full building cost refund). */
+    private Integer cancelConstructionBuildingId;
 
     // Camera/viewport
     private double cameraX;

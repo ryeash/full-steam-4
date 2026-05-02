@@ -16,13 +16,13 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Component for APC units (Armored Personnel Carrier).
+ * Component for mobile transport garrison (APC, Chinook, etc.).
  * Provides mobile garrison functionality similar to bunkers.
  * <p>
  * Key differences from bunker:
- * - Mobile (moves with the APC)
- * - When APC is destroyed, all garrisoned units are destroyed
- * - Infantry can fire from inside while moving
+ * - Mobile (moves with the carrier)
+ * - When the carrier is destroyed, all garrisoned units are destroyed
+ * - For APCs, infantry can fire from inside while moving; air transports typically cannot.
  */
 @Slf4j
 @Getter
@@ -32,7 +32,20 @@ public class APCComponent extends AbstractUnitComponent {
     private static final int BASE_GARRISON_CAPACITY = 3;
     private static final int GARRISON_MASTERY_CAPACITY = 5;
 
+    private final boolean allowPassengersToFire;
+
     private final List<Unit> garrisonedUnits = new ArrayList<>();
+
+    public APCComponent() {
+        this(true);
+    }
+
+    /**
+     * @param allowPassengersToFire when false, garrisoned units do not auto-fire (e.g. Chinook transport)
+     */
+    public APCComponent(boolean allowPassengersToFire) {
+        this.allowPassengersToFire = allowPassengersToFire;
+    }
 
     @Override
     public void update(GameEntities gameEntities) {
@@ -43,8 +56,9 @@ public class APCComponent extends AbstractUnitComponent {
         // Update garrisoned unit positions to follow APC
         updateGarrisonedUnitPositions();
 
-        // Fire weapons from garrisoned units
-        fireGarrisonWeapons(gameEntities);
+        if (allowPassengersToFire) {
+            fireGarrisonWeapons(gameEntities);
+        }
     }
 
     /**
@@ -124,6 +138,7 @@ public class APCComponent extends AbstractUnitComponent {
         toUngarrison.getBody().getTransform().setTranslation(exitPos.x, exitPos.y);
         toUngarrison.setGarrisoned(false);
         toUngarrison.getBody().setEnabled(true);
+        toUngarrison.clearHomePosition();
         toUngarrison.issueCommand(new IdleCommand(toUngarrison), gameEntities);
 
         log.info("Unit {} ungarrisoned from APC {} ({}/{})",
@@ -262,14 +277,14 @@ public class APCComponent extends AbstractUnitComponent {
             return;
         }
 
-        log.info("APC {} destroyed with {} garrisoned units - destroying all passengers",
-                unit.getId(), garrisonedUnits.size());
+        log.info("{} {} destroyed with {} garrisoned units - destroying all passengers",
+                unit.getUnitType(), unit.getId(), garrisonedUnits.size());
 
         // Destroy all garrisoned units
         for (Unit garrisonedUnit : garrisonedUnits) {
             garrisonedUnit.setActive(false);
             garrisonedUnit.setHealth(0);
-            log.info("Unit {} destroyed with APC", garrisonedUnit.getId());
+            log.info("Unit {} destroyed with {}", garrisonedUnit.getId(), unit.getUnitType());
         }
 
         garrisonedUnits.clear();
