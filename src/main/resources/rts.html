@@ -396,6 +396,72 @@
             font-size: 12px;
         }
         
+        /* ---- AI Stance bar ---- */
+        .unit-stance-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .unit-stance-label {
+            font-size: 11px;
+            color: var(--text-secondary, #aaa);
+            flex-shrink: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .stance-btns {
+            display: flex;
+            gap: 3px;
+            flex: 1;
+        }
+
+        .stance-btn {
+            flex: 1;
+            padding: 3px 2px;
+            font-size: 11px;
+            font-family: inherit;
+            background: rgba(30, 30, 40, 0.8);
+            border: 1px solid rgba(100, 100, 120, 0.45);
+            border-radius: 3px;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s, color 0.15s;
+            text-align: center;
+            min-height: 22px;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .stance-btn:hover {
+            border-color: rgba(100, 200, 255, 0.55);
+            color: #fff;
+            background: rgba(100, 200, 255, 0.08);
+        }
+
+        .stance-btn--aggressive.is-active {
+            background: rgba(220, 50, 30, 0.22);
+            border-color: #e74c3c;
+            color: #ff8c7a;
+            font-weight: 700;
+        }
+
+        .stance-btn--defensive.is-active {
+            background: rgba(52, 152, 219, 0.22);
+            border-color: #3498db;
+            color: #80bdff;
+            font-weight: 700;
+        }
+
+        .stance-btn--passive.is-active {
+            background: rgba(39, 174, 96, 0.22);
+            border-color: #27ae60;
+            color: #7de8a8;
+            font-weight: 700;
+        }
+
         /* Custom scrollbar for unit info panel */
         #unit-info-panel::-webkit-scrollbar {
             width: 8px;
@@ -780,10 +846,32 @@
                                 <span>Ability:</span>
                                 <span id="unit-ability-name">-</span>
                             </div>
+                            <div class="unit-stance-bar">
+                                <span class="unit-stance-label">Stance</span>
+                                <div class="stance-btns">
+                                    <button class="stance-btn stance-btn--aggressive" id="stance-btn-aggressive"
+                                            title="Aggressive — attacks and pursues any enemy in vision range">Aggressive</button>
+                                    <button class="stance-btn stance-btn--defensive" id="stance-btn-defensive"
+                                            title="Defensive — attacks enemies in vision range, holds position">Defensive</button>
+                                    <button class="stance-btn stance-btn--passive" id="stance-btn-passive"
+                                            title="Passive — ignores enemies, only responds to direct orders">Passive</button>
+                                </div>
+                            </div>
                         </div>
                         <div id="multi-unit-info" style="display: none;">
                             <div class="unit-name">Multiple Units Selected</div>
                             <div id="unit-count-list"></div>
+                            <div class="unit-stance-bar">
+                                <span class="unit-stance-label">Stance</span>
+                                <div class="stance-btns">
+                                    <button class="stance-btn stance-btn--aggressive" id="multi-stance-btn-aggressive"
+                                            title="Aggressive — attacks and pursues any enemy in vision range">Aggressive</button>
+                                    <button class="stance-btn stance-btn--defensive" id="multi-stance-btn-defensive"
+                                            title="Defensive — attacks enemies in vision range, holds position">Defensive</button>
+                                    <button class="stance-btn stance-btn--passive" id="multi-stance-btn-passive"
+                                            title="Passive — ignores enemies, only responds to direct orders">Passive</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div id="building-info-panel" style="display: none;" aria-live="polite"></div>

@@ -2682,19 +2682,6 @@ public class RTSGameManager {
             faction.getFactionDefinition().onUnitCreated(worker, faction, this);
         }
 
-        // DEBUG: spawn a Chinook for every player so the graphics/physics can be verified immediately
-        Unit debugChinook = new Unit(
-                IdGenerator.nextEntityId(),
-                UnitType.CHINOOK,
-                position.x + 160, position.y,
-                playerId,
-                teamNumber,
-                faction
-        );
-        debugChinook.initializeComponents(gameEntities);
-        units.put(debugChinook.getId(), debugChinook);
-        world.addBody(debugChinook.getBody());
-
         log.info("Created starting base for player {} at ({}, {})", playerId, position.x, position.y);
     }
 

@@ -480,6 +480,29 @@ class RTSEngine {
         const panel = document.getElementById('unit-info-panel');
         const singleInfo = document.getElementById('single-unit-info');
         const multiInfo = document.getElementById('multi-unit-info');
+
+        const stanceBtns = {
+            single: {
+                AGGRESSIVE: document.getElementById('stance-btn-aggressive'),
+                DEFENSIVE:  document.getElementById('stance-btn-defensive'),
+                PASSIVE:    document.getElementById('stance-btn-passive'),
+            },
+            multi: {
+                AGGRESSIVE: document.getElementById('multi-stance-btn-aggressive'),
+                DEFENSIVE:  document.getElementById('multi-stance-btn-defensive'),
+                PASSIVE:    document.getElementById('multi-stance-btn-passive'),
+            },
+        };
+
+        // Wire stance button click handlers (idempotent — safe to call on re-init)
+        for (const [scope, btns] of Object.entries(stanceBtns)) {
+            for (const [stance, btn] of Object.entries(btns)) {
+                if (btn) {
+                    btn.onclick = () => this.sendInput({ action: 'SET_STANCE', aiStance: stance });
+                }
+            }
+        }
+
         this._unitInfoEls = {
             panel,
             singleInfo,
@@ -491,6 +514,7 @@ class RTSEngine {
             abilityDiv: document.getElementById('unit-special-ability'),
             abilityName: document.getElementById('unit-ability-name'),
             unitCountList: document.getElementById('unit-count-list'),
+            stanceBtns,
         };
     }
 
@@ -3472,6 +3496,14 @@ class RTSEngine {
                 }
             }
             
+            // Highlight active stance button
+            const singleStance = this._unitInfoEls.stanceBtns?.single;
+            if (singleStance) {
+                for (const [s, btn] of Object.entries(singleStance)) {
+                    if (btn) btn.classList.toggle('is-active', s === unit.aiStance);
+                }
+            }
+
             // Show garrison info for APCs
             let garrisonDiv = document.getElementById('unit-garrison-info');
             if (!garrisonDiv) {
@@ -3533,6 +3565,18 @@ class RTSEngine {
                     item.className = 'unit-stat';
                     item.innerHTML = `<span>${type}:</span><span>${count}</span>`;
                     countList.appendChild(item);
+                }
+            }
+
+            // Highlight stance button if all selected units share the same stance
+            const multiStance = this._unitInfoEls.stanceBtns?.multi;
+            if (multiStance) {
+                const stances = selectedUnits.map(u => u.aiStance).filter(Boolean);
+                const sharedStance = stances.length > 0 && stances.every(s => s === stances[0])
+                    ? stances[0]
+                    : null;
+                for (const [s, btn] of Object.entries(multiStance)) {
+                    if (btn) btn.classList.toggle('is-active', s === sharedStance);
                 }
             }
         }
@@ -4207,7 +4251,7 @@ class RTSEngine {
         if (buildingTypeData?.weaponRange) {
             const rangeCircle = new PIXI.Graphics();
             rangeCircle.circle(0, 0, buildingTypeData.weaponRange);
-            rangeCircle.stroke({ width: 1, color: 0xFF0000, alpha: 0.3 });
+            rangeCircle.stroke({ width: 2, color: 0xFF0000, alpha: 0.6 });
             this.buildPreview.addChild(rangeCircle);
         }
         
