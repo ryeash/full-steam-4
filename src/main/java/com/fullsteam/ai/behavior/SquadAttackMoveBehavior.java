@@ -57,8 +57,9 @@ public final class SquadAttackMoveBehavior implements SkirmishAiBehavior {
             return Optional.empty();
         }
         RTSPlayerInput in = new RTSPlayerInput();
-        in.setSelectUnits(attackers);
-        in.setAttackMoveOrder(strike.copy());
+        in.setAction(com.fullsteam.model.InputAction.ATTACK_MOVE);
+        in.setUnitIds(attackers);
+        in.setTargetPosition(strike.copy());
         return Optional.of(in);
     }
 }

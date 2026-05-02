@@ -3711,9 +3711,7 @@ class RTSEngine {
                 this.exitBuildMode();
             } else if (this.attackMoveMode) {
                 // Handle attack-move
-                this.sendInput({ 
-                    attackMoveOrder: { x: this.mouseWorldPos.x, y: this.mouseWorldPos.y }
-                });
+                this.sendInput({ action: 'ATTACK_MOVE', targetPosition: { x: this.mouseWorldPos.x, y: this.mouseWorldPos.y } });
                 this.exitAttackMoveMode();
             } else if (this.sortieTargetingMode) {
                 // Handle sortie targeting (bomber aircraft)
@@ -3726,19 +3724,13 @@ class RTSEngine {
                     const clickedUnit = this.getUnitAtPosition(this.mouseWorldPos);
                     if (clickedUnit && clickedUnit.ownerId === this.myPlayerId) {
                         // Target selected - send heal command
-                        this.sendInput({ 
-                            activateSpecialAbility: true,
-                            specialAbilityTargetUnit: clickedUnit.id
-                        });
+                        this.sendInput({ action: 'SPECIAL_ABILITY', targetEntityId: clickedUnit.id });
                     }
                 } else if (this.specialAbilityTargetType === 'building') {
                     const clickedBuilding = this.getBuildingAtPosition(this.mouseWorldPos);
                     if (clickedBuilding && clickedBuilding.ownerId === this.myPlayerId) {
                         // Target selected - send repair command
-                        this.sendInput({ 
-                            activateSpecialAbility: true,
-                            specialAbilityTargetBuilding: clickedBuilding.id
-                        });
+                        this.sendInput({ action: 'SPECIAL_ABILITY', auxiliaryEntityId: clickedBuilding.id });
                     }
                 }
                 // Exit targeting mode
@@ -4000,12 +3992,12 @@ class RTSEngine {
                     this._lastUnitSelectClickId = clickedUnit;
                 }
 
-                this.sendInput({ selectUnits: idsToSelect });
+                this.sendInput({ action: 'SELECT', unitIds: idsToSelect });
                 this.checkAndShowBuildMenu(idsToSelect);
             } else {
                 this.clearBuildingSelectionClient();
                 // Clicked on empty space - deselect all units
-                this.sendInput({ selectUnits: [] });
+                this.sendInput({ action: 'SELECT', unitIds: [] });
                 this.clearUnitSelectionImmediate(); // Clear local state and hide visual indicators
                 this.hideBuildMenu();
             }
@@ -4025,7 +4017,7 @@ class RTSEngine {
                 }
             });
 
-            this.sendInput({ selectUnits: selectedIds });
+            this.sendInput({ action: 'SELECT', unitIds: selectedIds });
 
             this.checkAndShowBuildMenu(selectedIds);
         }
@@ -4050,7 +4042,7 @@ class RTSEngine {
     issueOrder(worldPos, forceAttack = false) {
         // If force attack mode (CMD/CTRL held), skip target detection and attack ground
         if (forceAttack) {
-            this.sendInput({ forceAttackOrder: { x: worldPos.x, y: worldPos.y } });
+            this.sendInput({ action: 'FORCE_ATTACK', targetPosition: { x: worldPos.x, y: worldPos.y } });
             return;
         }
         
@@ -4122,37 +4114,37 @@ class RTSEngine {
         if (targetUnit) {
             if (targetUnit.team !== this.myTeam) {
                 // Attack enemy unit
-                this.sendInput({ attackUnitOrder: targetUnit.id });
+                this.sendInput({ action: 'ATTACK_UNIT', targetEntityId: targetUnit.id });
             } else if (targetUnit.maxGarrisonCapacity != null && this.hasInfantrySelected()) {
                 // Garrison infantry into friendly APC / Chinook
-                this.sendInput({ garrisonOrder: targetUnit.id });
+                this.sendInput({ action: 'GARRISON', targetEntityId: targetUnit.id });
             } else {
                 // Can't command other player's units, just move
-                this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
+                this.sendInput({ action: 'MOVE', targetPosition: { x: worldPos.x, y: worldPos.y } });
             }
         } else if (targetBuilding) {
             if (targetBuilding.team !== this.myTeam) {
                 // Attack enemy building
-                this.sendInput({ attackBuildingOrder: targetBuilding.id });
+                this.sendInput({ action: 'ATTACK_BUILDING', targetEntityId: targetBuilding.id });
             } else if (targetBuilding.underConstruction) {
                 // Help construct friendly building (for workers)
-                this.sendInput({ constructOrder: targetBuilding.id });
+                this.sendInput({ action: 'CONSTRUCT', targetEntityId: targetBuilding.id });
             } else if (targetBuilding.type === 'BUNKER' && this.hasInfantrySelected()) {
                 // Garrison infantry into bunker
-                this.sendInput({ garrisonOrder: targetBuilding.id });
+                this.sendInput({ action: 'GARRISON', targetEntityId: targetBuilding.id });
             } else {
                 // Move near friendly building
-                this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
+                this.sendInput({ action: 'MOVE', targetPosition: { x: worldPos.x, y: worldPos.y } });
             }
         } else if (targetHarvestableObstacle) {
             // Harvest resources from harvestable obstacle (for workers)
-            this.sendInput({ harvestOrder: targetHarvestableObstacle.id });
+            this.sendInput({ action: 'HARVEST', targetEntityId: targetHarvestableObstacle.id });
         } else if (targetObstacle) {
             // Can't harvest or mine this obstacle, just move near it
-            this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
+            this.sendInput({ action: 'MOVE', targetPosition: { x: worldPos.x, y: worldPos.y } });
         } else {
             // Just move to location
-            this.sendInput({ moveOrder: { x: worldPos.x, y: worldPos.y } });
+            this.sendInput({ action: 'MOVE', targetPosition: { x: worldPos.x, y: worldPos.y } });
         }
     }
     
@@ -4178,11 +4170,12 @@ class RTSEngine {
      */
     ungarrisonUnit(buildingId, ungarrisonAll, unitId = null) {
         const payload = {
-            ungarrisonBuildingId: buildingId,
+            action: 'UNGARRISON',
+            targetEntityId: buildingId,
             ungarrisonAll: !!ungarrisonAll
         };
         if (unitId != null && !ungarrisonAll) {
-            payload.ungarrisonUnitId = unitId;
+            payload.auxiliaryEntityId = unitId;
         }
         this.sendInput(payload);
     }
@@ -4277,7 +4270,7 @@ class RTSEngine {
     
     scatterSelectedUnits() {
         if (this.selectedUnits.size > 0) {
-            this.sendInput({ scatterCommand: true });
+            this.sendInput({ action: 'SCATTER' });
         }
     }
     
@@ -4383,10 +4376,7 @@ class RTSEngine {
         }
         
         // Send build order to server
-        this.sendInput({
-            buildOrder: buildingType,
-            buildLocation: { x: worldPos.x, y: worldPos.y }
-        });
+        this.sendInput({ action: 'BUILD', buildingType: buildingType, targetPosition: { x: worldPos.x, y: worldPos.y } });
     }
     
     toggleBuildMenu() {
@@ -4539,7 +4529,7 @@ class RTSEngine {
             document.body.style.cursor = 'crosshair';
         } else {
             // Non-targeted ability (like deploy)
-            this.sendInput({ activateSpecialAbility: true });
+            this.sendInput({ action: 'SPECIAL_ABILITY' });
         }
     }
     
@@ -4613,7 +4603,7 @@ class RTSEngine {
     selectBuilding(buildingData) {
         this.selectedBuilding = buildingData;
 
-        this.sendInput({ selectUnits: [] });
+        this.sendInput({ action: 'SELECT', unitIds: [] });
         this.clearUnitSelectionImmediate();
         this.hideBuildMenu();
 
@@ -5036,17 +5026,11 @@ class RTSEngine {
     }
     
     queueUnitProduction(buildingId, unitType) {
-        this.sendInput({
-            produceUnitOrder: unitType,
-            produceBuildingId: buildingId
-        });
+        this.sendInput({ action: 'PRODUCE_UNIT', unitType: unitType, targetEntityId: buildingId });
     }
     
     setRallyPoint(buildingId, worldPos) {
-        this.sendInput({
-            setRallyBuildingId: buildingId,
-            rallyPoint: { x: worldPos.x, y: worldPos.y }
-        });
+        this.sendInput({ action: 'SET_RALLY', targetEntityId: buildingId, targetPosition: { x: worldPos.x, y: worldPos.y } });
     }
     
     updateFieldEffect(effectData) {
@@ -5423,39 +5407,30 @@ class RTSEngine {
             return;
         }
         this.sendInput({
-            sortieBuildingId: this.sortieBuildingId,
-            sortieHousedUnitId: this.sortieHousedUnitId,
-            sortieTargetLocation: { x: targetX, y: targetY }
+            action: 'SORTIE',
+            targetEntityId: this.sortieBuildingId,
+            auxiliaryEntityId: this.sortieHousedUnitId,
+            targetPosition: { x: targetX, y: targetY }
         });
         this.exitSortieTargetingMode();
         this.showGameEvent('Order issued', 'info');
     }
 
     issueRTBOrder(buildingId, housedUnitId) {
-        this.sendInput({
-            rtbBuildingId: buildingId,
-            rtbHousedUnitId: housedUnitId
-        });
+        this.sendInput({ action: 'RTB', targetEntityId: buildingId, auxiliaryEntityId: housedUnitId });
         this.showGameEvent('Aircraft returning to base', 'info');
     }
 
     issueScrapHousedUnit(buildingId, unitId) {
-        this.sendInput({
-            scrapFromBuildingId: buildingId,
-            scrapHousedUnitId: unitId
-        });
+        this.sendInput({ action: 'SCRAP', targetEntityId: buildingId, auxiliaryEntityId: unitId });
     }
 
     issueCancelLastProduction(buildingId) {
-        this.sendInput({
-            cancelAirfieldProductionBuildingId: buildingId
-        });
+        this.sendInput({ action: 'CANCEL_PRODUCTION', targetEntityId: buildingId });
     }
 
     issueCancelConstruction(buildingId) {
-        this.sendInput({
-            cancelConstructionBuildingId: buildingId
-        });
+        this.sendInput({ action: 'CANCEL_CONSTRUCTION', targetEntityId: buildingId });
     }
 
     updateCommandAbilitiesPanel() {
@@ -5527,9 +5502,7 @@ class RTSEngine {
     }
 
     issueCommandAbilityImmediate(abilityTypeId) {
-        this.sendInput({
-            commandAbilityOrder: abilityTypeId
-        });
+        this.sendInput({ action: 'COMMAND_ABILITY', commandAbilityType: abilityTypeId });
         this.showGameEvent('Command order sent', 'info');
     }
 
@@ -5569,8 +5542,9 @@ class RTSEngine {
             return;
         }
         this.sendInput({
-            commandAbilityOrder: this.pendingCommandAbilityType,
-            commandAbilityTargetLocation: { x: targetX, y: targetY }
+            action: 'COMMAND_ABILITY',
+            commandAbilityType: this.pendingCommandAbilityType,
+            targetPosition: { x: targetX, y: targetY }
         });
         this.exitCommandAbilityTargetingMode();
         this.showGameEvent('Command order sent', 'info');

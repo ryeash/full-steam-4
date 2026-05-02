@@ -87,8 +87,9 @@ public final class ProduceUnitsBehavior implements SkirmishAiBehavior {
                 continue;
             }
             RTSPlayerInput in = new RTSPlayerInput();
-            in.setProduceUnitOrder(toTrain);
-            in.setProduceBuildingId(building.getId());
+            in.setAction(com.fullsteam.model.InputAction.PRODUCE_UNIT);
+            in.setUnitType(toTrain);
+            in.setTargetEntityId(building.getId());
             return Optional.of(in);
         }
         return Optional.empty();

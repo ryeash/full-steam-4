@@ -45,8 +45,9 @@ public final class ResumeConstructionBehavior implements SkirmishAiBehavior {
             return Optional.empty();
         }
         RTSPlayerInput in = new RTSPlayerInput();
-        in.setSelectUnits(List.of(worker.get().getId()));
-        in.setConstructOrder(site.getId());
+        in.setAction(com.fullsteam.model.InputAction.CONSTRUCT);
+        in.setUnitIds(List.of(worker.get().getId()));
+        in.setTargetEntityId(site.getId());
         return Optional.of(in);
     }
 }

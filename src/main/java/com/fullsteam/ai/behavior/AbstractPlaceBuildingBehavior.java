@@ -65,9 +65,10 @@ public abstract class AbstractPlaceBuildingBehavior implements SkirmishAiBehavio
             return Optional.empty();
         }
         RTSPlayerInput in = new RTSPlayerInput();
-        in.setSelectUnits(List.of(worker.get().getId()));
-        in.setBuildOrder(buildingType());
-        in.setBuildLocation(loc.get());
+        in.setAction(com.fullsteam.model.InputAction.BUILD);
+        in.setUnitIds(List.of(worker.get().getId()));
+        in.setBuildingType(buildingType());
+        in.setTargetPosition(loc.get());
         return Optional.of(in);
     }
 }

@@ -52,8 +52,9 @@ public final class DefendBaseBehavior implements SkirmishAiBehavior {
             return Optional.empty();
         }
         RTSPlayerInput in = new RTSPlayerInput();
-        in.setSelectUnits(attackers);
-        in.setAttackUnitOrder(target.getId());
+        in.setAction(com.fullsteam.model.InputAction.ATTACK_UNIT);
+        in.setUnitIds(attackers);
+        in.setTargetEntityId(target.getId());
         return Optional.of(in);
     }
 }

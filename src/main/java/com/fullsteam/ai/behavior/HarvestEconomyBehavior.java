@@ -60,8 +60,9 @@ public final class HarvestEconomyBehavior implements SkirmishAiBehavior {
             return Optional.empty();
         }
         RTSPlayerInput in = new RTSPlayerInput();
-        in.setSelectUnits(idleHarvesters.stream().map(Unit::getId).toList());
-        in.setHarvestOrder(best.getId());
+        in.setAction(com.fullsteam.model.InputAction.HARVEST);
+        in.setUnitIds(idleHarvesters.stream().map(Unit::getId).toList());
+        in.setTargetEntityId(best.getId());
         return Optional.of(in);
     }
 

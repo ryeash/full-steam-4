@@ -6,90 +6,97 @@ import org.dyn4j.geometry.Vector2;
 import java.util.List;
 
 /**
- * Represents player input for RTS gameplay.
- * Contains commands for unit selection, movement, attacks, building, etc.
+ * Carries a single player action to the server each tick.
+ *
+ * <p>Every message must have an {@link #action}.  The remaining fields are
+ * contextual: which fields are meaningful depends entirely on which action is
+ * set.  See each {@link InputAction} constant's Javadoc for the contract.
+ *
+ * <p>When {@link #unitIds} is present on a <em>non-SELECT</em> action it acts
+ * as an ephemeral unit scope for that command only — the player's persistent
+ * server-side selection is not updated.  This is used by AI behaviors that
+ * must select and command units in a single message.
  */
 @Data
 public class RTSPlayerInput {
-    // Unit selection
-    private List<Integer> selectUnits; // List of unit IDs to select
-    private boolean addToSelection; // If true, add to existing selection instead of replacing
 
-    // Movement orders
-    private Vector2 moveOrder; // Destination for selected units
-    private Vector2 attackMoveOrder; // Attack-move destination (units attack enemies while moving)
+    /**
+     * The action being requested. Must not be null.
+     */
+    private InputAction action;
 
-    // Attack orders
-    private Integer attackUnitOrder; // Target unit ID
-    private Integer attackBuildingOrder; // Target building ID
-    private Vector2 forceAttackOrder; // Force attack ground at position (CMD/CTRL + right click)
+    // -------------------------------------------------------------------------
+    // Unit scope
+    // -------------------------------------------------------------------------
 
-    // Resource gathering
-    private Integer harvestOrder; // Resource deposit ID
+    /**
+     * For {@link InputAction#SELECT}: the unit IDs to select.
+     * For any other action: optional ephemeral scope (AI use).
+     */
+    private List<Integer> unitIds;
 
-    // Obstacle mining
-    private Integer mineOrder; // Obstacle ID to mine/destroy
+    /**
+     * Only meaningful for {@link InputAction#SELECT}.
+     */
+    private boolean addToSelection;
 
-    // Building construction
-    private BuildingType buildOrder; // Type of building to construct
-    private Vector2 buildLocation; // Where to place the building
-    private Integer constructOrder; // Building ID to help construct (for workers)
+    // -------------------------------------------------------------------------
+    // Generic entity references
+    // -------------------------------------------------------------------------
 
-    // Unit production
-    private UnitType produceUnitOrder; // Type of unit to produce
-    private Integer produceBuildingId; // Building ID to produce from
+    /**
+     * Primary target entity (unit, building, or obstacle).
+     * Semantics depend on {@link #action}; see {@link InputAction} Javadoc.
+     */
+    private Integer targetEntityId;
 
-    // Rally point
-    private Integer setRallyBuildingId; // Building to set rally point for
-    private Vector2 rallyPoint; // Rally point location
+    /**
+     * Secondary entity reference.
+     * Used for: housed unit in SORTIE/RTB/SCRAP; specific unit in UNGARRISON;
+     * source building in COMMAND_ABILITY.
+     */
+    private Integer auxiliaryEntityId;
 
-    // Stop command
-    private boolean stopCommand; // Stop all selected units
+    // -------------------------------------------------------------------------
+    // World position
+    // -------------------------------------------------------------------------
 
-    // Scatter command
-    private boolean scatterCommand; // Scatter selected units away from their center
+    /**
+     * World-space position target.
+     * Used as move destination, build location, rally point, sortie strike point, etc.
+     */
+    private Vector2 targetPosition;
 
-    // AI stance
-    private AIStance setStance; // Change AI stance for selected units
+    // -------------------------------------------------------------------------
+    // Typed enum values (at most one populated per action)
+    // -------------------------------------------------------------------------
 
-    // Special abilities
-    private boolean activateSpecialAbility; // Activate special ability for selected units
-    private Integer specialAbilityTargetUnit; // Target unit ID for heal/repair
+    /**
+     * For {@link InputAction#BUILD}.
+     */
+    private BuildingType buildingType;
 
-    // Research system removed - research command fields deleted
+    /**
+     * For {@link InputAction#PRODUCE_UNIT}.
+     */
+    private UnitType unitType;
 
-    // Garrison/Ungarrison
-    private Integer garrisonOrder; // Building ID to garrison into (bunker)
-    private Integer ungarrisonBuildingId; // Building ID to ungarrison from
-    /** When set (and not ungarrisonAll), exit this specific unit from bunker or APC. */
-    private Integer ungarrisonUnitId;
-    private boolean ungarrisonAll; // If true, ungarrison all units from building
-    private Integer specialAbilityTargetBuilding; // Target building ID for repair
+    /**
+     * For {@link InputAction#SET_STANCE}.
+     */
+    private AIStance aiStance;
 
-    // Sortie / deploy (housed aircraft at airfield)
-    private Integer sortieBuildingId;
-    private Integer sortieHousedUnitId;
-    private org.dyn4j.geometry.Vector2 sortieTargetLocation;
-    private Integer rtbBuildingId;
-    private Integer rtbHousedUnitId;
-    /** Scrap a housed (non-deployed) aircraft at an airfield — no refund. */
-    private Integer scrapFromBuildingId;
-    private Integer scrapHousedUnitId;
-    /** Cancel current unit production at this building (refunds credits for that unit). */
-    private Integer cancelAirfieldProductionBuildingId;
-    /** Cancel an unfinished foundation owned by the player (full building cost refund). */
-    private Integer cancelConstructionBuildingId;
+    /**
+     * For {@link InputAction#COMMAND_ABILITY}.
+     */
+    private CommandAbilityType commandAbilityType;
 
-    // Camera/viewport
-    private double cameraX;
-    private double cameraY;
-    private double cameraZoom;
+    // -------------------------------------------------------------------------
+    // Modifier flags
+    // -------------------------------------------------------------------------
 
-    // Command abilities (strategic powers), e.g. {@link CommandAbilityType#STRIKE_PACKAGE}
-    private CommandAbilityType commandAbilityOrder;
-    /** Ground target (world coordinates); required for targeted abilities. */
-    private Vector2 commandAbilityTargetLocation;
-    /** Optional building that must own the unlock and belong to the player. */
-    private Integer commandAbilitySourceBuildingId;
+    /**
+     * For {@link InputAction#UNGARRISON}: ungarrison every occupant.
+     */
+    private boolean ungarrisonAll;
 }
-
