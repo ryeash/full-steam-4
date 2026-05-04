@@ -3,10 +3,13 @@ package com.fullsteam.model.command;
 import com.fullsteam.model.AbstractOrdinance;
 import com.fullsteam.model.Elevation;
 import com.fullsteam.model.Unit;
+import com.fullsteam.model.weapon.ElevationTargeting;
+import com.fullsteam.model.weapon.Weapon;
 import lombok.Getter;
 import org.dyn4j.geometry.Vector2;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Command to attack a specific ground location (force attack - CMD/CTRL + right click)
@@ -51,9 +54,12 @@ public class AttackGroundCommand extends UnitCommand {
         Vector2 currentPos = unit.getPosition();
         double distance = currentPos.distance(groundTarget);
 
-        Elevation elevation = unit.getWeapon().getElevationTargeting().lowestTargetable();
+        Elevation elevation = Optional.ofNullable(unit.getWeapon())
+                .map(Weapon::getElevationTargeting)
+                .map(ElevationTargeting::lowestTargetable)
+                .orElse(null);
 
-        if (distance <= unit.getWeapon().getRange()) {
+        if (elevation != null && distance <= unit.getWeapon().getRange()) {
             unit.getBody().setLinearVelocity(0, 0);
             Vector2 direction = groundTarget.copy().subtract(currentPos);
             unit.setRotation(Math.atan2(direction.y, direction.x));

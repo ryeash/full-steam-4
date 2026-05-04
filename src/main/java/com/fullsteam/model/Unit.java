@@ -722,8 +722,10 @@ public class Unit extends GameEntity implements Targetable {
             // In range - stop and construct
             body.setLinearVelocity(0, 0);
 
-            // Build at rate of 10 health per second (base rate)
-            double baseRate = 10.0;
+            // Rate is derived from the building's configured build time so it always
+            // takes exactly buildTimeSeconds to complete, regardless of maxHealth.
+            int configuredSeconds = building.getBuildingType().getBuildTimeSeconds();
+            double baseRate = building.getMaxHealth() / Math.max(1, configuredSeconds);
 
             // Apply buildTimeMultiplier from faction (lower multiplier = faster construction)
             // Note: buildTimeMultiplier of 0.8 means 20% faster, so we divide by it

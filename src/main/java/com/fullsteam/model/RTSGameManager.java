@@ -569,7 +569,12 @@ public class RTSGameManager {
             ));
             return;
         }
-        if (!isValidBuildLocation(location, buildingType, playerId)) {
+        boolean hasWorker = effectiveUnits(playerId, input).anyMatch(u -> u.getUnitType().canBuild());
+        if (!hasWorker) {
+            log.debug("Player {} tried to build {} but has no available builder unit", playerId, buildingType);
+            return;
+        }
+        if (!isSpatialBuildLocationValid(location, buildingType)) {
             log.warn("Player {} tried to build {} at invalid location ({}, {})",
                     playerId, buildingType, location.x, location.y);
             sendGameEvent(GameEvent.createPlayerEvent(
@@ -1685,19 +1690,6 @@ public class RTSGameManager {
         );
     }
 
-    private boolean isValidBuildLocation(Vector2 location, BuildingType buildingType, int playerId) {
-        // Check if player has a worker selected that can build
-        boolean hasWorkerSelected = units.values().stream()
-                .anyMatch(u -> u.belongsTo(playerId) && u.isSelected() && u.getUnitType().canBuild());
-
-        if (!hasWorkerSelected) {
-            log.debug("No worker selected to build");
-            return false;
-        }
-
-        return isSpatialBuildLocationValid(location, buildingType);
-    }
-
     /**
      * Send game state to all players (with fog of war)
      */
@@ -1723,12 +1715,26 @@ public class RTSGameManager {
         state.put("type", "gameState");
         state.put("timestamp", System.currentTimeMillis());
 
-        boolean activeSatellite = gameEntities.getPlayerFactions()
+        SatelliteReveal activeReveal = gameEntities.getPlayerFactions()
                 .values()
                 .stream()
                 .map(Player::getSatelliteReveal)
                 .filter(Objects::nonNull)
-                .anyMatch(s -> s.teamNumber() == teamNumber && s.isActive());
+                .filter(s -> s.teamNumber() == teamNumber && s.isActive())
+                .findFirst()
+                .orElse(null);
+        boolean activeSatellite = activeReveal != null;
+
+        // Tell the client the satellite is running so it can clear the fog overlay.
+        state.put("satelliteActive", activeSatellite);
+        if (activeSatellite) {
+            Map<String, Object> revealData = new LinkedHashMap<>();
+            revealData.put("x", activeReveal.center().x);
+            revealData.put("y", activeReveal.center().y);
+            revealData.put("radius", activeReveal.radius());
+            revealData.put("expiresAtMs", activeReveal.expiresAtEpochMs());
+            state.put("satelliteReveal", revealData);
+        }
 
         // Apply fog of war - only send visible units and buildings
         Collection<Unit> visibleUnits = activeSatellite
@@ -1789,6 +1795,23 @@ public class RTSGameManager {
                 .map(Obstacle::getId)
                 .collect(Collectors.toList());
         state.put("activeObstacleIds", activeObstacleIds);
+
+        // Tracker bugs owned by this team — send resolved position + range so the client
+        // can punch a vision hole in the fog even for entities in the fog.
+        List<Map<String, Object>> trackerBugList = gameEntities.getTrackerBugs().values().stream()
+                .filter(bug -> bug.isActive() && bug.getOwnerTeamNumber() == teamNumber)
+                .map(bug -> {
+                    Vector2 pos = bug.getPosition(gameEntities);
+                    if (pos == null) return null;
+                    Map<String, Object> b = new LinkedHashMap<>();
+                    b.put("x", pos.x);
+                    b.put("y", pos.y);
+                    b.put("visionRange", bug.getVisionRange());
+                    return b;
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        state.put("trackerBugs", trackerBugList);
 
         // Player factions - send only dynamic resource/state info
         Map<Integer, Map<String, Object>> factionsMap = new LinkedHashMap<>();
@@ -2479,8 +2502,7 @@ public class RTSGameManager {
     private void addSkirmishAiAtSlot(int slotIndex) {
         int playerId = IdGenerator.nextPlayerId();
         int teamNumber = gameConfig.getSkirmishSlots().get(slotIndex).getTeamId();
-        TeamPlacement placement = teamPlacementForSkirmishSlot(slotIndex);
-        Vector2 start = getStartingPositionForTeamSlot(teamNumber, placement.indexWithinTeam(), placement.totalOnTeam());
+        Vector2 start = getStartingPositionForSlot(slotIndex);
         Player aiFaction = new Player(
                 playerId,
                 teamNumber,
@@ -2499,30 +2521,16 @@ public class RTSGameManager {
                 playerId, slotIndex, teamNumber, difficulty, start.x, start.y);
     }
 
-    private record TeamPlacement(int indexWithinTeam, int totalOnTeam) {
-    }
-
-    private TeamPlacement teamPlacementForSkirmishSlot(int globalSlotIndex) {
-        List<SkirmishSlotConfig> slots = gameConfig.getSkirmishSlots();
-        int teamId = slots.get(globalSlotIndex).getTeamId();
-        List<Integer> sameTeamIndices = new ArrayList<>();
-        for (int i = 0; i < slots.size(); i++) {
-            if (slots.get(i).getTeamId() == teamId) {
-                sameTeamIndices.add(i);
-            }
-        }
-        int within = sameTeamIndices.indexOf(globalSlotIndex);
-        return new TeamPlacement(within, sameTeamIndices.size());
-    }
-
-    private Vector2 getStartingPositionForTeamSlot(int teamNumber, int indexWithinTeam, int totalOnTeam) {
-        Vector2 base = rtsWorld.getTeamStartPoint(teamNumber - 1);
-        if (totalOnTeam <= 1) {
-            return base.copy();
-        }
-        double radius = 220.0;
-        double angle = (2.0 * Math.PI * indexWithinTeam) / totalOnTeam;
-        return new Vector2(base.x + Math.cos(angle) * radius, base.y + Math.sin(angle) * radius);
+    /**
+     * Returns the world-space spawn position for the given skirmish slot.
+     * Each of the up-to-4 slots is assigned its own map corner so that no two
+     * players start in the same area, regardless of team composition.
+     *
+     * Corner order (see {@link RTSWorld#generateSlotCorners}):
+     *   0 = Bottom-left, 1 = Top-right, 2 = Bottom-right, 3 = Top-left
+     */
+    private Vector2 getStartingPositionForSlot(int slotIndex) {
+        return rtsWorld.getSlotCorner(slotIndex);
     }
 
     /**
@@ -2571,8 +2579,7 @@ public class RTSGameManager {
         log.info("Adding player {} to game {} at skirmish slot {}", playerId, gameId, slotIndex);
 
         int teamNumber = slots.get(slotIndex).getTeamId();
-        TeamPlacement placement = teamPlacementForSkirmishSlot(slotIndex);
-        Vector2 startPosition = getStartingPositionForTeamSlot(teamNumber, placement.indexWithinTeam(), placement.totalOnTeam());
+        Vector2 startPosition = getStartingPositionForSlot(slotIndex);
 
         Player faction = new Player(
                 playerId,

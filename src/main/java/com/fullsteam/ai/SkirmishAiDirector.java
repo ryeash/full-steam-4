@@ -10,7 +10,7 @@ import com.fullsteam.ai.behavior.PlaceFactoryBehavior;
 import com.fullsteam.ai.behavior.ProduceUnitsBehavior;
 import com.fullsteam.ai.behavior.ResumeConstructionBehavior;
 import com.fullsteam.ai.behavior.SkirmishAiBehavior;
-import com.fullsteam.ai.behavior.SquadAttackMoveBehavior;
+import com.fullsteam.ai.behavior.LaunchAssaultBehavior;
 import com.fullsteam.ai.context.AiConcernSnapshot;
 import com.fullsteam.ai.context.SkirmishAiTickContext;
 import com.fullsteam.model.GameEntities;
@@ -36,7 +36,7 @@ public final class SkirmishAiDirector {
             new PlaceFactoryBehavior(),
             new HarvestEconomyBehavior(),
             new ProduceUnitsBehavior(),
-            new SquadAttackMoveBehavior()
+            new LaunchAssaultBehavior()
     );
 
     public void contributeInputs(RTSGameManager game, int frameCount) {

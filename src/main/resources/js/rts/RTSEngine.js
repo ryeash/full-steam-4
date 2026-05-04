@@ -164,10 +164,10 @@ class RTSEngine {
          *  0: Buildings
          *  1: Ground units
          * 1.5: Field effects (explosions, fire, etc.)
-         *  2: Low altitude air units (Scout Drone)
-         *  3: High altitude air units (Bomber, Interceptor)
          *  4: Projectiles (bullets, missiles)
          *  5: Beams (laser weapons)
+         * 10: Low altitude air units (Chinook, Helicopter, Scout Drone, Gunship)
+         * 20: High altitude air units (Bomber, Interceptor)
          * 100: Fog of war overlay
          * 101: Selection box
          */
@@ -1028,6 +1028,13 @@ class RTSEngine {
         if (state.visionRange) {
             this.visionRange = state.visionRange;
         }
+
+        // Track satellite sweep state so the fog overlay can be suppressed
+        this.satelliteActive = !!state.satelliteActive;
+        this.satelliteReveal = state.satelliteReveal || null;
+
+        // Tracker bugs resolved by the server: [{x, y, visionRange}, ...]
+        this.trackerBugs = state.trackerBugs || [];
         
         // NOTE: Biome and world dimensions are now sent once in gameInitialization
         
@@ -1056,18 +1063,18 @@ class RTSEngine {
             this.units.set(unitData.id, unitContainer);
             this.gameContainer.addChild(unitContainer);
             
-            // Set z-index based on elevation (air units should render above buildings and projectiles)
-            // Buildings have default z-index of 0
-            // Ground units: z-index 1
-            // Projectiles: z-index 4
-            // Low altitude units: z-index 5
-            // High altitude units: z-index 6
-            if (unitData.elevation === 'HIGH') {
-                unitContainer.zIndex = 6;
-            } else if (unitData.elevation === 'LOW') {
-                unitContainer.zIndex = 5;
+            // Resolve elevation from the unit payload, falling back to unitTypes metadata
+            // so air units render correctly even if the per-unit field is absent.
+            const elevation = unitData.elevation
+                || this.unitTypes?.[unitData.type]?.elevation
+                || 'GROUND';
+
+            if (elevation === 'HIGH') {
+                unitContainer.zIndex = 20; // above projectiles (4), beams (5), LOW flyers (10)
+            } else if (elevation === 'LOW') {
+                unitContainer.zIndex = 10; // above projectiles (4) and beams (5)
             } else {
-                unitContainer.zIndex = 1; // GROUND units
+                unitContainer.zIndex = 1;  // GROUND units
             }
         }
         
@@ -3583,63 +3590,113 @@ class RTSEngine {
     }
     
     /**
-     * Update fog of war visualization.
-     * Shows darkened areas where player has no vision.
-     * Uses a simple approach: just don't render the fog overlay at all for now.
-     * Server-side fog of war already prevents seeing enemy units/buildings.
+     * Fog-of-war overlay rendered via an offscreen Canvas 2D element.
+     *
+     * Why Canvas 2D instead of PIXI.Graphics.cut():
+     *  - Canvas 2D 'destination-out' compositing with radial gradients gives smooth
+     *    vision-circle edges cheaply.
+     *  - The canvas (world/FOG_SCALE pixels wide) is kept persistent — only clear+redraw
+     *    each throttled update, so no allocations or GPU re-batch on every call.
+     *
+     * Vision sources:
+     *  - Friendly units: per-type visionRange from unitTypes metadata.
+     *  - Friendly buildings: 80 % of the global visionRange.
+     *
+     * Each vision circle fades from fully clear at 60 % of its range to fully fogged at
+     * 100 %, giving a soft scouting edge while remaining faithful to the server's actual
+     * visibility radius.
      */
     updateFogOfWar() {
-        // Clear previous fog
-        this.fogContainer.removeChildren();
-        
-        // NOTE: Fog of war is handled server-side by filtering out non-visible entities.
-        // Client-side visual fog overlay is disabled for performance.
-        // If you want to re-enable it, uncomment the code below.
-        
-        /*
-        if (!this.myTeam) {
-            return; // No team assigned yet
+        if (!this.myTeam) return;
+
+        // Satellite sweep is active — hide the fog overlay entirely.
+        if (this.satelliteActive) {
+            if (this._fogSprite) this._fogSprite.visible = false;
+            return;
         }
-        
-        // Create fog overlay using a mask approach
-        const fogGraphics = new PIXI.Graphics();
-        
-        // Draw full fog over entire map
-        fogGraphics.rect(
-            -this.worldBounds.width / 2,
-            -this.worldBounds.height / 2,
-            this.worldBounds.width,
-            this.worldBounds.height
-        );
-        fogGraphics.fill({ color: 0x000000, alpha: 0.7 });
-        
-        // Cut out vision circles for friendly units and buildings
-        const visionSources = [];
-        
-        // Add friendly units
+        // Restore visibility in case we're coming out of a satellite window.
+        if (this._fogSprite) this._fogSprite.visible = true;
+
+        const W    = this.worldBounds.width;
+        const H    = this.worldBounds.height;
+        const SCALE = 8;                         // world units per canvas pixel
+        const CW   = Math.ceil(W / SCALE);
+        const CH   = Math.ceil(H / SCALE);
+        const invS = 1 / SCALE;
+        const halfW = W / 2;
+        const halfH = H / 2;
+
+        // ── One-time (or world-resize) initialisation ─────────────────────────
+        if (!this._fogCanvas || this._fogCanvas.width !== CW || this._fogCanvas.height !== CH) {
+            if (this._fogSprite) {
+                this.fogContainer.removeChild(this._fogSprite);
+                this._fogSprite.destroy({ texture: true });
+                this._fogSprite = null;
+            }
+            this._fogCanvas = document.createElement('canvas');
+            this._fogCanvas.width  = CW;
+            this._fogCanvas.height = CH;
+            this._fogCtx = this._fogCanvas.getContext('2d');
+
+            // PIXI Sprite backed by the canvas texture.
+            // scale.set(SCALE, -SCALE) maps one canvas pixel to SCALE world units and
+            // flips Y so the canvas top-left aligns with world (-W/2, +H/2).
+            const tex = PIXI.Texture.from(this._fogCanvas);
+            this._fogSprite = new PIXI.Sprite(tex);
+            this._fogSprite.anchor.set(0, 0);
+            this._fogSprite.scale.set(SCALE, -SCALE);
+            this._fogSprite.position.set(-halfW, halfH);
+            this.fogContainer.addChild(this._fogSprite);
+        }
+
+        // ── Collect vision sources ─────────────────────────────────────────────
+        const sources = [];
+
         this.units.forEach(container => {
-            const unitData = container.unitData;
-            if (unitData && unitData.team === this.myTeam) {
-                visionSources.push({ x: unitData.x, y: unitData.y });
-            }
+            const u = container.unitData;
+            if (!u || u.team !== this.myTeam) return;
+            const r = (this.unitTypes?.[u.type]?.visionRange ?? this.visionRange) * invS;
+            sources.push({ cx: (u.x + halfW) * invS, cy: (halfH - u.y) * invS, r });
         });
-        
-        // Add friendly buildings
+
         this.buildings.forEach(container => {
-            const buildingData = container.buildingData;
-            if (buildingData && buildingData.team === this.myTeam) {
-                visionSources.push({ x: buildingData.x, y: buildingData.y });
-            }
+            const b = container.buildingData;
+            if (!b || b.team !== this.myTeam) return;
+            const r = this.visionRange * 0.8 * invS;
+            sources.push({ cx: (b.x + halfW) * invS, cy: (halfH - b.y) * invS, r });
         });
-        
-        // Create vision circles (cut out from fog)
-        for (const source of visionSources) {
-            fogGraphics.circle(source.x, source.y, this.visionRange);
-            fogGraphics.cut();
+
+        // Tracker bugs: server resolves the tagged entity's position and vision range.
+        (this.trackerBugs || []).forEach(bug => {
+            const r = bug.visionRange * invS;
+            sources.push({ cx: (bug.x + halfW) * invS, cy: (halfH - bug.y) * invS, r });
+        });
+
+        // ── Paint the fog canvas ───────────────────────────────────────────────
+        const ctx = this._fogCtx;
+
+        // 1. Reset to transparent, then lay down the fog base colour.
+        ctx.clearRect(0, 0, CW, CH);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = 'rgba(0, 0, 18, 0.68)';
+        ctx.fillRect(0, 0, CW, CH);
+
+        // 2. Punch vision holes: radial gradient so the edge is soft.
+        //    Fully clear from centre out to 60 % of range; fades to opaque at 100 %.
+        ctx.globalCompositeOperation = 'destination-out';
+        for (const { cx, cy, r } of sources) {
+            const inner = r * 0.6;
+            const grad  = ctx.createRadialGradient(cx, cy, inner, cx, cy, r);
+            grad.addColorStop(0, 'rgba(0,0,0,1)');
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
         }
-        
-        this.fogContainer.addChild(fogGraphics);
-        */
+
+        // 3. Upload updated pixels to the GPU.
+        this._fogSprite.texture.source.update();
     }
     
     clampCameraToWorld() {

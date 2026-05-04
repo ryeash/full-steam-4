@@ -9,6 +9,7 @@ import org.dyn4j.geometry.Vector2;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 public final class AiWorldQueries {
 
@@ -38,6 +39,21 @@ public final class AiWorldQueries {
             }
         }
         return null;
+    }
+
+    /**
+     * Returns the position of the nearest active enemy HQ to {@code from}, or any enemy HQ
+     * if {@code from} is null. The AI is permitted to know enemy HQ locations omnisciently.
+     */
+    public static Vector2 nearestEnemyHQ(GameEntities entities, int myTeam, Vector2 from) {
+        Optional<Building> hq = entities.getBuildings().values().stream()
+                .filter(b -> b.isActive()
+                        && b.getTeamNumber() != myTeam
+                        && b.getBuildingType() == BuildingType.HEADQUARTERS)
+                .min(from != null
+                        ? Comparator.comparingDouble(b -> from.distanceSquared(b.getPosition()))
+                        : Comparator.comparingInt(Building::getId));
+        return hq.map(b -> b.getPosition().copy()).orElse(null);
     }
 
     public static Obstacle nearestHarvestable(GameEntities entities, Vector2 from) {

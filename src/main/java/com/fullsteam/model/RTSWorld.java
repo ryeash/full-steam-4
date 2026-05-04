@@ -22,8 +22,17 @@ public class RTSWorld {
     private final Biome biome;
     private final double obstacleDensityMultiplier;
 
-    // Start positions for each team (90-degree symmetry)
+    // Start positions for each team (90-degree symmetry) — used for obstacle placement
     private final List<Vector2> teamStartPoints;
+
+    /**
+     * One spawn corner per skirmish slot (up to 4), in assignment order:
+     *   0 = Bottom-left, 1 = Top-right, 2 = Bottom-right, 3 = Top-left
+     *
+     * This ordering ensures a 1-vs-1 game always gets the diagonal pair (0 & 1),
+     * and a full 4-player game fills all four corners.
+     */
+    private final List<Vector2> slotCorners;
 
     // Obstacles (90-degree symmetric placement)
     // Some obstacles are harvestable and contain resources
@@ -53,7 +62,8 @@ public class RTSWorld {
 
         // Generate symmetric world layout
         this.teamStartPoints = generateTeamStartPoints();
-        this.obstacleSpawns = generateObstacleSpawns();
+        this.slotCorners      = generateSlotCorners();
+        this.obstacleSpawns   = generateObstacleSpawns();
     }
 
     /**
@@ -102,6 +112,26 @@ public class RTSWorld {
         return startPoints;
     }
 
+
+    /**
+     * Build the four corner spawn positions used for per-slot assignment.
+     * Order: BL, TR, BR, TL — chosen so that the first two slots are always the
+     * diagonal pair, giving a clean 1-vs-1 layout and filling all corners for 4 players.
+     */
+    private List<Vector2> generateSlotCorners() {
+        double margin = Math.min(width, height) * 0.15;
+        return List.of(
+                new Vector2(minX + margin, minY + margin), // 0: Bottom-left
+                new Vector2(maxX - margin, maxY - margin), // 1: Top-right   (diagonal from 0)
+                new Vector2(maxX - margin, minY + margin), // 2: Bottom-right
+                new Vector2(minX + margin, maxY - margin)  // 3: Top-left
+        );
+    }
+
+    /** Returns the spawn corner for the given skirmish slot index (0–3). */
+    public Vector2 getSlotCorner(int slotIndex) {
+        return slotCorners.get(Math.max(0, Math.min(slotIndex, slotCorners.size() - 1))).copy();
+    }
 
     /**
      * Generate obstacle spawns with 90-degree symmetry.

@@ -355,7 +355,7 @@ public enum BuildingType {
             48.0,
             0x8B0000,
             false,
-            -50,
+            -150,
             -45.0,
             8,
             true,

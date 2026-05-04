@@ -37,11 +37,9 @@ public record SkirmishAiProfile(
         double harvestMinEconomyConcern,
         int producePeriod,
         int produceSalt,
-        int squadAttackPeriod,
-        int squadAttackSalt,
-        double squadMaxDefenseForAttack,
-        double squadMinArmyConcern,
-        int squadMinCombatUnits,
+        int assaultPeriod,
+        int assaultSalt,
+        int assaultMinForce,
         int maxWorkers,
         int reservedBuildWorkers
 ) {
@@ -60,111 +58,105 @@ public record SkirmishAiProfile(
     /** Slower reactions, higher action thresholds, smaller base defense radius. */
     private static SkirmishAiProfile easy() {
         return new SkirmishAiProfile(
-                600,
-                0.28,
-                280,
-                650,
-                520,
-                0.50,
-                2,
-                5,
-                20,
-                0,
-                0.34,
-                32,
-                7,
-                72,
-                2,
-                0.42,
-                96,
-                5,
-                0.48,
-                48,
-                3,
-                0.28,
-                60,
-                1,
-                96,
-                11,
-                0.28,
-                0.30,
-                5,
-                8,
-                1
+                600,   // defenseRadius
+                0.28,  // defenseConcernPerEnemy
+                280,   // creditsLow
+                650,   // creditsMid
+                520,   // creditsHarvesterBoostBelow
+                0.50,  // economyHarvesterBoostMinConcern
+                2,     // armyIdleLowCount
+                5,     // armyIdleMidCount
+                20,    // defendPeriod
+                0,     // defendPhaseSalt
+                0.34,  // defendMinConcern
+                32,    // resumeConstructionPeriod
+                7,     // resumeConstructionSalt
+                72,    // placePowerPlantPeriod
+                2,     // placePowerPlantSalt
+                0.42,  // placePowerMinConcern
+                96,    // placeRefineryPeriod
+                5,     // placeRefinerySalt
+                0.48,  // placeRefineryMinEconomyConcern
+                48,    // harvestPeriod
+                3,     // harvestSalt
+                0.28,  // harvestMinEconomyConcern
+                60,    // producePeriod
+                1,     // produceSalt
+                240,   // assaultPeriod  (~12 s at 20 fps)
+                3,     // assaultSalt
+                7,     // assaultMinForce
+                8,     // maxWorkers
+                1      // reservedBuildWorkers
         );
     }
 
     /** Baseline matching pre-profile tuning. */
     private static SkirmishAiProfile normal() {
         return new SkirmishAiProfile(
-                760,
-                0.35,
-                280,
-                650,
-                520,
-                0.55,
-                4,
-                9,
-                12,
-                0,
-                0.22,
-                22,
-                7,
-                54,
-                2,
-                0.32,
-                72,
-                5,
-                0.38,
-                36,
-                3,
-                0.18,
-                48,
-                1,
-                72,
-                11,
-                0.38,
-                0.20,
-                3,
-                10,
-                2
+                760,   // defenseRadius
+                0.35,  // defenseConcernPerEnemy
+                280,   // creditsLow
+                650,   // creditsMid
+                520,   // creditsHarvesterBoostBelow
+                0.55,  // economyHarvesterBoostMinConcern
+                4,     // armyIdleLowCount
+                9,     // armyIdleMidCount
+                12,    // defendPeriod
+                0,     // defendPhaseSalt
+                0.22,  // defendMinConcern
+                22,    // resumeConstructionPeriod
+                7,     // resumeConstructionSalt
+                54,    // placePowerPlantPeriod
+                2,     // placePowerPlantSalt
+                0.32,  // placePowerMinConcern
+                72,    // placeRefineryPeriod
+                5,     // placeRefinerySalt
+                0.38,  // placeRefineryMinEconomyConcern
+                36,    // harvestPeriod
+                3,     // harvestSalt
+                0.18,  // harvestMinEconomyConcern
+                48,    // producePeriod
+                1,     // produceSalt
+                160,   // assaultPeriod  (~8 s at 20 fps)
+                5,     // assaultSalt
+                5,     // assaultMinForce
+                10,    // maxWorkers
+                2      // reservedBuildWorkers
         );
     }
 
     /** Faster ticks, tighter thresholds, larger defense awareness, more aggressive attacks. */
     private static SkirmishAiProfile hard() {
         return new SkirmishAiProfile(
-                920,
-                0.42,
-                280,
-                650,
-                520,
-                0.58,
-                6,
-                11,
-                8,
-                0,
-                0.16,
-                16,
-                7,
-                40,
-                2,
-                0.24,
-                54,
-                5,
-                0.30,
-                28,
-                3,
-                0.12,
-                40,
-                1,
-                54,
-                11,
-                0.48,
-                0.14,
-                2,
-                12,
-                2
+                920,   // defenseRadius
+                0.42,  // defenseConcernPerEnemy
+                280,   // creditsLow
+                650,   // creditsMid
+                520,   // creditsHarvesterBoostBelow
+                0.58,  // economyHarvesterBoostMinConcern
+                6,     // armyIdleLowCount
+                11,    // armyIdleMidCount
+                8,     // defendPeriod
+                0,     // defendPhaseSalt
+                0.16,  // defendMinConcern
+                16,    // resumeConstructionPeriod
+                7,     // resumeConstructionSalt
+                40,    // placePowerPlantPeriod
+                2,     // placePowerPlantSalt
+                0.24,  // placePowerMinConcern
+                54,    // placeRefineryPeriod
+                5,     // placeRefinerySalt
+                0.30,  // placeRefineryMinEconomyConcern
+                28,    // harvestPeriod
+                3,     // harvestSalt
+                0.12,  // harvestMinEconomyConcern
+                40,    // producePeriod
+                1,     // produceSalt
+                100,   // assaultPeriod  (~5 s at 20 fps)
+                7,     // assaultSalt
+                4,     // assaultMinForce
+                12,    // maxWorkers
+                2      // reservedBuildWorkers
         );
     }
 }
