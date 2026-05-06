@@ -46,6 +46,9 @@ class RTSEngine {
         this.myFactionData = null; // Faction data from API
         this.buildMenuGenerated = false; // Track if build menu has been generated
         this.myTeam = null;
+        this.myPlayerName = null;
+        /** Map of playerId -> playerName for all players seen in faction state. */
+        this.playerNames = {};
         this.hasCenteredCamera = false;
         this.visionRange = 400; // Default, updated from server
         this.lastFogUpdate = 0; // Timestamp of last fog update
@@ -674,6 +677,10 @@ class RTSEngine {
         if (data.myFactionStatic) {
             const factionStatic = data.myFactionStatic;
             this.myTeam = factionStatic.team;
+            this.myPlayerName = factionStatic.playerName || `Team ${factionStatic.team}`;
+            if (this.myPlayerId != null && factionStatic.playerName) {
+                this.playerNames[this.myPlayerId] = factionStatic.playerName;
+            }
             
             // Build myFactionData from static info
             this.myFactionData = {
@@ -843,6 +850,8 @@ class RTSEngine {
             }
         };
         
+        const winnerName = data.winnerName || `Team ${data.winningTeam}`;
+
         if (isDraw) {
             title.textContent = 'DRAW';
             title.style.color = '#888888';
@@ -851,13 +860,13 @@ class RTSEngine {
         } else if (playerWon) {
             title.textContent = 'VICTORY';
             title.style.color = '#00FF00';
-            winner.textContent = `Team ${data.winningTeam} Wins!`;
+            winner.textContent = `${winnerName} Wins!`;
             winner.style.color = getTeamColor(data.winningTeam);
             reason.textContent = data.reason || 'You destroyed all enemy headquarters!';
         } else {
             title.textContent = 'DEFEAT';
             title.style.color = '#FF0000';
-            winner.textContent = `Team ${data.winningTeam} Wins!`;
+            winner.textContent = `${winnerName} Wins!`;
             winner.style.color = getTeamColor(data.winningTeam);
             reason.textContent = data.reason || 'Your headquarters was destroyed!';
         }
@@ -1012,6 +1021,13 @@ class RTSEngine {
         
         // Update faction info
         if (state.factions && this.myPlayerId != null) {
+            // Collect player names for all factions
+            Object.values(state.factions).forEach(f => {
+                if (f && f.playerId != null && f.playerName) {
+                    this.playerNames[f.playerId] = f.playerName;
+                }
+            });
+
             this.myFaction = this.getFactionStateForPlayer(state.factions, this.myPlayerId);
             if (this.myFaction) {
                 this.myTeam = this.myFaction.team;
@@ -3661,8 +3677,8 @@ class RTSEngine {
 
         this.buildings.forEach(container => {
             const b = container.buildingData;
-            if (!b || b.team !== this.myTeam) return;
-            const r = this.visionRange * 0.8 * invS;
+            if (!b || b.team !== this.myTeam || b.underConstruction) return;
+            const r = (this.buildingTypes?.[b.type]?.visionRange ?? this.visionRange * 0.8) * invS;
             sources.push({ cx: (b.x + halfW) * invS, cy: (halfH - b.y) * invS, r });
         });
 

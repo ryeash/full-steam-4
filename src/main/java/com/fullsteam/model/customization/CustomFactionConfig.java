@@ -23,10 +23,8 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CustomFactionConfig {
-    /** Maximum points allowed for a custom faction loadout (units + buildings + perks). */
     public static final int MAX_FACTION_POINTS = 100;
-
-    private static final int MAX_POINTS = MAX_FACTION_POINTS;
+    public static final int MAX_PLAYER_NAME_LENGTH = 25;
 
     /**
      * Unique identifier for this faction configuration
@@ -88,7 +86,7 @@ public class CustomFactionConfig {
      * Check if this configuration is valid
      */
     public boolean isValid() {
-        return totalPointsSpent <= MAX_POINTS
+        return totalPointsSpent <= MAX_FACTION_POINTS
                 && hasRequiredBuildings()
                 && hasRequiredUnits()
                 && allPerksValid();
@@ -202,7 +200,7 @@ public class CustomFactionConfig {
             total += perk.getPointCost();
         }
 
-        if (total > MAX_POINTS) {
+        if (total > MAX_FACTION_POINTS) {
             throw new IllegalArgumentException("total points exceeds maximum allowed: " + displayName + " " + total);
         }
 
@@ -213,7 +211,7 @@ public class CustomFactionConfig {
      * Get remaining points in budget
      */
     public int getRemainingPoints() {
-        return MAX_POINTS - totalPointsSpent;
+        return MAX_FACTION_POINTS - totalPointsSpent;
     }
 
     /**
@@ -242,20 +240,17 @@ public class CustomFactionConfig {
     }
 
     /**
-     * Check if we can afford to add an entity with the given cost
-     */
-    public boolean canAfford(int pointCost) {
-        return (totalPointsSpent + pointCost) <= MAX_POINTS;
-    }
-
-    /**
      * Get validation errors (if any)
      */
     public ValidationResult validate() {
         List<String> errors = new ArrayList<>();
 
-        if (totalPointsSpent > MAX_POINTS) {
-            errors.add(String.format("Over budget: %d / %d points", totalPointsSpent, MAX_POINTS));
+        if (displayName != null && displayName.length() > MAX_PLAYER_NAME_LENGTH) {
+            errors.add(String.format("Player name exceeds maximum length of %d characters", MAX_PLAYER_NAME_LENGTH));
+        }
+
+        if (totalPointsSpent > MAX_FACTION_POINTS) {
+            errors.add(String.format("Over budget: %d / %d points", totalPointsSpent, MAX_FACTION_POINTS));
         }
 
         if (!selectedBuildings.contains(BuildingType.HEADQUARTERS)) {
@@ -291,20 +286,5 @@ public class CustomFactionConfig {
         }
 
         return new ValidationResult(errors.isEmpty(), errors);
-    }
-
-    /**
-     * Get a summary of this faction configuration
-     */
-    public String getSummary() {
-        return String.format(
-                "%s: %d units, %d buildings, %d perks (%d/%d points)",
-                displayName,
-                selectedUnits.size(),
-                selectedBuildings.size(),
-                selectedPerks.size(),
-                totalPointsSpent,
-                MAX_POINTS
-        );
     }
 }

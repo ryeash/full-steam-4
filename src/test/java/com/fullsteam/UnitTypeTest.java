@@ -335,5 +335,10 @@ public class UnitTypeTest {
             world.removeBody(unit.getBody());
         }
     }
+
+    @Test
+    public void foo(){
+        System.out.println(RandomNames.sanitizeName("I_&*am* you"));
+    }
 }
 

@@ -9,7 +9,7 @@
 <body>
 <div id="lobby-wrapper">
     <h1>⚔️ Full Steam RTS ⚔️</h1>
-    <div class="subtitle">Real-Time Strategy Multiplayer</div>
+    <div class="subtitle">Multiplayer Real-Time Strategy</div>
 
     <div id="stats-bar">
         <div class="stat-item">
@@ -51,18 +51,31 @@
         <p>Select units, buildings, and perks to create your custom faction (<span id="points-display">0/100</span>
             points)</p>
 
-        <!-- Preset Selection -->
-        <div style="margin: 20px 0;">
-            <label style="color: #00ff88; margin-right: 10px;">Quick Start:</label>
-            <select id="preset-select" onchange="loadPresetInline(this.value)"
-                    style="padding: 8px; background: rgba(0,0,0,0.5); border: 1px solid #00ff88; border-radius: 4px; color: #fff;">
-                <option value="">Custom Configuration</option>
-            </select>
+        <!-- Player Name + Preset Selection -->
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 8px 0;">
+            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <label for="player-name-input" style="color: #00ff88; white-space: nowrap;">Player Name</label>
+                    <input type="text" id="player-name-input" maxlength="25" placeholder="Enter your name (optional)"
+                        style="padding: 8px 10px; background: rgba(0,0,0,0.5); border: 1px solid #00ff88; border-radius: 4px;
+                               color: #fff; font-size: 14px; width: 220px;"
+                        oninput="updatePlayerNameCounter()">
+                    <span id="player-name-counter" style="color: #888; font-size: 12px;">0/25</span>
+                </div>
+                <div id="player-name-error" style="color: #ff4444; font-size: 12px; display: none;"></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <label for="preset-select" style="color: #00ff88; white-space: nowrap;">Quick Start</label>
+                <select id="preset-select" onchange="loadPresetInline(this.value)"
+                        style="padding: 8px 10px; background: rgba(0,0,0,0.5); border: 1px solid #00ff88; border-radius: 4px; color: #fff; font-size: 14px;">
+                    <option value="">Custom Configuration</option>
+                </select>
+            </div>
         </div>
 
         <!-- Units Section -->
         <div class="customizer-category">
-            <h3 style="color: #00ff88; border-bottom: 2px solid #00ff88; padding-bottom: 10px; margin-bottom: 15px;">
+            <h3 style="color: #00ff88; border-bottom: 2px solid #00ff88; padding-bottom: 8px; margin-bottom: 12px; margin-top: 0;">
                 Units (<span id="unit-count">0</span> selected)
             </h3>
             <div id="units-categories">
@@ -71,8 +84,8 @@
         </div>
 
         <!-- Buildings Section -->
-        <div class="customizer-category" style="margin-top: 30px;">
-            <h3 style="color: #00ff88; border-bottom: 2px solid #00ff88; padding-bottom: 10px; margin-bottom: 15px;">
+        <div class="customizer-category" style="margin-top: 18px;">
+            <h3 style="color: #00ff88; border-bottom: 2px solid #00ff88; padding-bottom: 8px; margin-bottom: 12px;">
                 Buildings (<span id="building-count">0</span> selected)
             </h3>
             <div id="buildings-categories">
@@ -81,8 +94,8 @@
         </div>
 
         <!-- Perks Section -->
-        <div class="customizer-category" style="margin-top: 30px;">
-            <h3 style="color: #00ff88; border-bottom: 2px solid #00ff88; padding-bottom: 10px; margin-bottom: 15px;">
+        <div class="customizer-category" style="margin-top: 18px;">
+            <h3 style="color: #00ff88; border-bottom: 2px solid #00ff88; padding-bottom: 8px; margin-bottom: 12px;">
                 Perks (<span id="perk-count">0</span> selected)
             </h3>
             <div id="perks-grid" class="selection-grid">
@@ -817,11 +830,13 @@
     
     // Save to localStorage
     function saveInlineCustomizerToStorage() {
+        const nameInput = document.getElementById('player-name-input');
         const config = {
             selectedUnits: Array.from(inlineCustomizer.selectedUnits),
             selectedBuildings: Array.from(inlineCustomizer.selectedBuildings),
             selectedPerks: Array.from(inlineCustomizer.selectedPerks),
-            spentPoints: inlineCustomizer.spentPoints
+            spentPoints: inlineCustomizer.spentPoints,
+            playerName: nameInput ? nameInput.value : ''
         };
         localStorage.setItem('customFactionConfig', JSON.stringify(config));
     }
@@ -836,12 +851,47 @@
                 inlineCustomizer.selectedBuildings = new Set(config.selectedBuildings || []);
                 inlineCustomizer.selectedPerks = new Set(config.selectedPerks || []);
                 recalculateInlinePoints();
+                const nameInput = document.getElementById('player-name-input');
+                if (nameInput && config.playerName) {
+                    nameInput.value = config.playerName;
+                    updatePlayerNameCounter();
+                }
             } catch (e) {
                 console.error('Failed to load saved config:', e);
             }
         }
     }
     
+    const MAX_PLAYER_NAME_LENGTH = 25;
+
+    function updatePlayerNameCounter() {
+        const input = document.getElementById('player-name-input');
+        const counter = document.getElementById('player-name-counter');
+        const errorEl = document.getElementById('player-name-error');
+        if (!input || !counter) return;
+        const len = input.value.length;
+        counter.textContent = `${len}/${MAX_PLAYER_NAME_LENGTH}`;
+        counter.style.color = len >= MAX_PLAYER_NAME_LENGTH ? '#ff9900' : '#888';
+        if (errorEl) errorEl.style.display = 'none';
+        saveInlineCustomizerToStorage();
+    }
+
+    function validatePlayerName() {
+        const input = document.getElementById('player-name-input');
+        const errorEl = document.getElementById('player-name-error');
+        if (!input) return true;
+        const name = input.value.trim();
+        if (name.length > MAX_PLAYER_NAME_LENGTH) {
+            if (errorEl) {
+                errorEl.textContent = `Name must be ${MAX_PLAYER_NAME_LENGTH} characters or fewer.`;
+                errorEl.style.display = 'block';
+            }
+            input.focus();
+            return false;
+        }
+        return true;
+    }
+
     // Get current config for game start (automatically adds zero-point items)
     function getInlineCustomizerConfig() {
         // Create a copy of selected items and add zero-point required items
@@ -851,9 +901,12 @@
         const buildings = new Set(inlineCustomizer.selectedBuildings);
         buildings.add('HEADQUARTERS'); // Always include HEADQUARTERS (0 points)
         buildings.add('POWER_PLANT');  // Always include POWER_PLANT (0 points)
+
+        const nameInput = document.getElementById('player-name-input');
+        const playerName = nameInput ? nameInput.value.trim().substring(0, MAX_PLAYER_NAME_LENGTH) : '';
         
         return {
-            displayName: 'Custom Faction',
+            displayName: playerName || '',
             themeColor: '#800080',
             icon: '⚙️',
             selectedUnits: Array.from(units),
@@ -964,6 +1017,7 @@
     }
 
     async function createMatch() {
+        if (!validatePlayerName()) return;
         try {
             createGameButton.disabled = true;
             onMapTeamCountChange();
@@ -1143,6 +1197,7 @@
     }
 
     async function joinGame(gameId) {
+        if (!validatePlayerName()) return;
         try {
             createGameButton.disabled = true;
             

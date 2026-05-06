@@ -18,10 +18,8 @@ public class Player {
 
     private final int playerId;
     private final int teamNumber;
-    /**
-     * Index into {@link GameConfig#getSkirmishSlots()} when this faction was created from a skirmish roster; otherwise null.
-     */
     private final int skirmishSlotIndex;
+    private String playerName;
     private FactionDefinition factionDefinition;
     private WebSocketSession webSocketSession;
     private final Map<ResourceType, Integer> resources = new HashMap<>();

@@ -2,7 +2,9 @@ package com.fullsteam.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.RTSLobby;
+import com.fullsteam.RandomNames;
 import com.fullsteam.games.IdGenerator;
+import com.fullsteam.model.customization.CustomFactionConfig;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.RTSGameManager;
 import com.fullsteam.model.customization.CustomFactionBuilder;
@@ -76,7 +78,13 @@ public class RTSPlayerConnectionService {
             return false;
         }
 
-        String factionName = config.getDisplayName();
+        String playerName = config.getDisplayName();
+        if (playerName == null || playerName.isBlank()) {
+            playerName = RandomNames.randomName();
+        }
+        if (playerName.length() > CustomFactionConfig.MAX_PLAYER_NAME_LENGTH) {
+            playerName = playerName.substring(0, CustomFactionConfig.MAX_PLAYER_NAME_LENGTH);
+        }
         // Build FactionDefinition from config
         CustomFactionBuilder builder = new CustomFactionBuilder();
         FactionDefinition customDefinition = builder.buildFromConfig(config);
@@ -85,7 +93,7 @@ public class RTSPlayerConnectionService {
         session.put("rtsGame", game);
 
         // Add player to game (WebSocket session is stored on {@link Player})
-        if (!game.addPlayer(playerId, session, config, customDefinition, skirmishSlotIndex)) {
+        if (!game.addPlayer(playerId, session, customDefinition, playerName, skirmishSlotIndex)) {
             log.warn("Failed to add player {} to RTS game {} (game may be full or started)", playerId, gameId);
 
             // Send error message to player
@@ -115,7 +123,7 @@ public class RTSPlayerConnectionService {
 
         rtsLobby.incrementPlayerCount();
 
-        log.info("Player {} connected to RTS game {} with faction {}", playerId, gameId, factionName);
+        log.info("Player {} connected to RTS game {} with faction {}", playerId, gameId, playerName);
         return true;
     }
 

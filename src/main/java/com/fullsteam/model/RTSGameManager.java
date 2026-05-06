@@ -2,6 +2,7 @@ package com.fullsteam.model;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fullsteam.RandomNames;
 import com.fullsteam.ai.AiSkirmishFaction;
 import com.fullsteam.ai.SkirmishAiDirector;
 import com.fullsteam.games.GameConstants;
@@ -33,7 +34,6 @@ import com.fullsteam.model.component.InterceptorComponent;
 import com.fullsteam.model.component.NukeSiloComponent;
 import com.fullsteam.model.component.ProductionComponent;
 import com.fullsteam.model.component.ShieldComponent;
-import com.fullsteam.model.customization.CustomFactionConfig;
 import com.fullsteam.model.factions.FactionDefinition;
 import io.micronaut.websocket.WebSocketSession;
 import io.micronaut.websocket.exceptions.WebSocketSessionException;
@@ -1181,10 +1181,11 @@ public class RTSGameManager {
 
             log.info("Game Over! Team {} wins - all opponents disconnected", winningTeam);
 
-            // Send game over message
+            String winnerName = resolveTeamName(winningTeam);
             Map<String, Object> gameOverMsg = new LinkedHashMap<>();
             gameOverMsg.put("type", "gameOver");
             gameOverMsg.put("winningTeam", winningTeam);
+            gameOverMsg.put("winnerName", winnerName);
             gameOverMsg.put("reason", "Victory - All opponents disconnected");
             broadcast(gameOverMsg);
             return;
@@ -1212,10 +1213,12 @@ public class RTSGameManager {
 
             log.info("Game Over! Team {} wins by destroying all enemy headquarters", winningTeam);
 
-            // Send game over message
+            String winnerName = resolveTeamName(winningTeam);
             Map<String, Object> gameOverMsg = new LinkedHashMap<>();
             gameOverMsg.put("type", "gameOver");
             gameOverMsg.put("winningTeam", winningTeam);
+            gameOverMsg.put("winnerName", winnerName);
+            gameOverMsg.put("winnerName", winnerName);
             gameOverMsg.put("reason", "All enemy headquarters destroyed");
             broadcast(gameOverMsg);
 
@@ -1232,6 +1235,18 @@ public class RTSGameManager {
             gameOverMsg.put("reason", "Draw - all headquarters destroyed");
             broadcast(gameOverMsg);
         }
+    }
+
+    /**
+     * Returns the player name for the first player on the given team, falling back to "Team N".
+     */
+    private String resolveTeamName(int teamNumber) {
+        return players.values().stream()
+                .filter(p -> p.getTeamNumber() == teamNumber)
+                .map(Player::getPlayerName)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse("Team " + teamNumber);
     }
 
     /**
@@ -1564,7 +1579,13 @@ public class RTSGameManager {
 
                     eliminatedTeams.add(building.getTeamNumber());
 
-                    String teamName = "Team " + building.getTeamNumber();
+                    int destroyedTeam = building.getTeamNumber();
+                    String teamName = players.values().stream()
+                            .filter(p -> p.getTeamNumber() == destroyedTeam)
+                            .map(Player::getPlayerName)
+                            .filter(Objects::nonNull)
+                            .findFirst()
+                            .orElse("Team " + destroyedTeam);
                     sendGameEvent(GameEvent.builder()
                             .message(String.format("💥 %s's Headquarters has been destroyed!", teamName))
                             .category(GameEvent.EventCategory.SYSTEM)
@@ -1820,10 +1841,11 @@ public class RTSGameManager {
                 // Dynamic info for own team (resources, unit counts, etc.)
                 factionsMap.put(playerId, serializeFactionDynamic(faction));
             } else {
-                // Limited info for other teams (just team number and name)
+                // Limited info for other teams
                 Map<String, Object> limitedInfo = new LinkedHashMap<>();
                 limitedInfo.put("playerId", faction.getPlayerId());
                 limitedInfo.put("team", faction.getTeamNumber());
+                limitedInfo.put("playerName", faction.getPlayerName());
                 factionsMap.put(playerId, limitedInfo);
             }
         });
@@ -1860,6 +1882,7 @@ public class RTSGameManager {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("playerId", faction.getPlayerId());
         data.put("team", faction.getTeamNumber());
+        data.put("playerName", faction.getPlayerName());
         data.put("credits", faction.getResourceAmount(ResourceType.CREDITS));
         data.put("currentUpkeep", faction.getCurrentUpkeep());
         data.put("armyUpkeepIntervalMs", ArmyEconomy.UPKEEP_INTERVAL_MS);
@@ -2081,6 +2104,7 @@ public class RTSGameManager {
             Map<String, Object> factionStatic = new LinkedHashMap<>();
             factionStatic.put("playerId", faction.getPlayerId());
             factionStatic.put("team", faction.getTeamNumber());
+            factionStatic.put("playerName", faction.getPlayerName());
 
             // Available units and buildings
             List<String> availableUnits = faction.getFactionDefinition()
@@ -2502,7 +2526,7 @@ public class RTSGameManager {
     private void addSkirmishAiAtSlot(int slotIndex) {
         int playerId = IdGenerator.nextPlayerId();
         int teamNumber = gameConfig.getSkirmishSlots().get(slotIndex).getTeamId();
-        Vector2 start = getStartingPositionForSlot(slotIndex);
+        Vector2 start = rtsWorld.getSlotCorner(slotIndex);
         Player aiFaction = new Player(
                 playerId,
                 teamNumber,
@@ -2515,6 +2539,7 @@ public class RTSGameManager {
                 ? slotCfg.getAiDifficulty()
                 : AiDifficulty.NORMAL;
         aiFaction.setSkirmishAiDifficulty(difficulty);
+        aiFaction.setPlayerName("[AI] " + RandomNames.randomName());
         players.put(playerId, aiFaction);
         createStartingBase(playerId, teamNumber, start);
         log.info("Skirmish AI player {} added at slot {} team {} difficulty {} position ({}, {})",
@@ -2522,30 +2547,10 @@ public class RTSGameManager {
     }
 
     /**
-     * Returns the world-space spawn position for the given skirmish slot.
-     * Each of the up-to-4 slots is assigned its own map corner so that no two
-     * players start in the same area, regardless of team composition.
-     *
-     * Corner order (see {@link RTSWorld#generateSlotCorners}):
-     *   0 = Bottom-left, 1 = Top-right, 2 = Bottom-right, 3 = Top-left
-     */
-    private Vector2 getStartingPositionForSlot(int slotIndex) {
-        return rtsWorld.getSlotCorner(slotIndex);
-    }
-
-    /**
-     * Add a player to the game
-     */
-    public synchronized boolean addPlayer(int playerId, WebSocketSession webSocketSession,
-                                          CustomFactionConfig config, FactionDefinition customDefinition) {
-        return addPlayer(playerId, webSocketSession, config, customDefinition, -1);
-    }
-
-    /**
      * @param skirmishSlotIndex index into {@link GameConfig#getSkirmishSlots()} for this human, or -1 to take the first open human slot
      */
     public synchronized boolean addPlayer(int playerId, WebSocketSession webSocketSession,
-                                          CustomFactionConfig config, FactionDefinition customDefinition,
+                                          FactionDefinition customDefinition, String playerName,
                                           int skirmishSlotIndex) {
         // Prevent late joins if game has started with full roster
         if (gameStartedWithFullRoster) {
@@ -2579,7 +2584,7 @@ public class RTSGameManager {
         log.info("Adding player {} to game {} at skirmish slot {}", playerId, gameId, slotIndex);
 
         int teamNumber = slots.get(slotIndex).getTeamId();
-        Vector2 startPosition = getStartingPositionForSlot(slotIndex);
+        Vector2 startPosition = rtsWorld.getSlotCorner(slotIndex);
 
         Player faction = new Player(
                 playerId,
@@ -2588,6 +2593,9 @@ public class RTSGameManager {
                 webSocketSession,
                 slotIndex
         );
+        faction.setPlayerName(playerName != null && !playerName.isBlank()
+                ? RandomNames.sanitizeName(playerName)
+                : RandomNames.randomName());
 
         log.info("Assigned player {} to team {} slot {}", playerId, teamNumber, slotIndex);
         players.put(playerId, faction);
@@ -2761,10 +2769,10 @@ public class RTSGameManager {
             return;
         }
 
-        players.values().forEach(faction -> {
+        for (Player faction : players.values()) {
             WebSocketSession ws = faction.getWebSocketSession();
             if (ws == null || !ws.isOpen()) {
-                return;
+                continue;
             }
 
             int playerId = faction.getPlayerId();
@@ -2794,7 +2802,7 @@ public class RTSGameManager {
             if (shouldReceive) {
                 send(ws, event);
             }
-        });
+        }
     }
 
     /**
