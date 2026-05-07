@@ -1,13 +1,13 @@
 package com.fullsteam.model;
 
+import com.fullsteam.model.component.AirfieldAircraftHousingComponent;
 import com.fullsteam.model.component.AndroidFactoryComponent;
 import com.fullsteam.model.component.BankComponent;
 import com.fullsteam.model.component.DefenseComponent;
 import com.fullsteam.model.component.GarrisonComponent;
-import com.fullsteam.model.component.AirfieldAircraftHousingComponent;
 import com.fullsteam.model.component.IBuildingComponent;
-import com.fullsteam.model.component.ProductionComponent;
 import com.fullsteam.model.component.NukeSiloComponent;
+import com.fullsteam.model.component.ProductionComponent;
 import com.fullsteam.model.component.SandstormComponent;
 import com.fullsteam.model.component.ShieldComponent;
 import com.fullsteam.model.factions.FactionDefinition;
@@ -47,6 +47,10 @@ public class Building extends GameEntity implements Targetable {
 
     // Vision range bonus (from perks or other effects)
     private double visionRangeBonus = 0.0;
+    /**
+     * Per-instance construction speed multiplier set at placement time (e.g. INFRASTRUCTURE_NETWORK).
+     */
+    private double constructionSpeedBonus = 1.0;
 
     /**
      * Constructor with custom max health (for faction modifiers)
@@ -157,6 +161,31 @@ public class Building extends GameEntity implements Targetable {
 
         // initialize each building component
         components.values().forEach(c -> c.init(gameEntities, this));
+
+        // Apply faction damage modifier to defensive buildings
+        applyFactionModifiersToWeapon();
+    }
+
+    /**
+     * Apply the faction's building damage multiplier to this building's DefenseComponent weapon.
+     * Equivalent of Unit.applyFactionModifiersToWeapon() for defensive buildings.
+     */
+    private void applyFactionModifiersToWeapon() {
+        if (faction == null || faction.getFactionDefinition() == null) {
+            return;
+        }
+        getComponent(DefenseComponent.class).ifPresent(defense -> {
+            FactionDefinition.BuildingStatModifier modifier =
+                    faction.getFactionDefinition().getBuildingStatModifiers().get(buildingType);
+            if (modifier != null && modifier.getDamageMultiplier() != 1.0) {
+                double base = defense.getWeapon().getDamage();
+                if (base > 0) {
+                    defense.getWeapon().setDamage(base * modifier.getDamageMultiplier());
+                    log.debug("Building {} ({}) weapon damage scaled by {}x",
+                            id, buildingType.getDisplayName(), modifier.getDamageMultiplier());
+                }
+            }
+        });
     }
 
     // ============================================================================

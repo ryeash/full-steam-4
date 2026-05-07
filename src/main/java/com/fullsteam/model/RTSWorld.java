@@ -27,8 +27,8 @@ public class RTSWorld {
 
     /**
      * One spawn corner per skirmish slot (up to 4), in assignment order:
-     *   0 = Bottom-left, 1 = Top-right, 2 = Bottom-right, 3 = Top-left
-     *
+     * 0 = Bottom-left, 1 = Top-right, 2 = Bottom-right, 3 = Top-left
+     * <p>
      * This ordering ensures a 1-vs-1 game always gets the diagonal pair (0 & 1),
      * and a full 4-player game fills all four corners.
      */
@@ -62,8 +62,8 @@ public class RTSWorld {
 
         // Generate symmetric world layout
         this.teamStartPoints = generateTeamStartPoints();
-        this.slotCorners      = generateSlotCorners();
-        this.obstacleSpawns   = generateObstacleSpawns();
+        this.slotCorners = generateSlotCorners();
+        this.obstacleSpawns = generateObstacleSpawns();
     }
 
     /**
@@ -128,7 +128,9 @@ public class RTSWorld {
         );
     }
 
-    /** Returns the spawn corner for the given skirmish slot index (0–3). */
+    /**
+     * Returns the spawn corner for the given skirmish slot index (0–3).
+     */
     public Vector2 getSlotCorner(int slotIndex) {
         return slotCorners.get(Math.max(0, Math.min(slotIndex, slotCorners.size() - 1))).copy();
     }

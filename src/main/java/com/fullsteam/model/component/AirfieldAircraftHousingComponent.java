@@ -1,6 +1,5 @@
 package com.fullsteam.model.component;
 
-import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.UnitType;
@@ -37,7 +36,9 @@ public class AirfieldAircraftHousingComponent extends AbstractBuildingComponent 
         }
     }
 
-    /** True if at least one berth has no housed aircraft (room for a newly produced sortie unit). */
+    /**
+     * True if at least one berth has no housed aircraft (room for a newly produced sortie unit).
+     */
     public boolean hasEmptyBerthForHousing() {
         return berths.stream().anyMatch(b -> b.getHousedUnit() == null);
     }

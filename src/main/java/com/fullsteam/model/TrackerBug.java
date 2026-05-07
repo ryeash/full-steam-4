@@ -24,7 +24,9 @@ public class TrackerBug {
     }
 
     private final int id;
-    /** ID of the tagged unit or building (see {@link #attachmentKind}). */
+    /**
+     * ID of the tagged unit or building (see {@link #attachmentKind}).
+     */
     private final int targetId;
     private final AttachmentKind attachmentKind;
     private final int ownerPlayerId;
@@ -35,12 +37,12 @@ public class TrackerBug {
     private boolean active = true;
 
     /**
-     * @param targetId          ID of tagged unit or building
-     * @param attachmentKind    whether {@code targetId} refers to a unit or building
-     * @param ownerPlayerId     Player who owns the spy
-     * @param ownerTeamNumber   Team that receives vision
-     * @param visionRange       Vision radius around tagged entity
-     * @param durationMs        Bug duration (milliseconds)
+     * @param targetId        ID of tagged unit or building
+     * @param attachmentKind  whether {@code targetId} refers to a unit or building
+     * @param ownerPlayerId   Player who owns the spy
+     * @param ownerTeamNumber Team that receives vision
+     * @param visionRange     Vision radius around tagged entity
+     * @param durationMs      Bug duration (milliseconds)
      */
     public TrackerBug(int targetId, AttachmentKind attachmentKind, int ownerPlayerId, int ownerTeamNumber,
                       double visionRange, long durationMs) {

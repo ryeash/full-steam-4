@@ -5,8 +5,8 @@ import com.fullsteam.ai.context.SkirmishAiTickContext;
 import com.fullsteam.ai.support.AiUnitSupport;
 import com.fullsteam.model.BuildingType;
 import com.fullsteam.model.GameEntities;
-import com.fullsteam.model.ResourceType;
 import com.fullsteam.model.RTSPlayerInput;
+import com.fullsteam.model.ResourceType;
 import org.dyn4j.geometry.Vector2;
 
 import java.util.List;

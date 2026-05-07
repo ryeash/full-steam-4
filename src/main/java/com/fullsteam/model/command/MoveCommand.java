@@ -13,7 +13,9 @@ import java.util.List;
 @Getter
 public class MoveCommand extends UnitCommand {
     private final Vector2 destination;
-    /** When non-null, steering and velocity are capped at this speed (group march). */
+    /**
+     * When non-null, steering and velocity are capped at this speed (group march).
+     */
     private final Double marchSpeedCap;
     private List<Vector2> path = new ArrayList<>();
     private int currentPathIndex = 0;

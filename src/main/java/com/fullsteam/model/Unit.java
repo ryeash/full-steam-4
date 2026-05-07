@@ -75,6 +75,10 @@ public class Unit extends GameEntity implements Targetable {
 
     private double speedMultiplier = 1.0; // 1.0 = normal speed, 0.5 = 50% speed, etc.
 
+    // Time-based suppression slow (checked dynamically in getMovementSpeed)
+    private double suppressionSlowAmount = 0.0;
+    private long suppressionSlowExpiryMs = 0L;
+
     // Selection state
     private boolean selected = false;
     private boolean garrisoned = false; // True if unit is inside a building
@@ -738,8 +742,8 @@ public class Unit extends GameEntity implements Targetable {
                 }
             }
 
-            // Lower multiplier = faster construction (divide by multiplier)
-            double effectiveRate = baseRate / buildTimeMultiplier;
+            // Lower multiplier = faster construction (divide by multiplier); per-instance bonus multiplies the rate further
+            double effectiveRate = (baseRate / buildTimeMultiplier) * building.getConstructionSpeedBonus();
             double progressAdded = effectiveRate * deltaTime;
             building.addConstructionProgress(progressAdded);
         }
@@ -763,7 +767,7 @@ public class Unit extends GameEntity implements Targetable {
      */
     public boolean belongsTo(int playerId) {
         return this.ownerId == playerId;
-    } 
+    }
 
     /**
      * Clear the defensive-stance home (tether) position so the unit does not try to
@@ -938,11 +942,22 @@ public class Unit extends GameEntity implements Targetable {
      * Returns 0 if unit is deployed
      */
     public double getMovementSpeed() {
-        // Base speed from unit type with faction modifiers
         double baseSpeed = unitType.getMovementSpeed();
         double factionMultiplier = getUnitStatMultiplier(FactionDefinition.UnitStatModifier::getSpeedMultiplier);
-        // Apply temporary speed modifier (from slows, buffs, etc.)
-        return baseSpeed * factionMultiplier * speedMultiplier;
+        double slow = (suppressionSlowAmount > 0 && System.currentTimeMillis() < suppressionSlowExpiryMs)
+                ? (1.0 - suppressionSlowAmount) : 1.0;
+        return baseSpeed * factionMultiplier * speedMultiplier * slow;
+    }
+
+    /**
+     * Apply a timed suppression slow to this unit. If a slow is already active it is refreshed.
+     *
+     * @param slowFraction fraction of speed to remove (e.g. 0.15 = 15% slower)
+     * @param durationMs   how long the slow lasts in milliseconds
+     */
+    public void applySuppressionSlow(double slowFraction, long durationMs) {
+        this.suppressionSlowAmount = slowFraction;
+        this.suppressionSlowExpiryMs = System.currentTimeMillis() + durationMs;
     }
 
     /**

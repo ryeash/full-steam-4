@@ -36,7 +36,9 @@ public class UnitTemplateDTO {
     private double speed;
     private double range;
     private int baseCost;
-    /** Approximate periodic army upkeep from base build cost (before faction modifiers). */
+    /**
+     * Approximate periodic army upkeep from base build cost (before faction modifiers).
+     */
     private int upkeep;
 
     public static UnitTemplateDTO fromType(UnitType template) {

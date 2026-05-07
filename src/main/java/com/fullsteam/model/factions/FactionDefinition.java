@@ -97,9 +97,7 @@ public class FactionDefinition {
     public int getBuildingCost(BuildingType buildingType) {
         double baseCost = buildingType.getResourceCost();
         BuildingStatModifier modifier = buildingStatModifiers.get(buildingType);
-        double multiplier = modifier != null && modifier.costMultiplier != 1.0
-                ? modifier.costMultiplier
-                : buildingCostMultiplier;
+        double multiplier = buildingCostMultiplier * (modifier != null ? modifier.getCostMultiplier() : 1.0);
         return (int) Math.round(baseCost * multiplier);
     }
 
@@ -109,7 +107,7 @@ public class FactionDefinition {
     public double getBuildingHealth(BuildingType buildingType) {
         double baseHealth = buildingType.getMaxHealth();
         BuildingStatModifier modifier = buildingStatModifiers.get(buildingType);
-        double multiplier = modifier != null ? modifier.healthMultiplier : buildingHealthMultiplier;
+        double multiplier = buildingHealthMultiplier * (modifier != null ? modifier.getHealthMultiplier() : 1.0);
         return baseHealth * multiplier;
     }
 
@@ -227,6 +225,8 @@ public class FactionDefinition {
         private final double attackRateMultiplier = 1.0;
         @Builder.Default
         private final double resourceCollectionMultiplier = 1.0;
+        @Builder.Default
+        private final int garrisonCapacityBonus = 0;
     }
 
     /**

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.RTSLobby;
 import com.fullsteam.RandomNames;
 import com.fullsteam.games.IdGenerator;
-import com.fullsteam.model.customization.CustomFactionConfig;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.RTSGameManager;
 import com.fullsteam.model.customization.CustomFactionBuilder;

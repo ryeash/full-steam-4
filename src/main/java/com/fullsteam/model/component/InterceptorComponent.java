@@ -37,7 +37,9 @@ public class InterceptorComponent extends AbstractUnitComponent {
      */
     // Mission state
     private boolean onSortie = false;
-    /** Home airfield building id when deployed. */
+    /**
+     * Home airfield building id when deployed.
+     */
     private Integer homeBaseBuildingId;
 
     public InterceptorComponent(Unit unit) {

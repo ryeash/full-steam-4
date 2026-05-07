@@ -28,6 +28,10 @@ public class Player {
     private int powerConsumed = 0;
     private boolean hasLowPower = false;
     private SatelliteReveal satelliteReveal;
+    /**
+     * Dynamic resource collection multiplier accumulated at runtime (e.g. EXPANSION_BONUS perk).
+     */
+    private double dynamicResourceMultiplier = 1.0;
 
     /**
      * Wall-clock time (ms since epoch) when each command ability cooldown ends; absent if ready.

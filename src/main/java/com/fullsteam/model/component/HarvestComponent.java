@@ -49,6 +49,7 @@ public class HarvestComponent extends AbstractUnitComponent {
             if (unitMods != null && unitMods.containsKey(unit.getUnitType())) {
                 effectiveHarvestRate *= unitMods.get(unit.getUnitType()).getResourceCollectionMultiplier();
             }
+            effectiveHarvestRate *= unit.getFaction().getDynamicResourceMultiplier();
         }
         double harvestAmount = effectiveHarvestRate * getDeltaTime();
         double actualHarvested = obstacle.harvest(harvestAmount);

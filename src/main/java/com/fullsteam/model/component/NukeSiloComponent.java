@@ -10,7 +10,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class NukeSiloComponent extends AbstractBuildingComponent {
 
-    /** Wall-clock arming duration (ms). */
+    /**
+     * Wall-clock arming duration (ms).
+     */
     public static final long ARM_DURATION_MS = 120_000L;
 
     @Getter
@@ -54,7 +56,9 @@ public class NukeSiloComponent extends AbstractBuildingComponent {
         return armState == NukeArmState.ARMING;
     }
 
-    /** Remaining arming time (ms), or 0 if not {@link NukeArmState#ARMING}. */
+    /**
+     * Remaining arming time (ms), or 0 if not {@link NukeArmState#ARMING}.
+     */
     public long getArmingRemainingMs(long nowEpochMs) {
         if (armState != NukeArmState.ARMING) {
             return 0L;
@@ -62,7 +66,9 @@ public class NukeSiloComponent extends AbstractBuildingComponent {
         return Math.max(0L, armCompletesAtEpochMs - nowEpochMs);
     }
 
-    /** After a successful launch, return to idle so the player must arm again. */
+    /**
+     * After a successful launch, return to idle so the player must arm again.
+     */
     public void consumeLaunchReadiness() {
         armState = NukeArmState.IDLE;
         armCompletesAtEpochMs = 0L;

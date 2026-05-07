@@ -111,7 +111,9 @@ public final class ProduceUnitsBehavior implements SkirmishAiBehavior {
         return 3;
     }
 
-    /** Prefer main battle line, then AA, then cheap scout — must match {@link com.fullsteam.ai.AiSkirmishFaction} roster. */
+    /**
+     * Prefer main battle line, then AA, then cheap scout — must match {@link com.fullsteam.ai.AiSkirmishFaction} roster.
+     */
     private static final UnitType[] FACTORY_PRODUCTION_ORDER = {
             UnitType.TANK, UnitType.FLAK_TANK, UnitType.JEEP
     };

@@ -5,7 +5,7 @@ import com.fullsteam.model.Player;
 import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Unit;
 import com.fullsteam.model.command.IdleCommand;
-import com.fullsteam.model.customization.FactionPerk;
+import com.fullsteam.model.factions.FactionDefinition;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +30,6 @@ import java.util.concurrent.ThreadLocalRandom;
 public class APCComponent extends AbstractUnitComponent {
 
     private static final int BASE_GARRISON_CAPACITY = 3;
-    private static final int GARRISON_MASTERY_CAPACITY = 5;
 
     private final boolean allowPassengersToFire;
 
@@ -62,14 +61,17 @@ public class APCComponent extends AbstractUnitComponent {
     }
 
     /**
-     * Get max garrison capacity (affected by GARRISON_MASTERY perk).
+     * Get max garrison capacity (increased by the garrisonCapacityBonus on the APC's UnitStatModifier).
      */
     public int getMaxGarrisonCapacity() {
-        // Check if owner has GARRISON_MASTERY perk
-        if (gameEntities != null) {
+        if (gameEntities != null && unit != null) {
             Player faction = gameEntities.getPlayerFactions().get(unit.getOwnerId());
-            if (faction != null && faction.getFactionDefinition().getActivePerks().contains(FactionPerk.GARRISON_MASTERY)) {
-                return GARRISON_MASTERY_CAPACITY;
+            if (faction != null) {
+                FactionDefinition.UnitStatModifier modifier =
+                        faction.getFactionDefinition().getUnitStatModifiers().get(unit.getUnitType());
+                if (modifier != null) {
+                    return BASE_GARRISON_CAPACITY + modifier.getGarrisonCapacityBonus();
+                }
             }
         }
         return BASE_GARRISON_CAPACITY;

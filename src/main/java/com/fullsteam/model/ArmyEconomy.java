@@ -6,7 +6,9 @@ package com.fullsteam.model;
  */
 public final class ArmyEconomy {
 
-    /** How often players pay army upkeep (milliseconds). */
+    /**
+     * How often players pay army upkeep (milliseconds).
+     */
     public static final long UPKEEP_INTERVAL_MS = 30_000L;
 
     /**

@@ -5,8 +5,6 @@ import com.fullsteam.model.Unit;
 import lombok.Getter;
 import org.dyn4j.geometry.Vector2;
 
-import java.util.List;
-
 /**
  * Command for a unit to enter a bunker (garrison)
  */

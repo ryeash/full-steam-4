@@ -1418,7 +1418,8 @@ public class RTSGameManager {
                     if (powerValue > 0) {
                         generated += powerValue;
                     } else if (powerValue < 0) {
-                        consumed += Math.abs(powerValue);
+                        consumed += (int) Math.round(
+                                Math.abs(powerValue) * faction.getFactionDefinition().getPowerEfficiencyMultiplier());
                     }
                 }
             }

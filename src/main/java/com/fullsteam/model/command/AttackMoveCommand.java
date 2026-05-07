@@ -15,7 +15,9 @@ import java.util.List;
 @Getter
 public class AttackMoveCommand extends UnitCommand {
     private final Vector2 destination;
-    /** When non-null, steering and velocity are capped at this speed (group march). */
+    /**
+     * When non-null, steering and velocity are capped at this speed (group march).
+     */
     private final Double marchSpeedCap;
 
     @Setter

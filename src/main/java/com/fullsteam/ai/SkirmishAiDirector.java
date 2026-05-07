@@ -2,15 +2,15 @@ package com.fullsteam.ai;
 
 import com.fullsteam.ai.behavior.DefendBaseBehavior;
 import com.fullsteam.ai.behavior.HarvestEconomyBehavior;
+import com.fullsteam.ai.behavior.LaunchAssaultBehavior;
 import com.fullsteam.ai.behavior.PlaceBarracksBehavior;
+import com.fullsteam.ai.behavior.PlaceFactoryBehavior;
 import com.fullsteam.ai.behavior.PlacePowerPlantBehavior;
 import com.fullsteam.ai.behavior.PlaceRefineryBehavior;
 import com.fullsteam.ai.behavior.PlaceResearchLabBehavior;
-import com.fullsteam.ai.behavior.PlaceFactoryBehavior;
 import com.fullsteam.ai.behavior.ProduceUnitsBehavior;
 import com.fullsteam.ai.behavior.ResumeConstructionBehavior;
 import com.fullsteam.ai.behavior.SkirmishAiBehavior;
-import com.fullsteam.ai.behavior.LaunchAssaultBehavior;
 import com.fullsteam.ai.context.AiConcernSnapshot;
 import com.fullsteam.ai.context.SkirmishAiTickContext;
 import com.fullsteam.model.GameEntities;

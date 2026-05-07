@@ -55,7 +55,9 @@ public record SkirmishAiProfile(
         };
     }
 
-    /** Slower reactions, higher action thresholds, smaller base defense radius. */
+    /**
+     * Slower reactions, higher action thresholds, smaller base defense radius.
+     */
     private static SkirmishAiProfile easy() {
         return new SkirmishAiProfile(
                 600,   // defenseRadius
@@ -90,7 +92,9 @@ public record SkirmishAiProfile(
         );
     }
 
-    /** Baseline matching pre-profile tuning. */
+    /**
+     * Baseline matching pre-profile tuning.
+     */
     private static SkirmishAiProfile normal() {
         return new SkirmishAiProfile(
                 760,   // defenseRadius
@@ -125,7 +129,9 @@ public record SkirmishAiProfile(
         );
     }
 
-    /** Faster ticks, tighter thresholds, larger defense awareness, more aggressive attacks. */
+    /**
+     * Faster ticks, tighter thresholds, larger defense awareness, more aggressive attacks.
+     */
     private static SkirmishAiProfile hard() {
         return new SkirmishAiProfile(
                 920,   // defenseRadius

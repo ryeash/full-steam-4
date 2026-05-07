@@ -3,7 +3,6 @@ package com.fullsteam.model.component;
 import com.fullsteam.model.ShieldSensor;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.dyn4j.dynamics.Body;
 import org.dyn4j.dynamics.BodyFixture;
 import org.dyn4j.geometry.Geometry;

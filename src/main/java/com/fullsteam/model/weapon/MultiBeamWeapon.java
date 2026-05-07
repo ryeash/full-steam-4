@@ -48,17 +48,17 @@ public class MultiBeamWeapon extends Weapon {
      * Beams fire in a cone pattern from the source.
      */
     public MultiBeamWeapon(double damage,
-                          double range,
-                          double attackRate,
-                          double beamWidth,
-                          double beamDuration,
-                          Beam.BeamType beamType,
-                          Ordinance ordinanceType,
-                          Set<BulletEffect> bulletEffects,
-                          int beamCount,
-                          double spreadDistance,
-                          double spreadAngle,
-                          ElevationTargeting elevationTargeting) {
+                           double range,
+                           double attackRate,
+                           double beamWidth,
+                           double beamDuration,
+                           Beam.BeamType beamType,
+                           Ordinance ordinanceType,
+                           Set<BulletEffect> bulletEffects,
+                           int beamCount,
+                           double spreadDistance,
+                           double spreadAngle,
+                           ElevationTargeting elevationTargeting) {
         super(damage, range, attackRate, elevationTargeting);
         this.beamWidth = beamWidth;
         this.beamDuration = beamDuration;
@@ -112,8 +112,8 @@ public class MultiBeamWeapon extends Weapon {
                 Vector2 spawnPos = position.copy().add(perpendicular.copy().multiply(offset));
 
                 // All beams travel in the same direction (parallel)
-                Vector2 end = performRaycast(world, spawnPos, direction, raycastRange, 
-                                            ignoredBody, ownerTeam, targetElevation, damagePerBeam);
+                Vector2 end = performRaycast(world, spawnPos, direction, raycastRange,
+                        ignoredBody, ownerTeam, targetElevation, damagePerBeam);
 
                 Beam beam = new Beam(
                         spawnPos,
@@ -154,8 +154,8 @@ public class MultiBeamWeapon extends Weapon {
                 rotatedDir.normalize();
 
                 // Perform raycast for this beam
-                Vector2 end = performRaycast(world, position, rotatedDir, raycastRange, 
-                                            ignoredBody, ownerTeam, targetElevation, damagePerBeam);
+                Vector2 end = performRaycast(world, position, rotatedDir, raycastRange,
+                        ignoredBody, ownerTeam, targetElevation, damagePerBeam);
 
                 Beam beam = new Beam(
                         position.copy(),
@@ -177,8 +177,8 @@ public class MultiBeamWeapon extends Weapon {
         }
         // Fallback: single beam
         else {
-            Vector2 end = performRaycast(world, position, direction, raycastRange, 
-                                        ignoredBody, ownerTeam, targetElevation, damage);
+            Vector2 end = performRaycast(world, position, direction, raycastRange,
+                    ignoredBody, ownerTeam, targetElevation, damage);
 
             Beam beam = new Beam(
                     position.copy(),

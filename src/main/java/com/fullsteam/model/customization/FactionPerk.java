@@ -309,7 +309,7 @@ public enum FactionPerk implements PerkEffect {
 
     GARRISON_MASTERY(
             "Garrison Mastery",
-            "Bunkers and APCs hold more units (+2 capacity) and Bunkers have +25% HP",
+            "Garrison buildings and transport units hold +2 units; Bunkers have +25% HP",
             4,
             Set.of()
     ) {
@@ -321,6 +321,14 @@ public enum FactionPerk implements PerkEffect {
                     .garrisonCapacityBonus(2)
                     .build());
             builder.buildingStatModifiers(buildingMods);
+
+            FactionDefinition.UnitStatModifier transportBonus = FactionDefinition.UnitStatModifier.builder()
+                    .garrisonCapacityBonus(2)
+                    .build();
+            Map<UnitType, FactionDefinition.UnitStatModifier> unitMods = new HashMap<>();
+            unitMods.put(UnitType.APC, transportBonus);
+            unitMods.put(UnitType.CHINOOK, transportBonus);
+            builder.unitStatModifiers(unitMods);
         }
     },
 
@@ -761,18 +769,22 @@ public enum FactionPerk implements PerkEffect {
 
         @Override
         public void onUnitCreated(Unit unit, Player faction, RTSGameManager game) {
-            // Calculate current discount for this unit type
-            if (game != null && game.getGameEntities() != null) {
-                int sameTypeCount = (int) game.getGameEntities().getUnits().values().stream()
-                        .filter(u -> u.getOwnerId() == faction.getPlayerId() &&
-                                u.getUnitType() == unit.getUnitType() &&
-                                u.getId() != unit.getId())
-                        .count();
+            if (game == null || game.getGameEntities() == null) {
+                return;
+            }
+            int sameTypeCount = (int) game.getGameEntities().getUnits().values().stream()
+                    .filter(u -> u.getOwnerId() == faction.getPlayerId() &&
+                            u.getUnitType() == unit.getUnitType() &&
+                            u.getId() != unit.getId())
+                    .count();
 
-                double discount = Math.min(sameTypeCount * COST_REDUCTION_PER_UNIT, MAX_REDUCTION);
-                if (discount > 0) {
-                    log.debug("Player {} - Mass Production Bonus: {} units of type {} alive, {}% discount applied",
-                            faction.getPlayerId(), sameTypeCount, unit.getUnitType(), (int) (discount * 100));
+            double discount = Math.min(sameTypeCount * COST_REDUCTION_PER_UNIT, MAX_REDUCTION);
+            if (discount > 0) {
+                int refund = (int) Math.round(faction.getUnitCost(unit.getUnitType()) * discount);
+                if (refund > 0) {
+                    faction.addResources(ResourceType.CREDITS, refund);
+                    log.debug("Player {} - Mass Production Bonus: {} same-type units alive, {}% discount → +{} credits refunded",
+                            faction.getPlayerId(), sameTypeCount, (int) (discount * 100), refund);
                 }
             }
         }
@@ -794,18 +806,16 @@ public enum FactionPerk implements PerkEffect {
                 return;
             }
 
-            // Count total buildings for this faction
             long buildingCount = game.getGameEntities().getBuildings().values().stream()
                     .filter(b -> b.getOwnerId() == faction.getPlayerId())
                     .count();
 
             double bonus = Math.min(buildingCount * BONUS_PER_BUILDING, MAX_BONUS);
+            faction.setDynamicResourceMultiplier(1.0 + bonus);
 
-            log.info("Player {} - Expansion Bonus: {} buildings, +{}% resource generation",
-                    faction.getPlayerId(), buildingCount, (int) (bonus * 100));
+            log.debug("Player {} - Expansion Bonus: {} buildings, +{}% resource generation (multiplier={})",
+                    faction.getPlayerId(), buildingCount, (int) (bonus * 100), faction.getDynamicResourceMultiplier());
 
-            // Note: The actual resource bonus would need to be applied to workers/harvesters
-            // This requires integration with the resource collection system
             if (buildingCount % 5 == 0) {
                 game.sendGameEvent(GameEvent.createPlayerEvent(
                         String.format("📈 Expansion Bonus: +%d%% resource generation", (int) (bonus * 100)),
@@ -873,19 +883,19 @@ public enum FactionPerk implements PerkEffect {
                 return;
             }
 
-            long buildingCount = game.getGameEntities().getBuildings().values().stream()
-                    .filter(b -> b.getOwnerId() == faction.getPlayerId())
+            // Count existing completed or under-construction buildings, excluding the new one
+            long existingCount = game.getGameEntities().getBuildings().values().stream()
+                    .filter(b -> b.getOwnerId() == faction.getPlayerId() && b.getId() != building.getId())
                     .count();
 
-            double reduction = Math.min((buildingCount - 1) * REDUCTION_PER_BUILDING, MAX_REDUCTION);
-
+            double reduction = Math.min(existingCount * REDUCTION_PER_BUILDING, MAX_REDUCTION);
             if (reduction > 0) {
-                log.debug("Player {} - Infrastructure Network: {} buildings, {}% build time reduction for next building",
-                        faction.getPlayerId(), buildingCount, (int) (reduction * 100));
+                // Convert reduction to a rate multiplier: 30% faster = rate * (1 / 0.70)
+                building.setConstructionSpeedBonus(1.0 / (1.0 - reduction));
+                log.debug("Player {} - Infrastructure Network: {} prior buildings, {}% build time reduction on new building (speed x{})",
+                        faction.getPlayerId(), existingCount, (int) (reduction * 100),
+                        String.format("%.2f", building.getConstructionSpeedBonus()));
             }
-
-            // Note: The actual build time reduction needs to be applied during construction
-            // This requires integration with the building construction system
         }
     },
 
@@ -944,54 +954,16 @@ public enum FactionPerk implements PerkEffect {
     ) {
         private static final double SLOW_AMOUNT = 0.15;
         private static final long SLOW_DURATION_MS = 3000;
-        private final Map<Integer, Long> slowedTargets = new HashMap<>();
 
         @Override
         public void onUnitDealsDamage(Unit attacker, com.fullsteam.model.Targetable target, double damage, Player faction, RTSGameManager game) {
             if (!(target instanceof Unit)) {
                 return;
             }
-
             Unit targetUnit = (Unit) target;
-            int targetId = targetUnit.getId();
-            long currentTime = System.currentTimeMillis();
-
-            // Apply or refresh slow
-            if (!slowedTargets.containsKey(targetId)) {
-                // First time slowing this unit
-                targetUnit.setSpeedMultiplier(1.0 - SLOW_AMOUNT);
-                log.debug("Player {} - Suppression Fire: Target {} slowed by {}%",
-                        faction.getPlayerId(), targetId, (int) (SLOW_AMOUNT * 100));
-            }
-
-            // Update slow expiry time
-            slowedTargets.put(targetId, currentTime + SLOW_DURATION_MS);
-        }
-
-        @Override
-        public void onUnitCreated(Unit unit, Player faction, RTSGameManager game) {
-            // Clean up expired slows
-            long currentTime = System.currentTimeMillis();
-            slowedTargets.entrySet().removeIf(entry -> {
-                if (currentTime >= entry.getValue()) {
-                    // Slow expired - restore speed if unit still exists
-                    if (game != null && game.getGameEntities() != null) {
-                        Unit slowedUnit = game.getGameEntities().getUnits().get(entry.getKey());
-                        if (slowedUnit != null && slowedUnit.getSpeedMultiplier() < 1.0) {
-                            slowedUnit.setSpeedMultiplier(1.0);
-                            log.debug("Suppression Fire: Slow expired on unit {}", entry.getKey());
-                        }
-                    }
-                    return true; // Remove from map
-                }
-                return false; // Keep in map
-            });
-        }
-
-        @Override
-        public void onUnitDestroyed(Unit unit, Player faction, RTSGameManager game) {
-            // Clean up tracking for destroyed unit
-            slowedTargets.remove(unit.getId());
+            targetUnit.applySuppressionSlow(SLOW_AMOUNT, SLOW_DURATION_MS);
+            log.debug("Player {} - Suppression Fire: Target {} slowed by {}% for {}ms",
+                    faction.getPlayerId(), targetUnit.getId(), (int) (SLOW_AMOUNT * 100), SLOW_DURATION_MS);
         }
     },
 

@@ -6,8 +6,6 @@ import com.fullsteam.model.Unit;
 import lombok.Getter;
 import org.dyn4j.geometry.Vector2;
 
-import java.util.List;
-
 /**
  * Command for engineers to automatically scan for and repair damaged friendly units and buildings.
  * This is an AI behavior that runs when the engineer has no player orders.
@@ -71,6 +69,7 @@ public class AutoRepairCommand extends UnitCommand {
 
     /**
      * Find the most damaged friendly unit within repair range
+     *
      * @return Most damaged unit, or null if none found
      */
     private Unit findMostDamagedFriendlyUnit() {
@@ -100,6 +99,7 @@ public class AutoRepairCommand extends UnitCommand {
 
     /**
      * Find the most damaged friendly building within repair range
+     *
      * @return Most damaged building, or null if none found
      */
     private Building findMostDamagedFriendlyBuilding() {

@@ -1,6 +1,5 @@
 package com.fullsteam.model.component;
 
-import com.fullsteam.model.Unit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 

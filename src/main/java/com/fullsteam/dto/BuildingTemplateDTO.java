@@ -36,9 +36,13 @@ public class BuildingTemplateDTO {
     private double maxHealth;
     private int baseCost;
     private int powerValue;
-    /** Short map label (matches in-game HUD). */
+    /**
+     * Short map label (matches in-game HUD).
+     */
     private String label;
-    /** Menu / picker emoji (matches in-game UI). */
+    /**
+     * Menu / picker emoji (matches in-game UI).
+     */
     private String menuIcon;
 
     public static BuildingTemplateDTO fromType(BuildingType template) {

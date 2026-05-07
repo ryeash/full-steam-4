@@ -42,9 +42,15 @@ public class CustomFactionBuilder {
                 .buildingTypes(new HashSet<>(config.getSelectedBuildings()))
                 .activePerks(effectivePerks);
 
+        // Running scalar accumulators — multiplied across all perks (fixes "last one wins" overwrite bug)
+        double powerEfficiency = 1.0;
+        double unitCost = 1.0;
+        double buildingCost = 1.0;
+        double armyRent = 1.0;
+        double buildingHealth = 1.0;
+
         // Apply each perk's effects using a temporary builder to extract modifiers
         for (FactionPerk perk : effectivePerks) {
-            // Create a temporary builder to capture this perk's modifiers
             FactionDefinition.FactionDefinitionBuilder tempBuilder = FactionDefinition.builder();
             perk.applyToDefinition(tempBuilder, config);
             FactionDefinition tempDef = tempBuilder.build();
@@ -64,25 +70,21 @@ public class CustomFactionBuilder {
                 accumulatedUnitCosts.merge(entry.getKey(), entry.getValue(), (a, b) -> a * b);
             }
 
-            // Apply scalar multipliers (last one wins for these)
-            if (tempDef.getPowerEfficiencyMultiplier() != 1.0) {
-                builder.powerEfficiencyMultiplier(tempDef.getPowerEfficiencyMultiplier());
-            }
-            if (tempDef.getUnitCostMultiplier() != 1.0) {
-                builder.unitCostMultiplier(tempDef.getUnitCostMultiplier());
-            }
-            if (tempDef.getBuildingCostMultiplier() != 1.0) {
-                builder.buildingCostMultiplier(tempDef.getBuildingCostMultiplier());
-            }
-            if (tempDef.getArmyRentCostMultiplier() != 1.0) {
-                builder.armyRentCostMultiplier(tempDef.getArmyRentCostMultiplier());
-            }
-            if (tempDef.getBuildingHealthMultiplier() != 1.0) {
-                builder.buildingHealthMultiplier(tempDef.getBuildingHealthMultiplier());
-            }
+            // Accumulate scalar multipliers multiplicatively so all perks stack correctly
+            powerEfficiency *= tempDef.getPowerEfficiencyMultiplier();
+            unitCost *= tempDef.getUnitCostMultiplier();
+            buildingCost *= tempDef.getBuildingCostMultiplier();
+            armyRent *= tempDef.getArmyRentCostMultiplier();
+            buildingHealth *= tempDef.getBuildingHealthMultiplier();
 
             log.debug("Applied perk: {}", perk.getDisplayName());
         }
+
+        builder.powerEfficiencyMultiplier(powerEfficiency);
+        builder.unitCostMultiplier(unitCost);
+        builder.buildingCostMultiplier(buildingCost);
+        builder.armyRentCostMultiplier(armyRent);
+        builder.buildingHealthMultiplier(buildingHealth);
 
         // Apply accumulated modifiers to the main builder
         builder.unitStatModifiers(accumulatedUnitMods);
@@ -114,6 +116,7 @@ public class CustomFactionBuilder {
                 .rangeMultiplier(a.getRangeMultiplier() * b.getRangeMultiplier())
                 .attackRateMultiplier(a.getAttackRateMultiplier() * b.getAttackRateMultiplier())
                 .resourceCollectionMultiplier(a.getResourceCollectionMultiplier() * b.getResourceCollectionMultiplier())
+                .garrisonCapacityBonus(a.getGarrisonCapacityBonus() + b.getGarrisonCapacityBonus())
                 .build();
     }
 
