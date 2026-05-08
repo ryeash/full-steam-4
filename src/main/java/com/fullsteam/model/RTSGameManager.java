@@ -49,6 +49,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -2255,86 +2256,33 @@ public class RTSGameManager {
             data.put("maxResources", obstacle.getMaxResources());
         }
 
-        // Extract vertices from physics body for accurate rendering
-        data.put("vertices", extractBodyVertices(obstacle.getBody()));
+        data.put("shapes", verticesShorthand(obstacle.getBody()));
 
         return data;
     }
 
-    /**
-     * Extract vertices from all fixtures in a physics body
-     * Returns a list of fixtures, where each fixture is a list of vertices (x,y pairs)
-     * This supports multi-fixture bodies for compound shapes
-     */
-    private List<List<List<Double>>> extractBodyVertices(Body body) {
-        List<List<List<Double>>> allFixtures = new ArrayList<>();
-
-        if (body.getFixtureCount() == 0) {
-            return allFixtures;
-        }
-
-        // Iterate through all fixtures in the body
-        for (int i = 0; i < body.getFixtureCount(); i++) {
-            List<List<Double>> fixtureVertices = new ArrayList<>();
-            Convex convex = body.getFixture(i).getShape();
-
-            // Check if it's a polygon
-            if (convex instanceof Polygon polygon) {
-                Vector2[] polyVertices = polygon.getVertices();
-                for (Vector2 vertex : polyVertices) {
-                    List<Double> point = new ArrayList<>();
-                    point.add(vertex.x);
-                    point.add(vertex.y);
-                    fixtureVertices.add(point);
-                }
-            } else if (convex instanceof Circle circle) {
-                // Approximate circle with vertices (16-sided polygon)
-                int segments = 16;
-                double radius = circle.getRadius();
-                Vector2 center = circle.getCenter();
-
-                for (int j = 0; j < segments; j++) {
-                    double angle = (2.0 * Math.PI * j) / segments;
-                    double x = center.x + radius * Math.cos(angle);
-                    double y = center.y + radius * Math.sin(angle);
-
-                    List<Double> point = new ArrayList<>();
-                    point.add(x);
-                    point.add(y);
-                    fixtureVertices.add(point);
-                }
-            }
-
-            // Only add non-empty fixtures
-            if (!fixtureVertices.isEmpty()) {
-                allFixtures.add(fixtureVertices);
-            }
-        }
-
-        return allFixtures;
-    }
+    private static final DecimalFormat DOUBLE_SHORTFORM = new DecimalFormat("#.##");
 
     private String verticesShorthand(Body body) {
         if (body.getFixtureCount() == 0) {
             return "";
         }
         StringJoiner outer = new StringJoiner(";");
-        // Iterate through all fixtures in the body
         for (int i = 0; i < body.getFixtureCount(); i++) {
             Convex convex = body.getFixture(i).getShape();
             StringJoiner joiner = new StringJoiner("/");
-            // Check if it's a polygon
             if (convex instanceof Polygon polygon) {
                 Vector2[] polyVertices = polygon.getVertices();
                 for (Vector2 vertex : polyVertices) {
-                    joiner.add("(" + vertex.x + "," + vertex.y + ")");
+                    joiner.add("(" + DOUBLE_SHORTFORM.format(vertex.x) +
+                            "," + DOUBLE_SHORTFORM.format(vertex.y) + ")");
                 }
             } else if (convex instanceof Circle circle) {
-                // Approximate circle with vertices (16-sided polygon)
-                int segments = 16;
                 double radius = circle.getRadius();
                 Vector2 center = circle.getCenter();
-                joiner.add("(" + center.x + "," + center.y + "," + radius + ")");
+                joiner.add("(" + DOUBLE_SHORTFORM.format(center.x) +
+                        "," + DOUBLE_SHORTFORM.format(center.y) +
+                        "," + DOUBLE_SHORTFORM.format(radius) + ")");
             }
             outer.add(joiner.toString());
         }
@@ -2427,8 +2375,7 @@ public class RTSGameManager {
             data.put("supportActivity", supportActivity);
         }
 
-        // Add physics body vertices for accurate client-side rendering
-        data.put("vertices", extractBodyVertices(unit.getBody()));
+        data.put("shapes", verticesShorthand(unit.getBody()));
         return data;
     }
 
@@ -2457,7 +2404,7 @@ public class RTSGameManager {
                 data.put("producingUnitType", cur.name());
             }
         });
-        data.put("vertices", extractBodyVertices(building.getBody()));
+        data.put("shapes", verticesShorthand(building.getBody()));
 
         // Rally point
         if (building.getRallyPoint() != null) {

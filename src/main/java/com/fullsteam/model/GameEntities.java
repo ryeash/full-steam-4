@@ -27,6 +27,7 @@ import java.util.stream.Stream;
 @Slf4j
 @Getter
 public class GameEntities {
+    private final World<Body> world;
     private final GameConfig gameConfig;
     private final Map<Integer, Player> players;
     private final Map<Integer, Unit> units;
@@ -38,7 +39,6 @@ public class GameEntities {
     private final Map<Integer, TrackerBug> trackerBugs; // Spy tracking devices
     private final RTSGameManager rtsGameManager;
     private final RTSCollisionProcessor collisionProcessor;
-    private final World<Body> world;
 
     private static final double[][] BUILD_SITE_PROBE_OFFSETS = {
             {220, 80}, {-220, 80}, {260, -120}, {-260, -120},
@@ -47,6 +47,7 @@ public class GameEntities {
     };
 
     public GameEntities(GameConfig gameConfig, RTSGameManager rtsGameManager) {
+        this.world = new World<>();
         this.gameConfig = gameConfig;
         this.players = new ConcurrentSkipListMap<>();
         this.units = new ConcurrentSkipListMap<>();
@@ -60,7 +61,6 @@ public class GameEntities {
         this.collisionProcessor = new RTSCollisionProcessor(this);
 
         // Initialize physics world
-        this.world = new World<>();
         Settings settings = new Settings();
         settings.setMaximumTranslation(300.0);
         this.world.setSettings(settings);

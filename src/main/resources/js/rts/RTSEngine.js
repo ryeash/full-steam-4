@@ -15,7 +15,8 @@ class RTSEngine {
         this.projectiles = new Map();
         this.beams = new Map();
         this.fieldEffects = new Map();
-        
+        this.shapeCache = new Map(); // entityId → parsed fixture descriptors from the "shapes" shorthand field
+
         // Static game data (loaded once from gameInitialization message)
         this.unitTypes = null; // Map of unit type name -> static properties
         this.buildingTypes = null; // Map of building type name -> static properties
@@ -651,6 +652,7 @@ class RTSEngine {
     }
     
     handleGameInitialization(data) {
+        this.shapeCache.clear();
         // Store static type data
         this.unitTypes = data.unitTypes || {};
         this.buildingTypes = data.buildingTypes || {};
@@ -736,39 +738,14 @@ class RTSEngine {
             strokeColor = this.darkenColor(fillColor, 0.6); // Darken for outline
         }
         
-        // Draw obstacle using vertices from physics body
-        if (obstacleData.vertices && obstacleData.vertices.length > 0) {
-            // Check if it's multi-fixture format (array of fixtures)
-            if (Array.isArray(obstacleData.vertices[0]) && Array.isArray(obstacleData.vertices[0][0])) {
-                // Multi-fixture: draw each fixture
-                for (const fixtureVertices of obstacleData.vertices) {
-                    if (fixtureVertices.length > 0) {
-                        this.drawPhysicsPolygon(graphics, fixtureVertices, fillColor, 0);
-                    }
-                }
-                graphics.stroke({ width: 2, color: strokeColor });
-            } else if (Array.isArray(obstacleData.vertices[0]) && typeof obstacleData.vertices[0][0] === 'number') {
-                // Single-fixture: [[x1, y1], [x2, y2], ...]
-                this.drawPhysicsPolygon(graphics, obstacleData.vertices, fillColor, 0);
-                graphics.stroke({ width: 2, color: strokeColor });
-            } else {
-                // Old format: [{x, y}, {x, y}, ...]
-                graphics.moveTo(obstacleData.vertices[0].x, obstacleData.vertices[0].y);
-                for (let i = 1; i < obstacleData.vertices.length; i++) {
-                    graphics.lineTo(obstacleData.vertices[i].x, obstacleData.vertices[i].y);
-                }
-                graphics.closePath();
-                graphics.fill(fillColor);
-                graphics.stroke({ width: 2, color: strokeColor });
-            }
-        } else {
-            // Fallback: draw a circle if no vertices provided (shouldn't happen)
-            console.warn('Obstacle missing vertices, using fallback circle:', obstacleData.id);
+        // Draw obstacle using compact shapes from physics body
+        if (!this.drawEntityShapes(graphics, this.getEntityShapes(obstacleData.id, obstacleData.shapes), fillColor, 0, 2, strokeColor)) {
+            console.warn('Obstacle missing shapes, using fallback circle:', obstacleData.id);
             graphics.circle(0, 0, obstacleData.size || 20);
             graphics.fill(fillColor);
             graphics.stroke({ width: 2, color: strokeColor });
         }
-        
+
         // Add health bar for destructible obstacles
         if (obstacleData.destructible) {
             const healthBar = new PIXI.Graphics();
@@ -1414,29 +1391,8 @@ class RTSEngine {
         
         // Create polygon shape (rotates with unit)
         const shape = new PIXI.Graphics();
-        // Use physics body vertices if available, otherwise fall back to manual drawing
-        if (unitData.vertices && unitData.vertices.length > 0) {
-            // Check if this is multi-fixture format (array of fixtures) or single-fixture format
-            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
-            
-            if (isMultiFixture) {
-                // Multi-fixture: vertices is [fixture1, fixture2, ...]
-                // where each fixture is [[x1, y1], [x2, y2], ...]
-                for (const fixtureVertices of unitData.vertices) {
-                    if (fixtureVertices.length > 0) {
-                        this.drawPhysicsPolygon(shape, fixtureVertices, typeInfo.color, unitData.team);
-                        // Apply team-colored stroke to each fixture individually
-                        shape.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
-                    }
-                }
-            } else {
-                // Single-fixture (backward compatibility): vertices is [[x1, y1], [x2, y2], ...]
-                this.drawPhysicsPolygon(shape, unitData.vertices, typeInfo.color, unitData.team);
-                // Apply team-colored stroke
-                shape.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
-            }
-        } else {
-            // Fallback for circles or if vertices not provided
+        // Use physics body shapes if available, otherwise fall back to manual drawing
+        if (!this.drawEntityShapes(shape, this.getEntityShapes(unitData.id, unitData.shapes), typeInfo.color, unitData.team)) {
             this.drawPolygon(shape, typeInfo.sides, typeInfo.size, typeInfo.color, unitData.team);
         }
         rotatingContainer.addChild(shape);
@@ -1540,23 +1496,8 @@ class RTSEngine {
         // 3. MAIN BODY (quadcopter center hub + arms)
         const body = new PIXI.Graphics();
         
-        // Draw X-shaped drone body using physics vertices if available
-        if (unitData.vertices && unitData.vertices.length > 0) {
-            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
-            
-            if (isMultiFixture) {
-                for (const fixtureVertices of unitData.vertices) {
-                    if (fixtureVertices.length > 0) {
-                        this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
-                        body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
-                    }
-                }
-            } else {
-                this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
-                body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
-            }
-        } else {
-            // Fallback: simple diamond shape
+        // Draw X-shaped drone body using physics shapes if available
+        if (!this.drawEntityShapes(body, this.getEntityShapes(unitData.id, unitData.shapes), typeInfo.color, unitData.team)) {
             this.drawPolygon(body, 4, typeInfo.size, typeInfo.color, unitData.team);
         }
         
@@ -1666,23 +1607,8 @@ class RTSEngine {
         // 3. MAIN BODY (delta wing aircraft)
         const body = new PIXI.Graphics();
         
-        // Draw delta wing shape using physics vertices if available
-        if (unitData.vertices && unitData.vertices.length > 0) {
-            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
-            
-            if (isMultiFixture) {
-                for (const fixtureVertices of unitData.vertices) {
-                    if (fixtureVertices.length > 0) {
-                        this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
-                        body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
-                    }
-                }
-            } else {
-                this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
-                body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
-            }
-        } else {
-            // Fallback: triangle (delta wing)
+        // Draw delta wing shape using physics shapes if available
+        if (!this.drawEntityShapes(body, this.getEntityShapes(unitData.id, unitData.shapes), typeInfo.color, unitData.team)) {
             this.drawPolygon(body, 3, typeInfo.size, typeInfo.color, unitData.team);
         }
         
@@ -1782,23 +1708,8 @@ class RTSEngine {
         // 3. MAIN BODY (helicopter fuselage - pentagon shape)
         const body = new PIXI.Graphics();
         
-        // Draw helicopter body using physics vertices if available
-        if (unitData.vertices && unitData.vertices.length > 0) {
-            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
-            
-            if (isMultiFixture) {
-                for (const fixtureVertices of unitData.vertices) {
-                    if (fixtureVertices.length > 0) {
-                        this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
-                        body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
-                    }
-                }
-            } else {
-                this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
-                body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
-            }
-        } else {
-            // Fallback: pentagon (helicopter shape)
+        // Draw helicopter body using physics shapes if available
+        if (!this.drawEntityShapes(body, this.getEntityShapes(unitData.id, unitData.shapes), typeInfo.color, unitData.team)) {
             this.drawPolygon(body, 5, typeInfo.size, typeInfo.color, unitData.team);
         }
         
@@ -1904,23 +1815,10 @@ class RTSEngine {
         const hx = s * 0.85;
         const hy = s * 0.32;
 
-        // Main hull drawn from server physics vertices so the render matches the collision body exactly.
-        // Falls back to the hand-coded polygon when vertices aren't available.
+        // Main hull drawn from server physics shapes so the render matches the collision body exactly.
+        // Falls back to the hand-coded polygon when shapes aren't available.
         const hull = new PIXI.Graphics();
-        if (unitData.vertices && unitData.vertices.length > 0) {
-            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
-            if (isMultiFixture) {
-                for (const fixtureVertices of unitData.vertices) {
-                    if (fixtureVertices.length > 0) {
-                        this.drawPhysicsPolygon(hull, fixtureVertices, hullColor, unitData.team);
-                        hull.stroke({ width: 1.5, color: teamStroke });
-                    }
-                }
-            } else {
-                this.drawPhysicsPolygon(hull, unitData.vertices, hullColor, unitData.team);
-                hull.stroke({ width: 1.5, color: teamStroke });
-            }
-        } else {
+        if (!this.drawEntityShapes(hull, this.getEntityShapes(unitData.id, unitData.shapes), hullColor, unitData.team, 1.5)) {
             hull.moveTo(-hx * 0.88, -hy);
             hull.lineTo(hx * 0.96, -hy * 0.72);
             hull.lineTo(hx, -hy * 0.32);
@@ -2000,23 +1898,8 @@ class RTSEngine {
         // 3. MAIN BODY (gunship fuselage - pentagon shape for fixed-wing jet)
         const body = new PIXI.Graphics();
         
-        // Draw gunship body using physics vertices if available
-        if (unitData.vertices && unitData.vertices.length > 0) {
-            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
-            
-            if (isMultiFixture) {
-                for (const fixtureVertices of unitData.vertices) {
-                    if (fixtureVertices.length > 0) {
-                        this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
-                        body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
-                    }
-                }
-            } else {
-                this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
-                body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
-            }
-        } else {
-            // Fallback: pentagon (gunship shape)
+        // Draw gunship body using physics shapes if available
+        if (!this.drawEntityShapes(body, this.getEntityShapes(unitData.id, unitData.shapes), typeInfo.color, unitData.team)) {
             this.drawPolygon(body, 5, typeInfo.size, typeInfo.color, unitData.team);
         }
         
@@ -2117,23 +2000,8 @@ class RTSEngine {
         // 3. MAIN BODY (sleek delta wing fighter - triangle)
         const body = new PIXI.Graphics();
         
-        // Draw delta wing shape using physics vertices if available
-        if (unitData.vertices && unitData.vertices.length > 0) {
-            const isMultiFixture = Array.isArray(unitData.vertices[0]) && Array.isArray(unitData.vertices[0][0]);
-            
-            if (isMultiFixture) {
-                for (const fixtureVertices of unitData.vertices) {
-                    if (fixtureVertices.length > 0) {
-                        this.drawPhysicsPolygon(body, fixtureVertices, typeInfo.color, unitData.team);
-                        body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
-                    }
-                }
-            } else {
-                this.drawPhysicsPolygon(body, unitData.vertices, typeInfo.color, unitData.team);
-                body.stroke({ width: 1, color: this.getTeamColor(unitData.team) });
-            }
-        } else {
-            // Fallback: triangle (delta wing)
+        // Draw delta wing shape using physics shapes if available
+        if (!this.drawEntityShapes(body, this.getEntityShapes(unitData.id, unitData.shapes), typeInfo.color, unitData.team)) {
             this.drawPolygon(body, 3, typeInfo.size, typeInfo.color, unitData.team);
         }
         
@@ -2228,11 +2096,96 @@ class RTSEngine {
     }
 
     buildingVerticesPresent(buildingData) {
-        return !!(buildingData.vertices && buildingData.vertices.length > 0);
+        return !!(buildingData.vertices && buildingData.vertices.length > 0)
+            || this.shapeCache.has(buildingData.id)
+            || !!buildingData.shapes;
     }
 
     isBuildingVerticesMultiFixture(vertices) {
         return Array.isArray(vertices[0]) && Array.isArray(vertices[0][0]);
+    }
+
+    // ---- Compact shape helpers (verticesShorthand / "shapes" wire field) ----
+
+    /**
+     * Parse a verticesShorthand string into an array of fixture descriptors.
+     *
+     * Wire format:
+     *   fixtures   separated by ";"
+     *   vertices   separated by "/" as "(x,y)"
+     *   circle     encoded as a single "(cx,cy,r)" tuple (3-value = circle, 2-value = polygon point)
+     *
+     * Returns null when shapesStr is falsy.
+     */
+    parseShapes(shapesStr) {
+        if (!shapesStr) return null;
+        const fixtureStrs = shapesStr.split(';').filter(Boolean);
+        if (fixtureStrs.length === 0) return null;
+        return fixtureStrs.map(fixtureStr => {
+            const tupleStrs = fixtureStr.split('/');
+            // A single 3-value tuple means a circle fixture
+            if (tupleStrs.length === 1) {
+                const nums = tupleStrs[0].slice(1, -1).split(',').map(Number);
+                if (nums.length === 3) {
+                    return { type: 'circle', cx: nums[0], cy: nums[1], r: nums[2] };
+                }
+            }
+            return { type: 'polygon', verts: tupleStrs.map(t => t.slice(1, -1).split(',').map(Number)) };
+        });
+    }
+
+    /**
+     * Return cached fixture descriptors for the given entity, parsing and caching on first call.
+     * For obstacles, falls back to obstaclesStatic.shapes when shapesStr is absent (per-tick updates
+     * don't carry shapes, but the static data loaded at game start does).
+     */
+    getEntityShapes(id, shapesStr) {
+        if (this.shapeCache.has(id)) return this.shapeCache.get(id);
+        const src = shapesStr ?? this.obstaclesStatic?.get(id)?.shapes;
+        if (!src) return null;
+        const parsed = this.parseShapes(src);
+        if (parsed) this.shapeCache.set(id, parsed);
+        return parsed;
+    }
+
+    /**
+     * Draw all fixtures onto graphics.  Handles both polygon and circle fixtures.
+     * strokeColor defaults to the entity's team colour; pass an explicit value for obstacles/neutral shapes.
+     * Returns true when at least one fixture was drawn; false when fixtures is null/empty so the
+     * caller knows to draw its own fallback shape.
+     */
+    drawEntityShapes(graphics, fixtures, fillColor, team, strokeWidth = 1, strokeColor = null) {
+        if (!fixtures || fixtures.length === 0) return false;
+        const sc = strokeColor ?? this.getTeamColor(team);
+        for (const fixture of fixtures) {
+            if (fixture.type === 'circle') {
+                graphics.circle(fixture.cx, fixture.cy, fixture.r);
+                graphics.fill(fillColor);
+            } else {
+                this.drawPhysicsPolygon(graphics, fixture.verts, fillColor, team);
+            }
+            graphics.stroke({ width: strokeWidth, color: sc });
+        }
+        return true;
+    }
+
+    /**
+     * Draw fixture outlines with dashed stroke + semi-transparent fill — the under-construction look.
+     * Circles are approximated as 16-sided polygons so the dashed-line style from
+     * drawPhysicsPolygonOutline applies uniformly.
+     */
+    drawEntityShapesOutline(graphics, fixtures, fillColor, team) {
+        if (!fixtures || fixtures.length === 0) return false;
+        for (const fixture of fixtures) {
+            const verts = fixture.type === 'circle'
+                ? Array.from({ length: 16 }, (_, i) => {
+                    const a = (2 * Math.PI * i) / 16;
+                    return [fixture.cx + fixture.r * Math.cos(a), fixture.cy + fixture.r * Math.sin(a)];
+                  })
+                : fixture.verts;
+            this.drawPhysicsPolygonOutline(graphics, verts, fillColor, team);
+        }
+        return true;
     }
 
     /**
@@ -2242,10 +2195,13 @@ class RTSEngine {
     paintBuildingShapeFromState(shape, buildingData, typeInfo) {
         const FALLBACK_SIDES = 24;
         shape.clear();
-        const hasVertices = this.buildingVerticesPresent(buildingData);
+        const fixtures = this.getEntityShapes(buildingData.id, buildingData.shapes);
         const teamStroke = () => this.getTeamColor(buildingData.team);
         if (buildingData.underConstruction) {
-            if (hasVertices) {
+            if (fixtures) {
+                this.drawEntityShapesOutline(shape, fixtures, typeInfo.color, buildingData.team);
+            } else if (buildingData.vertices && buildingData.vertices.length > 0) {
+                // legacy vertices fallback (removed from server once shapes are verified)
                 if (this.isBuildingVerticesMultiFixture(buildingData.vertices)) {
                     for (const fixtureVertices of buildingData.vertices) {
                         if (fixtureVertices.length > 0) {
@@ -2258,7 +2214,10 @@ class RTSEngine {
             } else {
                 this.drawPolygonOutline(shape, FALLBACK_SIDES, typeInfo.size, typeInfo.color, buildingData.team);
             }
-        } else if (hasVertices) {
+        } else if (fixtures) {
+            this.drawEntityShapes(shape, fixtures, typeInfo.color, buildingData.team);
+        } else if (buildingData.vertices && buildingData.vertices.length > 0) {
+            // legacy vertices fallback
             if (this.isBuildingVerticesMultiFixture(buildingData.vertices)) {
                 for (const fixtureVertices of buildingData.vertices) {
                     if (fixtureVertices.length > 0) {
@@ -2799,37 +2758,10 @@ class RTSEngine {
             strokeColor = this.darkenColor(fillColor, 0.6); // Darken for outline
         }
         
-        // Draw obstacle using vertices from physics body (or static data)
-        const staticData = this.obstaclesStatic?.get(obstacleData.id);
-        const vertices = obstacleData.vertices || staticData?.vertices;
-        
-        if (vertices && vertices.length > 0) {
-            // Check if it's multi-fixture format (array of fixtures)
-            if (Array.isArray(vertices[0]) && Array.isArray(vertices[0][0])) {
-                // Multi-fixture: draw each fixture
-                for (const fixtureVertices of vertices) {
-                    if (fixtureVertices.length > 0) {
-                        this.drawPhysicsPolygon(shape, fixtureVertices, fillColor, 0);
-                    }
-                }
-                shape.stroke({ width: 2, color: strokeColor });
-            } else if (Array.isArray(vertices[0]) && typeof vertices[0][0] === 'number') {
-                // Single-fixture: [[x1, y1], [x2, y2], ...]
-                this.drawPhysicsPolygon(shape, vertices, fillColor, 0);
-                shape.stroke({ width: 2, color: strokeColor });
-            } else {
-                // Old format: [{x, y}, {x, y}, ...]
-                shape.moveTo(vertices[0].x, vertices[0].y);
-                for (let i = 1; i < vertices.length; i++) {
-                    shape.lineTo(vertices[i].x, vertices[i].y);
-                }
-                shape.closePath();
-                shape.fill(fillColor);
-                shape.stroke({ width: 2, color: strokeColor });
-            }
-        } else {
-            // Fallback: draw a circle
-            console.warn('Obstacle missing vertices, using fallback circle:', obstacleData.id);
+        // Draw obstacle using compact shapes from physics body; getEntityShapes falls back to
+        // obstaclesStatic automatically, so shapes cached at gameInitialization are always found.
+        if (!this.drawEntityShapes(shape, this.getEntityShapes(obstacleData.id, obstacleData.shapes), fillColor, 0, 2, strokeColor)) {
+            console.warn('Obstacle missing shapes, using fallback circle:', obstacleData.id);
             shape.circle(0, 0, obstacleData.size || 20);
             shape.fill(fillColor);
             shape.stroke({ width: 2, color: strokeColor });

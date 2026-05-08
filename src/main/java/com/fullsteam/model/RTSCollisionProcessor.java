@@ -9,27 +9,24 @@ import org.dyn4j.geometry.Vector2;
 import org.dyn4j.world.BroadphaseCollisionData;
 import org.dyn4j.world.ManifoldCollisionData;
 import org.dyn4j.world.NarrowphaseCollisionData;
-import org.dyn4j.world.World;
 import org.dyn4j.world.listener.CollisionListener;
 
 import java.util.Map;
 
 /**
- * Centralized collision detection and handling for RTS game mode.
+ * Centralized collision detection and handling.
  * Handles projectile collisions with units, buildings, and obstacles.
  * Implements CollisionListener to control physics collision behavior.
  */
 @Slf4j
 public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixture> {
 
-    private final World<Body> world;
     private final GameEntities gameEntities;
     private final Map<Integer, Unit> units;
     private final Map<Integer, Building> buildings;
     private final Map<Integer, Obstacle> obstacles;
 
     public RTSCollisionProcessor(GameEntities gameEntities) {
-        this.world = gameEntities.getWorld();
         this.gameEntities = gameEntities;
         this.units = gameEntities.getUnits();
         this.buildings = gameEntities.getBuildings();
@@ -756,7 +753,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
      */
     private void handleFieldEffectUnitHit(FieldEffect fieldEffect, Unit unit) {
         // Get delta time from physics world
-        double deltaTime = world.getTimeStep().getDeltaTime();
+        double deltaTime = gameEntities.getWorld().getTimeStep().getDeltaTime();
 
         // Calculate damage based on distance from field effect center
         // For instantaneous effects (EXPLOSION), damage is full amount
@@ -780,7 +777,7 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
      */
     private void handleFieldEffectBuildingHit(FieldEffect fieldEffect, Building building) {
         // Get delta time from physics world
-        double deltaTime = world.getTimeStep().getDeltaTime();
+        double deltaTime = gameEntities.getWorld().getTimeStep().getDeltaTime();
 
         // Calculate damage based on distance from field effect center
         // For instantaneous effects (EXPLOSION), damage is full amount
