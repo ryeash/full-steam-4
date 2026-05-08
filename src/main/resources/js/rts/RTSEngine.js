@@ -608,9 +608,20 @@ class RTSEngine {
         this.websocket.onclose = (event) => {
         };
         
-        this.websocket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            this.handleServerMessage(data);
+        this.websocket.onmessage = async (event) => {
+            try {
+                let parsed;
+                if (event.data instanceof ArrayBuffer) {
+                    // Server sends gzip-compressed binary frames — decompress then JSON-parse
+                    const stream = new Blob([event.data]).stream().pipeThrough(new DecompressionStream('gzip'));
+                    parsed = await new Response(stream).json();
+                } else {
+                    parsed = JSON.parse(event.data);
+                }
+                this.handleServerMessage(parsed);
+            } catch (e) {
+                console.error('Error processing WebSocket message:', e);
+            }
         };
     }
     
@@ -944,19 +955,17 @@ class RTSEngine {
         // Update obstacles - now only dynamic updates (health/resources)
         // Full obstacle data was sent in gameInitialization
         
-        // Remove obstacles that no longer exist (depleted)
-        if (state.activeObstacleIds) {
-            const activeObstacleIds = new Set(state.activeObstacleIds);
-            
-            // Remove obstacles that are no longer active
-            this.obstacles.forEach((obstacleContainer, id) => {
-                if (!activeObstacleIds.has(id)) {
+        // Remove obstacles explicitly flagged as removed this tick (event-driven, not full-list diff)
+        if (state.removedObstacleIds) {
+            for (const id of state.removedObstacleIds) {
+                const obstacleContainer = this.obstacles.get(id);
+                if (obstacleContainer) {
                     this.gameContainer.removeChild(obstacleContainer);
                     obstacleContainer.destroy();
                     this.obstacles.delete(id);
-                    this.obstaclesStatic.delete(id);
                 }
-            });
+                this.obstaclesStatic.delete(id);
+            }
         }
         
         if (state.obstacleUpdates) {

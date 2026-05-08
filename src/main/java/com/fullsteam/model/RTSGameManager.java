@@ -46,6 +46,9 @@ import org.dyn4j.geometry.Vector2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -56,6 +59,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ScheduledFuture;
@@ -63,6 +67,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * Main game manager for RTS gameplay.
@@ -95,6 +100,11 @@ public class RTSGameManager {
      * Tracks individual player IDs whose HQ has been destroyed so mass-removal runs exactly once per player.
      */
     private final Set<Integer> eliminatedPlayerIds = new ConcurrentSkipListSet<>();
+
+    /**
+     * Obstacle IDs removed since the last sendGameState() call — flushed once per tick to all clients.
+     */
+    private final Set<Integer> pendingRemovedObstacleIds = new ConcurrentSkipListSet<>();
 
     // Event throttling - track last notification times per player (in milliseconds)
     private final Map<Integer, Long> lastUnitDeathNotification = new ConcurrentSkipListMap<>();
@@ -1640,6 +1650,7 @@ public class RTSGameManager {
             Obstacle obstacle = entry.getValue();
             if (!obstacle.isActive()) {
                 gameEntities.getWorld().removeBody(obstacle.getBody());
+                pendingRemovedObstacleIds.add(entry.getKey());
                 log.debug("Removed destroyed obstacle {}", entry.getKey());
                 return true;
             }
@@ -1759,13 +1770,19 @@ public class RTSGameManager {
      * Send game state to all players (with fog of war)
      */
     private void sendGameState() {
-        // Send personalized game state to each player based on their vision
+        // Snapshot removed obstacle IDs accumulated since last tick and clear for the next cycle.
+        // The same snapshot is shared across all per-player sends so each player receives it once.
+        List<Integer> removedObstacleIds = pendingRemovedObstacleIds.isEmpty()
+                ? List.of()
+                : new ArrayList<>(pendingRemovedObstacleIds);
+        pendingRemovedObstacleIds.clear();
+
         players.values().forEach(player -> {
             WebSocketSession ws = player.getWebSocketSession();
             if (ws == null || !ws.isOpen() || player.getPlayerId() < 0) {
                 return;
             }
-            Map<String, Object> gameState = createGameStateForTeam(player.getTeamNumber());
+            Map<String, Object> gameState = createGameStateForTeam(player.getTeamNumber(), removedObstacleIds);
             send(ws, gameState);
         });
     }
@@ -1775,7 +1792,7 @@ public class RTSGameManager {
      * Note: Static data (obstacles, biome, world dimensions, unit/building types)
      * is now sent once via gameInitialization message
      */
-    private Map<String, Object> createGameStateForTeam(int teamNumber) {
+    private Map<String, Object> createGameStateForTeam(int teamNumber, List<Integer> removedObstacleIds) {
         Map<String, Object> state = new LinkedHashMap<>();
         state.put("type", "gameState");
         state.put("timestamp", System.currentTimeMillis());
@@ -1855,11 +1872,10 @@ public class RTSGameManager {
             state.put("obstacleUpdates", obstacleUpdates);
         }
 
-        // Send list of active obstacle IDs so client can remove depleted ones
-        List<Integer> activeObstacleIds = obstacles.values().stream()
-                .map(Obstacle::getId)
-                .collect(Collectors.toList());
-        state.put("activeObstacleIds", activeObstacleIds);
+        // Only notify clients of obstacles that were removed this tick (event-driven, not full list).
+        if (!removedObstacleIds.isEmpty()) {
+            state.put("removedObstacleIds", removedObstacleIds);
+        }
 
         // Tracker bugs owned by this team — send resolved position + range so the client
         // can punch a vision hole in the fog even for entities in the fog.
@@ -2223,7 +2239,7 @@ public class RTSGameManager {
     }
 
     /**
-     * Serialize obstacle static data (doesn't include health/resources which change)
+     * Serialize obstacle static data
      */
     private Map<String, Object> serializeObstacleStatic(Obstacle obstacle) {
         Map<String, Object> data = new LinkedHashMap<>();
@@ -2296,6 +2312,33 @@ public class RTSGameManager {
         }
 
         return allFixtures;
+    }
+
+    private String verticesShorthand(Body body) {
+        if (body.getFixtureCount() == 0) {
+            return "";
+        }
+        StringJoiner outer = new StringJoiner(";");
+        // Iterate through all fixtures in the body
+        for (int i = 0; i < body.getFixtureCount(); i++) {
+            Convex convex = body.getFixture(i).getShape();
+            StringJoiner joiner = new StringJoiner("/");
+            // Check if it's a polygon
+            if (convex instanceof Polygon polygon) {
+                Vector2[] polyVertices = polygon.getVertices();
+                for (Vector2 vertex : polyVertices) {
+                    joiner.add("(" + vertex.x + "," + vertex.y + ")");
+                }
+            } else if (convex instanceof Circle circle) {
+                // Approximate circle with vertices (16-sided polygon)
+                int segments = 16;
+                double radius = circle.getRadius();
+                Vector2 center = circle.getCenter();
+                joiner.add("(" + center.x + "," + center.y + "," + radius + ")");
+            }
+            outer.add(joiner.toString());
+        }
+        return outer.toString();
     }
 
     /**
@@ -2853,15 +2896,25 @@ public class RTSGameManager {
         try {
             if (session.isWritable() && session.isOpen()) {
                 String json = objectMapper.writeValueAsString(message);
-                session.sendAsync(json);
+                session.sendAsync(gzip(json));
             }
         } catch (JsonProcessingException e) {
             log.error("Error serializing message", e);
+        } catch (IOException e) {
+            log.error("Error compressing message", e);
         } catch (WebSocketSessionException e) {
             if (!(e.getCause() instanceof InterruptedException)) {
                 log.error("Error sending message", e);
             }
         }
+    }
+
+    private static byte[] gzip(String json) throws IOException {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream(json.length());
+        try (GZIPOutputStream gz = new GZIPOutputStream(bos)) {
+            gz.write(json.getBytes(StandardCharsets.UTF_8));
+        }
+        return bos.toByteArray();
     }
 
     /**
