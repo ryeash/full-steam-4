@@ -17,6 +17,12 @@ class RTSEngine {
         this.fieldEffects = new Map();
         this.shapeCache = new Map(); // entityId → parsed fixture descriptors from the "shapes" shorthand field
 
+        // Control groups: key 0-9 → { unitIds: number[], buildingId: number|null }
+        this.controlGroups = new Map();
+        this._lastGroupRecallNum = null;
+        this._lastGroupRecallTime = 0;
+        this._activeGroupNumber = null;
+
         // Static game data (loaded once from gameInitialization message)
         this.unitTypes = null; // Map of unit type name -> static properties
         this.buildingTypes = null; // Map of building type name -> static properties
@@ -300,6 +306,7 @@ class RTSEngine {
             resourcePanel: document.getElementById('resource-panel'),
             hudEconomy: document.getElementById('hud-economy'),
             hudHotkeys: document.getElementById('hud-hotkeys'),
+            controlGroupsRow: document.getElementById('control-groups-row'),
             buildingInfoPanel: document.getElementById('building-info-panel'),
             commandAbilitiesPanel: document.getElementById('command-abilities-panel'),
             commandAbilitiesButtons: document.getElementById('command-abilities-buttons'),
@@ -344,8 +351,136 @@ class RTSEngine {
             '<kbd>T</kbd> Special',
             '<kbd>U</kbd> Ungarrison',
             '<kbd>X</kbd> Scatter',
+            '<kbd>Ctrl+0–9</kbd> Set group',
+            '<kbd>0–9</kbd> Recall group',
             '<kbd>Esc</kbd> Cancel',
         ].join(' \u00B7 ');
+    }
+
+    // ---- Control groups ----
+
+    /** Build (or rebuild) the 10 control-group badge elements inside #control-groups-row. */
+    buildControlGroupsUI() {
+        const row = this.dom?.controlGroupsRow;
+        if (!row) return;
+        row.innerHTML = '';
+        // 1-9 then 0, matching SC2 convention
+        for (let i = 1; i <= 10; i++) {
+            const num = i % 10;
+            const badge = document.createElement('button');
+            badge.className = 'cg-badge';
+            badge.type = 'button';
+            badge.setAttribute('data-group', num);
+            badge.setAttribute('aria-label', `Control group ${num}`);
+            badge.title = `Control group ${num}  ·  Ctrl+${num} to set  ·  ${num} to recall`;
+            badge.innerHTML = `<span class="cg-num">${num}</span><span class="cg-count"></span>`;
+            badge.addEventListener('click', () => this.recallControlGroup(num));
+            row.appendChild(badge);
+        }
+        this.updateControlGroupsUI();
+    }
+
+    /** Assign current selection to control group number (0-9). */
+    assignControlGroup(num) {
+        const unitIds = Array.from(this.selectedUnits);
+        const buildingId = this.selectedBuilding?.id ?? null;
+        if (unitIds.length === 0 && buildingId == null) return;
+
+        this.controlGroups.set(num, { unitIds, buildingId });
+        this._activeGroupNumber = num;
+        this.updateControlGroupsUI();
+
+        // Brief gold flash on the badge for tactile feedback
+        const badge = this.dom?.controlGroupsRow?.querySelector(`[data-group="${num}"]`);
+        if (badge) {
+            badge.classList.remove('cg-assign-flash');
+            void badge.offsetWidth; // force reflow to restart animation
+            badge.classList.add('cg-assign-flash');
+            badge.addEventListener('animationend', () => badge.classList.remove('cg-assign-flash'), { once: true });
+        }
+    }
+
+    /** Recall a control group: restore its selection and notify the server. */
+    recallControlGroup(num) {
+        const group = this.controlGroups.get(num);
+        if (!group) return;
+
+        // Filter to units/buildings that are still alive in our local maps
+        const liveUnitIds = group.unitIds.filter(id => this.units.has(id));
+        const liveBuilding = group.buildingId != null
+            ? this.buildings.get(group.buildingId)?.buildingData ?? null
+            : null;
+
+        if (liveUnitIds.length === 0 && liveBuilding == null) return;
+
+        const now = Date.now();
+        const isDoubleTap = this._lastGroupRecallNum === num
+            && (now - this._lastGroupRecallTime) < 400;
+        this._lastGroupRecallNum = num;
+        this._lastGroupRecallTime = now;
+        this._activeGroupNumber = num;
+
+        if (liveUnitIds.length > 0) {
+            // Units take priority; clear building selection first
+            this.clearBuildingSelectionClient();
+            this.clearUnitSelectionImmediate();
+            for (const id of liveUnitIds) {
+                this.selectedUnits.add(id);
+                const c = this.units.get(id);
+                if (c?.selectionCircle) c.selectionCircle.visible = true;
+            }
+            this.sendInput({ action: 'SELECT', unitIds: liveUnitIds });
+        } else if (liveBuilding) {
+            this.selectBuilding(liveBuilding);
+        }
+
+        if (isDoubleTap) {
+            this.centerCameraOnGroup(num);
+        }
+
+        this.updateControlGroupsUI();
+    }
+
+    /** Center the camera on the centroid of all living entities in a group. */
+    centerCameraOnGroup(num) {
+        const group = this.controlGroups.get(num);
+        if (!group) return;
+        let sumX = 0, sumY = 0, count = 0;
+        for (const id of group.unitIds) {
+            const ud = this.units.get(id)?.unitData;
+            if (ud) { sumX += ud.x; sumY += ud.y; count++; }
+        }
+        if (group.buildingId != null) {
+            const bd = this.buildings.get(group.buildingId)?.buildingData;
+            if (bd) { sumX += bd.x; sumY += bd.y; count++; }
+        }
+        if (count > 0) {
+            this.camera.x = sumX / count;
+            this.camera.y = sumY / count;
+        }
+    }
+
+    /** Refresh all badge visual states (active/has-group/count). */
+    updateControlGroupsUI() {
+        const row = this.dom?.controlGroupsRow;
+        if (!row) return;
+        for (const badge of row.querySelectorAll('.cg-badge')) {
+            const num = parseInt(badge.getAttribute('data-group'));
+            const group = this.controlGroups.get(num);
+            const liveUnitCount = group
+                ? group.unitIds.filter(id => this.units.has(id)).length
+                : 0;
+            const liveBuildingCount = group?.buildingId != null
+                && this.buildings.has(group.buildingId) ? 1 : 0;
+            const total = liveUnitCount + liveBuildingCount;
+            const hasContent = total > 0;
+
+            badge.classList.toggle('has-group', hasContent);
+            badge.classList.toggle('active', num === this._activeGroupNumber && hasContent);
+
+            const countEl = badge.querySelector('.cg-count');
+            if (countEl) countEl.textContent = hasContent ? total : '';
+        }
     }
 
     /**
@@ -653,6 +788,10 @@ class RTSEngine {
     
     handleGameInitialization(data) {
         this.shapeCache.clear();
+        this.controlGroups.clear();
+        this._lastGroupRecallNum = null;
+        this._activeGroupNumber = null;
+        this.buildControlGroupsUI();
         // Store static type data
         this.unitTypes = data.unitTypes || {};
         this.buildingTypes = data.buildingTypes || {};
@@ -1047,7 +1186,10 @@ class RTSEngine {
         
         // Update unit info panel
         this.updateUnitInfoPanel();
-        
+
+        // Refresh control-group badge counts (units may have died this tick)
+        this.updateControlGroupsUI();
+
         // Update fog of war visualization (throttled to reduce performance impact)
         const now = Date.now();
         if (now - this.lastFogUpdate >= this.fogUpdateInterval) {
@@ -2249,6 +2391,9 @@ class RTSEngine {
             buildingContainer.zIndex = 0;
         }
         
+        // Keep the latest data reference on the container for control-group recall
+        buildingContainer.buildingData = buildingData;
+
         // Update position
         buildingContainer.position.set(buildingData.x, buildingData.y);
         
@@ -3929,6 +4074,24 @@ class RTSEngine {
         if (this.tryContextMenuHotkey(e)) {
             e.preventDefault();
             return;
+        }
+
+        // Control group hotkeys — digits 0-9 (intercept before build/train hotkeys)
+        if (!e.repeat && !e.altKey && /^[0-9]$/.test(e.key)
+                && document.activeElement === document.body) {
+            const num = parseInt(e.key);
+            if (e.ctrlKey || e.metaKey) {
+                this.assignControlGroup(num);
+                e.preventDefault();
+                return;
+            } else {
+                const group = this.controlGroups.get(num);
+                if (group && (group.unitIds.length > 0 || group.buildingId != null)) {
+                    this.recallControlGroup(num);
+                    e.preventDefault();
+                    return;
+                }
+            }
         }
 
         // Hotkeys

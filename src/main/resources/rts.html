@@ -25,6 +25,7 @@
             /* Fixed HUD chrome height from viewport — stable when selection changes */
             --rts-hud-panel-height: clamp(128px, 22vh, 210px);
             --rts-hud-hotkey-row: 26px;
+            --rts-hud-group-row: 26px;
             --rts-hud-gap: 8px;
             --rts-hud-panel-bg: var(--card-bg, rgba(42, 42, 60, 0.92));
             --rts-hud-panel-border: var(--card-border, rgba(100, 200, 255, 0.35));
@@ -65,9 +66,9 @@
             flex-direction: column;
             gap: 6px;
             pointer-events: none;
-            height: calc(var(--rts-hud-panel-height) + var(--rts-hud-hotkey-row) + 16px);
-            min-height: calc(var(--rts-hud-panel-height) + var(--rts-hud-hotkey-row) + 16px);
-            max-height: calc(var(--rts-hud-panel-height) + var(--rts-hud-hotkey-row) + 16px);
+            height: calc(var(--rts-hud-panel-height) + var(--rts-hud-hotkey-row) + var(--rts-hud-group-row) + 22px);
+            min-height: calc(var(--rts-hud-panel-height) + var(--rts-hud-hotkey-row) + var(--rts-hud-group-row) + 22px);
+            max-height: calc(var(--rts-hud-panel-height) + var(--rts-hud-hotkey-row) + var(--rts-hud-group-row) + 22px);
             padding: 0 10px 10px;
         }
 
@@ -94,7 +95,7 @@
             /* 2×2 grid needs more vertical room — relax fixed height so panels don’t clip */
             #hud-bottom {
                 height: auto;
-                min-height: calc(var(--rts-hud-panel-height) + var(--rts-hud-hotkey-row) + 16px);
+                min-height: calc(var(--rts-hud-panel-height) + var(--rts-hud-hotkey-row) + var(--rts-hud-group-row) + 22px);
                 max-height: min(48vh, 420px);
             }
 
@@ -169,6 +170,73 @@
             font-size: 11px;
             font-family: ui-monospace, monospace;
             color: var(--accent-blue, #64c8ff);
+        }
+
+        /* ——— Control-group badges ——— */
+        #control-groups-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            height: var(--rts-hud-group-row);
+            padding: 0 2px;
+            pointer-events: auto;
+        }
+
+        .cg-badge {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 5px;
+            border: 1px solid rgba(100, 200, 255, 0.18);
+            background: rgba(0, 0, 0, 0.28);
+            cursor: pointer;
+            opacity: 0.3;
+            transition: opacity 0.12s, border-color 0.12s, background 0.12s, box-shadow 0.12s;
+            font-family: ui-monospace, monospace;
+            color: rgba(180, 220, 255, 0.9);
+            user-select: none;
+            line-height: 1;
+        }
+
+        .cg-badge.has-group {
+            opacity: 1;
+            border-color: rgba(100, 200, 255, 0.5);
+            background: rgba(15, 35, 70, 0.75);
+        }
+
+        .cg-badge.active {
+            border-color: #64c8ff;
+            background: rgba(35, 75, 160, 0.85);
+            box-shadow: 0 0 7px rgba(100, 200, 255, 0.55);
+            color: #fff;
+        }
+
+        .cg-badge:hover.has-group {
+            border-color: rgba(150, 220, 255, 0.8);
+            background: rgba(30, 60, 120, 0.85);
+        }
+
+        .cg-num {
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .cg-count {
+            font-size: 7.5px;
+            opacity: 0.75;
+            min-height: 8px;
+        }
+
+        @keyframes cgAssignFlash {
+            0%   { transform: scale(1.25); border-color: #ffcc00; box-shadow: 0 0 8px #ffcc00; }
+            100% { transform: scale(1); }
+        }
+
+        .cg-badge.cg-assign-flash {
+            animation: cgAssignFlash 0.28s ease-out forwards;
         }
 
         /* Server roster hotkeys (build / train buttons) */
@@ -806,6 +874,7 @@
         <div id="event-feed"></div>
 
         <div id="hud-bottom">
+            <div id="control-groups-row" role="toolbar" aria-label="Control groups"></div>
             <div class="hud-bottom-main">
                 <section id="hud-economy" class="hud-card">
                     <div id="resource-panel">
