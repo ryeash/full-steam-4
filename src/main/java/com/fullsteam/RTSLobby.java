@@ -23,8 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -258,8 +258,8 @@ public class RTSLobby {
         private final long createdTime;
         private final List<SkirmishSlotConfig> skirmishSlots;
         private final int humanSlotsTotal;
-        private final Map<String, Integer> sessionTokenToSlotIndex = new ConcurrentHashMap<>();
-        private final Set<Integer> reservedHumanSlotIndices = ConcurrentHashMap.newKeySet();
+        private final Map<String, Integer> sessionTokenToSlotIndex = new ConcurrentSkipListMap<>();
+        private final Set<Integer> reservedHumanSlotIndices = new ConcurrentSkipListSet<>();
 
         public MatchmakingGame(String gameId, GameConfig resolvedGameConfig) {
             this.gameId = gameId;

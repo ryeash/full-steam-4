@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 
 public final class AiWorldQueries {
 
@@ -65,5 +66,64 @@ public final class AiWorldQueries {
                 .filter(Obstacle::isActive)
                 .min(Comparator.comparingDouble(o -> from.distanceSquared(o.getPosition())))
                 .orElse(null);
+    }
+
+    /**
+     * Returns the world-space position of the best tactical attack target for an assault,
+     * ordered by priority: enemy HQ > any enemy building > {@code null}.
+     *
+     * <p>Used by {@link com.fullsteam.ai.tactics.AiTacticsDirector} to set assault destinations.
+     *
+     * @param from optional reference point for nearest-first ordering; may be {@code null}
+     */
+    public static Vector2 nearestAssaultTarget(GameEntities entities, int myTeam, Vector2 from) {
+        // Priority 1: enemy HQ
+        Vector2 hq = nearestEnemyHQ(entities, myTeam, from);
+        if (hq != null) {
+            return hq;
+        }
+        // Priority 2: any other enemy building (refineries, factories, etc.)
+        Comparator<Building> byDist = from != null
+                ? Comparator.comparingDouble(b -> from.distanceSquared(b.getPosition()))
+                : Comparator.comparingInt(Building::getId);
+        return entities.getBuildings().values().stream()
+                .filter(b -> b.isActive() && b.getTeamNumber() != myTeam)
+                .min(byDist)
+                .map(b -> b.getPosition().copy())
+                .orElse(null);
+    }
+
+    /**
+     * Randomised assault target for new-wave selection.
+     *
+     * <p>70% of the time returns the nearest enemy HQ (the dominant win condition).
+     * 30% of the time targets a random enemy production or tech building instead —
+     * creating economic harassment that makes the AI feel less scripted across matches.
+     * Falls through to {@link #nearestAssaultTarget} if no raid-worthy target exists.
+     *
+     * @param from optional reference point; may be {@code null}
+     */
+    public static Vector2 randomisedAssaultTarget(GameEntities entities, int myTeam, Vector2 from) {
+        if (ThreadLocalRandom.current().nextDouble() < 0.30) {
+            List<Building> raidTargets = new ArrayList<>();
+            for (Building b : entities.getBuildings().values()) {
+                if (!b.isActive() || b.getTeamNumber() == myTeam) {
+                    continue;
+                }
+                BuildingType bt = b.getBuildingType();
+                if (bt == BuildingType.REFINERY
+                        || bt == BuildingType.FACTORY
+                        || bt == BuildingType.BARRACKS
+                        || bt == BuildingType.RESEARCH_LAB
+                        || bt == BuildingType.TECH_CENTER) {
+                    raidTargets.add(b);
+                }
+            }
+            if (!raidTargets.isEmpty()) {
+                Building pick = raidTargets.get(ThreadLocalRandom.current().nextInt(raidTargets.size()));
+                return pick.getPosition().copy();
+            }
+        }
+        return nearestAssaultTarget(entities, myTeam, from);
     }
 }

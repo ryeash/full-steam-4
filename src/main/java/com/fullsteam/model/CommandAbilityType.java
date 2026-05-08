@@ -241,7 +241,7 @@ public enum CommandAbilityType implements CommandAbilityEffect {
     }
 
     private static void executeSatelliteSweep(CommandAbilityExecutionContext ctx, Vector2 target) {
-        Player player = ctx.getGameEntities().getPlayerFactions().get(ctx.getPlayerId());
+        Player player = ctx.getGameEntities().getPlayers().get(ctx.getPlayerId());
         long until = System.currentTimeMillis() + SATELLITE_REVEAL_DURATION_MS;
         player.setSatelliteReveal(new SatelliteReveal(
                 ctx.getFaction().getTeamNumber(),

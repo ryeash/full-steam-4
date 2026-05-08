@@ -55,7 +55,7 @@ public class AndroidFactoryComponent extends AbstractBuildingComponent {
         }
 
         if (producingAndroid) {
-            Player faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
+            Player faction = gameEntities.getPlayers().get(building.getOwnerId());
             double effectiveSpeed = 1.0;
             if (faction != null) {
                 Map<BuildingType, FactionDefinition.BuildingStatModifier> buildingMods = faction.getFactionDefinition().getBuildingStatModifiers();

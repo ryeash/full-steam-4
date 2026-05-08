@@ -41,7 +41,17 @@ public record SkirmishAiProfile(
         int assaultSalt,
         int assaultMinForce,
         int maxWorkers,
-        int reservedBuildWorkers
+        int reservedBuildWorkers,
+        /* How often (in frames) {@link com.fullsteam.ai.tactics.AiTacticsDirector} ticks per faction. */
+        int tacticsTickPeriod,
+        /* Distance (world units) from base HQ at which idle combat units rally before an assault. */
+        double rallyDistanceFromHq,
+        /*
+         * Minimum elapsed wall-clock time (ms) from game start before the AI may launch its
+         * first assault. Independent of frame rate.
+         * Example: 300_000 = 5 min, 180_000 = 3 min, 90_000 = 90 s.
+         */
+        long assaultGracePeriodMs
 ) {
 
     public static SkirmishAiProfile forDifficulty(AiDifficulty difficulty) {
@@ -88,7 +98,10 @@ public record SkirmishAiProfile(
                 3,     // assaultSalt
                 7,     // assaultMinForce
                 8,     // maxWorkers
-                1      // reservedBuildWorkers
+                1,     // reservedBuildWorkers
+                4,     // tacticsTickPeriod (~5 per second at 20fps)
+                180.0, // rallyDistanceFromHq
+                300_000L // assaultGracePeriodMs (5 min)
         );
     }
 
@@ -125,7 +138,10 @@ public record SkirmishAiProfile(
                 5,     // assaultSalt
                 5,     // assaultMinForce
                 10,    // maxWorkers
-                2      // reservedBuildWorkers
+                2,     // reservedBuildWorkers
+                3,     // tacticsTickPeriod (~7 per second at 20fps)
+                220.0, // rallyDistanceFromHq
+                180_000L // assaultGracePeriodMs (3 min)
         );
     }
 
@@ -162,7 +178,10 @@ public record SkirmishAiProfile(
                 7,     // assaultSalt
                 4,     // assaultMinForce
                 12,    // maxWorkers
-                2      // reservedBuildWorkers
+                2,     // reservedBuildWorkers
+                2,     // tacticsTickPeriod (~10 per second at 20fps)
+                280.0, // rallyDistanceFromHq
+                60_000L  // assaultGracePeriodMs (60 s)
         );
     }
 }

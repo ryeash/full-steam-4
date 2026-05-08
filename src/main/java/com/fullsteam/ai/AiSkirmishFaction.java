@@ -15,16 +15,25 @@ public final class AiSkirmishFaction {
     }
 
     /**
-     * Minimal roster for baseline comp-stomp AI (workers, infantry, core structures, T2 tech + vehicles).
+     * Full tech-tree roster for skirmish AI opponents:
+     * T1 core economy/infantry, T2 vehicles, and T3 heavy hitters unlocked via TECH_CENTER.
      */
     public static FactionDefinition baselineOpponent() {
         return FactionDefinition.builder()
                 .unitTypes(Set.of(
+                        // T1 — always available
                         UnitType.WORKER,
                         UnitType.INFANTRY,
                         UnitType.JEEP,
+                        // T2 — requires RESEARCH_LAB
                         UnitType.TANK,
-                        UnitType.FLAK_TANK
+                        UnitType.FLAK_TANK,
+                        // T3 — requires RESEARCH_LAB + TECH_CENTER
+                        UnitType.RAIDER,       // fast flanker
+                        UnitType.BEAM_TANK,    // durable sustained-fire armor
+                        UnitType.GIGANTONAUT,  // heavy siege piece
+                        UnitType.SAM_LAUNCHER, // anti-air
+                        UnitType.ION_RANGER    // long-range barracks sniper
                 ))
                 .buildingTypes(Set.of(
                         BuildingType.HEADQUARTERS,
@@ -32,7 +41,8 @@ public final class AiSkirmishFaction {
                         BuildingType.REFINERY,
                         BuildingType.BARRACKS,
                         BuildingType.RESEARCH_LAB,
-                        BuildingType.FACTORY
+                        BuildingType.FACTORY,
+                        BuildingType.TECH_CENTER
                 ))
                 .build();
     }

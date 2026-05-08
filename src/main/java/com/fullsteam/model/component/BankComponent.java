@@ -48,7 +48,7 @@ public class BankComponent extends AbstractBuildingComponent {
 
         if (System.currentTimeMillis() >= lastInterestPayout + (long) (interestInterval * 1000D)) {
             lastInterestPayout = System.currentTimeMillis();
-            Player faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
+            Player faction = gameEntities.getPlayers().get(building.getOwnerId());
             if (faction != null) {
                 int currentCredits = faction.getResourceAmount(ResourceType.CREDITS);
                 int interest = (int) Math.round(currentCredits * interestRate);

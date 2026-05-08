@@ -2,9 +2,10 @@ package com.fullsteam.model;
 
 import com.fullsteam.model.weapon.Weapon;
 import lombok.Getter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.dyn4j.collision.AxisAlignedBounds;
 import org.dyn4j.dynamics.Body;
+import org.dyn4j.dynamics.Settings;
 import org.dyn4j.geometry.Vector2;
 import org.dyn4j.world.World;
 
@@ -27,7 +28,7 @@ import java.util.stream.Stream;
 @Getter
 public class GameEntities {
     private final GameConfig gameConfig;
-    private final Map<Integer, Player> playerFactions;
+    private final Map<Integer, Player> players;
     private final Map<Integer, Unit> units;
     private final Map<Integer, Building> buildings;
     private final Map<Integer, Obstacle> obstacles;
@@ -36,16 +37,8 @@ public class GameEntities {
     private final Map<Integer, FieldEffect> fieldEffects;
     private final Map<Integer, TrackerBug> trackerBugs; // Spy tracking devices
     private final RTSGameManager rtsGameManager;
-
-    @Setter
-    private World<Body> world;
-
-    /**
-     * Set by {@link RTSGameManager} after {@link RTSCollisionProcessor} is constructed.
-     * Used for placement queries ({@link #suggestBuildLocationNear}) shared by AI and bootstrap logic.
-     */
-    @Setter
-    private RTSCollisionProcessor collisionProcessor;
+    private final RTSCollisionProcessor collisionProcessor;
+    private final World<Body> world;
 
     private static final double[][] BUILD_SITE_PROBE_OFFSETS = {
             {220, 80}, {-220, 80}, {260, -120}, {-260, -120},
@@ -55,7 +48,7 @@ public class GameEntities {
 
     public GameEntities(GameConfig gameConfig, RTSGameManager rtsGameManager) {
         this.gameConfig = gameConfig;
-        this.playerFactions = new ConcurrentSkipListMap<>();
+        this.players = new ConcurrentSkipListMap<>();
         this.units = new ConcurrentSkipListMap<>();
         this.buildings = new ConcurrentSkipListMap<>();
         this.obstacles = new ConcurrentSkipListMap<>();
@@ -64,7 +57,16 @@ public class GameEntities {
         this.fieldEffects = new ConcurrentSkipListMap<>();
         this.trackerBugs = new ConcurrentSkipListMap<>();
         this.rtsGameManager = rtsGameManager;
-        this.world = null;
+        this.collisionProcessor = new RTSCollisionProcessor(this);
+
+        // Initialize physics world
+        this.world = new World<>();
+        Settings settings = new Settings();
+        settings.setMaximumTranslation(300.0);
+        this.world.setSettings(settings);
+        this.world.setGravity(new Vector2(0, 0));
+        this.world.addCollisionListener(this.collisionProcessor);
+        this.world.setBounds(new AxisAlignedBounds(gameConfig.getWorldWidth(), gameConfig.getWorldHeight()));
     }
 
     public void add(GameEntity e) {

@@ -55,20 +55,20 @@ public abstract class AbstractPlaceBuildingBehavior implements SkirmishAiBehavio
     }
 
     @Override
-    public Optional<RTSPlayerInput> propose(GameEntities entities, SkirmishAiTickContext ctx) {
+    public List<RTSPlayerInput> propose(GameEntities entities, SkirmishAiTickContext ctx) {
         var worker = AiUnitSupport.pickBuildWorker(entities, ctx.playerId(), ctx.baseAnchor());
         if (worker.isEmpty()) {
-            return Optional.empty();
+            return List.of();
         }
         Optional<Vector2> loc = entities.suggestBuildLocationNear(buildingType(), ctx.baseAnchor());
         if (loc.isEmpty()) {
-            return Optional.empty();
+            return List.of();
         }
         RTSPlayerInput in = new RTSPlayerInput();
         in.setAction(com.fullsteam.model.InputAction.BUILD);
         in.setUnitIds(List.of(worker.get().getId()));
         in.setBuildingType(buildingType());
         in.setTargetPosition(loc.get());
-        return Optional.of(in);
+        return List.of(in);
     }
 }

@@ -81,7 +81,7 @@ public class HarvestComponent extends AbstractUnitComponent {
         }
 
         // Add resources to the building owner's faction
-        Player faction = gameEntities.getPlayerFactions().get(dropoff.getOwnerId());
+        Player faction = gameEntities.getPlayers().get(dropoff.getOwnerId());
         if (faction != null) {
             faction.addResources(ResourceType.CREDITS, (int) carriedResources);
             log.debug("Unit {} deposited {} resources to {} {}",

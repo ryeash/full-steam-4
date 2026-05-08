@@ -38,14 +38,11 @@ import com.fullsteam.model.factions.FactionDefinition;
 import io.micronaut.websocket.WebSocketSession;
 import io.micronaut.websocket.exceptions.WebSocketSessionException;
 import lombok.Getter;
-import org.dyn4j.collision.AxisAlignedBounds;
 import org.dyn4j.dynamics.Body;
-import org.dyn4j.dynamics.Settings;
 import org.dyn4j.geometry.Circle;
 import org.dyn4j.geometry.Convex;
 import org.dyn4j.geometry.Polygon;
 import org.dyn4j.geometry.Vector2;
-import org.dyn4j.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +56,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ScheduledFuture;
@@ -80,9 +76,6 @@ public class RTSGameManager {
     @Getter
     protected final GameConfig gameConfig;
     protected final ObjectMapper objectMapper;
-
-    // Game world
-    private final World<Body> world;
     @Getter
     private final RTSWorld rtsWorld;
     private double lastUpdateTime = System.nanoTime() / 1e9;
@@ -97,7 +90,11 @@ public class RTSGameManager {
      * Get player factions map
      */
     @Getter
-    private final Set<Integer> eliminatedTeams = ConcurrentHashMap.newKeySet(); // Track eliminated teams for events
+    private final Set<Integer> eliminatedTeams = new ConcurrentSkipListSet<>();
+    /**
+     * Tracks individual player IDs whose HQ has been destroyed so mass-removal runs exactly once per player.
+     */
+    private final Set<Integer> eliminatedPlayerIds = new ConcurrentSkipListSet<>();
 
     // Event throttling - track last notification times per player (in milliseconds)
     private final Map<Integer, Long> lastUnitDeathNotification = new ConcurrentSkipListMap<>();
@@ -117,11 +114,8 @@ public class RTSGameManager {
     private final Map<Integer, Beam> beams;
     private final Map<Integer, FieldEffect> fieldEffects;
 
-    // Collision processor
-    private final RTSCollisionProcessor collisionProcessor;
-
     // Player inputs
-    private final Map<Integer, RTSPlayerInput> playerInputs = new ConcurrentHashMap<>();
+    private final Map<Integer, RTSPlayerInput> playerInputs = new ConcurrentSkipListMap<>();
     private final SkirmishAiDirector skirmishAiDirector = new SkirmishAiDirector();
 
     // Game state
@@ -146,7 +140,7 @@ public class RTSGameManager {
         this.gameStartTime = System.currentTimeMillis();
 
         this.gameEntities = new GameEntities(gameConfig, this);
-        this.players = gameEntities.getPlayerFactions();
+        this.players = gameEntities.getPlayers();
         this.units = gameEntities.getUnits();
         this.buildings = gameEntities.getBuildings();
         this.obstacles = gameEntities.getObstacles();
@@ -164,18 +158,6 @@ public class RTSGameManager {
                 gameConfig.getObstacleDensity().getMultiplier(),
                 worldSeed
         );
-
-        // Initialize physics world
-        this.world = new World<>();
-        Settings settings = new Settings();
-        settings.setMaximumTranslation(300.0);
-        this.world.setSettings(settings);
-        this.world.setGravity(new Vector2(0, 0));
-        this.gameEntities.setWorld(this.world);
-        this.collisionProcessor = new RTSCollisionProcessor(gameEntities);
-        this.gameEntities.setCollisionProcessor(this.collisionProcessor);
-        this.world.addCollisionListener(this.collisionProcessor);
-        this.world.setBounds(new AxisAlignedBounds(gameConfig.getWorldWidth(), gameConfig.getWorldHeight()));
 
         // Initialize world entities
         rtsWorld.placeObstacles();
@@ -200,7 +182,7 @@ public class RTSGameManager {
             lastUpdateTime = currentTime;
             frameCount++;
 
-            for (Player player : gameEntities.getPlayerFactions().values()) {
+            for (Player player : gameEntities.getPlayers().values()) {
                 if (player.getSatelliteReveal() != null && !player.getSatelliteReveal().isActive()) {
                     player.setSatelliteReveal(null);
                 }
@@ -287,8 +269,8 @@ public class RTSGameManager {
                 }
 
                 if (!projectile.isActive()) {
-                    collisionProcessor.handleTerminalEffects(projectile);
-                    world.removeBody(projectile.getBody());
+                    gameEntities.getCollisionProcessor().handleTerminalEffects(projectile);
+                    gameEntities.getWorld().removeBody(projectile.getBody());
                     return true;
                 }
                 return false;
@@ -298,7 +280,7 @@ public class RTSGameManager {
             beams.values().forEach(beam -> beam.update(gameEntities));
 
             // Update physics world (handles collisions via CollisionListener)
-            world.updatev(deltaTime);
+            gameEntities.getWorld().updatev(deltaTime);
 
             // Enforce world boundaries for all units (especially air units that can fly over obstacles)
             units.values().forEach(unit -> {
@@ -600,7 +582,7 @@ public class RTSGameManager {
                 location.x, location.y, playerId, faction.getTeamNumber(), faction, maxHealth
         );
         buildings.put(building.getId(), building);
-        world.addBody(building.getBody());
+        gameEntities.getWorld().addBody(building.getBody());
         faction.getFactionDefinition().onBuildingCreated(building, faction, this);
         effectiveUnits(playerId, input)
                 .filter(u -> u.getUnitType().canBuild())
@@ -873,20 +855,20 @@ public class RTSGameManager {
                 && bunker.belongsTo(playerId)) {
             if (input.isUngarrisonAll()) {
                 for (Unit unit : bunker.ungarrisonAllUnits()) {
-                    if (!world.containsBody(unit.getBody())) {
-                        world.addBody(unit.getBody());
+                    if (!gameEntities.getWorld().containsBody(unit.getBody())) {
+                        gameEntities.getWorld().addBody(unit.getBody());
                     }
                 }
             } else if (input.getAuxiliaryEntityId() != null) {
                 Unit target = units.get(input.getAuxiliaryEntityId());
                 Unit ungarrisoned = bunker.ungarrisonUnit(target);
-                if (ungarrisoned != null && !world.containsBody(ungarrisoned.getBody())) {
-                    world.addBody(ungarrisoned.getBody());
+                if (ungarrisoned != null && !gameEntities.getWorld().containsBody(ungarrisoned.getBody())) {
+                    gameEntities.getWorld().addBody(ungarrisoned.getBody());
                 }
             } else {
                 Unit ungarrisoned = bunker.ungarrisonUnit(null);
-                if (ungarrisoned != null && !world.containsBody(ungarrisoned.getBody())) {
-                    world.addBody(ungarrisoned.getBody());
+                if (ungarrisoned != null && !gameEntities.getWorld().containsBody(ungarrisoned.getBody())) {
+                    gameEntities.getWorld().addBody(ungarrisoned.getBody());
                 }
             }
         } else {
@@ -895,20 +877,20 @@ public class RTSGameManager {
                     && carrier.belongsTo(playerId) && carrier.isActive()) {
                 if (input.isUngarrisonAll()) {
                     for (Unit unit : carrier.ungarrisonAllUnits()) {
-                        if (!world.containsBody(unit.getBody())) {
-                            world.addBody(unit.getBody());
+                        if (!gameEntities.getWorld().containsBody(unit.getBody())) {
+                            gameEntities.getWorld().addBody(unit.getBody());
                         }
                     }
                 } else if (input.getAuxiliaryEntityId() != null) {
                     Unit target = units.get(input.getAuxiliaryEntityId());
                     Unit ungarrisoned = carrier.ungarrisonUnit(target);
-                    if (ungarrisoned != null && !world.containsBody(ungarrisoned.getBody())) {
-                        world.addBody(ungarrisoned.getBody());
+                    if (ungarrisoned != null && !gameEntities.getWorld().containsBody(ungarrisoned.getBody())) {
+                        gameEntities.getWorld().addBody(ungarrisoned.getBody());
                     }
                 } else {
                     Unit ungarrisoned = carrier.ungarrisonUnit(null);
-                    if (ungarrisoned != null && !world.containsBody(ungarrisoned.getBody())) {
-                        world.addBody(ungarrisoned.getBody());
+                    if (ungarrisoned != null && !gameEntities.getWorld().containsBody(ungarrisoned.getBody())) {
+                        gameEntities.getWorld().addBody(ungarrisoned.getBody());
                     }
                 }
             }
@@ -1073,7 +1055,7 @@ public class RTSGameManager {
         fieldEffects.entrySet().removeIf(entry -> {
             FieldEffect effect = entry.getValue();
             if (!effect.isActive() || effect.isExpired()) {
-                world.removeBody(effect.getBody());
+                gameEntities.getWorld().removeBody(effect.getBody());
                 log.debug("Removed expired field effect {} ({})", effect.getId(), effect.getType());
                 return true;
             }
@@ -1217,7 +1199,6 @@ public class RTSGameManager {
             Map<String, Object> gameOverMsg = new LinkedHashMap<>();
             gameOverMsg.put("type", "gameOver");
             gameOverMsg.put("winningTeam", winningTeam);
-            gameOverMsg.put("winnerName", winnerName);
             gameOverMsg.put("winnerName", winnerName);
             gameOverMsg.put("reason", "All enemy headquarters destroyed");
             broadcast(gameOverMsg);
@@ -1466,10 +1447,14 @@ public class RTSGameManager {
      * Remove inactive entities
      */
     private void removeInactiveEntities() {
+        // Pre-pass: if any HQ has just been destroyed, mark all owned units/buildings inactive
+        // so they are swept in the same cleanup pass below instead of persisting an extra tick.
+        eliminateDestroyedHQRosters();
+
         projectiles.entrySet().removeIf(e -> {
             Projectile value = e.getValue();
             if (!value.isActive()) {
-                world.removeBody(value.getBody());
+                gameEntities.getWorld().removeBody(value.getBody());
                 return true;
             }
             return false;
@@ -1478,7 +1463,7 @@ public class RTSGameManager {
         beams.entrySet().removeIf(e -> {
             Beam beam = e.getValue();
             if (!beam.isActive()) {
-                world.removeBody(beam.getBody());
+                gameEntities.getWorld().removeBody(beam.getBody());
                 return true;
             }
             return false;
@@ -1544,27 +1529,26 @@ public class RTSGameManager {
                 Player faction = players.get(ownerId);
                 faction.getFactionDefinition().onUnitDestroyed(unit, faction, this);
 
-                // Send unit death notification (throttled to avoid spam)
-                long currentTime = System.currentTimeMillis();
-                Long lastNotification = lastUnitDeathNotification.get(ownerId);
+                // Send unit death notification (throttled; suppressed during HQ elimination sweep)
+                if (!eliminatedPlayerIds.contains(ownerId)) {
+                    long currentTime = System.currentTimeMillis();
+                    Long lastNotification = lastUnitDeathNotification.get(ownerId);
 
-                if (lastNotification == null || (currentTime - lastNotification) >= UNIT_DEATH_NOTIFICATION_COOLDOWN) {
-                    String unitName = unit.getUnitType().name()
-                            .replace("_", " ")
-                            .toLowerCase();
-                    // Capitalize first letter
-                    unitName = unitName.substring(0, 1).toUpperCase() + unitName.substring(1);
+                    if (lastNotification == null || (currentTime - lastNotification) >= UNIT_DEATH_NOTIFICATION_COOLDOWN) {
+                        String unitName = unit.getUnitType().name()
+                                .replace("_", " ")
+                                .toLowerCase();
+                        unitName = unitName.substring(0, 1).toUpperCase() + unitName.substring(1);
 
-                    sendGameEvent(GameEvent.createPlayerEvent(
-                            "⚠️ Your " + unitName + " was destroyed!",
-                            ownerId,
-                            GameEvent.EventCategory.WARNING
-                    ));
-                    lastUnitDeathNotification.put(ownerId, currentTime);
+                        sendGameEvent(GameEvent.createPlayerEvent(
+                                "⚠️ Your " + unitName + " was destroyed!",
+                                ownerId,
+                                GameEvent.EventCategory.WARNING
+                        ));
+                        lastUnitDeathNotification.put(ownerId, currentTime);
+                    }
                 }
-
-                world.removeBody(unit.getBody());
-                // Note: Upkeep is now recalculated periodically, no need to adjust here
+                gameEntities.getWorld().removeBody(unit.getBody());
                 return true;
             }
             return false;
@@ -1580,15 +1564,12 @@ public class RTSGameManager {
 
                     eliminatedTeams.add(building.getTeamNumber());
 
-                    int destroyedTeam = building.getTeamNumber();
-                    String teamName = players.values().stream()
-                            .filter(p -> p.getTeamNumber() == destroyedTeam)
-                            .map(Player::getPlayerName)
-                            .filter(Objects::nonNull)
-                            .findFirst()
-                            .orElse("Team " + destroyedTeam);
+                    Player hqOwner = players.get(building.getOwnerId());
+                    String ownerName = (hqOwner != null && hqOwner.getPlayerName() != null)
+                            ? hqOwner.getPlayerName()
+                            : "Team " + building.getTeamNumber();
                     sendGameEvent(GameEvent.builder()
-                            .message(String.format("💥 %s's Headquarters has been destroyed!", teamName))
+                            .message(String.format("💥 %s's Headquarters has been destroyed!", ownerName))
                             .category(GameEvent.EventCategory.SYSTEM)
                             .color("#FF4444")
                             .target(GameEvent.EventTarget.builder()
@@ -1599,13 +1580,14 @@ public class RTSGameManager {
                     );
                 }
 
-                // Send notification for important building destructions (to the owner)
+                // Send notification for important building destructions (to the owner).
+                // Suppressed during HQ elimination sweep to avoid flooding the eliminated player.
                 Player faction = players.get(building.getOwnerId());
-                if (faction != null && !building.isUnderConstruction()) {
+                if (faction != null && !building.isUnderConstruction()
+                        && !eliminatedPlayerIds.contains(building.getOwnerId())) {
                     String buildingName = building.getBuildingType().name()
                             .replace("_", " ")
                             .toLowerCase();
-                    // Capitalize first letter
                     buildingName = buildingName.substring(0, 1).toUpperCase() + buildingName.substring(1);
 
                     sendGameEvent(GameEvent.createPlayerEvent(
@@ -1627,8 +1609,8 @@ public class RTSGameManager {
                             units.put(unit.getId(), unit);
                         }
                         // Ensure body is added to world (it should already be enabled by ungarrisonUnit)
-                        if (!world.containsBody(unit.getBody())) {
-                            world.addBody(unit.getBody());
+                        if (!gameEntities.getWorld().containsBody(unit.getBody())) {
+                            gameEntities.getWorld().addBody(unit.getBody());
                         }
                     }
                 }
@@ -1645,7 +1627,7 @@ public class RTSGameManager {
                     component.onDestroy();
                 }
 
-                world.removeBody(building.getBody());
+                gameEntities.getWorld().removeBody(building.getBody());
                 return true;
             }
             return false;
@@ -1657,12 +1639,75 @@ public class RTSGameManager {
         obstacles.entrySet().removeIf(entry -> {
             Obstacle obstacle = entry.getValue();
             if (!obstacle.isActive()) {
-                world.removeBody(obstacle.getBody());
+                gameEntities.getWorld().removeBody(obstacle.getBody());
                 log.debug("Removed destroyed obstacle {}", entry.getKey());
                 return true;
             }
             return false;
         });
+    }
+
+    /**
+     * Pre-pass for {@link #removeInactiveEntities()}: detects freshly-destroyed HQs and immediately
+     * marks every unit and building owned by that player as inactive, so the main cleanup loops
+     * sweep them all in the same tick.
+     *
+     * <p>Using {@code eliminatedPlayerIds} as the deduplication guard (rather than
+     * {@code eliminatedTeams}) means each individual player is eliminated exactly once —
+     * correct for team games where multiple players share a team number.
+     */
+    private void eliminateDestroyedHQRosters() {
+        for (Building b : buildings.values()) {
+            if (b.isActive() || b.getBuildingType() != BuildingType.HEADQUARTERS || b.isUnderConstruction()) {
+                continue;
+            }
+            int ownerId = b.getOwnerId();
+            int teamNumber = b.getTeamNumber();
+            if (eliminatedPlayerIds.contains(ownerId)) {
+                continue; // already processed this player
+            }
+
+            eliminatedPlayerIds.add(ownerId);
+
+            // First elimination of this team → broadcast the HQ-destroyed event
+            if (eliminatedTeams.add(teamNumber)) {
+                Player hqOwner = players.get(ownerId);
+                String ownerName = (hqOwner != null && hqOwner.getPlayerName() != null)
+                        ? hqOwner.getPlayerName()
+                        : "Team " + teamNumber;
+                sendGameEvent(GameEvent.builder()
+                        .message(String.format("💥 %s's Headquarters has been destroyed!", ownerName))
+                        .category(GameEvent.EventCategory.SYSTEM)
+                        .color("#FF4444")
+                        .target(GameEvent.EventTarget.builder()
+                                .type(GameEvent.EventTarget.TargetType.ALL)
+                                .build())
+                        .displayDuration(5000L)
+                        .build()
+                );
+            }
+
+            // Mark all owned units inactive — swept by the units removeIf below
+            int unitCount = 0;
+            for (Unit u : units.values()) {
+                if (u.isActive() && u.getOwnerId() == ownerId) {
+                    u.setActive(false);
+                    unitCount++;
+                }
+            }
+
+            // Mark all owned buildings inactive — swept by the buildings removeIf below
+            int buildingCount = 0;
+            for (Building owned : buildings.values()) {
+                if (owned.isActive() && owned.getOwnerId() == ownerId) {
+                    owned.setActive(false);
+                    buildingCount++;
+                }
+            }
+
+            log.info("Player {} (team {}) HQ destroyed — eliminated {} units and {} buildings",
+                    ownerId, teamNumber, unitCount, buildingCount);
+        }
     }
 
     /**
@@ -1673,7 +1718,6 @@ public class RTSGameManager {
         if (!faction.canBuildBuilding(buildingType)) {
             return false;
         }
-
         // Use faction-modified cost
         int cost = faction.getBuildingCost(buildingType);
         return faction.hasResources(ResourceType.CREDITS, cost);
@@ -1687,7 +1731,6 @@ public class RTSGameManager {
         if (!faction.canProduceUnit(unitType)) {
             return false;
         }
-
         // Use faction-modified cost
         int cost = faction.getUnitCost(unitType);
         return faction.hasResources(ResourceType.CREDITS, cost);
@@ -1704,7 +1747,7 @@ public class RTSGameManager {
      * Validate building placement location
      */
     private boolean isSpatialBuildLocationValid(Vector2 location, BuildingType buildingType) {
-        return collisionProcessor.isValidBuildLocation(
+        return gameEntities.getCollisionProcessor().isValidBuildLocation(
                 location,
                 buildingType,
                 gameConfig.getWorldWidth(),
@@ -1717,12 +1760,12 @@ public class RTSGameManager {
      */
     private void sendGameState() {
         // Send personalized game state to each player based on their vision
-        players.values().forEach(faction -> {
-            WebSocketSession ws = faction.getWebSocketSession();
-            if (ws == null || !ws.isOpen() || faction.getPlayerId() < 0) {
+        players.values().forEach(player -> {
+            WebSocketSession ws = player.getWebSocketSession();
+            if (ws == null || !ws.isOpen() || player.getPlayerId() < 0) {
                 return;
             }
-            Map<String, Object> gameState = createGameStateForTeam(faction.getTeamNumber());
+            Map<String, Object> gameState = createGameStateForTeam(player.getTeamNumber());
             send(ws, gameState);
         });
     }
@@ -1737,7 +1780,7 @@ public class RTSGameManager {
         state.put("type", "gameState");
         state.put("timestamp", System.currentTimeMillis());
 
-        SatelliteReveal activeReveal = gameEntities.getPlayerFactions()
+        SatelliteReveal activeReveal = gameEntities.getPlayers()
                 .values()
                 .stream()
                 .map(Player::getSatelliteReveal)
@@ -1862,16 +1905,13 @@ public class RTSGameManager {
     private Map<String, Object> serializeObstacleDynamic(Obstacle obstacle) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("id", obstacle.getId());
-
         if (obstacle.isDestructible()) {
             data.put("health", obstacle.getHealth());
         }
-
         if (obstacle.isHarvestable()) {
             data.put("remainingResources", obstacle.getRemainingResources());
             data.put("resourcePercent", obstacle.getResourcePercent());
         }
-
         return data;
     }
 
@@ -2662,7 +2702,7 @@ public class RTSGameManager {
                 hqMaxHealth
         );
         buildings.put(hq.getId(), hq);
-        world.addBody(hq.getBody());
+        gameEntities.getWorld().addBody(hq.getBody());
 
         // Trigger perk hooks for building creation
         faction.getFactionDefinition().onBuildingCreated(hq, faction, this);
@@ -2692,7 +2732,7 @@ public class RTSGameManager {
             // Note: Research modifiers are now applied dynamically, no need to apply retroactively
 
             units.put(worker.getId(), worker);
-            world.addBody(worker.getBody());
+            gameEntities.getWorld().addBody(worker.getBody());
 
             // Trigger perk hooks for unit creation
             faction.getFactionDefinition().onUnitCreated(worker, faction, this);
@@ -2710,14 +2750,14 @@ public class RTSGameManager {
         // Remove player's units and buildings
         units.entrySet().removeIf(entry -> {
             if (entry.getValue().belongsTo(playerId)) {
-                world.removeBody(entry.getValue().getBody());
+                gameEntities.getWorld().removeBody(entry.getValue().getBody());
                 return true;
             }
             return false;
         });
         buildings.entrySet().removeIf(entry -> {
             if (entry.getValue().belongsTo(playerId)) {
-                world.removeBody(entry.getValue().getBody());
+                gameEntities.getWorld().removeBody(entry.getValue().getBody());
                 return true;
             }
             return false;

@@ -35,10 +35,11 @@ public record SkirmishAiTickContext(
         int researchLabsUnderConstruction,
         int factoriesUnderConstruction,
         int barracksUnderConstruction,
+        int techCentersUnderConstruction,
         SkirmishAiProfile aiProfile
 ) {
     public static SkirmishAiTickContext build(GameEntities entities, int playerId, int frameCount) {
-        Player faction = entities.getPlayerFactions().get(playerId);
+        Player faction = entities.getPlayers().get(playerId);
         if (faction == null) {
             throw new IllegalArgumentException("Unknown player " + playerId);
         }
@@ -73,6 +74,7 @@ public record SkirmishAiTickContext(
         int researchLabsUc = 0;
         int factoriesUc = 0;
         int barracksUc = 0;
+        int techCentersUc = 0;
 
         for (Building b : entities.getBuildings().values()) {
             if (!b.belongsTo(playerId)) {
@@ -92,6 +94,9 @@ public record SkirmishAiTickContext(
             }
             if (b.getBuildingType() == BuildingType.BARRACKS && b.isUnderConstruction()) {
                 barracksUc++;
+            }
+            if (b.getBuildingType() == BuildingType.TECH_CENTER && b.isUnderConstruction()) {
+                techCentersUc++;
             }
         }
 
@@ -134,6 +139,7 @@ public record SkirmishAiTickContext(
                 researchLabsUc,
                 factoriesUc,
                 barracksUc,
+                techCentersUc,
                 profile
         );
     }
@@ -174,5 +180,9 @@ public record SkirmishAiTickContext(
 
     public boolean hasCompletedFactory() {
         return completedBuildingTypes.contains(BuildingType.FACTORY);
+    }
+
+    public boolean hasCompletedTechCenter() {
+        return completedBuildingTypes.contains(BuildingType.TECH_CENTER);
     }
 }

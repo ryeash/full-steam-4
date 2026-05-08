@@ -59,7 +59,7 @@ public class ProductionComponent extends AbstractBuildingComponent {
         // Update current production (only if not low power)
         if (currentProduction != null && !hasLowPower) {
             // Get player faction for modifiers and unit creation
-            Player faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
+            Player faction = gameEntities.getPlayers().get(building.getOwnerId());
 
             // Apply production speed multiplier from faction perks
             double effectiveSpeed = 1.0;
@@ -135,7 +135,7 @@ public class ProductionComponent extends AbstractBuildingComponent {
      */
     public boolean queueUnitProduction(UnitType unitType) {
         // Get player faction for tech tree validation
-        Player faction = gameEntities.getPlayerFactions().get(building.getOwnerId());
+        Player faction = gameEntities.getPlayers().get(building.getOwnerId());
         if (faction == null) {
             log.warn("Cannot queue production: faction not found for building owner {}", building.getOwnerId());
             return false;

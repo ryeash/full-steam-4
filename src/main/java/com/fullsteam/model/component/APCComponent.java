@@ -65,7 +65,7 @@ public class APCComponent extends AbstractUnitComponent {
      */
     public int getMaxGarrisonCapacity() {
         if (gameEntities != null && unit != null) {
-            Player faction = gameEntities.getPlayerFactions().get(unit.getOwnerId());
+            Player faction = gameEntities.getPlayers().get(unit.getOwnerId());
             if (faction != null) {
                 FactionDefinition.UnitStatModifier modifier =
                         faction.getFactionDefinition().getUnitStatModifiers().get(unit.getUnitType());

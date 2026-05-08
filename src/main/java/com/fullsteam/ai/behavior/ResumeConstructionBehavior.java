@@ -29,25 +29,25 @@ public final class ResumeConstructionBehavior implements SkirmishAiBehavior {
     }
 
     @Override
-    public Optional<RTSPlayerInput> propose(GameEntities entities, SkirmishAiTickContext ctx) {
+    public List<RTSPlayerInput> propose(GameEntities entities, SkirmishAiTickContext ctx) {
         if (ctx.baseAnchor() == null) {
-            return Optional.empty();
+            return List.of();
         }
         Building site = entities.getBuildings().values().stream()
                 .filter(b -> b.belongsTo(ctx.playerId()) && b.isUnderConstruction())
                 .min(Comparator.comparingDouble(b -> b.getPosition().distanceSquared(ctx.baseAnchor())))
                 .orElse(null);
         if (site == null) {
-            return Optional.empty();
+            return List.of();
         }
         Optional<Unit> worker = AiUnitSupport.pickIdleConstructWorker(entities, ctx.playerId(), site.getPosition());
         if (worker.isEmpty()) {
-            return Optional.empty();
+            return List.of();
         }
         RTSPlayerInput in = new RTSPlayerInput();
         in.setAction(com.fullsteam.model.InputAction.CONSTRUCT);
         in.setUnitIds(List.of(worker.get().getId()));
         in.setTargetEntityId(site.getId());
-        return Optional.of(in);
+        return List.of(in);
     }
 }

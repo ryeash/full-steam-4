@@ -13,7 +13,6 @@ import org.dyn4j.geometry.Vector2;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 
 public final class HarvestEconomyBehavior implements SkirmishAiBehavior {
 
@@ -30,7 +29,7 @@ public final class HarvestEconomyBehavior implements SkirmishAiBehavior {
     }
 
     @Override
-    public Optional<RTSPlayerInput> propose(GameEntities entities, SkirmishAiTickContext ctx) {
+    public List<RTSPlayerInput> propose(GameEntities entities, SkirmishAiTickContext ctx) {
         List<Unit> idleHarvesters = new ArrayList<>();
         for (Unit u : entities.getUnits().values()) {
             if (!u.belongsTo(ctx.playerId()) || !u.isActive() || u.isGarrisoned() || !u.getUnitType().canHarvest()) {
@@ -42,7 +41,7 @@ public final class HarvestEconomyBehavior implements SkirmishAiBehavior {
             idleHarvesters.add(u);
         }
         if (idleHarvesters.isEmpty()) {
-            return Optional.empty();
+            return List.of();
         }
         Vector2 anchor = ctx.baseAnchor();
         int configured = ctx.aiProfile().reservedBuildWorkers();
@@ -52,18 +51,18 @@ public final class HarvestEconomyBehavior implements SkirmishAiBehavior {
             idleHarvesters = new ArrayList<>(idleHarvesters.subList(holdNearBase, idleHarvesters.size()));
         }
         if (idleHarvesters.isEmpty()) {
-            return Optional.empty();
+            return List.of();
         }
         Vector2 pivot = centroid(idleHarvesters);
         Obstacle best = AiWorldQueries.nearestHarvestable(entities, pivot);
         if (best == null) {
-            return Optional.empty();
+            return List.of();
         }
         RTSPlayerInput in = new RTSPlayerInput();
         in.setAction(com.fullsteam.model.InputAction.HARVEST);
         in.setUnitIds(idleHarvesters.stream().map(Unit::getId).toList());
         in.setTargetEntityId(best.getId());
-        return Optional.of(in);
+        return List.of(in);
     }
 
     private static Vector2 centroid(List<Unit> units) {

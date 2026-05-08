@@ -7,7 +7,7 @@ import lombok.Data;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 /**
  * Represents a player's faction/base in the RTS game.
@@ -36,7 +36,7 @@ public class Player {
     /**
      * Wall-clock time (ms since epoch) when each command ability cooldown ends; absent if ready.
      */
-    private final Map<CommandAbilityType, Long> commandAbilityCooldownEndsAtMs = new ConcurrentHashMap<>();
+    private final Map<CommandAbilityType, Long> commandAbilityCooldownEndsAtMs = new ConcurrentSkipListMap<>();
 
     /**
      * Full constructor including optional skirmish slot index (humans and AI).
