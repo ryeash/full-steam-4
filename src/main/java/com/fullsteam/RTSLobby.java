@@ -11,6 +11,8 @@ import com.fullsteam.model.RTSGameManager;
 import com.fullsteam.model.SkirmishMatchConfig;
 import com.fullsteam.model.SkirmishSlotConfig;
 import com.fullsteam.model.SkirmishSlotKind;
+import com.fullsteam.model.customization.CustomFactionConfig;
+import com.fullsteam.model.customization.ValidationResult;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import lombok.Getter;
@@ -123,6 +125,26 @@ public class RTSLobby {
 
         if (skirmishSlots == null || skirmishSlots.isEmpty()) {
             skirmishSlots = SkirmishMatchConfig.defaultFfaHumanSlots(2);
+        }
+
+        // Validate faction config early — reject before creating any game or session token
+        // so the player is never redirected to an unplayable game screen.
+        Map<String, Object> factionConfigMap = in.getFactionConfig();
+        if (factionConfigMap != null && !factionConfigMap.isEmpty()) {
+            try {
+                CustomFactionConfig factionConfig = objectMapper.convertValue(factionConfigMap, CustomFactionConfig.class);
+                factionConfig.ensureRequiredItems();
+                factionConfig.ensureBundledUnits();
+                ValidationResult validation = factionConfig.validate();
+                if (!validation.isValid()) {
+                    throw new IllegalArgumentException("Invalid faction configuration: " + validation.getAllErrors());
+                }
+            } catch (IllegalArgumentException e) {
+                throw e;
+            } catch (Exception e) {
+                // Treat any parse / conversion failure as a bad-request — do NOT silently skip.
+                throw new IllegalArgumentException("Invalid faction configuration: " + e.getMessage());
+            }
         }
 
         int rosterSizeForWorldSizing = skirmishSlots.size();

@@ -778,12 +778,45 @@ class RTSEngine {
             case 'gameEvent':
                 this.handleGameEvent(data);
                 break;
+            case 'error':
+                this.handleServerError(data);
+                break;
             case 'pong':
                 // Handle ping response
                 break;
             default:
                 console.warn('Unknown message type:', data.type);
         }
+    }
+
+    handleServerError(data) {
+        const message = data.message || 'An unexpected error occurred.';
+        console.error('Server error:', data.code, message);
+
+        const screen = document.getElementById('error-screen');
+        const titleEl = document.getElementById('error-screen-title');
+        const msgEl = document.getElementById('error-screen-message');
+        const backBtn = document.getElementById('error-back-btn');
+
+        if (!screen) return;
+
+        if (titleEl) {
+            titleEl.textContent = data.code === 'INVALID_FACTION'
+                ? 'Invalid Faction Configuration'
+                : 'Connection Error';
+        }
+        if (msgEl) {
+            msgEl.textContent = message;
+        }
+        if (backBtn) {
+            // Replace to remove any previous listener
+            const newBtn = backBtn.cloneNode(true);
+            backBtn.parentNode.replaceChild(newBtn, backBtn);
+            newBtn.addEventListener('click', () => {
+                window.location.href = '/rts-lobby.html';
+            });
+        }
+        screen.style.display = 'flex';
     }
     
     handleGameInitialization(data) {

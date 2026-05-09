@@ -18,9 +18,6 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-
 import static com.fullsteam.controller.RTSPlayerConnectionService.SESSION_KEY;
 
 /**
@@ -43,13 +40,27 @@ public class RTSWebSocketEndpoint {
     @OnOpen
     public void onOpen(WebSocketSession session, String gameId) {
         log.info("RTS WebSocket connection opened for gameId: {}", gameId);
-        // Extract query parameters from URI
-        String sessionToken = Objects.requireNonNull(session.getRequestParameters().get("sessionToken"));
-        String factionConfigJson = Optional.of(session.getRequestParameters().get("factionConfig"))
-                .map(p -> URLDecoder.decode(p, StandardCharsets.UTF_8))
-                .map(Base64.getDecoder()::decode)
-                .map(b -> new String(b, StandardCharsets.UTF_8))
-                .orElseThrow();
+
+        String sessionToken;
+        String factionConfigJson;
+        try {
+            sessionToken = session.getRequestParameters().get("sessionToken");
+            if (sessionToken == null || sessionToken.isBlank()) {
+                throw new IllegalArgumentException("Missing sessionToken parameter");
+            }
+            String factionConfigParam = session.getRequestParameters().get("factionConfig");
+            if (factionConfigParam == null || factionConfigParam.isBlank()) {
+                throw new IllegalArgumentException("Missing factionConfig parameter");
+            }
+            factionConfigJson = new String(
+                    Base64.getDecoder().decode(URLDecoder.decode(factionConfigParam, StandardCharsets.UTF_8)),
+                    StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            log.warn("Could not extract connection parameters for game {}: {}", gameId, e.getMessage());
+            sendErrorAndClose(session, "INVALID_PARAMS",
+                    "Missing or invalid connection parameters. Please return to the lobby and try again.");
+            return;
+        }
 
         if (!connectionService.connectPlayer(session, gameId, sessionToken, factionConfigJson)) {
             log.warn("Failed to connect player to RTS game {}, closing session", gameId);
@@ -57,6 +68,23 @@ public class RTSWebSocketEndpoint {
         } else {
             log.info("Player successfully connected to RTS game {} with session token {}", gameId, sessionToken);
         }
+    }
+
+    /**
+     * Send a plain JSON error message synchronously (the client handles both gzip and plain frames)
+     * then close the session.  Used before the player is formally added to a game.
+     */
+    private void sendErrorAndClose(WebSocketSession session, String code, String message) {
+        try {
+            session.sendSync(objectMapper.writeValueAsString(Map.of(
+                    "type", "error",
+                    "code", code,
+                    "message", message
+            )));
+        } catch (Exception e) {
+            log.error("Error sending pre-connection error to session: {}", e.getMessage());
+        }
+        session.close();
     }
 
     @OnMessage

@@ -4,6 +4,7 @@ import io.micronaut.core.annotation.Introspected;
 import lombok.Data;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * JSON body for {@code POST /api/rts/matchmaking/join}: create a new skirmish lobby or join an existing one.
@@ -37,4 +38,12 @@ public class MatchmakingJoinRequest {
      * Optional map symmetry team count; when null, inferred from skirmish slots.
      */
     private Integer mapTeamCount;
+
+    /**
+     * Full faction configuration for the joining player, as a raw JSON object.
+     * When present, the server validates the configuration and rejects the request
+     * with HTTP 400 if the faction is invalid — preventing the player from being
+     * redirected to the game page with a broken faction.
+     */
+    private Map<String, Object> factionConfig;
 }

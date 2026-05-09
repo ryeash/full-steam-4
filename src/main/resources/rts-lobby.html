@@ -184,6 +184,13 @@
         </div>
     </div>
 
+    <!-- Lobby error banner (hidden by default) -->
+    <div id="lobby-error-banner"
+         style="display:none; margin: 12px 0; padding: 14px 18px; background: #3a0a0a; border: 1px solid #cc3333; border-radius: 8px; color: #ffaaaa; font-size: 14px; line-height: 1.4;">
+        <strong style="color:#ff6666;">⚠ Error:</strong>
+        <span id="lobby-error-text"></span>
+    </div>
+
     <!-- Matchmaking Status (hidden by default; outside tab strip while waiting) -->
     <div id="matchmaking-status">
         <div class="spinner"></div>
@@ -892,6 +899,17 @@
         return true;
     }
 
+    function showLobbyError(message) {
+        const banner = document.getElementById('lobby-error-banner');
+        const textEl = document.getElementById('lobby-error-text');
+        if (!banner || !textEl) { alert(message); return; }
+        textEl.textContent = ' ' + message;
+        banner.style.display = 'block';
+        banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        // Auto-hide after 12 s
+        setTimeout(() => { banner.style.display = 'none'; }, 12000);
+    }
+
     // Get current config for game start (automatically adds zero-point items)
     function getInlineCustomizerConfig() {
         // Create a copy of selected items and add zero-point required items
@@ -1026,10 +1044,13 @@
             const obstacleDensity = document.getElementById('density-select').value;
             const worldSize = parseInt(document.getElementById('world-size-select').value);
 
+            const customConfig = getInlineCustomizerConfig();
+
             const payload = {
                 biome: biome,
                 obstacleDensity: obstacleDensity,
                 faction: 'CUSTOM',
+                factionConfig: customConfig,
                 skirmishSlots: skirmishState.slots.map(s => {
                     const o = { kind: s.kind, teamId: s.teamId };
                     if (s.kind === 'AI' && s.aiDifficulty) {
@@ -1051,8 +1072,14 @@
             });
 
             if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(errText || 'Failed to create match');
+                let errMessage = 'Failed to create match.';
+                try {
+                    const errBody = await response.json();
+                    errMessage = errBody.message || errBody._embedded?.errors?.[0]?.message || errMessage;
+                } catch (_) {
+                    errMessage = (await response.text()) || errMessage;
+                }
+                throw new Error(errMessage);
             }
 
             const result = await response.json();
@@ -1084,7 +1111,7 @@
             
         } catch (error) {
             console.error('Error creating match:', error);
-            alert('Failed to create match. ' + (error.message || 'Please try again.'));
+            showLobbyError(error.message || 'Failed to create match. Please try again.');
             createGameButton.disabled = false;
         }
     }
@@ -1200,19 +1227,29 @@
         if (!validatePlayerName()) return;
         try {
             createGameButton.disabled = true;
-            
+
+            const customConfig = getInlineCustomizerConfig();
+
             // Join the existing game with our custom faction
             const response = await fetch('/api/rts/matchmaking/join', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    gameId: gameId,  // Specify which game to join
-                    faction: 'CUSTOM' // Always use CUSTOM faction
+                    gameId: gameId,
+                    faction: 'CUSTOM',
+                    factionConfig: customConfig
                 })
             });
 
             if (!response.ok) {
-                throw new Error('Failed to join game');
+                let errMessage = 'Failed to join game.';
+                try {
+                    const errBody = await response.json();
+                    errMessage = errBody.message || errBody._embedded?.errors?.[0]?.message || errMessage;
+                } catch (_) {
+                    errMessage = (await response.text()) || errMessage;
+                }
+                throw new Error(errMessage);
             }
 
             const result = await response.json();
@@ -1248,7 +1285,7 @@
             
         } catch (error) {
             console.error('Error joining game:', error);
-            alert('Failed to join game. Please try again.');
+            showLobbyError(error.message || 'Failed to join game. Please try again.');
             createGameButton.disabled = false;
         }
     }

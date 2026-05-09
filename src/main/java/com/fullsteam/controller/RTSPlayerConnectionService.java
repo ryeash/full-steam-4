@@ -66,14 +66,18 @@ public class RTSPlayerConnectionService {
         try {
             config = objectMapper.readValue(factionConfigJson, CustomFactionConfig.class);
         } catch (Exception e) {
-            log.error("Failed to apply custom faction config for player {} in game {}", playerId, gameId, e);
+            log.error("Failed to parse faction config for player {} in game {}", playerId, gameId, e);
+            sendSyncError(session, "INVALID_FACTION",
+                    "Your faction configuration could not be read. Please return to the lobby and reconfigure your faction.");
             return false;
         }
         config.ensureRequiredItems();
         config.ensureBundledUnits();
         ValidationResult validation = config.validate();
         if (!validation.isValid()) {
-            log.error("Invalid custom faction config for player: {}", validation.getErrors());
+            log.error("Invalid faction config for player {} in game {}: {}", playerId, gameId, validation.getErrors());
+            sendSyncError(session, "INVALID_FACTION",
+                    "Your faction configuration is invalid: " + validation.getAllErrors());
             return false;
         }
 
@@ -124,6 +128,23 @@ public class RTSPlayerConnectionService {
 
         log.info("Player {} connected to RTS game {} with faction {}", playerId, gameId, playerName);
         return true;
+    }
+
+    /**
+     * Send a plain (uncompressed) JSON error message synchronously, so it arrives before the
+     * caller closes the session. The client handles both compressed (ArrayBuffer) and plain
+     * (string) WebSocket frames.
+     */
+    private void sendSyncError(WebSocketSession session, String code, String message) {
+        try {
+            session.sendSync(objectMapper.writeValueAsString(Map.of(
+                    "type", "error",
+                    "code", code,
+                    "message", message
+            )));
+        } catch (Exception e) {
+            log.error("Error sending error message to session: {}", e.getMessage());
+        }
     }
 
     /**
