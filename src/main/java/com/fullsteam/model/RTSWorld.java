@@ -12,18 +12,20 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Represents the RTS game world with bounded rectangle, start points, and symmetric resource/obstacle placement.
- * Uses 90-degree rotational symmetry for fair team positioning (2 or 4 teams).
+ * Uses 90-degree rotational symmetry for all games with 3 or 4 spawn slots, and 180-degree diagonal
+ * symmetry for 2-slot games.
  */
 @Getter
 public class RTSWorld {
     private final double width;
     private final double height;
-    private final int teamCount;
+    /**
+     * Number of player spawn slots (not number of teams). Drives symmetry order and
+     * how many corners are cleared of obstacles.
+     */
+    private final int slotCount;
     private final Biome biome;
     private final double obstacleDensityMultiplier;
-
-    // Start positions for each team (90-degree symmetry) — used for obstacle placement
-    private final List<Vector2> teamStartPoints;
 
     /**
      * One spawn corner per skirmish slot (up to 4), in assignment order:
@@ -33,6 +35,12 @@ public class RTSWorld {
      * and a full 4-player game fills all four corners.
      */
     private final List<Vector2> slotCorners;
+
+    /**
+     * Spawn positions that must be kept clear of obstacles — one entry per active slot,
+     * derived directly from {@link #slotCorners} so positions are guaranteed to match.
+     */
+    private final List<Vector2> teamStartPoints;
 
     // Obstacles (90-degree symmetric placement)
     // Some obstacles are harvestable and contain resources
@@ -46,11 +54,11 @@ public class RTSWorld {
     private final double minY;
     private final double maxY;
 
-    public RTSWorld(double width, double height, int teamCount, Biome biome,
+    public RTSWorld(double width, double height, int slotCount, Biome biome,
                     double obstacleDensityMultiplier, long seed) {
         this.width = width;
         this.height = height;
-        this.teamCount = teamCount;
+        this.slotCount = Math.max(2, Math.min(slotCount, 4));
         this.biome = biome;
         this.obstacleDensityMultiplier = obstacleDensityMultiplier;
 
@@ -60,58 +68,11 @@ public class RTSWorld {
         this.minY = -height / 2.0;
         this.maxY = height / 2.0;
 
-        // Generate symmetric world layout
-        this.teamStartPoints = generateTeamStartPoints();
+        // slotCorners must be generated first — teamStartPoints derives from it
         this.slotCorners = generateSlotCorners();
+        this.teamStartPoints = generateTeamStartPoints();
         this.obstacleSpawns = generateObstacleSpawns();
     }
-
-    /**
-     * Generate team start points with 90-degree symmetry.
-     * Teams are placed in corners or on edges depending on team count.
-     */
-    private List<Vector2> generateTeamStartPoints() {
-        List<Vector2> startPoints = new ArrayList<>();
-
-        // Distance from edge to start point
-        double margin = Math.min(width, height) * 0.15; // 15% from edge
-
-        switch (teamCount) {
-            case 2:
-                // Two teams: opposite corners (diagonal symmetry)
-                startPoints.add(new Vector2(minX + margin, minY + margin)); // Bottom-left
-                startPoints.add(new Vector2(maxX - margin, maxY - margin)); // Top-right
-                break;
-
-            case 4:
-                // Four teams: all four corners (90-degree rotational symmetry)
-                startPoints.add(new Vector2(minX + margin, minY + margin)); // Bottom-left
-                startPoints.add(new Vector2(maxX - margin, minY + margin)); // Bottom-right
-                startPoints.add(new Vector2(maxX - margin, maxY - margin)); // Top-right
-                startPoints.add(new Vector2(minX + margin, maxY - margin)); // Top-left
-                break;
-
-            case 3:
-                // Three teams: not ideal for 90-degree symmetry, but place evenly
-                double radius = Math.min(width, height) * 0.35;
-                for (int i = 0; i < 3; i++) {
-                    double angle = (Math.PI * 2 * i / 3) - Math.PI / 2; // Start from top
-                    startPoints.add(new Vector2(
-                            Math.cos(angle) * radius,
-                            Math.sin(angle) * radius
-                    ));
-                }
-                break;
-
-            default:
-                // Single team or invalid - center spawn
-                startPoints.add(new Vector2(0, 0));
-                break;
-        }
-
-        return startPoints;
-    }
-
 
     /**
      * Build the four corner spawn positions used for per-slot assignment.
@@ -129,6 +90,18 @@ public class RTSWorld {
     }
 
     /**
+     * Collect the start points that need obstacle exclusion zones — one per active slot.
+     * Positions are taken directly from {@link #slotCorners} to guarantee consistency.
+     */
+    private List<Vector2> generateTeamStartPoints() {
+        List<Vector2> startPoints = new ArrayList<>();
+        for (int i = 0; i < slotCount && i < slotCorners.size(); i++) {
+            startPoints.add(slotCorners.get(i).copy());
+        }
+        return startPoints;
+    }
+
+    /**
      * Returns the spawn corner for the given skirmish slot index (0–3).
      */
     public Vector2 getSlotCorner(int slotIndex) {
@@ -136,25 +109,26 @@ public class RTSWorld {
     }
 
     /**
-     * Generate obstacle spawns with 90-degree symmetry.
+     * Generate obstacle spawns with appropriate symmetry.
+     * 2 slots → 180° diagonal mirror; 3-4 slots → 90° rotational (4-way) symmetry.
+     * 4-way symmetry is used for 3-slot games too so the map looks balanced and all
+     * corner areas (including the unused 4th corner) are treated consistently.
      */
     private List<ObstacleSpawn> generateObstacleSpawns() {
         List<ObstacleSpawn> spawns = new ArrayList<>();
 
-        // Generate base pattern
         List<ObstacleSpawn> basePattern = generateBaseObstaclePattern();
 
-        // Mirror pattern based on team count
-        if (teamCount == 2) {
+        if (slotCount == 2) {
+            // 2-slot games: diagonal 180° symmetry
             spawns.addAll(basePattern);
             spawns.addAll(mirror180Obstacles(basePattern));
-        } else if (teamCount == 4) {
+        } else {
+            // 3- or 4-slot games: full 90° rotational symmetry (4-way)
             spawns.addAll(basePattern);
             spawns.addAll(rotate90Obstacles(basePattern));
             spawns.addAll(rotate180Obstacles(basePattern));
             spawns.addAll(rotate270Obstacles(basePattern));
-        } else {
-            spawns.addAll(basePattern);
         }
 
         return spawns;
@@ -182,8 +156,9 @@ public class RTSWorld {
         int obstaclesInSection = minObstacles + ThreadLocalRandom.current().nextInt(Math.max(1, maxObstacles - minObstacles + 1));
         obstaclesInSection = Math.max(2, obstaclesInSection); // At least 2 obstacles
 
-        // Define exclusion radius around starting positions (to prevent blocking HQ and starting units)
-        double startExclusionRadius = 400.0; // Clear 400 units around each start point
+        // Exclusion radius around starting positions — obstacle CENTRE must stay this far from the
+        // spawn corner. 500 gives comfortable room for the HQ footprint plus several nearby buildings.
+        double startExclusionRadius = 500.0;
 
         // Generate obstacles with multiple attempts to avoid starting areas
         int attempts = 0;
@@ -196,12 +171,14 @@ public class RTSWorld {
             double margin = 150;
             double x, y;
 
-            if (teamCount == 4) {
-                // For 4 teams, generate in first quadrant (positive x, positive y)
+            if (slotCount >= 3) {
+                // 3-4 slots: generate base pattern in Q1 (positive x, positive y).
+                // The three 90° rotations cover the other three quadrants symmetrically.
                 x = margin + ThreadLocalRandom.current().nextDouble() * (workWidth / 2.0 - 2 * margin);
                 y = margin + ThreadLocalRandom.current().nextDouble() * (workHeight / 2.0 - 2 * margin);
             } else {
-                // For 2 teams, generate across full width, bottom half
+                // 2 slots: generate across full width in the bottom half;
+                // mirror180 covers the top half.
                 x = -workWidth / 2.0 + margin + ThreadLocalRandom.current().nextDouble() * (workWidth - 2 * margin);
                 y = -workHeight / 2.0 + margin + ThreadLocalRandom.current().nextDouble() * (workHeight / 2.0 - 2 * margin);
             }

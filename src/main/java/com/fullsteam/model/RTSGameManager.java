@@ -161,10 +161,13 @@ public class RTSGameManager {
 
         // Initialize RTS world with symmetric layout
         long worldSeed = System.currentTimeMillis();
+        int spawnSlotCount = gameConfig.getSkirmishSlots() != null
+                ? gameConfig.getSkirmishSlots().size()
+                : 2;
         this.rtsWorld = new RTSWorld(
                 gameConfig.getWorldWidth(),
                 gameConfig.getWorldHeight(),
-                gameConfig.getEffectiveMapTeamCount(),
+                spawnSlotCount,
                 gameConfig.getBiome(),
                 gameConfig.getObstacleDensity().getMultiplier(),
                 worldSeed
