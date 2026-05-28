@@ -35,6 +35,14 @@ public class FactionDefinition {
     private Set<FactionPerk> activePerks = Set.of();
 
     /**
+     * Energy shield capacity as a fraction of max HP (0 = no shields, 0.25 = SHIELDS_1, 0.50 = SHIELDS_2).
+     * Units spawn with currentShield = maxShield = maxHealth * shieldFraction.
+     * Buildings do not receive perk-based shields.
+     */
+    @Builder.Default
+    private final double shieldFraction = 0.0;
+
+    /**
      * Multiplier on periodic army upkeep (credits per interval). 1.0 = normal; 0.85 = 15% cheaper upkeep.
      */
     @Builder.Default

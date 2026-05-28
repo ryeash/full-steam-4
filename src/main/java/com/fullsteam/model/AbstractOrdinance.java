@@ -1,6 +1,7 @@
 package com.fullsteam.model;
 
 import com.fullsteam.model.weapon.ElevationTargeting;
+import com.fullsteam.model.DamageType;
 import lombok.Getter;
 import lombok.Setter;
 import org.dyn4j.dynamics.Body;
@@ -21,6 +22,7 @@ public abstract class AbstractOrdinance extends GameEntity {
     protected int ownerTeam;
     protected Vector2 origin; // Position where ordinance was created
     protected double damage;
+    protected DamageType damageType = DamageType.BALLISTIC; // Inherited from the firing Weapon
     protected Set<BulletEffect> bulletEffects;
     protected Ordinance ordinanceType;
     protected double size; // Visual size

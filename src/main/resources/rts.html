@@ -851,6 +851,12 @@
                 document.getElementById('loading-status').textContent = 'Failed to load game: ' + error.message;
             }
         });
+
+        // Tell the lobby that the player was in a game session so it can reset
+        // matchmaking state if the user presses the browser Back button.
+        window.addEventListener('pagehide', () => {
+            sessionStorage.setItem('rts_left_game', '1');
+        });
     </script>
 </head>
 <body class="rts-game-page game-page">

@@ -82,13 +82,18 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         // Mark unit as affected to prevent multiple hits from same projectile
         projectile.getAffectedPlayers().add(unit.getId());
 
-        // Apply damage and check if died
+        // Apply damage through shields then armor matrix
         boolean wasActive = unit.isActive();
-        unit.takeDamage(projectile.getDamage());
+        double hpDamage = unit.absorbDamage(projectile.getDamage(), projectile.getDamageType());
+        if (hpDamage > 0.0) {
+            unit.takeDamage(hpDamage);
+        }
         boolean died = wasActive && !unit.isActive();
 
-        log.debug("Projectile {} hit unit {} for {} damage (died: {})",
-                projectile.getId(), unit.getId(), projectile.getDamage(), died);
+        log.debug("Projectile {} ({}) hit unit {} ({}) for {}/{} damage (died: {})",
+                projectile.getId(), projectile.getDamageType(),
+                unit.getId(), unit.getUnitType().getArmorType(),
+                hpDamage, projectile.getDamage(), died);
         handleTerminalEffects(projectile, unit);
     }
 
@@ -99,13 +104,18 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         // Mark building as affected
         projectile.getAffectedPlayers().add(building.getId());
 
-        // Apply damage and check if destroyed
+        // Apply damage through armor matrix
         boolean wasActive = building.isActive();
-        building.takeDamage(projectile.getDamage());
+        double hpDamage = building.absorbDamage(projectile.getDamage(), projectile.getDamageType());
+        if (hpDamage > 0.0) {
+            building.takeDamage(hpDamage);
+        }
         boolean destroyed = wasActive && !building.isActive();
 
-        log.debug("Projectile {} hit building {} for {} damage (destroyed: {})",
-                projectile.getId(), building.getId(), projectile.getDamage(), destroyed);
+        log.debug("Projectile {} ({}) hit building {} ({}) for {}/{} damage (destroyed: {})",
+                projectile.getId(), projectile.getDamageType(),
+                building.getId(), building.getBuildingType().getArmorType(),
+                hpDamage, projectile.getDamage(), destroyed);
         handleTerminalEffects(projectile, building);
     }
 
@@ -624,8 +634,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
                     return false;
                 }
 
-                // Apply damage
-                unit.takeDamage(beam.getDamage());
+                // Apply damage through shields and armor matrix
+                double hpDamage = unit.absorbDamage(beam.getDamage(), beam.getDamageType());
+                if (hpDamage > 0.0) {
+                    unit.takeDamage(hpDamage);
+                }
                 // Mark unit as affected
                 beam.getAffectedPlayers().add(unit.getId());
                 return false; // No physics collision (sensor)
@@ -740,11 +753,16 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         // Mark building as affected
         beam.getAffectedPlayers().add(building.getId());
 
-        // Apply damage
-        building.takeDamage(beam.getDamage());
+        // Apply damage through armor matrix
+        double hpDamage = building.absorbDamage(beam.getDamage(), beam.getDamageType());
+        if (hpDamage > 0.0) {
+            building.takeDamage(hpDamage);
+        }
 
-        log.debug("Beam {} hit building {} for {} damage",
-                beam.getId(), building.getId(), beam.getDamage());
+        log.debug("Beam {} ({}) hit building {} ({}) for {}/{} damage",
+                beam.getId(), beam.getDamageType(),
+                building.getId(), building.getBuildingType().getArmorType(),
+                hpDamage, beam.getDamage());
     }
 
     /**
@@ -761,8 +779,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         double baseDamage = fieldEffect.getDamageAtPosition(unit.getPosition());
         double damage = fieldEffect.getType().isInstantaneous() ? baseDamage : baseDamage * deltaTime;
 
-        // Apply damage
-        unit.takeDamage(damage);
+        // Apply damage through shields and armor matrix (field effects deal EXPLOSIVE damage)
+        double hpDamage = unit.absorbDamage(damage, DamageType.EXPLOSIVE);
+        if (hpDamage > 0.0) {
+            unit.takeDamage(hpDamage);
+        }
 
         // Mark as affected (for instantaneous effects, prevents re-damage)
         fieldEffect.markAsAffected(unit);
@@ -785,8 +806,11 @@ public class RTSCollisionProcessor implements CollisionListener<Body, BodyFixtur
         double baseDamage = fieldEffect.getDamageAtPosition(building.getPosition());
         double damage = fieldEffect.getType().isInstantaneous() ? baseDamage : baseDamage * deltaTime;
 
-        // Apply damage
-        building.takeDamage(damage);
+        // Apply damage through armor matrix (field effects deal EXPLOSIVE damage)
+        double hpDamage = building.absorbDamage(damage, DamageType.EXPLOSIVE);
+        if (hpDamage > 0.0) {
+            building.takeDamage(hpDamage);
+        }
 
         // Mark as affected (for instantaneous effects, prevents re-damage)
         fieldEffect.markAsAffected(building);

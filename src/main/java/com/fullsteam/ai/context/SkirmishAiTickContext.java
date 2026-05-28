@@ -32,6 +32,7 @@ public record SkirmishAiTickContext(
         int idleCombatUnits,
         int refineriesUnderConstruction,
         int powerPlantsUnderConstruction,
+        int advancedPowerPlantsUnderConstruction,
         int researchLabsUnderConstruction,
         int factoriesUnderConstruction,
         int barracksUnderConstruction,
@@ -72,6 +73,7 @@ public record SkirmishAiTickContext(
         int refineriesUc = 0;
         int plantsUc = 0;
         int researchLabsUc = 0;
+        int advancedPlantsUc = 0;
         int factoriesUc = 0;
         int barracksUc = 0;
         int techCentersUc = 0;
@@ -85,6 +87,9 @@ public record SkirmishAiTickContext(
             }
             if (b.getBuildingType() == BuildingType.POWER_PLANT && b.isUnderConstruction()) {
                 plantsUc++;
+            }
+            if (b.getBuildingType() == BuildingType.ADVANCED_POWER_PLANT && b.isUnderConstruction()) {
+                advancedPlantsUc++;
             }
             if (b.getBuildingType() == BuildingType.RESEARCH_LAB && b.isUnderConstruction()) {
                 researchLabsUc++;
@@ -136,6 +141,7 @@ public record SkirmishAiTickContext(
                 combatIdle,
                 refineriesUc,
                 plantsUc,
+                advancedPlantsUc,
                 researchLabsUc,
                 factoriesUc,
                 barracksUc,

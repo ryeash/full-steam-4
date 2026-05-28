@@ -1098,6 +1098,30 @@ public enum FactionPerk implements PerkEffect {
         }
     },
 
+    ENERGY_SHIELDS_1(
+            "Energy Shields I",
+            "Units spawn with an energy shield equal to 25% of their max HP. Shields regenerate after 6 s out of combat.",
+            10,
+            Set.of()
+    ) {
+        @Override
+        public void applyToDefinition(FactionDefinition.FactionDefinitionBuilder builder, CustomFactionConfig config) {
+            builder.shieldFraction(0.25);
+        }
+    },
+
+    ENERGY_SHIELDS_2(
+            "Energy Shields II",
+            "Upgrades unit shields to 50% of max HP. Requires Energy Shields I.",
+            12,
+            Set.of("ENERGY_SHIELDS_1")
+    ) {
+        @Override
+        public void applyToDefinition(FactionDefinition.FactionDefinitionBuilder builder, CustomFactionConfig config) {
+            builder.shieldFraction(0.50);
+        }
+    },
+
     OVERCHARGE(
             "Overcharge",
             "After dealing 500 damage, next attack deals +50% damage",
@@ -1227,7 +1251,8 @@ public enum FactionPerk implements PerkEffect {
         }
         if (name.startsWith("FORTIFIED_") || name.startsWith("SHIELD_") ||
                 name.startsWith("TURRET_") || name.startsWith("POINT_") ||
-                name.startsWith("BUNKER_") || name.startsWith("GARRISON_")) {
+                name.startsWith("BUNKER_") || name.startsWith("GARRISON_") ||
+                name.startsWith("ENERGY_SHIELDS")) {
             return PerkCategory.DEFENSIVE;
         }
         if (name.startsWith("ADVANCED_") || name.startsWith("PARALLEL_")) {

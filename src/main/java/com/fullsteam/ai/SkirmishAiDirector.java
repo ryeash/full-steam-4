@@ -1,6 +1,7 @@
 package com.fullsteam.ai;
 
 import com.fullsteam.ai.behavior.HarvestEconomyBehavior;
+import com.fullsteam.ai.behavior.PlaceAdvancedPowerPlantBehavior;
 import com.fullsteam.ai.behavior.PlaceBarracksBehavior;
 import com.fullsteam.ai.behavior.PlaceFactoryBehavior;
 import com.fullsteam.ai.behavior.PlacePowerPlantBehavior;
@@ -47,6 +48,7 @@ public final class SkirmishAiDirector {
     private final List<SkirmishAiBehavior> buildingChannel = List.of(
             new ResumeConstructionBehavior(),
             new PlacePowerPlantBehavior(),
+            new PlaceAdvancedPowerPlantBehavior(),
             new PlaceBarracksBehavior(),
             new PlaceRefineryBehavior(),
             new PlaceResearchLabBehavior(),

@@ -2378,6 +2378,13 @@ public class RTSGameManager {
             data.put("supportActivity", supportActivity);
         }
 
+        // Energy shield (perk-based) – only include when unit actually has shields
+        if (unit.getMaxShield() > 0.0) {
+            data.put("shield", unit.getCurrentShield());
+            data.put("maxShield", unit.getMaxShield());
+        }
+        data.put("armorType", unit.getUnitType().getArmorType().name());
+
         data.put("shapes", verticesShorthand(unit.getBody()));
         return data;
     }
@@ -2407,6 +2414,7 @@ public class RTSGameManager {
                 data.put("producingUnitType", cur.name());
             }
         });
+        data.put("armorType", building.getBuildingType().getArmorType().name());
         data.put("shapes", verticesShorthand(building.getBody()));
 
         // Rally point

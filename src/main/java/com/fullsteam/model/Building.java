@@ -12,6 +12,7 @@ import com.fullsteam.model.component.SandstormComponent;
 import com.fullsteam.model.component.ShieldComponent;
 import com.fullsteam.model.factions.FactionDefinition;
 import com.fullsteam.model.weapon.WeaponFactory;
+// DamageType and ArmorType are in the same package
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -194,6 +195,15 @@ public class Building extends GameEntity implements Targetable {
 
     // getId(), getTeamNumber(), getPosition(), isActive(), getHealth(), getMaxHealth()
     // are inherited from GameEntity
+
+    /**
+     * Apply incoming damage through the armor matrix and return the HP damage to deal.
+     * Buildings have no energy shields (shields are perk-based for units only).
+     */
+    public double absorbDamage(double rawDamage, DamageType damageType) {
+        ArmorType armor = buildingType.getArmorType();
+        return rawDamage * armor.multiplierFor(damageType);
+    }
 
     /**
      * Override takeDamage to also reduce construction progress for buildings

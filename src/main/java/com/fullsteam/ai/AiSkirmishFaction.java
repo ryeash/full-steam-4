@@ -38,6 +38,7 @@ public final class AiSkirmishFaction {
                 .buildingTypes(Set.of(
                         BuildingType.HEADQUARTERS,
                         BuildingType.POWER_PLANT,
+                        BuildingType.ADVANCED_POWER_PLANT,
                         BuildingType.REFINERY,
                         BuildingType.BARRACKS,
                         BuildingType.RESEARCH_LAB,

@@ -1,6 +1,7 @@
 package com.fullsteam.model.weapon;
 
 import com.fullsteam.model.AbstractOrdinance;
+import com.fullsteam.model.DamageType;
 import com.fullsteam.model.Elevation;
 import com.fullsteam.model.GameEntities;
 import lombok.Getter;
@@ -28,6 +29,7 @@ public abstract class Weapon {
     protected double range;
     protected double attackRate; // Attacks per second
     protected ElevationTargeting elevationTargeting; // Which elevations this weapon can target
+    protected DamageType damageType = DamageType.BALLISTIC; // Default; overridden in WeaponFactory
 
     // Fire rate tracking
     protected long lastFireTime = 0; // Timestamp of last fire (milliseconds)
@@ -66,8 +68,9 @@ public abstract class Weapon {
         // Fire the weapon (implemented by subclass)
         List<AbstractOrdinance> ordinances = createOrdinances(position, targetPosition, targetElevation, ownerId, ownerTeam, ignoredBody, gameEntities);
 
-        // Record the fire time if successful
+        // Record the fire time and propagate damage type if successful
         if (!ordinances.isEmpty()) {
+            ordinances.forEach(o -> o.setDamageType(this.damageType));
             recordFire();
         }
 

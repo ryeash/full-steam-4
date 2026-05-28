@@ -2,7 +2,9 @@ package com.fullsteam.model;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.dyn4j.dynamics.Body;
+import org.dyn4j.dynamics.BodyFixture;
 import org.dyn4j.geometry.Geometry;
 import org.dyn4j.geometry.MassType;
 import org.dyn4j.geometry.Vector2;
@@ -12,6 +14,7 @@ import org.dyn4j.geometry.Vector2;
  * Obstacles block movement and line of sight.
  * Some obstacles contain harvestable resources.
  */
+@Slf4j
 @Getter
 public class Obstacle extends GameEntity {
     public enum Shape {
@@ -151,7 +154,7 @@ public class Obstacle extends GameEntity {
 
     private static Body createCircleBody(double x, double y, double radius) {
         Body body = new Body();
-        org.dyn4j.dynamics.BodyFixture fixture = body.addFixture(Geometry.createCircle(radius));
+        BodyFixture fixture = body.addFixture(Geometry.createCircle(radius));
 
         // Configure fixture properties
         fixture.setFriction(0.1);      // Low friction
@@ -165,7 +168,7 @@ public class Obstacle extends GameEntity {
 
     private static Body createRectangleBody(double x, double y, double width, double height) {
         Body body = new Body();
-        org.dyn4j.dynamics.BodyFixture fixture = body.addFixture(Geometry.createRectangle(width, height));
+        BodyFixture fixture = body.addFixture(Geometry.createRectangle(width, height));
 
         // Configure fixture properties
         fixture.setFriction(0.1);      // Low friction
@@ -179,7 +182,7 @@ public class Obstacle extends GameEntity {
 
     private static Body createPolygonBody(double x, double y, double radius, int sides) {
         Body body = new Body();
-        org.dyn4j.dynamics.BodyFixture fixture = body.addFixture(Geometry.createPolygonalCircle(sides, radius));
+        BodyFixture fixture = body.addFixture(Geometry.createPolygonalCircle(sides, radius));
 
         // Configure fixture properties
         fixture.setFriction(0.1);      // Low friction
@@ -198,7 +201,7 @@ public class Obstacle extends GameEntity {
         Vector2[] ccwVertices = ensureCounterClockwise(vertices);
 
         try {
-            org.dyn4j.dynamics.BodyFixture fixture = body.addFixture(Geometry.createPolygon(ccwVertices));
+            BodyFixture fixture = body.addFixture(Geometry.createPolygon(ccwVertices));
 
             // Configure fixture properties
             fixture.setFriction(0.1);      // Low friction
@@ -206,10 +209,10 @@ public class Obstacle extends GameEntity {
             fixture.setSensor(false);      // Solid collision (not a sensor)
         } catch (IllegalArgumentException e) {
             // If polygon is not convex, fall back to a regular polygon
-            System.err.println("Failed to create irregular polygon (not convex), falling back to regular polygon");
+            log.error("failed to create irregular polygon body", e);
             double radius = calculateBoundingRadius(vertices);
             int sides = vertices.length;
-            org.dyn4j.dynamics.BodyFixture fixture = body.addFixture(Geometry.createPolygonalCircle(sides, radius));
+            BodyFixture fixture = body.addFixture(Geometry.createPolygonalCircle(sides, radius));
             fixture.setFriction(0.1);
             fixture.setRestitution(0.0);
             fixture.setSensor(false);

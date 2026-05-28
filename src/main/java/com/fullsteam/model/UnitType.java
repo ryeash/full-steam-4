@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+// ArmorType is in the same package – no import needed
 
 @Getter
 public enum UnitType {
@@ -2512,6 +2513,33 @@ public enum UnitType {
                 .sorted(Comparator.comparing((UnitType u) -> u.getRequiredBuildings().size())
                         .thenComparing(UnitType::getResourceCost))
                 .toList();
+    }
+
+    /**
+     * Armor classification for the damage matrix.
+     * Infantry → UNARMORED/LIGHT, vehicles → MEDIUM/HEAVY, super-heavies → HEAVY
+     */
+    public ArmorType getArmorType() {
+        return switch (this) {
+            // Unarmored – soft infantry with no protective plating
+            case WORKER, MEDIC, SPY -> ArmorType.UNARMORED;
+
+            // Light – basic infantry and fast vehicles
+            case INFANTRY, SHOTGUN_INFANTRY, ROCKET_SOLDIER, SNIPER, ENGINEER,
+                 GRENADIER, MINIGUNNER, ANDROID, LASER_INFANTRY, TRIDENT_TROOPER,
+                 ION_RANGER, PHOTON_SCOUT, RAIDER, SCOUT_DRONE -> ArmorType.LIGHT;
+
+            // Medium – light vehicles and airframes
+            case JEEP, APC, CHINOOK, HELICOPTER, LASER_GUNSHIP, BOMBER, GUNSHIP,
+                 FLAK_TANK, SAM_LAUNCHER, INTERCEPTOR, SPIDER_MINE -> ArmorType.MEDIUM;
+
+            // Heavy – main battle tanks and heavy walkers
+            case TANK, CLOAK_TANK, SHIELD_TANK, BEAM_TANK, PULSE_ARTILLERY,
+                 ARTILLERY -> ArmorType.HEAVY;
+
+            // Fortified – super-heavies
+            case GIGANTONAUT, COLOSSUS, PHOTON_TITAN -> ArmorType.FORTIFIED;
+        };
     }
 
     /**

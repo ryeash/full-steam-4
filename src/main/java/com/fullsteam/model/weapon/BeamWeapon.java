@@ -159,8 +159,8 @@ public class BeamWeapon extends Weapon {
                             closestDistance = distance;
                             closestHit = result;
                         }
-                        // pass damage on to the building
-                        building.takeDamage(beamDamage);
+                        // pass damage on to the building (via armor matrix; no shield on buildings)
+                        building.takeDamage(building.absorbDamage(beamDamage, com.fullsteam.model.DamageType.ENERGY));
                     }
                 }
                 // Handle unit shields (Shield Tank)

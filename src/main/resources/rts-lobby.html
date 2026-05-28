@@ -1147,8 +1147,8 @@
                 const configParam = btoa(binaryString);
                 
                 const url = sessionToken 
-                    ? `/rts.html?gameId=${currentGameId}&sessionToken=${sessionToken}&factionConfig=${configParam}`
-                    : `/rts.html?gameId=${currentGameId}&factionConfig=${configParam}`;
+                    ? `/rts.html?gameId=${currentGameId}&sessionToken=${sessionToken}&factionConfig=${encodeURIComponent(configParam)}`
+                    : `/rts.html?gameId=${currentGameId}&factionConfig=${encodeURIComponent(configParam)}`;
                 window.location.href = url;
             }
         } catch (error) {
@@ -1324,6 +1324,24 @@
         });
     }
     
+    // -----------------------------------------------------------------------
+    // Back-button guard
+    // When the player presses the browser Back button from rts.html, the
+    // browser may restore this page from the Back-Forward Cache with
+    // matchmakingActive/currentGameId still set.  The pageshow event fires
+    // on every page display — including bfcache restores (event.persisted).
+    // We also check a sessionStorage flag written by rts.html's pagehide
+    // handler so the guard fires even when the lobby is reloaded fresh.
+    // -----------------------------------------------------------------------
+    window.addEventListener('pageshow', function(event) {
+        const leftGame = sessionStorage.getItem('rts_left_game');
+        if (leftGame) sessionStorage.removeItem('rts_left_game');
+
+        if ((event.persisted || leftGame) && (matchmakingActive || currentGameId)) {
+            cancelMatchmaking();
+        }
+    });
+
     fetchLobbyInfo();
     setInterval(fetchLobbyInfo, 3000);
     loadMatchSettingsFromStorage();

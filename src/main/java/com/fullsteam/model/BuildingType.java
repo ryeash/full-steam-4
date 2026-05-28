@@ -83,6 +83,23 @@ public enum BuildingType {
             "⚡",
             'P'),
 
+    ADVANCED_POWER_PLANT(
+            "Advanced Power Plant",
+            "High-output nuclear reactor—generates 2.5× the power of a standard plant. Requires an existing Power Plant.",
+            BuildingCategory.ECONOMY,
+            600,
+            40,
+            700,
+            48.0,
+            0xFF6600,
+            false,
+            250,
+            380.0,
+            0, false,
+            "AP",
+            "🔋",
+            'A'),
+
     FACTORY(
             "Factory",
             "Vehicle production—from scouts and transports to tanks, artillery, and super-heavies.",
@@ -495,7 +512,8 @@ public enum BuildingType {
     public int getRequiredTechTier() {
         return switch (this) {
             case HEADQUARTERS, REFINERY, BARRACKS, POWER_PLANT, BUNKER -> 1;
-            case FACTORY, RESEARCH_LAB, TURRET, SHIELD_GENERATOR, ROCKET_TURRET, FLAK_TURRET -> 2;
+            case FACTORY, RESEARCH_LAB, TURRET, SHIELD_GENERATOR, ROCKET_TURRET, FLAK_TURRET,
+                 ADVANCED_POWER_PLANT -> 2;
             case TECH_CENTER, BANK, SANDSTORM_GENERATOR, ANDROID_FACTORY, PHOTON_SPIRE,
                  LASER_TURRET, AIRFIELD, JUMP_PAD, NUKE_SILO, STRIKE_RELAY,
                  SATCOM_ARRAY, TEMPEST_SPIRE -> 3;
@@ -551,6 +569,22 @@ public enum BuildingType {
 
             // Power Plant - hexagonal reactor
             case POWER_PLANT -> List.of(Geometry.createPolygonalCircle(6, size));
+
+            // Advanced Power Plant - octagonal core with two symmetrical energy pylons
+            case ADVANCED_POWER_PLANT -> {
+                // Octagonal main reactor body
+                Convex core = Geometry.createPolygonalCircle(8, size * 0.80);
+
+                // Left pylon (small square)
+                Convex leftPylon = Geometry.createSquare(size * 0.28);
+                leftPylon.translate(-size * 0.90, 0);
+
+                // Right pylon (small square)
+                Convex rightPylon = Geometry.createSquare(size * 0.28);
+                rightPylon.translate(size * 0.90, 0);
+
+                yield List.of(core, leftPylon, rightPylon);
+            }
 
             // Factory - large rectangular factory floor
             case FACTORY -> List.of(Geometry.createRectangle(size * 2.0, size * 1.4));
@@ -702,6 +736,30 @@ public enum BuildingType {
     }
 
     /**
+     * Armor classification for the damage matrix.
+     * Economy/tech buildings → UNARMORED/LIGHT, defensive structures → HEAVY/FORTIFIED.
+     */
+    public ArmorType getArmorType() {
+        return switch (this) {
+            // Lightly armored civilian-style structures
+            case REFINERY, BANK -> ArmorType.LIGHT;
+
+            // Standard military structures
+            case HEADQUARTERS, BARRACKS, POWER_PLANT, ADVANCED_POWER_PLANT, FACTORY, RESEARCH_LAB,
+                 TECH_CENTER, AIRFIELD, ANDROID_FACTORY, JUMP_PAD,
+                 STRIKE_RELAY, SATCOM_ARRAY -> ArmorType.MEDIUM;
+
+            // Reinforced defensive buildings
+            case TURRET, ROCKET_TURRET, FLAK_TURRET, LASER_TURRET,
+                 SHIELD_GENERATOR, PHOTON_SPIRE, TEMPEST_SPIRE,
+                 SANDSTORM_GENERATOR -> ArmorType.HEAVY;
+
+            // Ultra-hardened defensive fortifications
+            case BUNKER, NUKE_SILO -> ArmorType.FORTIFIED;
+        };
+    }
+
+    /**
      * Get tech requirements for this building type.
      * Matches the logic in RTSGameManager.hasTechRequirements()
      */
@@ -711,7 +769,8 @@ public enum BuildingType {
             case HEADQUARTERS, POWER_PLANT, BARRACKS, REFINERY, BUNKER -> List.of();
 
             // T2 - Requires Power Plant
-            case RESEARCH_LAB, FACTORY, TURRET, ROCKET_TURRET, FLAK_TURRET, SHIELD_GENERATOR -> List.of(POWER_PLANT);
+            case RESEARCH_LAB, FACTORY, TURRET, ROCKET_TURRET, FLAK_TURRET, SHIELD_GENERATOR,
+                 ADVANCED_POWER_PLANT -> List.of(POWER_PLANT);
 
             // T3 - Requires Power Plant + Research Lab
             case TECH_CENTER, BANK, LASER_TURRET, AIRFIELD -> List.of(POWER_PLANT, RESEARCH_LAB);

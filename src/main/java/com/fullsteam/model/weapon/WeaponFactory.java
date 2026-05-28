@@ -2,6 +2,7 @@ package com.fullsteam.model.weapon;
 
 import com.fullsteam.model.Beam;
 import com.fullsteam.model.BulletEffect;
+import com.fullsteam.model.DamageType;
 import com.fullsteam.model.Ordinance;
 import com.fullsteam.model.UnitType;
 
@@ -43,6 +44,12 @@ public class WeaponFactory {
             // This includes most air units (Scout Drone, Helicopter, Bomber - no air-to-air)
             default -> ElevationTargeting.GROUND_ONLY;
         };
+    }
+
+    /** Set damage type on a weapon and return it (fluent helper). */
+    private static Weapon typed(Weapon w, DamageType dt) {
+        if (w != null) w.setDamageType(dt);
+        return w;
     }
 
     /**
@@ -89,7 +96,7 @@ public class WeaponFactory {
                     elevationTargeting
             );
 
-            case ROCKET_SOLDIER -> new ProjectileWeapon(
+            case ROCKET_SOLDIER -> typed(new ProjectileWeapon(
                     damage, range, attackRate,
                     400,  // projectile speed (slower)
                     0.1,  // linear damping
@@ -97,7 +104,7 @@ public class WeaponFactory {
                     Ordinance.ROCKET,
                     Set.of(BulletEffect.EXPLOSIVE),
                     elevationTargeting
-            );
+            ), DamageType.EXPLOSIVE);
 
             case SNIPER -> new ProjectileWeapon(
                     damage, range, attackRate,
@@ -109,13 +116,13 @@ public class WeaponFactory {
                     elevationTargeting
             );
 
-            case GRENADIER -> new GrenadeWeapon(
+            case GRENADIER -> typed(new GrenadeWeapon(
                     damage, range, attackRate,
                     350,  // projectile speed (slow, arcing trajectory)
                     0.15, // linear damping (grenades slow down)
                     3.5,  // size (larger than bullets)
                     elevationTargeting
-            );
+            ), DamageType.EXPLOSIVE);
 
             case MINIGUNNER -> new ProjectileWeapon(
                     damage, range, attackRate,
@@ -138,7 +145,7 @@ public class WeaponFactory {
                     elevationTargeting
             );
 
-            case TANK -> new ProjectileWeapon(
+            case TANK -> typed(new ProjectileWeapon(
                     damage, range, attackRate,
                     450,  // projectile speed
                     0.05, // linear damping
@@ -146,7 +153,7 @@ public class WeaponFactory {
                     Ordinance.GRENADE,
                     Set.of(BulletEffect.EXPLOSIVE),
                     elevationTargeting
-            );
+            ), DamageType.EXPLOSIVE);
 
             case FLAK_TANK -> new ProjectileWeapon(
                     damage, range, attackRate,
@@ -158,7 +165,7 @@ public class WeaponFactory {
                     elevationTargeting
             );
 
-            case SAM_LAUNCHER -> new ProjectileWeapon(
+            case SAM_LAUNCHER -> typed(new ProjectileWeapon(
                     damage, range, attackRate,
                     700,  // projectile speed (fast seeking missiles)
                     0.02, // linear damping (minimal, long range)
@@ -166,11 +173,11 @@ public class WeaponFactory {
                     Ordinance.ROCKET,
                     Set.of(BulletEffect.SEEKING, BulletEffect.EXPLOSIVE), // Heat-seeking AA missiles
                     elevationTargeting
-            );
+            ), DamageType.EXPLOSIVE);
 
             case SHIELD_TANK -> null; // Shield Tank has no weapon, only projects shields
 
-            case CLOAK_TANK -> new ProjectileWeapon(
+            case CLOAK_TANK -> typed(new ProjectileWeapon(
                     damage, range, attackRate,
                     500,  // projectile speed
                     0.05, // linear damping
@@ -178,9 +185,9 @@ public class WeaponFactory {
                     Ordinance.GRENADE,
                     Set.of(BulletEffect.EXPLOSIVE),
                     elevationTargeting
-            );
+            ), DamageType.EXPLOSIVE);
 
-            case ARTILLERY -> new ProjectileWeapon(
+            case ARTILLERY -> typed(new ProjectileWeapon(
                     damage, range, attackRate,
                     350,  // projectile speed
                     0.02, // linear damping
@@ -188,9 +195,9 @@ public class WeaponFactory {
                     Ordinance.GRENADE,
                     Set.of(BulletEffect.EXPLOSIVE),
                     elevationTargeting
-            );
+            ), DamageType.SIEGE);
 
-            case GIGANTONAUT -> new ProjectileWeapon(
+            case GIGANTONAUT -> typed(new ProjectileWeapon(
                     damage, range, attackRate,
                     300,  // projectile speed (slow, heavy)
                     0.01, // linear damping (very little)
@@ -198,7 +205,7 @@ public class WeaponFactory {
                     Ordinance.SHELL,
                     Set.of(BulletEffect.EXPLOSIVE),
                     elevationTargeting
-            );
+            ), DamageType.SIEGE);
 
             case ANDROID -> new ProjectileWeapon(
                     damage, range, attackRate,
@@ -220,7 +227,7 @@ public class WeaponFactory {
                     elevationTargeting
             );
 
-            case COLOSSUS -> new MultiProjectileWeapon(
+            case COLOSSUS -> typed(new MultiProjectileWeapon(
                     damage, range, attackRate,
                     500,  // projectile speed
                     0.1,  // linear damping
@@ -231,11 +238,11 @@ public class WeaponFactory {
                     25.0, // spread distance (parallel barrels)
                     0.0,
                     elevationTargeting
-            );
+            ), DamageType.EXPLOSIVE);
 
             // ===== BEAM WEAPONS =====
 
-            case LASER_INFANTRY -> new BeamWeapon(
+            case LASER_INFANTRY -> typed(new BeamWeapon(
                     damage, range, attackRate,
                     2.5,  // beam width
                     0.3, // duration (150ms)
@@ -243,9 +250,9 @@ public class WeaponFactory {
                     Ordinance.LASER,
                     Set.of(),
                     elevationTargeting
-            );
+            ), DamageType.ENERGY);
 
-            case TRIDENT_TROOPER -> new MultiBeamWeapon(
+            case TRIDENT_TROOPER -> typed(new MultiBeamWeapon(
                     damage, range, attackRate,
                     2.5,  // beam width (slightly thinner per beam)
                     0.4,  // duration
@@ -256,9 +263,9 @@ public class WeaponFactory {
                     0.0,  // spread distance (not parallel)
                     Math.toRadians(15), // spread angle (15 degree cone)
                     elevationTargeting
-            );
+            ), DamageType.ENERGY);
 
-            case ION_RANGER -> new BeamWeapon(
+            case ION_RANGER -> typed(new BeamWeapon(
                     damage, range, attackRate,
                     2.8,  // beam width
                     0.36, // duration
@@ -266,9 +273,9 @@ public class WeaponFactory {
                     Ordinance.LASER,
                     Set.of(),
                     elevationTargeting
-            );
+            ), DamageType.ENERGY);
 
-            case PHOTON_SCOUT -> new BeamWeapon(
+            case PHOTON_SCOUT -> typed(new BeamWeapon(
                     damage, range, attackRate,
                     3.0,  // beam width
                     0.3, // duration
@@ -276,9 +283,9 @@ public class WeaponFactory {
                     Ordinance.LASER,
                     Set.of(),
                     elevationTargeting
-            );
+            ), DamageType.ENERGY);
 
-            case BEAM_TANK -> new BeamWeapon(
+            case BEAM_TANK -> typed(new BeamWeapon(
                     damage, range, attackRate,
                     4.0,  // beam width (thicker, vehicle-mounted)
                     0.4,  // duration
@@ -286,9 +293,9 @@ public class WeaponFactory {
                     Ordinance.LASER,
                     Set.of(),
                     elevationTargeting
-            );
+            ), DamageType.ENERGY);
 
-            case PULSE_ARTILLERY -> new BeamWeapon(
+            case PULSE_ARTILLERY -> typed(new BeamWeapon(
                     damage, range, attackRate,
                     6.0,  // beam width (very thick)
                     0.7, // duration
@@ -296,9 +303,9 @@ public class WeaponFactory {
                     Ordinance.LASER,
                     Set.of(BulletEffect.ELECTRIC), // Area denial
                     elevationTargeting
-            );
+            ), DamageType.ENERGY);
 
-            case PHOTON_TITAN -> new BeamWeapon(
+            case PHOTON_TITAN -> typed(new BeamWeapon(
                     damage, range, attackRate,
                     8.0,  // beam width (massive beam)
                     1.0,  // duration
@@ -306,11 +313,11 @@ public class WeaponFactory {
                     Ordinance.LASER,
                     Set.of(),
                     elevationTargeting
-            );
+            ), DamageType.ENERGY);
 
             // ===== AIR UNITS =====
 
-            case HELICOPTER -> new MultiProjectileWeapon(
+            case HELICOPTER -> typed(new MultiProjectileWeapon(
                     damage, range, attackRate,
                     600,  // projectile speed (fast rockets)
                     0.15, // linear damping
@@ -321,9 +328,9 @@ public class WeaponFactory {
                     8.0,  // spread distance (mounted on sides of helicopter)
                     0.0,
                     elevationTargeting
-            );
+            ), DamageType.EXPLOSIVE);
 
-            case LASER_GUNSHIP -> new BeamWeapon(
+            case LASER_GUNSHIP -> typed(new BeamWeapon(
                     damage, range, attackRate,
                     4.5,  // beam width (thicker than infantry, vehicle-mounted)
                     0.45, // duration (visible beam)
@@ -331,9 +338,9 @@ public class WeaponFactory {
                     Ordinance.LASER,
                     Set.of(),
                     elevationTargeting
-            );
+            ), DamageType.ENERGY);
 
-            case INTERCEPTOR -> new ProjectileWeapon(
+            case INTERCEPTOR -> typed(new ProjectileWeapon(
                     damage, range, attackRate,
                     800,  // projectile speed (very fast seeking missiles)
                     0.05, // linear damping (minimal, long range)
@@ -341,7 +348,7 @@ public class WeaponFactory {
                     Ordinance.ROCKET,
                     Set.of(BulletEffect.SEEKING, BulletEffect.EXPLOSIVE), // Heat-seeking air-to-air missiles
                     elevationTargeting
-            );
+            ), DamageType.EXPLOSIVE);
 
             // Note: SCOUT_DRONE and BOMBER use default weapons (defined in default case)
             // Scout Drone: Light machine guns (default bullets)
@@ -386,7 +393,7 @@ public class WeaponFactory {
      * Get the weapon for a standard turret building (TURRET).
      */
     public static Weapon getTurretWeapon() {
-        return new ProjectileWeapon(
+        return typed(new ProjectileWeapon(
                 25.0,  // damage
                 300.0, // range
                 2.0,   // attack rate
@@ -396,7 +403,7 @@ public class WeaponFactory {
                 Ordinance.BULLET,
                 Set.of(),
                 ElevationTargeting.GROUND_AND_LOW // Basic turret - can hit ground and low-altitude air
-        );
+        ), DamageType.BALLISTIC);
     }
 
     /**
@@ -405,7 +412,7 @@ public class WeaponFactory {
      * Can target low-altitude aircraft (anti-air capable).
      */
     public static Weapon getRocketTurretWeapon() {
-        return new ProjectileWeapon(
+        return typed(new ProjectileWeapon(
                 60.0,  // damage (high single-target damage)
                 400.0, // range (longer than basic turret)
                 0.8,   // attack rate (slow fire rate)
@@ -415,7 +422,7 @@ public class WeaponFactory {
                 Ordinance.ROCKET,
                 Set.of(BulletEffect.EXPLOSIVE),
                 ElevationTargeting.GROUND_AND_LOW // Anti-air capable!
-        );
+        ), DamageType.EXPLOSIVE);
     }
 
     /**
@@ -424,7 +431,7 @@ public class WeaponFactory {
      * Fast fire rate, area denial with flak explosions.
      */
     public static Weapon getFlakTurretWeapon() {
-        return new ProjectileWeapon(
+        return typed(new ProjectileWeapon(
                 45.0,  // damage (moderate per shot, high DPS)
                 350.0, // range (good AA range)
                 1.5,   // attack rate (fast fire rate for AA)
@@ -434,7 +441,7 @@ public class WeaponFactory {
                 Ordinance.FLAK,
                 Set.of(BulletEffect.FLAK), // Creates FLAK_EXPLOSION field effects
                 ElevationTargeting.LOW_AND_HIGH // Anti-air only (LOW and HIGH altitude)
-        );
+        ), DamageType.EXPLOSIVE);
     }
 
     /**
@@ -442,7 +449,7 @@ public class WeaponFactory {
      * Moderate damage, instant hit, high fire rate.
      */
     public static Weapon getLaserTurretWeapon() {
-        return new BeamWeapon(
+        return typed(new BeamWeapon(
                 35.0,  // damage (moderate per shot, but high DPS due to fire rate)
                 350.0, // range (good range)
                 0.9,   // attack rate
@@ -452,14 +459,14 @@ public class WeaponFactory {
                 Ordinance.LASER,
                 Set.of(),
                 ElevationTargeting.ALL_ELEVATIONS // Lasers - ground only for now
-        );
+        ), DamageType.ENERGY);
     }
 
     /**
      * Get the weapon for Photon Spire (Obelisk of Light style).
      */
     public static Weapon getPhotonSpireWeapon() {
-        return new BeamWeapon(
+        return typed(new BeamWeapon(
                 250.0, // damage (massive)
                 400.0, // range (very long)
                 0.390, // attack rate
@@ -469,7 +476,7 @@ public class WeaponFactory {
                 Ordinance.LASER,
                 Set.of(),
                 ElevationTargeting.GROUND_ONLY // Photon Spire - ground only
-        );
+        ), DamageType.ENERGY);
     }
 
     /**
@@ -477,7 +484,7 @@ public class WeaponFactory {
      * Heavy anti-aircraft flak cannon for air superiority.
      */
     public static Weapon getTempestSpireWeapon() {
-        return new ProjectileWeapon(
+        return typed(new ProjectileWeapon(
                 120.0, // damage (heavy anti-air)
                 450.0, // range (very long - weather radar targeting)
                 0.5,   // attack rate (2 shots per second - rapid flak)
@@ -487,7 +494,7 @@ public class WeaponFactory {
                 Ordinance.FLAK,
                 Set.of(BulletEffect.SEEKING, BulletEffect.EXPLOSIVE),
                 ElevationTargeting.LOW_AND_HIGH // Anti-air only (LOW and HIGH altitude)
-        );
+        ), DamageType.EXPLOSIVE);
     }
 }
 

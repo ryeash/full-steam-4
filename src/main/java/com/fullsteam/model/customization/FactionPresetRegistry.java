@@ -26,7 +26,8 @@ public class FactionPresetRegistry {
                     createStormWings(),
                     createFortressGuard(),
                     createSynthesisCore(),
-                    createLongReach()
+                    createLongReach(),
+                    createPhotonLegion()
             )
             .collect(Collectors.toUnmodifiableMap(CustomFactionConfig::getFactionId, Function.identity()));
 
@@ -90,6 +91,7 @@ public class FactionPresetRegistry {
                 .selectedBuildings(new HashSet<>(Arrays.asList(
                         BuildingType.HEADQUARTERS,
                         BuildingType.POWER_PLANT,
+                        BuildingType.ADVANCED_POWER_PLANT,
                         BuildingType.BARRACKS,
                         BuildingType.FACTORY,        // For Jeep and Flak Tank
                         BuildingType.RESEARCH_LAB,
@@ -150,6 +152,7 @@ public class FactionPresetRegistry {
                 .selectedBuildings(new HashSet<>(Arrays.asList(
                         BuildingType.HEADQUARTERS,
                         BuildingType.POWER_PLANT,
+                        BuildingType.ADVANCED_POWER_PLANT,
                         BuildingType.BARRACKS,
                         BuildingType.FACTORY,
                         BuildingType.RESEARCH_LAB,
@@ -205,6 +208,7 @@ public class FactionPresetRegistry {
                 .selectedBuildings(new HashSet<>(Arrays.asList(
                         BuildingType.HEADQUARTERS,
                         BuildingType.POWER_PLANT,
+                        BuildingType.ADVANCED_POWER_PLANT,
                         BuildingType.BARRACKS,
                         BuildingType.FACTORY,        // For ground vehicles
                         BuildingType.AIRFIELD,       // Air production + sortie aircraft housing
@@ -258,6 +262,7 @@ public class FactionPresetRegistry {
                 .selectedBuildings(new HashSet<>(Arrays.asList(
                         BuildingType.HEADQUARTERS,
                         BuildingType.POWER_PLANT,
+                        BuildingType.ADVANCED_POWER_PLANT,
                         BuildingType.BARRACKS,
                         BuildingType.FACTORY,
                         BuildingType.AIRFIELD,
@@ -315,6 +320,7 @@ public class FactionPresetRegistry {
                 .selectedBuildings(new HashSet<>(Arrays.asList(
                         BuildingType.HEADQUARTERS,
                         BuildingType.POWER_PLANT,
+                        BuildingType.ADVANCED_POWER_PLANT,
                         BuildingType.BARRACKS,
                         BuildingType.FACTORY,
                         BuildingType.AIRFIELD,
@@ -372,6 +378,7 @@ public class FactionPresetRegistry {
                 .selectedBuildings(new HashSet<>(Arrays.asList(
                         BuildingType.HEADQUARTERS,
                         BuildingType.POWER_PLANT,
+                        BuildingType.ADVANCED_POWER_PLANT,
                         BuildingType.BARRACKS,
                         BuildingType.FACTORY,
                         BuildingType.AIRFIELD,
@@ -389,6 +396,66 @@ public class FactionPresetRegistry {
                         FactionPerk.UPKEEP_INCREASE_1,
                         FactionPerk.COST_REDUCTION_1,
                         FactionPerk.POWER_EFFICIENCY_1
+                )))
+                .basedOnPreset(null)
+                .build();
+
+        config.setTotalPointsSpent(config.calculateTotalPoints());
+        return config;
+    }
+
+    /**
+     * Photon Legion – energy-weapon assault faction with perk-based energy shields.
+     * Theme: Shield-hardened elite soldiers and walkers that shrug off kinetic fire
+     * while punishing enemies with focused beam weapons.
+     *
+     * Key perks: ENERGY_SHIELDS_2 (50 % HP as shields), DAMAGE_BOOST_1,
+     *            POWER_EFFICIENCY_1, VETERAN_UNITS_1
+     *
+     * Roster notes:
+     *  - Deliberately narrow unit set; shield upkeep + energy weapons devour power.
+     *  - No artillery or bombers — this faction wins through sustained fire and
+     *    attrition rather than burst AoE.
+     *  - Point budget: shields are expensive (28 pts) so roster cost and other
+     *    perks are kept modest (100 pts total).
+     */
+    private static CustomFactionConfig createPhotonLegion() {
+        CustomFactionConfig config = CustomFactionConfig.builder()
+                .factionId("PHOTON_LEGION")
+                .displayName("Photon Legion")
+                .themeColor("#00BFFF")
+                .icon("🔵")
+                .selectedUnits(new HashSet<>(Arrays.asList(
+                        // T1 core
+                        UnitType.WORKER,
+                        UnitType.LASER_INFANTRY,     // Baseline energy infantry (6 pts)
+                        // T2 beam skirmishers
+                        UnitType.ION_RANGER,         // Beam sniper (8 pts)
+                        UnitType.PHOTON_SCOUT,       // Fast beam scout (4 pts)
+                        UnitType.BEAM_TANK,          // Heavy beam tank (10 pts)
+                        // T3 apex
+                        UnitType.PHOTON_TITAN,       // Super-heavy beam walker (12 pts)
+                        UnitType.LASER_GUNSHIP        // Air beam unit (8 pts)
+                )))
+                .selectedBuildings(new HashSet<>(Arrays.asList(
+                        BuildingType.HEADQUARTERS,
+                        BuildingType.POWER_PLANT,
+                        BuildingType.ADVANCED_POWER_PLANT,
+                        BuildingType.BARRACKS,
+                        BuildingType.FACTORY,
+                        BuildingType.AIRFIELD,
+                        BuildingType.RESEARCH_LAB,
+                        BuildingType.TECH_CENTER,
+                        BuildingType.REFINERY,
+                        BuildingType.LASER_TURRET,   // Energy turret matches theme
+                        BuildingType.PHOTON_SPIRE    // Ultimate defensive beam tower
+                )))
+                .selectedPerks(new HashSet<>(Arrays.asList(
+                        FactionPerk.ENERGY_SHIELDS_1,   // 18 pts – base tier
+                        FactionPerk.ENERGY_SHIELDS_2,   // 28 pts – full shields
+                        FactionPerk.DAMAGE_BOOST_1,     //  5 pts – sharper beams
+                        FactionPerk.POWER_EFFICIENCY_1, //  3 pts – offset power hunger
+                        FactionPerk.VETERAN_UNITS_1     //  5 pts – more durable elites
                 )))
                 .basedOnPreset(null)
                 .build();

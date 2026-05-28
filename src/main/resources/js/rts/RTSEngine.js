@@ -676,7 +676,9 @@ class RTSEngine {
         const urlParams = new URLSearchParams(window.location.search);
         let gameId = urlParams.get('gameId');
         
-        // Get faction config from URL if present (will be passed to WebSocket)
+        // Get faction config from URL if present (will be passed to WebSocket).
+        // The lobby URL-encodes the base64 param with encodeURIComponent, so
+        // URLSearchParams.get() decodes it back cleanly (+ chars preserved).
         const factionConfigParam = urlParams.get('factionConfig');
         let factionConfig = null;
         if (factionConfigParam) {
@@ -687,7 +689,9 @@ class RTSEngine {
                 const configJson = new TextDecoder().decode(bytes);
                 factionConfig = JSON.parse(configJson);
             } catch (e) {
-                console.error('Failed to parse faction config from URL:', e);
+                console.error('Failed to parse faction config from URL — redirecting to lobby:', e);
+                window.location.replace('/rts-lobby.html');
+                return;
             }
         }
         
@@ -1267,16 +1271,36 @@ class RTSEngine {
         // Update health bar (stays fixed at top)
         if (unitContainer.healthBar) {
             const healthPercent = unitData.health / unitData.maxHealth;
-            
-            // Hide health bar if at full health
-            if (healthPercent >= 1.0) {
+            const hasShield = unitData.maxShield > 0;
+            const offset = unitContainer.healthBarOffset || 25;
+
+            // Hide health bar if at full health and no shield
+            if (healthPercent >= 1.0 && !hasShield) {
                 unitContainer.healthBar.visible = false;
             } else {
                 unitContainer.healthBar.visible = true;
-                const offset = unitContainer.healthBarOffset || 25;
                 unitContainer.healthBar.clear();
                 unitContainer.healthBar.rect(-15, -offset, 30 * healthPercent, 3);
                 unitContainer.healthBar.fill(this.getHealthColor(healthPercent));
+            }
+
+            // Shield bar — 4 px above health bar
+            if (unitContainer.shieldBar) {
+                if (hasShield) {
+                    const shieldPercent = Math.max(0, unitData.shield / unitData.maxShield);
+                    unitContainer.shieldBar.visible = true;
+                    unitContainer.shieldBar.clear();
+                    // Background (depleted shield)
+                    unitContainer.shieldBar.rect(-15, -(offset + 4), 30, 3);
+                    unitContainer.shieldBar.fill({ color: 0x1a3a5c, alpha: 0.7 });
+                    // Foreground (current shield)
+                    if (shieldPercent > 0) {
+                        unitContainer.shieldBar.rect(-15, -(offset + 4), 30 * shieldPercent, 3);
+                        unitContainer.shieldBar.fill({ color: 0x00BFFF, alpha: 0.9 });
+                    }
+                } else {
+                    unitContainer.shieldBar.visible = false;
+                }
             }
         }
         
@@ -1612,7 +1636,13 @@ class RTSEngine {
         container.addChild(healthBar);
         container.healthBar = healthBar;
         container.healthBarOffset = typeInfo.size + 8; // Store offset for updates
-        
+
+        // Create shield bar (stacked 4px above health bar, hidden by default)
+        const shieldBar = new PIXI.Graphics();
+        container.addChild(shieldBar);
+        container.shieldBar = shieldBar;
+        container.shieldBar.visible = false;
+
         // Create selection circle (does NOT rotate)
         const selectionCircle = new PIXI.Graphics();
         selectionCircle.circle(0, 0, typeInfo.size + 5);
@@ -3308,6 +3338,29 @@ class RTSEngine {
                 decorations.closePath();
                 decorations.fill({ color: 0x000000, alpha: 0.3 });
                 break;
+
+            case 'ADVANCED_POWER_PLANT': {
+                // Double lightning bolt — left bolt
+                const bx = typeInfo.size * 0.22;
+                decorations.moveTo(-bx, -typeInfo.size * 0.4);
+                decorations.lineTo(-bx - typeInfo.size * 0.12, 0);
+                decorations.lineTo(-bx + typeInfo.size * 0.04, 0);
+                decorations.lineTo(-bx - typeInfo.size * 0.08, typeInfo.size * 0.4);
+                decorations.lineTo(-bx + typeInfo.size * 0.16, -typeInfo.size * 0.08);
+                decorations.lineTo(-bx, -typeInfo.size * 0.08);
+                decorations.closePath();
+                decorations.fill({ color: 0x000000, alpha: 0.35 });
+                // Right bolt
+                decorations.moveTo(bx, -typeInfo.size * 0.4);
+                decorations.lineTo(bx - typeInfo.size * 0.12, 0);
+                decorations.lineTo(bx + typeInfo.size * 0.04, 0);
+                decorations.lineTo(bx - typeInfo.size * 0.08, typeInfo.size * 0.4);
+                decorations.lineTo(bx + typeInfo.size * 0.16, -typeInfo.size * 0.08);
+                decorations.lineTo(bx, -typeInfo.size * 0.08);
+                decorations.closePath();
+                decorations.fill({ color: 0x000000, alpha: 0.35 });
+                break;
+            }
                 
             case 'RESEARCH_LAB':
                 // Add atom symbol (circles)
@@ -3686,6 +3739,33 @@ class RTSEngine {
             } else {
                 garrisonDiv.style.display = 'none';
             }
+
+            // Shield + armor stats
+            let combatStatsDiv = document.getElementById('unit-combat-stats');
+            if (!combatStatsDiv) {
+                combatStatsDiv = document.createElement('div');
+                combatStatsDiv.id = 'unit-combat-stats';
+                combatStatsDiv.style.marginTop = '6px';
+                combatStatsDiv.style.fontSize = '11px';
+                singleInfo.appendChild(combatStatsDiv);
+            }
+            let statsHtml = '';
+            if (unit.maxShield > 0) {
+                const sp = Math.round(unit.shield ?? unit.maxShield);
+                const smax = Math.round(unit.maxShield);
+                const spct = Math.max(0, (sp / smax) * 100).toFixed(0);
+                statsHtml += `<div class="unit-stat" style="color:#00BFFF">
+                    <span>Shield:</span><span>${sp}/${smax}</span>
+                </div>
+                <div style="background:#1a3a5c;border-radius:2px;height:4px;margin-bottom:3px">
+                    <div style="background:#00BFFF;width:${spct}%;height:100%;border-radius:2px"></div>
+                </div>`;
+            }
+            if (unit.armorType && unit.armorType !== 'UNARMORED') {
+                const armorLabel = unit.armorType.charAt(0) + unit.armorType.slice(1).toLowerCase();
+                statsHtml += `<div class="unit-stat"><span>Armor:</span><span>${armorLabel}</span></div>`;
+            }
+            combatStatsDiv.innerHTML = statsHtml;
         } else if (selectedUnits.length > 1) {
             // Multiple units selected
             panel.style.display = 'flex';

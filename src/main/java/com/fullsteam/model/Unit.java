@@ -79,6 +79,15 @@ public class Unit extends GameEntity implements Targetable {
     private double suppressionSlowAmount = 0.0;
     private long suppressionSlowExpiryMs = 0L;
 
+    // Energy shield fields (populated after faction is known)
+    private double maxShield = 0.0;
+    private double currentShield = 0.0;
+    private long lastDamageTakenMs = 0L;
+    /** Delay before shield starts regenerating (ms). */
+    private static final long SHIELD_REGEN_DELAY_MS = 6_000L;
+    /** Fraction of maxShield regenerated per second while not under fire. */
+    private static final double SHIELD_REGEN_RATE = 0.05;
+
     // Selection state
     private boolean selected = false;
     private boolean garrisoned = false; // True if unit is inside a building
@@ -93,6 +102,15 @@ public class Unit extends GameEntity implements Targetable {
 
         // Set health to full (modified max health)
         this.health = this.maxHealth;
+
+        // Initialise energy shields from faction perk
+        if (faction != null && faction.getFactionDefinition() != null) {
+            double sf = faction.getFactionDefinition().getShieldFraction();
+            if (sf > 0.0) {
+                this.maxShield = this.maxHealth * sf;
+                this.currentShield = this.maxShield;
+            }
+        }
 
         // Apply faction modifiers to weapon
         applyFactionModifiersToWeapon();
@@ -348,6 +366,49 @@ public class Unit extends GameEntity implements Targetable {
         for (IUnitComponent component : components.values()) {
             component.update(gameEntities);
         }
+
+        tickShieldRegen(gameEntities.getWorld().getTimeStep().getDeltaTime());
+    }
+
+    private void tickShieldRegen(double deltaSeconds) {
+        if (maxShield <= 0.0 || currentShield >= maxShield) return;
+        long now = System.currentTimeMillis();
+        if (now - lastDamageTakenMs < SHIELD_REGEN_DELAY_MS) return;
+        currentShield = Math.min(maxShield, currentShield + maxShield * SHIELD_REGEN_RATE * deltaSeconds);
+    }
+
+    /**
+     * Apply incoming damage through shields first, then armor, then HP.
+     * Returns the amount of HP damage actually taken (post-matrix, post-shield).
+     * Also updates lastDamageTakenMs so shield regen resets.
+     */
+    public double absorbDamage(double rawDamage, com.fullsteam.model.DamageType damageType) {
+        lastDamageTakenMs = System.currentTimeMillis();
+
+        double remaining = rawDamage;
+
+        // --- Shield absorption ---
+        if (currentShield > 0.0) {
+            // Shields are weak to ENERGY, resistant to BALLISTIC/EXPLOSIVE
+            double shieldMultiplier = switch (damageType) {
+                case ENERGY -> 1.5;
+                case BALLISTIC, EXPLOSIVE -> 0.8;
+                case SIEGE -> 1.0;
+            };
+            double shieldDamage = remaining * shieldMultiplier;
+            if (shieldDamage <= currentShield) {
+                currentShield -= shieldDamage;
+                return 0.0; // Shield absorbed it all
+            }
+            // Partial: shields depleted, remainder hits HP
+            remaining = (shieldDamage - currentShield) / shieldMultiplier;
+            currentShield = 0.0;
+        }
+
+        // --- Armor matrix ---
+        ArmorType armor = unitType.getArmorType();
+        double armorMultiplier = armor.multiplierFor(damageType);
+        return remaining * armorMultiplier;
     }
 
     /**
