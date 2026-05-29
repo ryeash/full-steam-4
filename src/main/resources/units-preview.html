@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Full Steam — Unit Shape Preview</title>
+    <style>
+        :root {
+            --bg: #0e0f14;
+            --card-bg: #181a22;
+            --card-border: rgba(120, 180, 255, 0.18);
+            --text-primary: #e6edf3;
+            --text-muted: #8b96a8;
+            --accent: #64c8ff;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            font-family: 'Exo 2', system-ui, -apple-system, sans-serif;
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        header {
+            padding: 16px 24px 8px;
+            border-bottom: 1px solid var(--card-border);
+            position: sticky;
+            top: 0;
+            background: rgba(14, 15, 20, 0.94);
+            backdrop-filter: blur(8px);
+            z-index: 10;
+        }
+
+        header h1 {
+            margin: 0 0 4px 0;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        header .subtitle {
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-bottom: 12px;
+            max-width: 920px;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .controls label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+        }
+
+        .controls input[type="range"] {
+            width: 140px;
+        }
+
+        .controls input[type="text"] {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            width: 180px;
+        }
+
+        .controls .value {
+            color: var(--accent);
+            font-variant-numeric: tabular-nums;
+            min-width: 36px;
+            text-align: right;
+        }
+
+        main {
+            padding: 16px 24px;
+        }
+
+        .category-section {
+            margin-bottom: 28px;
+        }
+
+        .category-section h2 {
+            margin: 0 0 12px 0;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 6px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 14px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .card canvas {
+            background: rgba(255, 255, 255, 0.025);
+            border-radius: 4px;
+            display: block;
+        }
+
+        .card .name {
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-primary);
+            margin-top: 4px;
+        }
+
+        .card .meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .card .meta .pill {
+            background: rgba(100, 200, 255, 0.08);
+            border: 1px solid var(--card-border);
+            padding: 1px 6px;
+            border-radius: 10px;
+        }
+
+        .card .meta .pill.fixtures {
+            color: var(--accent);
+        }
+
+        .card.hidden {
+            display: none;
+        }
+
+        .error {
+            background: rgba(255, 80, 80, 0.1);
+            border: 1px solid rgba(255, 80, 80, 0.3);
+            color: #ffb3b3;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Unit Shape Preview</h1>
+        <div class="subtitle">
+            Visualizes every <code>UnitType.createPhysicsFixtures()</code> output, served from
+            <code>/api/rts/units/preview-data</code>. Shapes shown in <em>design orientation</em>
+            (front = positive X / right) before <code>Unit.createUnitBody</code> applies its
+            <code>-π/2</code> rotation. Drawing pipeline mirrors the in-game
+            <code>drawEntityShapes</code> (polygon fill + 1px stroke).
+        </div>
+        <div class="controls">
+            <label>Scale <input type="range" id="scale" min="1" max="6" step="0.1" value="2.5"><span class="value" id="scaleValue">2.5×</span></label>
+            <label>Rotation <input type="range" id="rotation" min="-180" max="180" step="1" value="0"><span class="value" id="rotationValue">0°</span></label>
+            <label><input type="checkbox" id="showOutline" checked> Stroke</label>
+            <label><input type="checkbox" id="showFill" checked> Fill</label>
+            <label><input type="checkbox" id="showAxes"> Axes</label>
+            <label><input type="checkbox" id="showDirection" checked> Front marker</label>
+            <label>Filter <input type="text" id="filter" placeholder="name / category…"></label>
+        </div>
+    </header>
+    <main>
+        <div id="content"></div>
+    </main>
+
+    <script>
+        const CANVAS_PX = 180;
+        const DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+        const CATEGORY_ORDER = ['INFANTRY', 'VEHICLE', 'FLYER', 'WORKER', 'OTHER'];
+
+        const state = {
+            scale: 2.5,
+            rotation: 0,
+            showOutline: true,
+            showFill: true,
+            showAxes: false,
+            showDirection: true,
+            filter: '',
+            units: [],
+        };
+
+        function parseShapes(shapesStr) {
+            if (!shapesStr) return [];
+            const fixtureStrs = shapesStr.split(';').filter(Boolean);
+            return fixtureStrs.map((fixtureStr) => {
+                const tupleStrs = fixtureStr.split('/');
+                if (tupleStrs.length === 1) {
+                    const nums = tupleStrs[0].slice(1, -1).split(',').map(Number);
+                    if (nums.length === 3) {
+                        return { type: 'circle', cx: nums[0], cy: nums[1], r: nums[2] };
+                    }
+                }
+                return {
+                    type: 'polygon',
+                    verts: tupleStrs.map((t) => t.slice(1, -1).split(',').map(Number)),
+                };
+            });
+        }
+
+        function colorToCss(n) {
+            return '#' + n.toString(16).padStart(6, '0');
+        }
+
+        function hexWithAlpha(n, alpha) {
+            const r = (n >> 16) & 0xff;
+            const g = (n >> 8) & 0xff;
+            const b = n & 0xff;
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        function drawCardCanvas(canvas, unit) {
+            const ctx = canvas.getContext('2d');
+            const cssSize = CANVAS_PX;
+            // Hi-DPI: scale physical pixels by DPR but keep logical drawing at cssSize.
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.scale(DPR, DPR);
+
+            ctx.translate(cssSize / 2, cssSize / 2);
+            ctx.scale(state.scale, state.scale);
+            // Y in PIXI is screen-down (matches canvas) so rotation matches in-game visuals.
+            ctx.rotate((state.rotation * Math.PI) / 180);
+
+            // Axes (drawn before shapes, in unit-local space)
+            if (state.showAxes) {
+                const halfExtent = cssSize / 2 / state.scale;
+                ctx.save();
+                ctx.lineWidth = 0.5 / state.scale;
+                ctx.strokeStyle = 'rgba(200, 200, 200, 0.5)';
+                ctx.beginPath();
+                ctx.moveTo(-halfExtent, 0);
+                ctx.lineTo(halfExtent, 0);
+                ctx.moveTo(0, -halfExtent);
+                ctx.lineTo(0, halfExtent);
+                ctx.stroke();
+                ctx.fillStyle = 'rgba(255, 85, 119, 0.85)';
+                ctx.beginPath();
+                ctx.arc(0, 0, 1.2 / state.scale, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Fixtures
+            const fillStyle = hexWithAlpha(unit.color, 0.85);
+            ctx.fillStyle = fillStyle;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.lineWidth = 1.25 / state.scale;
+            ctx.lineJoin = 'miter';
+
+            for (const fixture of unit._fixtures) {
+                ctx.beginPath();
+                if (fixture.type === 'circle') {
+                    ctx.arc(fixture.cx, fixture.cy, fixture.r, 0, Math.PI * 2);
+                } else {
+                    const verts = fixture.verts;
+                    if (verts.length === 0) continue;
+                    ctx.moveTo(verts[0][0], verts[0][1]);
+                    for (let i = 1; i < verts.length; i++) {
+                        ctx.lineTo(verts[i][0], verts[i][1]);
+                    }
+                    ctx.closePath();
+                }
+                if (state.showFill) ctx.fill();
+                if (state.showOutline) ctx.stroke();
+            }
+
+            // Front marker (small arrow pointing in unit's local +X direction)
+            if (state.showDirection) {
+                const size = unit.size;
+                const tip = size * 1.25;
+                const base = size * 1.05;
+                const halfH = size * 0.18;
+                ctx.beginPath();
+                ctx.moveTo(tip, 0);
+                ctx.lineTo(base, -halfH);
+                ctx.lineTo(base, halfH);
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+                ctx.fill();
+                ctx.lineWidth = 0.6 / state.scale;
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.stroke();
+            }
+
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+        }
+
+        async function bootstrap() {
+            const contentEl = document.getElementById('content');
+            try {
+                const res = await fetch('/api/rts/units/preview-data');
+                if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+                state.units = await res.json();
+            } catch (err) {
+                contentEl.innerHTML = '<div class="error">Failed to load unit data:\n' + (err.message || err) + '</div>';
+                return;
+            }
+
+            for (const u of state.units) {
+                u._fixtures = parseShapes(u.shapes);
+            }
+
+            const byCategory = new Map();
+            for (const u of state.units) {
+                const cat = u.category || 'OTHER';
+                if (!byCategory.has(cat)) byCategory.set(cat, []);
+                byCategory.get(cat).push(u);
+            }
+
+            const orderedCats = [
+                ...CATEGORY_ORDER.filter((c) => byCategory.has(c)),
+                ...[...byCategory.keys()].filter((c) => !CATEGORY_ORDER.includes(c)),
+            ];
+
+            for (const cat of orderedCats) {
+                const section = document.createElement('section');
+                section.className = 'category-section';
+                section.dataset.category = cat;
+
+                const heading = document.createElement('h2');
+                heading.textContent = cat;
+                section.appendChild(heading);
+
+                const grid = document.createElement('div');
+                grid.className = 'grid';
+                section.appendChild(grid);
+
+                const units = byCategory.get(cat).sort((a, b) => a.size - b.size);
+                for (const unit of units) {
+                    grid.appendChild(createUnitCard(unit));
+                }
+                contentEl.appendChild(section);
+            }
+
+            applyFilter();
+        }
+
+        function createUnitCard(unit) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.dataset.name = unit.name.toLowerCase();
+            card.dataset.displayName = unit.displayName.toLowerCase();
+            card.dataset.category = unit.category.toLowerCase();
+            card.dataset.armor = unit.armorType.toLowerCase();
+            card.title = unit.description || unit.displayName;
+
+            const canvas = document.createElement('canvas');
+            canvas.style.width = CANVAS_PX + 'px';
+            canvas.style.height = CANVAS_PX + 'px';
+            canvas.width = CANVAS_PX * DPR;
+            canvas.height = CANVAS_PX * DPR;
+            card.appendChild(canvas);
+
+            card._canvas = canvas;
+            card._unit = unit;
+            drawCardCanvas(canvas, unit);
+
+            const name = document.createElement('div');
+            name.className = 'name';
+            name.textContent = unit.displayName;
+            card.appendChild(name);
+
+            const meta = document.createElement('div');
+            meta.className = 'meta';
+            meta.innerHTML = `
+                <span class="pill">size ${unit.size}</span>
+                <span class="pill fixtures">${unit.fixtureCount} fx</span>
+                <span class="pill">${unit.armorType}</span>
+                <span class="pill" style="color:${colorToCss(unit.color)}">●</span>
+            `;
+            card.appendChild(meta);
+
+            return card;
+        }
+
+        function redrawAll() {
+            document.querySelectorAll('.card').forEach((card) => {
+                if (card._canvas) drawCardCanvas(card._canvas, card._unit);
+            });
+        }
+
+        function applyFilter() {
+            const q = state.filter.trim().toLowerCase();
+            document.querySelectorAll('.card').forEach((card) => {
+                if (!q) {
+                    card.classList.remove('hidden');
+                    return;
+                }
+                const hay = [card.dataset.name, card.dataset.displayName,
+                    card.dataset.category, card.dataset.armor].join(' ');
+                card.classList.toggle('hidden', !hay.includes(q));
+            });
+            document.querySelectorAll('.category-section').forEach((section) => {
+                const visibleCards = section.querySelectorAll('.card:not(.hidden)').length;
+                section.style.display = visibleCards === 0 ? 'none' : '';
+            });
+        }
+
+        // Wire up controls
+        const $scale = document.getElementById('scale');
+        const $scaleValue = document.getElementById('scaleValue');
+        const $rotation = document.getElementById('rotation');
+        const $rotationValue = document.getElementById('rotationValue');
+        const $showOutline = document.getElementById('showOutline');
+        const $showFill = document.getElementById('showFill');
+        const $showAxes = document.getElementById('showAxes');
+        const $showDirection = document.getElementById('showDirection');
+        const $filter = document.getElementById('filter');
+
+        $scale.addEventListener('input', () => {
+            state.scale = parseFloat($scale.value);
+            $scaleValue.textContent = state.scale.toFixed(1) + '×';
+            redrawAll();
+        });
+        $rotation.addEventListener('input', () => {
+            state.rotation = parseFloat($rotation.value);
+            $rotationValue.textContent = state.rotation + '°';
+            redrawAll();
+        });
+        for (const [el, key] of [[$showOutline, 'showOutline'], [$showFill, 'showFill'],
+            [$showAxes, 'showAxes'], [$showDirection, 'showDirection']]) {
+            el.addEventListener('change', () => {
+                state[key] = el.checked;
+                redrawAll();
+            });
+        }
+        $filter.addEventListener('input', () => {
+            state.filter = $filter.value;
+            applyFilter();
+        });
+
+        bootstrap();
+    </script>
+</body>
+</html>
