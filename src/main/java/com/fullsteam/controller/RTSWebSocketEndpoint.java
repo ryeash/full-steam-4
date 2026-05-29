@@ -14,10 +14,10 @@ import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
+
 import static com.fullsteam.controller.RTSPlayerConnectionService.SESSION_KEY;
 
 /**
@@ -52,9 +52,7 @@ public class RTSWebSocketEndpoint {
             if (factionConfigParam == null || factionConfigParam.isBlank()) {
                 throw new IllegalArgumentException("Missing factionConfig parameter");
             }
-            factionConfigJson = new String(
-                    Base64.getDecoder().decode(URLDecoder.decode(factionConfigParam, StandardCharsets.UTF_8)),
-                    StandardCharsets.UTF_8);
+            factionConfigJson = new String(Base64.getDecoder().decode(factionConfigParam), StandardCharsets.UTF_8);
         } catch (Exception e) {
             log.warn("Could not extract connection parameters for game {}: {}", gameId, e.getMessage());
             sendErrorAndClose(session, "INVALID_PARAMS",

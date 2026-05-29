@@ -86,6 +86,17 @@ public class UnitTypeTest {
     }
 
     @Test
+    @DisplayName("Every unit's fixture count should stay within the revamp's 5-fixture cap")
+    public void testFixtureCountCap() {
+        for (UnitType unitType : UnitType.values()) {
+            List<Convex> fixtures = unitType.createPhysicsFixtures();
+            assertTrue(fixtures.size() <= 5,
+                String.format("Unit type %s has %d fixtures; cap is 5 — visual silhouettes should be simple.",
+                    unitType.name(), fixtures.size()));
+        }
+    }
+
+    @Test
     @DisplayName("All unit physics fixtures should be convex")
     public void testAllUnitFixturesAreConvex() {
         for (UnitType unitType : UnitType.values()) {
@@ -201,10 +212,10 @@ public class UnitTypeTest {
     public void testSpecificUnitShapeCharacteristics() {
         // Test a few specific units to ensure they have the expected custom shapes
         
-        // Gigantonaut should be a trapezoid (4 vertices, single fixture)
+        // Gigantonaut: trapezoid hull + forward turret circle (2 fixtures after the revamp).
         List<Convex> gigantonautFixtures = UnitType.GIGANTONAUT.createPhysicsFixtures();
         assertNotNull(gigantonautFixtures);
-        assertEquals(1, gigantonautFixtures.size(), "Gigantonaut should have one fixture");
+        assertEquals(2, gigantonautFixtures.size(), "Gigantonaut should have hull + turret");
         
         // Colossus should have multiple fixtures (robotic walker)
         List<Convex> colossusFixtures = UnitType.COLOSSUS.createPhysicsFixtures();
